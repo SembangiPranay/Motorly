@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Initialize SQLite DB
-initDatabase()
+await initDatabase()
 
 const app = express()
 const PORT = process.env.PORT_BACKEND || 3001
@@ -214,7 +214,7 @@ function formatMaintenanceRow(row: any) {
    AUTHENTICATION ROUTES (Password: 0709)
    ========================================== */
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { password } = req.body
   if (!password || password !== ADMIN_PASSWORD) {
     return res.status(401).json({
@@ -224,7 +224,7 @@ app.post("/api/auth/login", (req, res) => {
   }
 
   const token = `adm_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token)
+  await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token)
 
   return res.json({
     success: true,
@@ -234,12 +234,11 @@ app.post("/api/auth/login", (req, res) => {
   })
 })
 
-app.post("/api/auth/verify", (req, res) => {
+app.post("/api/auth/verify", async (req, res) => {
   const { token } = req.body
   if (!token) return res.status(401).json({ authenticated: false })
 
-  const session = db
-    .prepare("SELECT token FROM admin_sessions WHERE token = ?")
+  const session = await db.prepare("SELECT token FROM admin_sessions WHERE token = ?")
     .get(token)
   if (!session) {
     return res
@@ -255,7 +254,7 @@ app.post("/api/auth/verify", (req, res) => {
    ========================================== */
 
 // Customer Registration
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const {
     email,
     password,
@@ -274,8 +273,7 @@ app.post("/api/auth/register", (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase()
-  const existingUser = db
-    .prepare("SELECT id FROM users WHERE email = ?")
+  const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?")
     .get(normalizedEmail)
   if (existingUser) {
     return res.status(409).json({
@@ -285,7 +283,7 @@ app.post("/api/auth/register", (req, res) => {
   }
 
   const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (
       id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'customer', 'Standard')
@@ -301,11 +299,11 @@ app.post("/api/auth/register", (req, res) => {
   )
 
   const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  db.prepare(
+  await db.prepare(
     "INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)",
   ).run(token, userId)
 
-  const newUser = db.prepare("SELECT * FROM users WHERE id = ?").get(userId)
+  const newUser = await db.prepare("SELECT * FROM users WHERE id = ?").get(userId)
   return res.status(201).json({
     success: true,
     token,
@@ -315,7 +313,7 @@ app.post("/api/auth/register", (req, res) => {
 })
 
 // Customer Login
-app.post("/api/auth/customer-login", (req, res) => {
+app.post("/api/auth/customer-login", async (req, res) => {
   const { email, password } = req.body
   if (!email || !password) {
     return res
@@ -324,8 +322,7 @@ app.post("/api/auth/customer-login", (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase()
-  const user = db
-    .prepare("SELECT * FROM users WHERE email = ?")
+  const user = await db.prepare("SELECT * FROM users WHERE email = ?")
     .get(normalizedEmail) as any
   if (!user || user.password_hash !== password) {
     return res
@@ -334,7 +331,7 @@ app.post("/api/auth/customer-login", (req, res) => {
   }
 
   const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  db.prepare(
+  await db.prepare(
     "INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)",
   ).run(token, user.id)
 
@@ -347,7 +344,7 @@ app.post("/api/auth/customer-login", (req, res) => {
 })
 
 // Get Current Customer Profile
-app.get("/api/auth/customer-me", (req, res) => {
+app.get("/api/auth/customer-me", async (req, res) => {
   const authHeader = req.headers.authorization
   const token = authHeader?.startsWith("Bearer ")
     ? authHeader.substring(7)
@@ -358,8 +355,7 @@ app.get("/api/auth/customer-me", (req, res) => {
       .json({ authenticated: false, message: "No token provided." })
   }
 
-  const session = db
-    .prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
+  const session = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
     .get(token) as any
   if (!session) {
     return res
@@ -367,8 +363,7 @@ app.get("/api/auth/customer-me", (req, res) => {
       .json({ authenticated: false, message: "Session invalid or expired." })
   }
 
-  const user = db
-    .prepare("SELECT * FROM users WHERE id = ?")
+  const user = await db.prepare("SELECT * FROM users WHERE id = ?")
     .get(session.user_id)
   if (!user) {
     return res
@@ -380,19 +375,19 @@ app.get("/api/auth/customer-me", (req, res) => {
 })
 
 // Customer Logout
-app.post("/api/auth/customer-logout", (req, res) => {
+app.post("/api/auth/customer-logout", async (req, res) => {
   const authHeader = req.headers.authorization
   const token = authHeader?.startsWith("Bearer ")
     ? authHeader.substring(7)
     : null
   if (token) {
-    db.prepare("DELETE FROM customer_sessions WHERE token = ?").run(token)
+    await db.prepare("DELETE FROM customer_sessions WHERE token = ?").run(token)
   }
   return res.json({ success: true, message: "Logged out." })
 })
 
 // Get Customer Bookings (Self-service portal)
-app.get("/api/users/bookings", (req, res) => {
+app.get("/api/users/bookings", async (req, res) => {
   const authHeader = req.headers.authorization
   const token = authHeader?.startsWith("Bearer ")
     ? authHeader.substring(7)
@@ -400,12 +395,10 @@ app.get("/api/users/bookings", (req, res) => {
   let userEmail = req.query.email as string | undefined
 
   if (token) {
-    const session = db
-      .prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
+    const session = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
       .get(token) as any
     if (session) {
-      const user = db
-        .prepare("SELECT email FROM users WHERE id = ?")
+      const user = await db.prepare("SELECT email FROM users WHERE id = ?")
         .get(session.user_id) as any
       if (user) {
         userEmail = user.email
@@ -419,11 +412,10 @@ app.get("/api/users/bookings", (req, res) => {
       .json({ error: "Authentication or email required to view reservations." })
   }
 
-  const rows = db
-    .prepare(`
+  const rows = await db.prepare(`
     SELECT * FROM bookings 
     WHERE customer_email = ? 
-    ORDER BY rowid DESC
+    ORDER BY created_at DESC
   `)
     .all(userEmail.trim().toLowerCase())
 
@@ -435,7 +427,7 @@ app.get("/api/users/bookings", (req, res) => {
    ========================================== */
 
 // GET all cars with optional filters
-app.get("/api/cars", (req, res) => {
+app.get("/api/cars", async (req, res) => {
   const { status, type, search, maxPrice, pickupDate, returnDate } = req.query
 
   let query = "SELECT * FROM vehicles WHERE 1=1"
@@ -464,13 +456,13 @@ app.get("/api/cars", (req, res) => {
 
   query += " ORDER BY is_popular DESC, price_per_day ASC"
 
-  const rows = db.prepare(query).all(...params)
+  const rows = await db.prepare(query).all(...params)
   const cars = rows.map(formatCarRow)
 
   // Dynamically evaluate conflict/availability against requested dates
   if (pickupDate && returnDate) {
     for (const car of cars) {
-      const conflict = findVehicleBookingConflict(
+      const conflict = await findVehicleBookingConflict(
         car.id,
         String(pickupDate),
         String(returnDate),
@@ -489,9 +481,8 @@ app.get("/api/cars", (req, res) => {
 })
 
 // GET single car
-app.get("/api/cars/:id", (req, res) => {
-  const row = db
-    .prepare("SELECT * FROM vehicles WHERE id = ?")
+app.get("/api/cars/:id", async (req, res) => {
+  const row = await db.prepare("SELECT * FROM vehicles WHERE id = ?")
     .get(req.params.id)
   if (!row) {
     return res.status(404).json({ error: "Vehicle not found." })
@@ -500,7 +491,7 @@ app.get("/api/cars/:id", (req, res) => {
 })
 
 // POST add new vehicle
-app.post("/api/cars", (req, res) => {
+app.post("/api/cars", async (req, res) => {
   const car = req.body
   const newId =
     car.id ||
@@ -518,7 +509,7 @@ app.post("/api/cars", (req, res) => {
     car.features || ["Bluetooth", "Apple CarPlay"],
   )
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO vehicles (
       id, name, brand, model, year, type, price_per_day, price_per_hour,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
@@ -570,16 +561,16 @@ app.post("/api/cars", (req, res) => {
     car.garageBay || "Bay 14-B",
   )
 
-  const created = db.prepare("SELECT * FROM vehicles WHERE id = ?").get(newId)
+  const created = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(newId)
   return res.status(201).json(formatCarRow(created))
 })
 
 // PUT update vehicle
-app.put("/api/cars/:id", (req, res) => {
+app.put("/api/cars/:id", async (req, res) => {
   const car = req.body
   const carId = req.params.id
 
-  const existing = db.prepare("SELECT id FROM vehicles WHERE id = ?").get(carId)
+  const existing = await db.prepare("SELECT id FROM vehicles WHERE id = ?").get(carId)
   if (!existing) {
     return res.status(404).json({ error: "Vehicle not found." })
   }
@@ -587,7 +578,7 @@ app.put("/api/cars/:id", (req, res) => {
   const galleryJson = JSON.stringify(car.gallery || [car.image])
   const featuresJson = JSON.stringify(car.features || [])
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE vehicles SET
       name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?,
       image = ?, gallery = ?, seats = ?, transmission = ?, fuel_type = ?,
@@ -632,25 +623,25 @@ app.put("/api/cars/:id", (req, res) => {
     carId,
   )
 
-  const updated = db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId)
+  const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId)
   return res.json(formatCarRow(updated))
 })
 
 // PATCH car status
-app.patch("/api/cars/:id/status", (req, res) => {
+app.patch("/api/cars/:id/status", async (req, res) => {
   const { status } = req.body
   const carId = req.params.id
 
   if (!status) return res.status(400).json({ error: "Status is required." })
 
-  db.prepare("UPDATE vehicles SET status = ? WHERE id = ?").run(status, carId)
-  const updated = db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId)
+  await db.prepare("UPDATE vehicles SET status = ? WHERE id = ?").run(status, carId)
+  const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId)
   return res.json(formatCarRow(updated))
 })
 
 // DELETE car
-app.delete("/api/cars/:id", (req, res) => {
-  db.prepare("DELETE FROM vehicles WHERE id = ?").run(req.params.id)
+app.delete("/api/cars/:id", async (req, res) => {
+  await db.prepare("DELETE FROM vehicles WHERE id = ?").run(req.params.id)
   return res.json({
     success: true,
     message: "Vehicle decommissioned and removed.",
@@ -682,7 +673,7 @@ function datesOverlap(
 }
 
 // Function to find any conflicting active booking for a given vehicle
-function findVehicleBookingConflict(
+async function findVehicleBookingConflict(
   carId: string,
   pickupStr: string,
   returnStr: string,
@@ -702,7 +693,7 @@ function findVehicleBookingConflict(
     params.push(excludeBookingId)
   }
 
-  const activeBookings = db.prepare(query).all(...params) as any[]
+  const activeBookings = await db.prepare(query).all(...params) as any[]
 
   for (const b of activeBookings) {
     const { start: bStart, end: bEnd } = parseDateRange(
@@ -724,17 +715,17 @@ function findVehicleBookingConflict(
 }
 
 // GET vehicle date availability check
-app.get("/api/cars/:id/availability", (req, res) => {
+app.get("/api/cars/:id/availability", async (req, res) => {
   const carId = req.params.id
   const pickupDate = req.query.pickupDate as string || "Mar 15, 2026"
   const returnDate = req.query.returnDate as string || "Mar 18, 2026"
 
-  const car = db
+  const car = (await db
     .prepare("SELECT * FROM vehicles WHERE id = ?")
-    .get(carId) as any
+    .get(carId)) as any
   if (!car) return res.status(404).json({ error: "Vehicle not found." })
 
-  const conflict = findVehicleBookingConflict(carId, pickupDate, returnDate)
+  const conflict = await findVehicleBookingConflict(carId, pickupDate, returnDate)
   const isAvailable = !conflict && car.status !== "Maintenance"
 
   return res.json({
@@ -746,13 +737,13 @@ app.get("/api/cars/:id/availability", (req, res) => {
 })
 
 // GET all bookings
-app.get("/api/bookings", (req, res) => {
-  const rows = db.prepare("SELECT * FROM bookings ORDER BY rowid DESC").all()
+app.get("/api/bookings", async (req, res) => {
+  const rows = await db.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all()
   return res.json(rows.map(formatBookingRow))
 })
 
 // POST create booking
-app.post("/api/bookings", (req, res) => {
+app.post("/api/bookings", async (req, res) => {
   const b = req.body
   const id = b.id || `MTR-${Math.floor(100000 + Math.random() * 900000)}`
   const nowText = new Date().toLocaleDateString("en-US", {
@@ -768,7 +759,7 @@ app.post("/api/bookings", (req, res) => {
 
   // CRITICAL: Prevent Double Booking of the same car for overlapping dates
   if (matchedCarId) {
-    const conflict = findVehicleBookingConflict(
+    const conflict = await findVehicleBookingConflict(
       matchedCarId,
       pickupDate,
       returnDate,
@@ -783,7 +774,7 @@ app.post("/api/bookings", (req, res) => {
 
   const status = matchedCarId ? "Assigned" : "Pending Assignment"
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO bookings (
       id, customer_first_name, customer_last_name, customer_email, customer_phone,
       driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
@@ -832,21 +823,20 @@ app.post("/api/bookings", (req, res) => {
 
   // If matched right away, mark vehicle as Rented
   if (matchedCarId) {
-    db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(
+    await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(
       matchedCarId,
     )
   }
 
-  const created = db.prepare("SELECT * FROM bookings WHERE id = ?").get(id)
+  const created = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(id)
   return res.status(201).json(formatBookingRow(created))
 })
 
 // GET Download Specific Booking Customer Driver License (Original Uploaded Image or Certificate)
-app.get("/api/bookings/:id/download-license", (req, res) => {
+app.get("/api/bookings/:id/download-license", async (req, res) => {
   const bookingId = req.params.id
   const side = req.query.side as string || "front" // "front" | "back" | "certificate"
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -945,25 +935,23 @@ app.get("/api/bookings/:id/download-license", (req, res) => {
 })
 
 // POST Step D: Admin Approves Request ("Green Signal")
-app.post("/api/bookings/:id/approve", (req, res) => {
+app.post("/api/bookings/:id/approve", async (req, res) => {
   const bookingId = req.params.id
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
   }
 
   const nowIso = new Date().toISOString()
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       approved_by_admin = 1,
       approved_at = ?
     WHERE id = ?
   `).run(nowIso, bookingId)
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -973,13 +961,12 @@ app.post("/api/bookings/:id/approve", (req, res) => {
 })
 
 // POST Step E: Admin Hands Over Keys (Handover Checklist & Clock Starts)
-app.post("/api/bookings/:id/handover-keys", (req, res) => {
+app.post("/api/bookings/:id/handover-keys", async (req, res) => {
   const bookingId = req.params.id
   const { odometerOut, fuelOut, exteriorClean, tiresInspected, staffSign } =
     req.body
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -997,7 +984,7 @@ app.post("/api/bookings/:id/handover-keys", (req, res) => {
   }
 
   // Update booking to Checked Out with keys handed timestamp
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       status = 'Checked Out',
       keys_handed_at = ?,
@@ -1015,13 +1002,12 @@ app.post("/api/bookings/:id/handover-keys", (req, res) => {
 
   // Ensure vehicle status is Rented
   if (booking.matched_car_id) {
-    db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(
+    await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(
       booking.matched_car_id,
     )
   }
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1031,12 +1017,11 @@ app.post("/api/bookings/:id/handover-keys", (req, res) => {
 })
 
 // POST Step F1: Customer Requests Trip Extension
-app.post("/api/bookings/:id/request-extension", (req, res) => {
+app.post("/api/bookings/:id/request-extension", async (req, res) => {
   const bookingId = req.params.id
   const { extraDuration, unit, customerNotes } = req.body
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -1054,15 +1039,14 @@ app.post("/api/bookings/:id/request-extension", (req, res) => {
     requestedAt: nowIso,
   }
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       extension_status = 'Requested',
       extension_request = ?
     WHERE id = ?
   `).run(JSON.stringify(extRequest), bookingId)
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1072,12 +1056,11 @@ app.post("/api/bookings/:id/request-extension", (req, res) => {
 })
 
 // POST Step F2: Admin Quotes Extension (Per Day / Per Hour / Per Month)
-app.post("/api/bookings/:id/quote-extension", (req, res) => {
+app.post("/api/bookings/:id/quote-extension", async (req, res) => {
   const bookingId = req.params.id
   const { rateType, rateAmount, totalQuotedAmount, adminNotes } = req.body
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -1091,15 +1074,14 @@ app.post("/api/bookings/:id/quote-extension", (req, res) => {
     quotedAt: new Date().toISOString(),
   }
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       extension_status = 'Quoted',
       extension_quote = ?
     WHERE id = ?
   `).run(JSON.stringify(quoteObj), bookingId)
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1109,11 +1091,10 @@ app.post("/api/bookings/:id/quote-extension", (req, res) => {
 })
 
 // POST Step F3: Customer Approves Extension Quotation (Added to Bill & Return Date Extended)
-app.post("/api/bookings/:id/approve-extension", (req, res) => {
+app.post("/api/bookings/:id/approve-extension", async (req, res) => {
   const bookingId = req.params.id
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -1132,7 +1113,7 @@ app.post("/api/bookings/:id/approve-extension", (req, res) => {
     booking.notes ? booking.notes + " | " : ""
   }Extended (+${quote.rateType || "period"}: +$${additionalCost})`
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       extension_status = 'Approved',
       total_amount = ?,
@@ -1140,8 +1121,7 @@ app.post("/api/bookings/:id/approve-extension", (req, res) => {
     WHERE id = ?
   `).run(newTotal, updatedNotes, bookingId)
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1151,17 +1131,16 @@ app.post("/api/bookings/:id/approve-extension", (req, res) => {
 })
 
 // POST Step F4: Decline Extension
-app.post("/api/bookings/:id/decline-extension", (req, res) => {
+app.post("/api/bookings/:id/decline-extension", async (req, res) => {
   const bookingId = req.params.id
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       extension_status = 'Declined'
     WHERE id = ?
   `).run(bookingId)
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1171,7 +1150,7 @@ app.post("/api/bookings/:id/decline-extension", (req, res) => {
 })
 
 // POST Step G: Return Vehicle & Post-Trip Inspection Checklist
-app.post("/api/bookings/:id/return-inspection", (req, res) => {
+app.post("/api/bookings/:id/return-inspection", async (req, res) => {
   const bookingId = req.params.id
   const {
     odometerIn,
@@ -1183,8 +1162,7 @@ app.post("/api/bookings/:id/return-inspection", (req, res) => {
     inspectionNotes,
   } = req.body
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -1202,7 +1180,7 @@ app.post("/api/bookings/:id/return-inspection", (req, res) => {
   }
 
   // Update booking: status = Completed only after inspection passes!
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       status = 'Completed',
       checklist_in = ?,
@@ -1224,13 +1202,12 @@ app.post("/api/bookings/:id/return-inspection", (req, res) => {
     const nextCarStatus = checklistInObj.cleanlinessPass
       ? "Available"
       : "Cleaning"
-    db.prepare(
+    await db.prepare(
       "UPDATE vehicles SET status = ?, current_odometer = ? WHERE id = ?",
     ).run(nextCarStatus, checklistInObj.odometerIn, booking.matched_car_id)
   }
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1240,7 +1217,7 @@ app.post("/api/bookings/:id/return-inspection", (req, res) => {
 })
 
 // POST Mate / Assign a car to a booking
-app.post("/api/bookings/:id/mate", (req, res) => {
+app.post("/api/bookings/:id/mate", async (req, res) => {
   const bookingId = req.params.id
   const { carId } = req.body
 
@@ -1248,22 +1225,22 @@ app.post("/api/bookings/:id/mate", (req, res) => {
     return res.status(400).json({ error: "carId is required to mate vehicle." })
   }
 
-  const booking = db
+  const booking = (await db
     .prepare("SELECT * FROM bookings WHERE id = ?")
-    .get(bookingId) as any
+    .get(bookingId)) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
   }
 
-  const car = db
+  const car = (await db
     .prepare("SELECT * FROM vehicles WHERE id = ?")
-    .get(carId) as any
+    .get(carId)) as any
   if (!car) {
     return res.status(404).json({ error: "Vehicle not found." })
   }
 
   // Prevent double booking conflict during manual mating
-  const conflict = findVehicleBookingConflict(
+  const conflict = await findVehicleBookingConflict(
     carId,
     booking.pickup_date,
     booking.return_date,
@@ -1276,18 +1253,16 @@ app.post("/api/bookings/:id/mate", (req, res) => {
   }
 
   // Update booking
-  db.prepare(
+  await db.prepare(
     "UPDATE bookings SET matched_car_id = ?, status = 'Assigned' WHERE id = ?",
   ).run(carId, bookingId)
 
   // Update vehicle to Rented
-  db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId)
+  await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId)
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
-  const updatedCar = db
-    .prepare("SELECT * FROM vehicles WHERE id = ?")
+  const updatedCar = await db.prepare("SELECT * FROM vehicles WHERE id = ?")
     .get(carId)
 
   return res.json({
@@ -1299,11 +1274,10 @@ app.post("/api/bookings/:id/mate", (req, res) => {
 })
 
 // POST Unmate / Release a car from a booking
-app.post("/api/bookings/:id/unmate", (req, res) => {
+app.post("/api/bookings/:id/unmate", async (req, res) => {
   const bookingId = req.params.id
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -1312,19 +1286,18 @@ app.post("/api/bookings/:id/unmate", (req, res) => {
   const prevCarId = booking.matched_car_id
 
   // Reset booking
-  db.prepare(
+  await db.prepare(
     "UPDATE bookings SET matched_car_id = NULL, status = 'Pending Assignment' WHERE id = ?",
   ).run(bookingId)
 
   // Release vehicle back to Available
   if (prevCarId) {
-    db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(
+    await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(
       prevCarId,
     )
   }
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1334,13 +1307,12 @@ app.post("/api/bookings/:id/unmate", (req, res) => {
 })
 
 // PATCH Update Booking Status (Advance Lifecycle)
-app.patch("/api/bookings/:id/status", (req, res) => {
+app.patch("/api/bookings/:id/status", async (req, res) => {
   const bookingId = req.params.id
   const { status, odometerOut, odometerIn, fuelLevelOut, fuelLevelIn, notes } =
     req.body
 
-  const booking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
@@ -1366,25 +1338,25 @@ app.patch("/api/bookings/:id/status", (req, res) => {
   // Synchronize vehicle status based on reservation lifecycle
   if (carId) {
     if (newStatus === "Checked Out") {
-      db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(
+      await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(
         carId,
       )
     } else if (newStatus === "Returned") {
-      db.prepare("UPDATE vehicles SET status = 'Cleaning' WHERE id = ?").run(
+      await db.prepare("UPDATE vehicles SET status = 'Cleaning' WHERE id = ?").run(
         carId,
       )
     } else if (newStatus === "Completed") {
-      db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(
+      await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(
         carId,
       )
     } else if (newStatus === "Cancelled") {
-      db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(
+      await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(
         carId,
       )
     }
   }
 
-  db.prepare(`
+  await db.prepare(`
     UPDATE bookings SET
       status = ?,
       odometer_out = COALESCE(?, odometer_out),
@@ -1403,8 +1375,7 @@ app.patch("/api/bookings/:id/status", (req, res) => {
     bookingId,
   )
 
-  const updatedBooking = db
-    .prepare("SELECT * FROM bookings WHERE id = ?")
+  const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
   return res.json({
     success: true,
@@ -1414,7 +1385,7 @@ app.patch("/api/bookings/:id/status", (req, res) => {
 })
 
 // POST Admin Walk-In / Counter Reservation (< 60s)
-app.post("/api/admin/counter-booking", (req, res) => {
+app.post("/api/admin/counter-booking", async (req, res) => {
   const b = req.body
   const id = b.id || `CWK-${Math.floor(100000 + Math.random() * 900000)}`
   const nowText = new Date().toLocaleDateString("en-US", {
@@ -1431,15 +1402,15 @@ app.post("/api/admin/counter-booking", (req, res) => {
       .json({ error: "A vehicle must be selected for counter dispatch." })
   }
 
-  const car = db
+  const car = (await db
     .prepare("SELECT * FROM vehicles WHERE id = ?")
-    .get(carId) as any
+    .get(carId)) as any
   if (!car) {
     return res.status(404).json({ error: "Selected vehicle not found." })
   }
 
   // Prevent counter dispatch of an already booked or rented vehicle
-  const conflict = findVehicleBookingConflict(
+  const conflict = await findVehicleBookingConflict(
     carId,
     b.pickupDate || "Today, Right Now",
     b.returnDate || "In 3 Days",
@@ -1452,7 +1423,7 @@ app.post("/api/admin/counter-booking", (req, res) => {
 
   const initialStatus = b.immediateCheckout ? "Checked Out" : "Assigned"
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO bookings (
       id, customer_first_name, customer_last_name, customer_email, customer_phone,
       driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file,
@@ -1492,9 +1463,9 @@ app.post("/api/admin/counter-booking", (req, res) => {
   )
 
   // Lock vehicle
-  db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId)
+  await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId)
 
-  const created = db.prepare("SELECT * FROM bookings WHERE id = ?").get(id)
+  const created = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(id)
   return res.status(201).json({
     success: true,
     message: `Counter walk-in reservation ${id} issued for ${car.name}.`,
@@ -1503,13 +1474,12 @@ app.post("/api/admin/counter-booking", (req, res) => {
 })
 
 // GET Customer CRM Directory
-app.get("/api/admin/customers", (req, res) => {
-  const users = db
-    .prepare(
+app.get("/api/admin/customers", async (req, res) => {
+  const users = await db.prepare(
       "SELECT * FROM users WHERE role != 'admin' ORDER BY created_at DESC",
     )
     .all() as any[]
-  const allBookings = db.prepare("SELECT * FROM bookings").all() as any[]
+  const allBookings = await db.prepare("SELECT * FROM bookings").all() as any[]
 
   const customerMap = new Map<string, any>()
 
@@ -1575,15 +1545,14 @@ app.get("/api/admin/customers", (req, res) => {
    ========================================== */
 
 // GET all promo codes
-app.get("/api/promos", (req, res) => {
-  const rows = db
-    .prepare("SELECT * FROM promo_codes ORDER BY created_at DESC")
+app.get("/api/promos", async (req, res) => {
+  const rows = await db.prepare("SELECT * FROM promo_codes ORDER BY created_at DESC")
     .all()
   return res.json(rows.map(formatPromoRow))
 })
 
 // POST create promo code
-app.post("/api/promos", (req, res) => {
+app.post("/api/promos", async (req, res) => {
   const { code, discountPercent, description, expiryDate } = req.body
   if (!code || !discountPercent) {
     return res
@@ -1592,14 +1561,13 @@ app.post("/api/promos", (req, res) => {
   }
 
   const normalizedCode = code.trim().toUpperCase()
-  const existing = db
-    .prepare("SELECT code FROM promo_codes WHERE code = ?")
+  const existing = await db.prepare("SELECT code FROM promo_codes WHERE code = ?")
     .get(normalizedCode)
   if (existing) {
     return res.status(409).json({ error: "Promo code already exists." })
   }
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO promo_codes (code, discount_percent, description, is_active, expiry_date, usage_count)
     VALUES (?, ?, ?, 1, ?, 0)
   `).run(
@@ -1609,38 +1577,35 @@ app.post("/api/promos", (req, res) => {
     expiryDate || "2026-12-31",
   )
 
-  const created = db
-    .prepare("SELECT * FROM promo_codes WHERE code = ?")
+  const created = await db.prepare("SELECT * FROM promo_codes WHERE code = ?")
     .get(normalizedCode)
   return res.status(201).json(formatPromoRow(created))
 })
 
 // PATCH toggle promo active status
-app.patch("/api/promos/:code/toggle", (req, res) => {
+app.patch("/api/promos/:code/toggle", async (req, res) => {
   const promoCode = req.params.code.toUpperCase()
-  const promo = db
-    .prepare("SELECT * FROM promo_codes WHERE code = ?")
+  const promo = await db.prepare("SELECT * FROM promo_codes WHERE code = ?")
     .get(promoCode) as any
   if (!promo) {
     return res.status(404).json({ error: "Promo code not found." })
   }
 
   const newActive = promo.is_active ? 0 : 1
-  db.prepare("UPDATE promo_codes SET is_active = ? WHERE code = ?").run(
+  await db.prepare("UPDATE promo_codes SET is_active = ? WHERE code = ?").run(
     newActive,
     promoCode,
   )
 
-  const updated = db
-    .prepare("SELECT * FROM promo_codes WHERE code = ?")
+  const updated = await db.prepare("SELECT * FROM promo_codes WHERE code = ?")
     .get(promoCode)
   return res.json(formatPromoRow(updated))
 })
 
 // DELETE promo code
-app.delete("/api/promos/:code", (req, res) => {
+app.delete("/api/promos/:code", async (req, res) => {
   const promoCode = req.params.code.toUpperCase()
-  db.prepare("DELETE FROM promo_codes WHERE code = ?").run(promoCode)
+  await db.prepare("DELETE FROM promo_codes WHERE code = ?").run(promoCode)
   return res.json({
     success: true,
     message: `Promo code ${promoCode} deleted.`,
@@ -1648,15 +1613,14 @@ app.delete("/api/promos/:code", (req, res) => {
 })
 
 // POST Validate Promo Code (Customer Checkout)
-app.post("/api/promos/validate", (req, res) => {
+app.post("/api/promos/validate", async (req, res) => {
   const { code } = req.body
   if (!code) {
     return res.status(400).json({ valid: false, message: "Code is required." })
   }
 
   const promoCode = code.trim().toUpperCase()
-  const promo = db
-    .prepare("SELECT * FROM promo_codes WHERE code = ?")
+  const promo = await db.prepare("SELECT * FROM promo_codes WHERE code = ?")
     .get(promoCode) as any
 
   if (!promo) {
@@ -1672,7 +1636,7 @@ app.post("/api/promos/validate", (req, res) => {
   }
 
   // Increment usage count
-  db.prepare(
+  await db.prepare(
     "UPDATE promo_codes SET usage_count = usage_count + 1 WHERE code = ?",
   ).run(promoCode)
 
@@ -1690,20 +1654,19 @@ app.post("/api/promos/validate", (req, res) => {
    ========================================== */
 
 // GET all maintenance logs
-app.get("/api/maintenance", (req, res) => {
-  const rows = db
-    .prepare(`
+app.get("/api/maintenance", async (req, res) => {
+  const rows = await db.prepare(`
     SELECT m.*, v.name as car_name
     FROM maintenance_logs m
     LEFT JOIN vehicles v ON m.car_id = v.id
-    ORDER BY m.rowid DESC
+    ORDER BY m.created_at DESC
   `)
     .all()
   return res.json(rows.map(formatMaintenanceRow))
 })
 
 // POST create maintenance log
-app.post("/api/maintenance", (req, res) => {
+app.post("/api/maintenance", async (req, res) => {
   const {
     carId,
     serviceType,
@@ -1721,7 +1684,7 @@ app.post("/api/maintenance", (req, res) => {
   }
 
   const logId = `MNT-${Math.floor(1000 + Math.random() * 9000)}`
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO maintenance_logs (id, car_id, service_type, cost, odometer, date, status, technician_notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
@@ -1737,14 +1700,13 @@ app.post("/api/maintenance", (req, res) => {
 
   // If vehicle should be put in maintenance or returned to available
   if (setVehicleStatus) {
-    db.prepare("UPDATE vehicles SET status = ? WHERE id = ?").run(
+    await db.prepare("UPDATE vehicles SET status = ? WHERE id = ?").run(
       setVehicleStatus,
       carId,
     )
   }
 
-  const created = db
-    .prepare(`
+  const created = await db.prepare(`
     SELECT m.*, v.name as car_name
     FROM maintenance_logs m
     LEFT JOIN vehicles v ON m.car_id = v.id
@@ -1756,17 +1718,16 @@ app.post("/api/maintenance", (req, res) => {
 })
 
 // PATCH update maintenance status
-app.patch("/api/maintenance/:id/status", (req, res) => {
+app.patch("/api/maintenance/:id/status", async (req, res) => {
   const logId = req.params.id
   const { status } = req.body
   if (!status) return res.status(400).json({ error: "Status is required." })
 
-  db.prepare("UPDATE maintenance_logs SET status = ? WHERE id = ?").run(
+  await db.prepare("UPDATE maintenance_logs SET status = ? WHERE id = ?").run(
     status,
     logId,
   )
-  const updated = db
-    .prepare(`
+  const updated = await db.prepare(`
     SELECT m.*, v.name as car_name
     FROM maintenance_logs m
     LEFT JOIN vehicles v ON m.car_id = v.id
@@ -1781,9 +1742,9 @@ app.patch("/api/maintenance/:id/status", (req, res) => {
    ADMIN STATS & TELEMETRY
    ========================================== */
 
-app.get("/api/admin/stats", (req, res) => {
-  const allCars = db.prepare("SELECT * FROM vehicles").all()
-  const allBookings = db.prepare("SELECT * FROM bookings").all()
+app.get("/api/admin/stats", async (req, res) => {
+  const allCars = await db.prepare("SELECT * FROM vehicles").all()
+  const allBookings = await db.prepare("SELECT * FROM bookings").all()
 
   const total = allCars.length
   const available = allCars.filter(
@@ -1825,7 +1786,7 @@ app.get("/api/admin/stats", (req, res) => {
 })
 
 // Upload simulator/receiver
-app.post("/api/upload", (req, res) => {
+app.post("/api/upload", async (req, res) => {
   const { fileName } = req.body
   const cleanName = fileName
     ? path.basename(fileName)
@@ -1837,9 +1798,14 @@ app.post("/api/upload", (req, res) => {
   })
 })
 
-// Start Express Server
-app.listen(PORT, () => {
-  console.log(`[Backend] MOTORLY Server running on port ${PORT}`)
-  console.log(`[Backend] Admin Password verified: ${ADMIN_PASSWORD}`)
-  console.log(`[Backend] API Endpoints ready at http://localhost:${PORT}/api/`)
-})
+// Start Express Server (standalone / local mode)
+if (process.env.VERCEL !== "1" && !process.env.NOW_REGION) {
+  app.listen(PORT, () => {
+    console.log(`[Backend] MOTORLY Server running on port ${PORT}`)
+    console.log(`[Backend] Admin Password verified: ${ADMIN_PASSWORD}`)
+    console.log(`[Backend] API Endpoints ready at http://localhost:${PORT}/api/`)
+  })
+}
+
+
+export default app;

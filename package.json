@@ -10,8 +10,10 @@
     "format": "oxfmt"
   },
   "dependencies": {
+    "@types/pg": "^8.23.1",
     "cors": "^2.8.6",
     "express": "^5.3.0",
+    "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

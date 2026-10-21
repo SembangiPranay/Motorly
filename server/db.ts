@@ -2,23 +2,327 @@ import { DatabaseSync } from "node:sqlite"
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import pg from "pg"
+
+const { Pool } = pg
+
+// Load local .env if available
+try {
+  if (typeof (process as any).loadEnvFile === "function") {
+    ;(process as any).loadEnvFile()
+  }
+} catch {}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Ensure data directory exists
+// Ensure data directory exists for local SQLite fallback
 const dataDir = path.join(__dirname, "data")
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true })
 }
 
 const dbPath = path.join(dataDir, "drive_rent.db")
-export const db = new DatabaseSync(dbPath)
+export const sqlite = new DatabaseSync(dbPath)
+
+// Supabase PostgreSQL Configuration
+// Primary pooler host (AWS us-east-1, port 6543) provides universal IPv4/IPv6 support
+const SUPABASE_POOLER_URL =
+  process.env.DATABASE_URL ||
+  "postgresql://postgres.mrbymhhcjvebpxcfmnhy:Koushik.git1@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+
+const SUPABASE_DIRECT_URL =
+  process.env.SUPABASE_DIRECT_URL ||
+  "postgresql://postgres:Koushik.git1@db.mrbymhhcjvebpxcfmnhy.supabase.co:5432/postgres"
+
+let supabasePool: pg.Pool | null = null
+let isSupabaseActive = false
+
+function translateSql(sql: string): string {
+  let paramIndex = 1
+  let translated = sql.replace(/\?/g, () => `$${paramIndex++}`)
+  translated = translated.replace(/\browid\b/gi, "created_at")
+  return translated
+}
+
+export const db = {
+  get isSupabase() {
+    return isSupabaseActive
+  },
+  get pool() {
+    return supabasePool
+  },
+  get sync() {
+    return sqlite
+  },
+
+  async all(sql: string, ...params: any[]): Promise<any[]> {
+    if (isSupabaseActive && supabasePool) {
+      try {
+        const translated = translateSql(sql)
+        const res = await supabasePool.query(translated, params)
+        return res.rows
+      } catch (err) {
+        console.error("[Supabase Query Error]", err)
+        throw err
+      }
+    }
+    return sqlite.prepare(sql).all(...params) as any[]
+  },
+
+  async get(sql: string, ...params: any[]): Promise<any> {
+    if (isSupabaseActive && supabasePool) {
+      try {
+        const translated = translateSql(sql)
+        const res = await supabasePool.query(translated, params)
+        return res.rows[0] || null
+      } catch (err) {
+        console.error("[Supabase Query Error]", err)
+        throw err
+      }
+    }
+    return sqlite.prepare(sql).get(...params) as any
+  },
+
+  async run(
+    sql: string,
+    ...params: any[]
+  ): Promise<{ changes: number; rowCount: number }> {
+    if (isSupabaseActive && supabasePool) {
+      try {
+        const translated = translateSql(sql)
+        const res = await supabasePool.query(translated, params)
+        return {
+          changes: res.rowCount || 0,
+          rowCount: res.rowCount || 0,
+        }
+      } catch (err) {
+        console.error("[Supabase Exec Error]", err)
+        throw err
+      }
+    }
+    const res = sqlite.prepare(sql).run(...params) as any
+    return {
+      changes: res?.changes || 1,
+      rowCount: res?.changes || 1,
+    }
+  },
+
+  prepare(sql: string) {
+    return {
+      all: (...params: any[]) => db.all(sql, ...params),
+      get: (...params: any[]) => db.get(sql, ...params),
+      run: (...params: any[]) => db.run(sql, ...params),
+    }
+  },
+}
 
 // Initialize Tables
-export function initDatabase() {
+export async function initDatabase() {
+  // First, initialize local SQLite tables as fallback
+  initSqliteTables()
+
+  // Next, attempt direct connection to Supabase PostgreSQL
+  console.log("[DB] Connecting to Supabase PostgreSQL...")
+  try {
+    const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL]
+    let connected = false
+
+    for (const connStr of candidateUrls) {
+      try {
+        const pool = new Pool({
+          connectionString: connStr,
+          ssl: { rejectUnauthorized: false },
+          connectionTimeoutMillis: 5000,
+          max: 10,
+        })
+
+        const testRes = await pool.query(
+          "SELECT NOW() as now, current_database() as db"
+        )
+        if (testRes.rows && testRes.rows.length > 0) {
+          supabasePool = pool
+          isSupabaseActive = true
+          connected = true
+          console.log(
+            `[DB] Connected directly to Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy, db: ${testRes.rows[0].db})`
+          )
+          break
+        }
+      } catch (e: any) {
+        console.warn(`[DB] Supabase candidate connection failed (${e.message}), trying next...`)
+      }
+    }
+
+    if (connected && supabasePool) {
+      // Ensure Supabase tables exist
+      await initSupabaseTables(supabasePool)
+      console.log("[DB] Supabase PostgreSQL tables verified and active!")
+    } else {
+      console.warn(
+        `[DB] Could not connect to Supabase. Falling back to local SQLite at ${dbPath}`
+      )
+    }
+  } catch (err: any) {
+    console.warn(
+      `[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`
+    )
+  }
+}
+
+async function initSupabaseTables(pool: pg.Pool) {
+  // 1. Vehicles
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS vehicles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      brand TEXT NOT NULL,
+      model TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      price_per_day REAL NOT NULL,
+      price_per_hour REAL NOT NULL,
+      image TEXT NOT NULL,
+      gallery TEXT NOT NULL,
+      rating REAL DEFAULT 5.0,
+      reviews_count INTEGER DEFAULT 1,
+      seats INTEGER NOT NULL,
+      transmission TEXT NOT NULL,
+      fuel_type TEXT NOT NULL,
+      mileage TEXT NOT NULL,
+      luggage TEXT NOT NULL,
+      features TEXT NOT NULL,
+      description TEXT,
+      is_popular INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'Available',
+      plate_number TEXT,
+      location TEXT,
+      health_score INTEGER DEFAULT 95,
+      insurance_policy TEXT,
+      insurance_provider TEXT,
+      insurance_expiry TEXT,
+      purchase_date TEXT,
+      purchase_cost REAL,
+      current_odometer INTEGER,
+      garage_name TEXT,
+      garage_address TEXT,
+      garage_lat REAL,
+      garage_lng REAL,
+      garage_bay TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  // 2. Bookings
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id TEXT PRIMARY KEY,
+      customer_first_name TEXT NOT NULL,
+      customer_last_name TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      driver_dob TEXT,
+      driver_license_num TEXT,
+      driver_license_state TEXT,
+      driver_license_expiry TEXT,
+      driver_license_file TEXT,
+      pickup_location TEXT NOT NULL,
+      return_location TEXT NOT NULL,
+      pickup_date TEXT NOT NULL,
+      return_date TEXT NOT NULL,
+      requested_category TEXT,
+      matched_car_id TEXT,
+      status TEXT DEFAULT 'Pending Assignment',
+      total_amount REAL NOT NULL,
+      created_at TEXT NOT NULL,
+      user_id TEXT,
+      odometer_out INTEGER,
+      odometer_in INTEGER,
+      fuel_level_out TEXT,
+      fuel_level_in TEXT,
+      notes TEXT,
+      promo_code TEXT,
+      driver_license_back_file TEXT,
+      driver_selfie_file TEXT,
+      approved_by_admin INTEGER DEFAULT 0,
+      approved_at TEXT,
+      keys_handed_at TEXT,
+      checklist_out TEXT,
+      checklist_in TEXT,
+      extension_status TEXT DEFAULT 'None',
+      extension_request TEXT,
+      extension_quote TEXT,
+      inspection_notes TEXT,
+      inspection_passed INTEGER DEFAULT 0
+    );
+  `)
+
+  // 3. Admin Sessions
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_sessions (
+      token TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  // 4. Users
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT,
+      driver_license_num TEXT,
+      driver_license_state TEXT,
+      driver_license_expiry TEXT,
+      role TEXT DEFAULT 'customer',
+      vip_tier TEXT DEFAULT 'Standard',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  // 5. Customer Sessions
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_sessions (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  // 6. Promo Codes
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      code TEXT PRIMARY KEY,
+      discount_percent REAL NOT NULL,
+      description TEXT,
+      is_active INTEGER DEFAULT 1,
+      expiry_date TEXT,
+      usage_count INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  // 7. Maintenance Logs
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+      id TEXT PRIMARY KEY,
+      car_id TEXT NOT NULL,
+      service_type TEXT NOT NULL,
+      cost REAL NOT NULL,
+      odometer INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      status TEXT DEFAULT 'Completed',
+      technician_notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+}
+
+function initSqliteTables() {
   // 1. Vehicles Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS vehicles (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -49,7 +353,7 @@ export function initDatabase() {
   `)
 
   // 2. Bookings Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
       customer_first_name TEXT NOT NULL,
@@ -81,7 +385,7 @@ export function initDatabase() {
   `)
 
   // Safely ensure new columns exist in existing vehicles table
-  const vehicleColumns = (db
+  const vehicleColumns = (sqlite
     .prepare("PRAGMA table_info(vehicles)")
     .all() as any[]).map((c) => c.name)
   const requiredVehicleCols = [
@@ -100,7 +404,7 @@ export function initDatabase() {
   for (const col of requiredVehicleCols) {
     if (!vehicleColumns.includes(col.name)) {
       try {
-        db.exec(`ALTER TABLE vehicles ADD COLUMN ${col.name} ${col.type};`)
+        sqlite.exec(`ALTER TABLE vehicles ADD COLUMN ${col.name} ${col.type};`)
       } catch (e) {
         // Ignored
       }
@@ -108,7 +412,7 @@ export function initDatabase() {
   }
 
   // Safely ensure new columns exist in existing bookings table
-  const bookingColumns = (db
+  const bookingColumns = (sqlite
     .prepare("PRAGMA table_info(bookings)")
     .all() as any[]).map((c) => c.name)
   const requiredBookingCols = [
@@ -135,7 +439,7 @@ export function initDatabase() {
   for (const col of requiredBookingCols) {
     if (!bookingColumns.includes(col.name)) {
       try {
-        db.exec(`ALTER TABLE bookings ADD COLUMN ${col.name} ${col.type};`)
+        sqlite.exec(`ALTER TABLE bookings ADD COLUMN ${col.name} ${col.type};`)
       } catch (e) {
         // Ignored if already present
       }
@@ -143,7 +447,7 @@ export function initDatabase() {
   }
 
   // 3. Admin Sessions Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS admin_sessions (
       token TEXT PRIMARY KEY,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -151,7 +455,7 @@ export function initDatabase() {
   `)
 
   // 4. Customer / User Accounts Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -168,7 +472,7 @@ export function initDatabase() {
   `)
 
   // 5. Customer Sessions Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS customer_sessions (
       token TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -177,7 +481,7 @@ export function initDatabase() {
   `)
 
   // 6. Promo Codes Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS promo_codes (
       code TEXT PRIMARY KEY,
       discount_percent REAL NOT NULL,
@@ -190,7 +494,7 @@ export function initDatabase() {
   `)
 
   // 7. Maintenance Logs Table
-  db.exec(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS maintenance_logs (
       id TEXT PRIMARY KEY,
       car_id TEXT NOT NULL,
@@ -205,7 +509,7 @@ export function initDatabase() {
   `)
 
   // Seed Vehicles if empty
-  const countRow = db
+  const countRow = sqlite
     .prepare("SELECT COUNT(*) as count FROM vehicles")
     .get() as { count: number }
   if (countRow.count === 0) {
@@ -213,7 +517,7 @@ export function initDatabase() {
   }
 
   // Seed Bookings if empty
-  const bookingCountRow = db
+  const bookingCountRow = sqlite
     .prepare("SELECT COUNT(*) as count FROM bookings")
     .get() as { count: number }
   if (bookingCountRow.count === 0) {
@@ -221,7 +525,7 @@ export function initDatabase() {
   }
 
   // Seed Users if empty
-  const userCountRow = db
+  const userCountRow = sqlite
     .prepare("SELECT COUNT(*) as count FROM users")
     .get() as { count: number }
   if (userCountRow.count === 0) {
@@ -229,7 +533,7 @@ export function initDatabase() {
   }
 
   // Seed Promos if empty
-  const promoCountRow = db
+  const promoCountRow = sqlite
     .prepare("SELECT COUNT(*) as count FROM promo_codes")
     .get() as { count: number }
   if (promoCountRow.count === 0) {
@@ -237,18 +541,18 @@ export function initDatabase() {
   }
 
   // Seed Maintenance if empty
-  const mntCountRow = db
+  const mntCountRow = sqlite
     .prepare("SELECT COUNT(*) as count FROM maintenance_logs")
     .get() as { count: number }
   if (mntCountRow.count === 0) {
     seedMaintenance()
   }
 
-  console.log(`[DB] Database initialized successfully at ${dbPath}`)
+  console.log(`[DB] Local SQLite mirror initialized successfully at ${dbPath}`)
 }
 
 function seedVehicles() {
-  const insertStmt = db.prepare(`
+  const insertStmt = sqlite.prepare(`
     INSERT INTO vehicles (
       id, name, brand, model, year, type, price_per_day, price_per_hour,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
@@ -869,7 +1173,7 @@ function seedVehicles() {
 }
 
 function seedBookings() {
-  const insertStmt = db.prepare(`
+  const insertStmt = sqlite.prepare(`
     INSERT INTO bookings (
       id, customer_first_name, customer_last_name, customer_email, customer_phone,
       driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file,
@@ -1018,7 +1322,7 @@ function seedBookings() {
 }
 
 function seedUsers() {
-  const insertStmt = db.prepare(`
+  const insertStmt = sqlite.prepare(`
     INSERT INTO users (
       id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1093,7 +1397,7 @@ function seedUsers() {
 }
 
 function seedPromos() {
-  const insertStmt = db.prepare(`
+  const insertStmt = sqlite.prepare(`
     INSERT INTO promo_codes (
       code, discount_percent, description, is_active, expiry_date, usage_count
     ) VALUES (?, ?, ?, ?, ?, ?)
@@ -1148,7 +1452,7 @@ function seedPromos() {
 }
 
 function seedMaintenance() {
-  const insertStmt = db.prepare(`
+  const insertStmt = sqlite.prepare(`
     INSERT INTO maintenance_logs (
       id, car_id, service_type, cost, odometer, date, status, technician_notes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
