@@ -318,6 +318,28 @@ async function initSupabaseTables(pool: pg.Pool) {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `)
+
+  // Foreign Key Relationships (connecting the schema visualizer)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_bookings_matched_car') THEN
+        ALTER TABLE bookings ADD CONSTRAINT fk_bookings_matched_car FOREIGN KEY (matched_car_id) REFERENCES vehicles(id) ON DELETE SET NULL;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_bookings_user') THEN
+        ALTER TABLE bookings ADD CONSTRAINT fk_bookings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_bookings_promo_code') THEN
+        ALTER TABLE bookings ADD CONSTRAINT fk_bookings_promo_code FOREIGN KEY (promo_code) REFERENCES promo_codes(code) ON DELETE SET NULL;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_customer_sessions_user') THEN
+        ALTER TABLE customer_sessions ADD CONSTRAINT fk_customer_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_maintenance_vehicle') THEN
+        ALTER TABLE maintenance_logs ADD CONSTRAINT fk_maintenance_vehicle FOREIGN KEY (car_id) REFERENCES vehicles(id) ON DELETE CASCADE;
+      END IF;
+    END $$;
+  `)
 }
 
 function initSqliteTables() {
