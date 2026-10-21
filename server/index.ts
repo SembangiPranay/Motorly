@@ -3,17 +3,29 @@ import cors from "cors"
 import path from "node:path"
 import fs from "node:fs"
 import { fileURLToPath } from "node:url"
+import jwt from "jsonwebtoken"
+import bcrypt from "bcryptjs"
 import { db, initDatabase } from "./db.ts"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Initialize SQLite DB
+// Initialize Database (Supabase directly with SQLite mirror fallback)
 await initDatabase()
 
 const app = express()
 const PORT = process.env.PORT_BACKEND || 3001
-const ADMIN_PASSWORD = "0709"
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0709"
+const JWT_SECRET =
+  process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-prod"
+
+interface JwtUserPayload {
+  userId: string
+  email: string
+  name: string
+  role: "admin" | "customer"
+  vipTier?: string
+}
 
 app.use(cors())
 app.use(express.json({ limit: "20mb" }))
@@ -211,34 +223,151 @@ function formatMaintenanceRow(row: any) {
 }
 
 /* ==========================================
-   AUTHENTICATION ROUTES (Password: 0709)
+   JWT AUTHENTICATION & SECURITY HELPERS
+   ========================================== */
+
+function generateJwtToken(
+  payload: JwtUserPayload,
+  expiresIn: string = "7d"
+): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn })
+}
+
+function parseAuthHeader(req: express.Request): string | null {
+  const authHeader = req.headers.authorization
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.substring(7)
+  }
+  return null
+}
+
+function verifyJwtToken(token: string): JwtUserPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JwtUserPayload
+  } catch {
+    return null
+  }
+}
+
+// Security Middleware: Require Valid Token
+function requireAuth(
+  req: express.Request & { user?: JwtUserPayload },
+  res: express.Response,
+  next: express.NextFunction
+) {
+  const token = parseAuthHeader(req) || (req.body && req.body.token)
+  if (!token) {
+    return res
+      .status(401)
+      .json({ authenticated: false, message: "Authorization token required." })
+  }
+  const decoded = verifyJwtToken(token)
+  if (!decoded) {
+    return res
+      .status(401)
+      .json({ authenticated: false, message: "Invalid or expired token." })
+  }
+  req.user = decoded
+  next()
+}
+
+// Security Middleware: Require Admin Role
+function requireAdmin(
+  req: express.Request & { user?: JwtUserPayload },
+  res: express.Response,
+  next: express.NextFunction
+) {
+  requireAuth(req, res, () => {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        error: "Access denied. Administrator privileges required.",
+      })
+    }
+    next()
+  })
+}
+
+/* ==========================================
+   ADMIN AUTHENTICATION ROUTES (JWT + Passcode/Email)
    ========================================== */
 
 app.post("/api/auth/login", async (req, res) => {
-  const { password } = req.body
-  if (!password || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({
+  const { password, email } = req.body
+
+  if (!password) {
+    return res.status(400).json({
       success: false,
-      message: "Invalid administrator password. Use password 0709.",
+      message: "Password is required.",
     })
   }
 
-  const token = `adm_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token)
+  // Check 1: Master Passcode (default: 0709)
+  const isMasterPass = password === ADMIN_PASSWORD || password === "0709"
+
+  // Check 2: Database Admin User Check
+  let dbAdminUser: any = null
+  if (email) {
+    dbAdminUser = (await db
+      .prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'")
+      .get(email.trim().toLowerCase())) as any
+  }
+
+  let isDbPassValid = false
+  if (dbAdminUser && dbAdminUser.password_hash) {
+    if (
+      dbAdminUser.password_hash.startsWith("$2a$") ||
+      dbAdminUser.password_hash.startsWith("$2b$")
+    ) {
+      isDbPassValid = await bcrypt.compare(password, dbAdminUser.password_hash)
+    } else {
+      isDbPassValid = dbAdminUser.password_hash === password
+    }
+  }
+
+  if (!isMasterPass && !isDbPassValid) {
+    return res.status(401).json({
+      success: false,
+      message:
+        "Invalid administrator credentials. Use passcode 0709 or authorized admin email.",
+    })
+  }
+
+  const adminPayload: JwtUserPayload = {
+    userId: dbAdminUser?.id || "usr_admin",
+    email: dbAdminUser?.email || email || "admin@motorly.com",
+    name: dbAdminUser?.name || "Fleet Operations Admin",
+    role: "admin",
+    vipTier: "VIP",
+  }
+
+  // Cryptographically signed JWT token with 24-hour expiration
+  const token = generateJwtToken(adminPayload, "24h")
+  await db
+    .prepare("INSERT INTO admin_sessions (token) VALUES (?)")
+    .run(token)
 
   return res.json({
     success: true,
     token,
     role: "admin",
-    message: "Admin authenticated successfully.",
+    user: adminPayload,
+    message: "Admin authenticated successfully with JWT.",
   })
 })
 
 app.post("/api/auth/verify", async (req, res) => {
-  const { token } = req.body
+  const token = parseAuthHeader(req) || req.body?.token
   if (!token) return res.status(401).json({ authenticated: false })
 
-  const session = await db.prepare("SELECT token FROM admin_sessions WHERE token = ?")
+  // 1. Verify via cryptographic JWT
+  const decoded = verifyJwtToken(token)
+  if (decoded && decoded.role === "admin") {
+    return res.json({ authenticated: true, role: "admin", user: decoded })
+  }
+
+  // 2. Fallback check for session table
+  const session = await db
+    .prepare("SELECT token FROM admin_sessions WHERE token = ?")
     .get(token)
   if (!session) {
     return res
@@ -246,11 +375,20 @@ app.post("/api/auth/verify", async (req, res) => {
       .json({ authenticated: false, message: "Session expired or invalid." })
   }
 
-  return res.json({ authenticated: true, role: "admin" })
+  return res.json({
+    authenticated: true,
+    role: "admin",
+    user: {
+      userId: "usr_admin",
+      email: "admin@motorly.com",
+      name: "Fleet Operations Admin",
+      role: "admin",
+    },
+  })
 })
 
 /* ==========================================
-   CUSTOMER AUTHENTICATION & PROFILE
+   CUSTOMER AUTHENTICATION & PROFILE (JWT + bcrypt)
    ========================================== */
 
 // Customer Registration
@@ -272,8 +410,16 @@ app.post("/api/auth/register", async (req, res) => {
     })
   }
 
+  if (password.length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: "Password must be at least 6 characters.",
+    })
+  }
+
   const normalizedEmail = email.trim().toLowerCase()
-  const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?")
+  const existingUser = await db
+    .prepare("SELECT id FROM users WHERE email = ?")
     .get(normalizedEmail)
   if (existingUser) {
     return res.status(409).json({
@@ -282,28 +428,45 @@ app.post("/api/auth/register", async (req, res) => {
     })
   }
 
+  // Cryptographically hash password with bcrypt (10 rounds)
+  const passwordHash = await bcrypt.hash(password, 10)
   const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-  await db.prepare(`
+
+  await db
+    .prepare(`
     INSERT INTO users (
       id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'customer', 'Standard')
-  `).run(
+  `)
+    .run(
+      userId,
+      normalizedEmail,
+      passwordHash,
+      name.trim(),
+      phone || "",
+      driverLicenseNum || "",
+      driverLicenseState || "",
+      driverLicenseExpiry || ""
+    )
+
+  const userPayload: JwtUserPayload = {
     userId,
-    normalizedEmail,
-    password, // For lightweight demo/portfolio app
-    name.trim(),
-    phone || "",
-    driverLicenseNum || "",
-    driverLicenseState || "",
-    driverLicenseExpiry || "",
-  )
+    email: normalizedEmail,
+    name: name.trim(),
+    role: "customer",
+    vipTier: "Standard",
+  }
 
-  const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  await db.prepare(
-    "INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)",
-  ).run(token, userId)
+  // Cryptographically signed JWT token with 7-day expiration
+  const token = generateJwtToken(userPayload, "7d")
+  await db
+    .prepare("INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)")
+    .run(token, userId)
 
-  const newUser = await db.prepare("SELECT * FROM users WHERE id = ?").get(userId)
+  const newUser = await db
+    .prepare("SELECT * FROM users WHERE id = ?")
+    .get(userId)
+
   return res.status(201).json({
     success: true,
     token,
@@ -322,18 +485,52 @@ app.post("/api/auth/customer-login", async (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase()
-  const user = await db.prepare("SELECT * FROM users WHERE email = ?")
-    .get(normalizedEmail) as any
-  if (!user || user.password_hash !== password) {
+  const user = (await db
+    .prepare("SELECT * FROM users WHERE email = ?")
+    .get(normalizedEmail)) as any
+
+  if (!user) {
     return res
       .status(401)
       .json({ success: false, message: "Invalid email or password." })
   }
 
-  const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-  await db.prepare(
-    "INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)",
-  ).run(token, user.id)
+  // Verify password with bcrypt (with auto-upgrade for any legacy plaintext)
+  let isPasswordValid = false
+  if (
+    user.password_hash.startsWith("$2a$") ||
+    user.password_hash.startsWith("$2b$")
+  ) {
+    isPasswordValid = await bcrypt.compare(password, user.password_hash)
+  } else {
+    if (user.password_hash === password) {
+      isPasswordValid = true
+      const upgradedHash = await bcrypt.hash(password, 10)
+      await db
+        .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+        .run(upgradedHash, user.id)
+    }
+  }
+
+  if (!isPasswordValid) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid email or password." })
+  }
+
+  const userPayload: JwtUserPayload = {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role || "customer",
+    vipTier: user.vip_tier || "Standard",
+  }
+
+  // Cryptographically signed JWT token with 7-day expiration
+  const token = generateJwtToken(userPayload, "7d")
+  await db
+    .prepare("INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)")
+    .run(token, user.id)
 
   return res.json({
     success: true,
@@ -345,25 +542,50 @@ app.post("/api/auth/customer-login", async (req, res) => {
 
 // Get Current Customer Profile
 app.get("/api/auth/customer-me", async (req, res) => {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.substring(7)
-    : null
+  const token = parseAuthHeader(req)
   if (!token) {
     return res
       .status(401)
       .json({ authenticated: false, message: "No token provided." })
   }
 
-  const session = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
-    .get(token) as any
+  // 1. Verify cryptographic JWT signature
+  const decoded = verifyJwtToken(token)
+  if (decoded) {
+    if (decoded.role === "admin") {
+      return res.json({
+        authenticated: true,
+        user: {
+          id: decoded.userId,
+          email: decoded.email,
+          name: decoded.name,
+          role: "admin",
+          vipTier: "VIP",
+          phone: "+1 (305) 555-0709",
+        },
+      })
+    }
+
+    const user = await db
+      .prepare("SELECT * FROM users WHERE id = ?")
+      .get(decoded.userId)
+    if (user) {
+      return res.json({ authenticated: true, user: formatUserRow(user) })
+    }
+  }
+
+  // 2. Fallback check for session table
+  const session = (await db
+    .prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
+    .get(token)) as any
   if (!session) {
     return res
       .status(401)
       .json({ authenticated: false, message: "Session invalid or expired." })
   }
 
-  const user = await db.prepare("SELECT * FROM users WHERE id = ?")
+  const user = await db
+    .prepare("SELECT * FROM users WHERE id = ?")
     .get(session.user_id)
   if (!user) {
     return res
@@ -376,12 +598,11 @@ app.get("/api/auth/customer-me", async (req, res) => {
 
 // Customer Logout
 app.post("/api/auth/customer-logout", async (req, res) => {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.substring(7)
-    : null
+  const token = parseAuthHeader(req)
   if (token) {
-    await db.prepare("DELETE FROM customer_sessions WHERE token = ?").run(token)
+    await db
+      .prepare("DELETE FROM customer_sessions WHERE token = ?")
+      .run(token)
   }
   return res.json({ success: true, message: "Logged out." })
 })

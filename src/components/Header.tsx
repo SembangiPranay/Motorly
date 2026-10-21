@@ -208,10 +208,17 @@ export default function Header({
                     {currentUser.vipTier || "Member"}
                   </span>
                 </button>
+                <button
+                  onClick={onLogoutCustomer}
+                  className="text-xs text-stone-500 hover:text-red-600 font-semibold px-2 py-1 rounded-lg hover:bg-stone-100 transition"
+                  title="Sign Out"
+                >
+                  Logout
+                </button>
               </div>
             ) : (
               <button
-                onClick={() => setShowSignInModal(true)}
+                onClick={() => onNavigate("auth")}
                 className="flex items-center gap-2 text-sm font-semibold text-[#17191C] hover:text-[#F97316] transition-colors"
               >
                 <UserIcon size={18} className="text-gray-700" />
@@ -371,7 +378,7 @@ export default function Header({
               ) : (
                 <button
                   onClick={() => {
-                    setShowSignInModal(true)
+                    onNavigate("auth")
                     setMobileMenuOpen(false)
                   }}
                   className="w-full h-11 text-center font-bold text-xs border border-gray-300 rounded-xl bg-white text-stone-800 hover:bg-stone-50 transition shadow-xs"

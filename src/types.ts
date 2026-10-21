@@ -207,4 +207,4 @@ export interface MaintenanceLog {
   technicianNotes: string
 }
 
-export type ViewMode = "home" | "listing" | "detail" | "checkout" | "admin" | "my-bookings" | "compare"
+export type ViewMode = "home" | "listing" | "detail" | "checkout" | "admin" | "my-bookings" | "compare" | "auth"

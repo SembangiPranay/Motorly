@@ -139,19 +139,24 @@ class ApiService {
   }
 
   // --- Auth & Admin Verification ---
-  async adminLogin(password: string): Promise<{
+  async adminLogin(password: string, email?: string): Promise<{
     success: boolean
     token?: string
+    role?: string
+    user?: any
     message?: string
   }> {
     try {
       const res = await this.request("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, email }),
       })
       const data = await res.json()
       if (res.ok && data.token) {
         localStorage.setItem("motorly_admin_token", data.token)
+        if (data.user) {
+          localStorage.setItem("motorly_admin_user", JSON.stringify(data.user))
+        }
       }
       return data
     } catch (err: any) {
@@ -160,6 +165,11 @@ class ApiService {
         message: err.message || "Failed to reach backend.",
       }
     }
+  }
+
+  logoutAdmin() {
+    localStorage.removeItem("motorly_admin_token")
+    localStorage.removeItem("motorly_admin_user")
   }
 
   async verifyAdminSession(): Promise<boolean> {

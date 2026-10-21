@@ -25,9 +25,12 @@ import AdminView from "./views/AdminView"
 import AdminLoginModal from "./components/AdminLoginModal"
 import MyBookingsView from "./views/MyBookingsView"
 import CompareView from "./views/CompareView"
+import AuthView from "./views/AuthView"
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>("home")
+  const [authInitialTab, setAuthInitialTab] = useState<"customer" | "admin">("customer")
+  const [authReturnView, setAuthReturnView] = useState<ViewMode>("home")
   const [selectedCarId, setSelectedCarId] = useState<string>("toyota-camry")
   const [favorites, setFavorites] = useState<string[]>([
     "toyota-camry",
@@ -151,11 +154,18 @@ export default function App() {
       if (isAdminAuthenticated) {
         setCurrentView("admin")
       } else {
-        setIsAdminModalOpen(true)
+        setAuthInitialTab("admin")
+        setAuthReturnView("admin")
+        setCurrentView("auth")
       }
+    } else if (view === "auth") {
+      setAuthInitialTab("customer")
+      setAuthReturnView(currentView !== "auth" ? currentView : "home")
+      setCurrentView("auth")
     } else {
       setCurrentView(view)
     }
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const handleConfirmBooking = async (details: {
@@ -207,8 +217,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C]">
-      {/* Header (hidden in dedicated full-screen admin mode for cleaner dashboard layout) */}
-      {currentView !== "admin" && (
+      {/* Header (hidden in dedicated full-screen admin & auth mode for cleaner layout) */}
+      {currentView !== "admin" && currentView !== "auth" && (
         <Header
           currentView={currentView}
           onNavigate={handleNavigate}
@@ -312,6 +322,28 @@ export default function App() {
           />
         )}
 
+        {/* Dedicated Modern JWT Authentication Page */}
+        {currentView === "auth" && (
+          <AuthView
+            initialTab={authInitialTab}
+            onSuccess={(role, user) => {
+              if (role === "admin") {
+                setIsAdminAuthenticated(true)
+                setCurrentView("admin")
+              } else {
+                if (user) setCurrentUser(user)
+                setCurrentView(
+                  authReturnView === "admin"
+                    ? "my-bookings"
+                    : authReturnView || "my-bookings",
+                )
+              }
+            }}
+            onNavigateHome={() => setCurrentView("home")}
+            onNavigateListing={() => setCurrentView("listing")}
+          />
+        )}
+
         {/* Dynamic Admin Panel View */}
         {currentView === "admin" && (
           <AdminView
@@ -330,7 +362,9 @@ export default function App() {
       </main>
 
       {/* Footer (only on customer storefront views) */}
-      {currentView !== "admin" && <Footer onNavigate={handleNavigate} />}
+      {currentView !== "admin" && currentView !== "auth" && (
+        <Footer onNavigate={handleNavigate} />
+      )}
 
       {/* Booking Confirmation Modal */}
       {confirmedBooking && (
@@ -371,8 +405,8 @@ export default function App() {
         }}
       />
 
-      {/* Collapsible portal switcher on bottom-left (hidden in Admin console to avoid obscuring table rows) */}
-      {currentView !== "admin" && (
+      {/* Collapsible portal switcher on bottom-left (hidden in Admin & Auth view) */}
+      {currentView !== "admin" && currentView !== "auth" && (
         <aside
           aria-label="Screen Flow Preview"
           className="fixed bottom-5 left-5 z-40 transition-all duration-300"
