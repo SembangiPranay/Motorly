@@ -1,0 +1,1302 @@
+import React, { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
+import type { BookingRecord, Car, CustomerUser } from "../types"
+import { api } from "../services/api"
+import GarageMapViewer from "../components/GarageMapViewer"
+import {
+  CarIcon,
+  CalendarIcon,
+  LocationIcon,
+  ShieldIcon,
+  CheckIcon,
+  ArrowRightIcon,
+  UserIcon,
+  QrCodeIcon,
+  ClockIcon,
+  SparklesIcon,
+} from "../components/Icons"
+
+interface MyBookingsViewProps {
+  cars: Car[]
+  currentUser: CustomerUser | null
+  setCurrentUser: (user: CustomerUser | null) => void
+  onNavigateHome: () => void
+  onNavigateListing: () => void
+}
+
+export default function MyBookingsView({
+  cars,
+  currentUser,
+  setCurrentUser,
+  onNavigateHome,
+  onNavigateListing,
+}: MyBookingsViewProps) {
+  const [bookings, setBookings] = useState<BookingRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [selectedVoucher, setSelectedVoucher] = useState<{
+    booking: BookingRecord
+    car: Car | undefined
+  } | null>(null)
+
+  // Flow F: Customer Extension Request Modal State
+  const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false)
+  const [selectedBookingForExtension, setSelectedBookingForExtension] =
+    useState<BookingRecord | null>(null)
+  const [extensionDuration, setExtensionDuration] = useState(1)
+  const [extensionUnit, setExtensionUnit] =
+    useState<"hours" | "days" | "months">("days")
+  const [extensionReason, setExtensionReason] = useState("")
+  const [isSubmittingExtension, setIsSubmittingExtension] = useState(false)
+
+  // Auth toggle modal for guests
+  const [authMode, setAuthMode] = useState<"login" | "register">("login")
+  const [emailInput, setEmailInput] = useState("")
+  const [passwordInput, setPasswordInput] = useState("")
+  const [nameInput, setNameInput] = useState("")
+  const [phoneInput, setPhoneInput] = useState("")
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
+
+  // Extension notification
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+
+  const showActionSuccess = (msg: string) => {
+    setActionSuccess(msg)
+    setTimeout(() => setActionSuccess(null), 4500)
+  }
+
+  // Open Extension Modal
+  const handleOpenExtensionModal = (b: BookingRecord) => {
+    setSelectedBookingForExtension(b)
+    setExtensionDuration(1)
+    setExtensionUnit("days")
+    setExtensionReason("")
+    setIsExtensionModalOpen(true)
+  }
+
+  // Submit Extension Request to Admin
+  const handleSubmitExtensionRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBookingForExtension) return
+    setIsSubmittingExtension(true)
+    try {
+      const res = await api.requestExtension(selectedBookingForExtension.id, {
+        extraDuration: Number(extensionDuration),
+        unit: extensionUnit,
+        customerNotes: extensionReason,
+      })
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === selectedBookingForExtension.id ? res.booking : b,
+          ),
+        )
+        setIsExtensionModalOpen(false)
+        showActionSuccess(
+          `Extension request (+${extensionDuration} ${extensionUnit}) submitted to garage manager! You will receive a quotation shortly.`,
+        )
+      }
+    } catch (err: any) {
+      alert("Failed to submit extension request: " + err.message)
+    } finally {
+      setIsSubmittingExtension(false)
+    }
+  }
+
+  // Approve Admin Extension Quotation (Flow F)
+  const handleApproveExtension = async (bookingId: string) => {
+    try {
+      const res = await api.approveExtension(bookingId)
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        showActionSuccess(
+          "Extension approved! Quotation amount added to your bill and return date extended.",
+        )
+      }
+    } catch (err: any) {
+      alert("Failed to approve quotation: " + err.message)
+    }
+  }
+
+  // Decline Admin Extension Quotation (Flow F)
+  const handleDeclineExtension = async (bookingId: string) => {
+    if (!window.confirm("Are you sure you want to decline this quotation?"))
+      return
+    try {
+      const res = await api.declineExtension(bookingId)
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        showActionSuccess("Extension quotation declined.")
+      }
+    } catch (err: any) {
+      alert("Failed to decline quotation: " + err.message)
+    }
+  }
+
+  // Fetch bookings when user changes or on mount
+  useEffect(() => {
+    async function loadData() {
+      setIsLoading(true)
+      setErrorMsg(null)
+      try {
+        if (currentUser) {
+          const userBookings = await api.getCustomerBookings(currentUser.email)
+          setBookings(userBookings)
+        } else {
+          // If guest, try to read stored user
+          const profile = await api.getCustomerProfile()
+          if (profile) {
+            setCurrentUser(profile)
+            const userBookings = await api.getCustomerBookings(profile.email)
+            setBookings(userBookings)
+          } else {
+            // Default demo email lookup or empty
+            setBookings([])
+          }
+        }
+      } catch (err: any) {
+        console.warn("My Bookings fetch:", err)
+        setErrorMsg(err.message || "Failed to load reservations.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadData()
+  }, [currentUser])
+
+  // Customer Login Handler
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthError(null)
+    setIsSubmittingAuth(true)
+    try {
+      const res = await api.loginCustomer({
+        email: emailInput,
+        password: passwordInput,
+      })
+      if (res.success && res.user) {
+        setCurrentUser(res.user)
+        const userBookings = await api.getCustomerBookings(res.user.email)
+        setBookings(userBookings)
+        showActionSuccess(`Welcome back, ${res.user.name}!`)
+      } else {
+        setAuthError(res.message || "Invalid credentials.")
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "Failed to log in.")
+    } finally {
+      setIsSubmittingAuth(false)
+    }
+  }
+
+  // Customer Register Handler
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthError(null)
+    setIsSubmittingAuth(true)
+    try {
+      const res = await api.registerCustomer({
+        email: emailInput,
+        password: passwordInput,
+        name: nameInput,
+        phone: phoneInput,
+      })
+      if (res.success && res.user) {
+        setCurrentUser(res.user)
+        setBookings([])
+        showActionSuccess(
+          `Account created! Welcome to MOTORLY, ${res.user.name}.`,
+        )
+      } else {
+        setAuthError(res.message || "Registration failed.")
+      }
+    } catch (err: any) {
+      setAuthError(err.message || "Failed to register.")
+    } finally {
+      setIsSubmittingAuth(false)
+    }
+  }
+
+  // Demo 1-Click Login
+  const handleQuickDemoLogin = (email: string) => {
+    setEmailInput(email)
+    setPasswordInput("pass123")
+  }
+
+  // Logout Handler
+  const handleLogout = () => {
+    api.logoutCustomer()
+    setCurrentUser(null)
+    setBookings([])
+    showActionSuccess("Logged out of customer portal.")
+  }
+
+  // Request 24hr extension
+  const handleRequestExtension = async (bookingId: string) => {
+    try {
+      await api.updateBookingStatus(bookingId, {
+        status: "Checked Out",
+        notes: "Customer requested 24-hour extension. Approved by concierge.",
+      })
+      showActionSuccess("Your 24-hour extension request was approved!")
+      if (currentUser) {
+        const fresh = await api.getCustomerBookings(currentUser.email)
+        setBookings(fresh)
+      }
+    } catch (err: any) {
+      alert("Failed to extend rental: " + err.message)
+    }
+  }
+
+  // Cancel reservation
+  const handleCancelReservation = async (bookingId: string) => {
+    if (!window.confirm("Are you sure you want to cancel this reservation?"))
+      return
+    try {
+      await api.updateBookingStatus(bookingId, {
+        status: "Cancelled",
+        notes: "Cancelled by customer self-service portal.",
+      })
+      showActionSuccess("Reservation cancelled successfully.")
+      if (currentUser) {
+        const fresh = await api.getCustomerBookings(currentUser.email)
+        setBookings(fresh)
+      }
+    } catch (err: any) {
+      alert("Failed to cancel: " + err.message)
+    }
+  }
+
+  // Active bookings (Assigned or Checked Out or Pending)
+  const activeBookings = bookings.filter(
+    (b) =>
+      b.status === "Pending Assignment" ||
+      b.status === "Assigned" ||
+      b.status === "Checked Out",
+  )
+  const pastBookings = bookings.filter(
+    (b) =>
+      b.status === "Returned" ||
+      b.status === "Completed" ||
+      b.status === "Cancelled",
+  )
+
+  return (
+    <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-28 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Toast Alert */}
+        {actionSuccess && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center justify-between shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <CheckIcon size={18} className="text-emerald-600" />
+              <span>{actionSuccess}</span>
+            </div>
+            <button
+              onClick={() => setActionSuccess(null)}
+              className="text-emerald-600 hover:text-emerald-800 text-xs font-bold"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Customer Profile Banner */}
+        {currentUser ? (
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 mb-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#17191C] to-stone-700 text-white flex items-center justify-center font-bold text-2xl shadow-md">
+                {currentUser.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-black tracking-tight">
+                    {currentUser.name}
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                    <SparklesIcon size={12} className="text-amber-500" />
+                    {currentUser.vipTier || "Standard"} Member
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-xs text-stone-500 mt-1 font-mono">
+                  <span>{currentUser.email}</span>
+                  {currentUser.phone && <span>• {currentUser.phone}</span>}
+                  {currentUser.driverLicenseNum && (
+                    <span>
+                      • DL: {currentUser.driverLicenseNum} (
+                      {currentUser.driverLicenseState || "USA"})
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onNavigateListing}
+                className="px-4 py-2.5 rounded-xl bg-[#F97316] text-white text-sm font-semibold hover:bg-orange-600 transition shadow-sm flex items-center gap-1.5"
+              >
+                <CarIcon size={16} />
+                Reserve Another Vehicle
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium transition"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Guest Sign In / Lookup State */
+          <div className="bg-white rounded-2xl border border-stone-200 p-8 mb-8 shadow-sm max-w-2xl mx-auto">
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 rounded-xl bg-orange-50 text-[#F97316] flex items-center justify-center mx-auto mb-3">
+                <UserIcon size={24} />
+              </div>
+              <h2 className="text-2xl font-black">
+                Customer Self-Service Portal
+              </h2>
+              <p className="text-sm text-stone-500 mt-1">
+                Sign in to manage live vehicle assignments, boarding vouchers,
+                and extensions.
+              </p>
+            </div>
+
+            {/* Quick Demo Autofill Chips */}
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 mb-6">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+                ⚡ Demo Quick-Fill Accounts:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin("john.doe@email.com")}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-xs font-medium text-stone-700 hover:border-orange-500 transition"
+                >
+                  John Doe (Active Sedan)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin("david.c@techventure.io")}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-xs font-medium text-stone-700 hover:border-orange-500 transition"
+                >
+                  David Chen (Luxury BMW)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin("sarah.m@vipclient.com")}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-xs font-medium text-stone-700 hover:border-orange-500 transition"
+                >
+                  Sarah Miller (VIP Client)
+                </button>
+              </div>
+            </div>
+
+            {authError && (
+              <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {authError}
+              </div>
+            )}
+
+            {/* Form Tabs */}
+            <div className="flex border-b border-stone-200 mb-6">
+              <button
+                type="button"
+                onClick={() => setAuthMode("login")}
+                className={`flex-1 py-2.5 text-sm font-semibold border-b-2 text-center transition ${
+                  authMode === "login"
+                    ? "border-[#F97316] text-[#F97316]"
+                    : "border-transparent text-stone-400 hover:text-stone-600"
+                }`}
+              >
+                Sign In to Account
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode("register")}
+                className={`flex-1 py-2.5 text-sm font-semibold border-b-2 text-center transition ${
+                  authMode === "register"
+                    ? "border-[#F97316] text-[#F97316]"
+                    : "border-transparent text-stone-400 hover:text-stone-600"
+                }`}
+              >
+                Create New Account
+              </button>
+            </div>
+
+            <form
+              onSubmit={authMode === "login" ? handleLogin : handleRegister}
+              className="space-y-4"
+            >
+              {authMode === "register" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      Full Legal Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="e.g. Alex Morgan"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-600 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmittingAuth}
+                className="w-full py-3 rounded-xl bg-[#17191C] hover:bg-stone-800 text-white font-semibold text-sm transition shadow-sm disabled:opacity-60"
+              >
+                {isSubmittingAuth
+                  ? "Verifying..."
+                  : authMode === "login"
+                    ? "Access Reservations"
+                    : "Register & Access"}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Active Reservations Section */}
+        {currentUser && (
+          <div className="space-y-8">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <span>Active & Upcoming Trips</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-[#F97316]">
+                    {activeBookings.length}
+                  </span>
+                </h2>
+                <button
+                  onClick={async () => {
+                    if (currentUser) {
+                      setIsLoading(true)
+                      const fresh = await api.getCustomerBookings(
+                        currentUser.email,
+                      )
+                      setBookings(fresh)
+                      setIsLoading(false)
+                    }
+                  }}
+                  className="text-xs font-semibold text-stone-500 hover:text-[#F97316] transition flex items-center gap-1"
+                >
+                  ↻ Refresh Status
+                </button>
+              </div>
+
+              {isLoading ? (
+                <div className="p-12 text-center bg-white rounded-2xl border border-stone-200 text-stone-400">
+                  Loading your reservations...
+                </div>
+              ) : activeBookings.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
+                  <div className="w-12 h-12 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-3">
+                    <CarIcon size={24} />
+                  </div>
+                  <h3 className="text-base font-bold text-stone-800">
+                    No Active Reservations
+                  </h3>
+                  <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+                    You do not currently have any active vehicle rentals. Select
+                    from our pristine fleet to hit the road.
+                  </p>
+                  <button
+                    onClick={onNavigateListing}
+                    className="mt-4 px-5 py-2.5 rounded-xl bg-[#F97316] text-white text-xs font-bold hover:bg-orange-600 transition shadow-sm inline-flex items-center gap-1.5"
+                  >
+                    Browse Available Fleet <ArrowRightIcon size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6">
+                  {activeBookings.map((b) => {
+                    const matedCar = cars.find((c) => c.id === b.matchedCarId)
+                    const isMated = Boolean(b.matchedCarId && matedCar)
+
+                    return (
+                      <div
+                        key={b.id}
+                        className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm hover:border-stone-300 transition"
+                      >
+                        {/* Status bar */}
+                        <div className="bg-stone-50 px-6 py-3 border-b border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-bold text-stone-900">
+                              {b.id}
+                            </span>
+                            <span className="text-stone-400">•</span>
+                            <span className="text-stone-500">
+                              Booked {b.createdAt}
+                            </span>
+                          </div>
+
+                          {/* Lifecycle Status Pill */}
+                          <div className="flex items-center gap-2">
+                            {b.status === "Pending Assignment" && (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                Allocating Vehicle at Terminal
+                              </span>
+                            )}
+                            {b.status === "Assigned" && (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1.5">
+                                <CheckIcon size={12} className="text-sky-600" />
+                                Vehicle Assigned & Staged
+                              </span>
+                            )}
+                            {b.status === "Checked Out" && (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                In Drive / Active Rental
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Flow D: Green Signal Confirmation Card & Garage Hub Map */}
+                        {b.approvedByAdmin ? (
+                          <div className="mx-6 mt-5 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse" />
+                                <h4 className="font-black text-xs sm:text-sm text-emerald-900 tracking-tight">
+                                  GREEN SIGNAL: APPROVED BY GARAGE MANAGER!
+                                </h4>
+                              </div>
+                              <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-0.5 rounded border border-emerald-300">
+                                Clearance Granted
+                              </span>
+                            </div>
+                            <p className="text-xs text-stone-600 mb-3">
+                              Your driver credentials have passed verification.
+                              Please proceed to the garage facility and assigned
+                              bay below to collect your keys:
+                            </p>
+
+                            {/* Exact Garage Hub & Bay Location with Interactive Map Engine */}
+                            <div className="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <span className="text-[10px] font-mono font-bold uppercase text-stone-400 block">
+                                    Pickup Garage & Facility
+                                  </span>
+                                  <h5 className="font-bold text-stone-900 text-sm">
+                                    {matedCar?.garageName ||
+                                      "MOTORLY Central Hub & Garage Bay 4"}
+                                  </h5>
+                                  <p className="text-xs text-stone-500">
+                                    {matedCar?.garageAddress ||
+                                      "4200 NW 21st St, Miami, FL 33142"}
+                                  </p>
+                                </div>
+                                <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl shrink-0 text-left sm:text-right">
+                                  <span className="text-[10px] font-bold text-amber-800 uppercase block">
+                                    Assigned Stall / Bay
+                                  </span>
+                                  <span className="text-sm font-black font-mono text-amber-900">
+                                    {matedCar?.garageBay || "Bay 14-B"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <GarageMapViewer
+                                garageName={matedCar?.garageName}
+                                garageAddress={matedCar?.garageAddress}
+                                garageBay={matedCar?.garageBay}
+                                lat={matedCar?.garageLat}
+                                lng={matedCar?.garageLng}
+                                height="200px"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mx-6 mt-5 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                              <div>
+                                <span className="font-bold text-amber-900 block">
+                                  Awaiting Garage Manager Green Signal
+                                </span>
+                                <span className="text-stone-600 text-[11px]">
+                                  Your driver identification photos (front &
+                                  back) are under security clearance. Exact
+                                  garage bay will unlock once approved.
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
+                              Review Pending
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Flow E: Key Handoff & Active Rental Clock Status */}
+                        {b.keysHandedAt && (
+                          <div className="mx-6 mt-3 p-3.5 rounded-xl bg-stone-900 text-white flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
+                            <div className="flex items-center gap-2.5">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <div>
+                                <span className="font-bold text-emerald-400 block text-sm">
+                                  Keys Handed Over — Official Rental Clock
+                                  Active!
+                                </span>
+                                <p className="text-[11px] text-stone-300 font-mono mt-0.5">
+                                  Handoff: {b.keysHandedAt} • Departure Odo:{" "}
+                                  {b.checklistOut?.odometerOut || 15200} mi •
+                                  Fuel:{" "}
+                                  {b.checklistOut?.fuelLevelOut ||
+                                    "Full (100%)"}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-md border border-emerald-500/40">
+                              Vehicle Locked In-Drive
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Flow F: Extension Request Card & Quotation Notification */}
+                        {(b.extensionStatus === "Pending" ||
+                          b.extensionStatus === "Requested") && (
+                          <div className="mx-6 mt-3 p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs flex items-center justify-between gap-3">
+                            <div>
+                              <span className="font-bold text-amber-900 flex items-center gap-1.5">
+                                <ClockIcon
+                                  size={14}
+                                  className="text-amber-600"
+                                />
+                                Extension Request Submitted (+
+                                {b.extensionRequest?.durationValue}{" "}
+                                {b.extensionRequest?.durationUnit})
+                              </span>
+                              <p className="text-stone-600 text-[11px] mt-0.5">
+                                The garage manager has received your request and
+                                is computing a quotation for your requested
+                                period.
+                              </p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase">
+                              Quotation Pending
+                            </span>
+                          </div>
+                        )}
+
+                        {b.extensionStatus === "Quoted" && b.extensionQuote && (
+                          <div className="mx-6 mt-3 p-4 rounded-2xl bg-sky-50 border-2 border-sky-300 text-xs shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-black text-sky-950 uppercase tracking-wide text-xs flex items-center gap-1.5">
+                                <SparklesIcon
+                                  size={14}
+                                  className="text-sky-600"
+                                />
+                                Extension Quotation Received from Garage
+                                Manager!
+                              </span>
+                              <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded border border-sky-200">
+                                Awaiting Your Approval
+                              </span>
+                            </div>
+                            <p className="text-stone-700 mb-2">
+                              You requested an extension of{" "}
+                              <strong>
+                                +{b.extensionQuote.durationValue}{" "}
+                                {b.extensionQuote.durationUnit}
+                              </strong>
+                              . The manager has provided this official quote:
+                            </p>
+                            <div className="bg-white p-3 rounded-xl border border-sky-200 mb-3 space-y-1 font-mono">
+                              <div className="flex justify-between text-stone-600">
+                                <span>Quoted Rate:</span>
+                                <span className="font-bold text-stone-900">
+                                  ${b.extensionQuote.rateAmount.toFixed(2)} /{" "}
+                                  {b.extensionQuote.rateType}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-stone-900 font-bold pt-1 border-t border-stone-100">
+                                <span>Total Quoted Amount to Add:</span>
+                                <span className="text-emerald-600 text-base font-black">
+                                  +$
+                                  {b.extensionQuote.totalQuotedAmount.toFixed(
+                                    2,
+                                  )}
+                                </span>
+                              </div>
+                              {b.extensionQuote.notes && (
+                                <p className="text-[11px] text-stone-500 italic pt-1 font-sans">
+                                  Note from Hub: "{b.extensionQuote.notes}"
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApproveExtension(b.id)}
+                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5"
+                              >
+                                <CheckIcon size={14} /> Approve & Add to Bill
+                              </button>
+                              <button
+                                onClick={() => handleDeclineExtension(b.id)}
+                                className="py-2.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-semibold text-xs transition"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {b.extensionStatus === "Approved" && (
+                          <div className="mx-6 mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                            <CheckIcon
+                              size={14}
+                              className="text-emerald-600 shrink-0"
+                            />
+                            <span>
+                              ✓ Rental extension confirmed and appended to your
+                              active bill.
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Card Body */}
+                        <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                          {/* Car Preview / Mated Details */}
+                          <div className="lg:col-span-5 flex gap-5 items-center">
+                            <div className="w-32 h-24 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 shrink-0">
+                              <img
+                                src={
+                                  matedCar
+                                    ? matedCar.image
+                                    : "/images/car-white.jpg"
+                                }
+                                alt="Vehicle"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-base text-stone-900">
+                                  {matedCar
+                                    ? matedCar.name
+                                    : `${b.requestedCategory || "Standard"} Category`}
+                                </h3>
+                                {matedCar && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                                    {matedCar.plateNumber}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-stone-500 mt-1">
+                                {matedCar
+                                  ? `${matedCar.type} • ${matedCar.transmission} • ${matedCar.fuelType}`
+                                  : "Fleet dispatch will pair your exact vehicle prior to arrival."}
+                              </p>
+                              {matedCar && (
+                                <div className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md inline-flex border border-emerald-100">
+                                  <ShieldIcon
+                                    size={12}
+                                    className="text-emerald-600"
+                                  />
+                                  {matedCar.healthScore || 98}% Certified
+                                  Sanitized
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Trip Route & Dates */}
+                          <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-stone-100 pt-4 lg:pt-0 lg:pl-6 space-y-3">
+                            <div className="flex items-start gap-2.5">
+                              <LocationIcon
+                                size={16}
+                                className="text-[#F97316] shrink-0 mt-0.5"
+                              />
+                              <div className="text-xs">
+                                <p className="font-semibold text-stone-800">
+                                  Pickup Hub
+                                </p>
+                                <p className="text-stone-500">
+                                  {b.pickupLocation}
+                                </p>
+                                <p className="text-stone-700 font-mono font-medium mt-0.5">
+                                  {b.pickupDate}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2.5">
+                              <CalendarIcon
+                                size={16}
+                                className="text-stone-400 shrink-0 mt-0.5"
+                              />
+                              <div className="text-xs">
+                                <p className="font-semibold text-stone-800">
+                                  Return Location
+                                </p>
+                                <p className="text-stone-500">
+                                  {b.returnLocation}
+                                </p>
+                                <p className="text-stone-700 font-mono font-medium mt-0.5">
+                                  {b.returnDate}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Pricing & Actions */}
+                          <div className="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-stone-100 pt-4 lg:pt-0 lg:pl-6 flex flex-col justify-between">
+                            <div>
+                              <p className="text-xs text-stone-400">
+                                Total Rental Cost
+                              </p>
+                              <p className="text-2xl font-black font-mono text-stone-900 mt-0.5">
+                                ${b.totalAmount.toFixed(2)}
+                              </p>
+                              <span className="text-[10px] text-emerald-600 font-medium">
+                                ✓ Taxes & Standard Protection Included
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 mt-4">
+                              <button
+                                onClick={() =>
+                                  setSelectedVoucher({
+                                    booking: b,
+                                    car: matedCar,
+                                  })
+                                }
+                                className="w-full py-2 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <QrCodeIcon size={14} />
+                                Digital Boarding Voucher
+                              </button>
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleOpenExtensionModal(b)}
+                                  className="flex-1 py-1.5 px-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#F97316] text-[11px] font-bold transition border border-orange-200 flex items-center justify-center gap-1"
+                                >
+                                  <ClockIcon size={13} />
+                                  Need an Extension
+                                </button>
+                                {b.status !== "Checked Out" && (
+                                  <button
+                                    onClick={() =>
+                                      handleCancelReservation(b.id)
+                                    }
+                                    className="py-1.5 px-2.5 rounded-lg bg-stone-100 hover:bg-rose-50 hover:text-rose-600 text-stone-600 text-[11px] font-medium transition"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Past Trips Archive */}
+            {pastBookings.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <span>Past Rental History</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-stone-200 text-stone-700">
+                    {pastBookings.length}
+                  </span>
+                </h2>
+
+                <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-semibold uppercase tracking-wider">
+                          <th className="px-5 py-3">Reservation ID</th>
+                          <th className="px-5 py-3">Dates</th>
+                          <th className="px-5 py-3">Location</th>
+                          <th className="px-5 py-3">Vehicle</th>
+                          <th className="px-5 py-3">Status</th>
+                          <th className="px-5 py-3 text-right">Total</th>
+                          <th className="px-5 py-3 text-center">Receipt</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {pastBookings.map((b) => {
+                          const car = cars.find((c) => c.id === b.matchedCarId)
+                          return (
+                            <tr
+                              key={b.id}
+                              className="hover:bg-stone-50/60 transition"
+                            >
+                              <td className="px-5 py-3 font-mono font-bold text-stone-900">
+                                {b.id}
+                              </td>
+                              <td className="px-5 py-3 text-stone-600 font-mono">
+                                {b.pickupDate} → {b.returnDate}
+                              </td>
+                              <td className="px-5 py-3 text-stone-600 truncate max-w-[180px]">
+                                {b.pickupLocation}
+                              </td>
+                              <td className="px-5 py-3 font-medium text-stone-900">
+                                {car
+                                  ? car.name
+                                  : b.requestedCategory || "Standard"}
+                              </td>
+                              <td className="px-5 py-3">
+                                {b.status === "Completed" ? (
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Completed
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-stone-100 text-stone-600">
+                                    {b.status}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3 font-mono font-bold text-stone-900 text-right">
+                                ${b.totalAmount.toFixed(2)}
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <button
+                                  onClick={() =>
+                                    setSelectedVoucher({ booking: b, car })
+                                  }
+                                  className="text-stone-500 hover:text-stone-900 font-semibold underline decoration-stone-300"
+                                >
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Digital Boarding Voucher Modal */}
+      {selectedVoucher &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-fade-in"
+            onClick={() => setSelectedVoucher(null)}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-stone-200 my-auto animate-scale-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header / Boarding Pass Style */}
+              <div className="bg-[#17191C] text-white p-6 relative">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#F97316]">
+                      MOTORLY EXPRESS BOARDING PASS
+                    </span>
+                    <h3 className="text-xl font-black mt-0.5">
+                      Rental Agreement #{selectedVoucher.booking.id}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setSelectedVoucher(null)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-stone-300">
+                  <div>
+                    <p className="text-[10px] text-stone-400">RENTER</p>
+                    <p className="font-bold text-white">
+                      {selectedVoucher.booking.customer.firstName}{" "}
+                      {selectedVoucher.booking.customer.lastName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-stone-400">TELEPHONE</p>
+                    <p className="font-mono text-white">
+                      {selectedVoucher.booking.customer.phone}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-stone-400">STATUS</p>
+                    <p className="font-bold text-emerald-400">
+                      {selectedVoucher.booking.status}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Voucher Details Body */}
+              <div className="p-6 space-y-5">
+                {/* Vehicle & Plate Highlight */}
+                <div className="flex items-center gap-4 bg-[#FAF7F2] p-4 rounded-2xl border border-stone-200">
+                  <div className="w-16 h-12 rounded-xl overflow-hidden bg-stone-200 shrink-0">
+                    <img
+                      src={
+                        selectedVoucher.car
+                          ? selectedVoucher.car.image
+                          : "/images/car-white.jpg"
+                      }
+                      alt="Car"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm text-stone-900">
+                      {selectedVoucher.car
+                        ? selectedVoucher.car.name
+                        : "Assigned Category Vehicle"}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {selectedVoucher.car?.plateNumber && (
+                        <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-white border border-stone-300 text-stone-800">
+                          {selectedVoucher.car.plateNumber}
+                        </span>
+                      )}
+                      <span className="text-xs text-stone-500">
+                        Bay 14-B (Terminal Level 2)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Itinerary */}
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-100">
+                    <p className="text-[10px] uppercase font-bold text-stone-400">
+                      PICKUP DISPATCH
+                    </p>
+                    <p className="font-bold text-stone-800 mt-1">
+                      {selectedVoucher.booking.pickupDate}
+                    </p>
+                    <p className="text-stone-500 text-[11px] mt-0.5">
+                      {selectedVoucher.booking.pickupLocation}
+                    </p>
+                  </div>
+                  <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-100">
+                    <p className="text-[10px] uppercase font-bold text-stone-400">
+                      RETURN INSPECTION
+                    </p>
+                    <p className="font-bold text-stone-800 mt-1">
+                      {selectedVoucher.booking.returnDate}
+                    </p>
+                    <p className="text-stone-500 text-[11px] mt-0.5">
+                      {selectedVoucher.booking.returnLocation}
+                    </p>
+                  </div>
+                </div>
+
+                {/* QR Code Airport Gate Pass */}
+                <div className="border border-dashed border-stone-300 rounded-2xl p-4 text-center bg-stone-50/50">
+                  <div className="w-28 h-28 mx-auto bg-white p-2 rounded-xl border border-stone-200 shadow-sm flex items-center justify-center">
+                    <QrCodeIcon size={88} className="text-stone-800" />
+                  </div>
+                  <p className="text-[11px] font-mono text-stone-500 mt-2">
+                    SCAN AT MOTORLY EXPRESS KIOSK OR GATE BOOTH
+                  </p>
+                  <p className="text-[10px] text-stone-400 mt-0.5">
+                    Pre-verified driver identification on file with automated
+                    key release.
+                  </p>
+                </div>
+
+                {/* Print / Close */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition"
+                  >
+                    Print / Save PDF
+                  </button>
+                  <button
+                    onClick={() => setSelectedVoucher(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#17191C] hover:bg-stone-800 text-white text-xs font-bold transition"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {/* Customer Extension Request Modal (Flow F) */}
+      {isExtensionModalOpen &&
+        selectedBookingForExtension &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-fade-in"
+            onClick={() => setIsExtensionModalOpen(false)}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-md w-full max-h-[92vh] overflow-y-auto p-5 sm:p-7 shadow-2xl border border-stone-200 text-[#17191C] my-auto animate-scale-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-orange-50 text-[#F97316] flex items-center justify-center">
+                    <ClockIcon size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-stone-900">
+                      Request Rental Extension
+                    </h3>
+                    <p className="text-[11px] text-stone-500">
+                      Booking #{selectedBookingForExtension.id}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsExtensionModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form
+                onSubmit={handleSubmitExtensionRequest}
+                className="space-y-4 my-4"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Extension Duration
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={extensionDuration}
+                      onChange={(e) =>
+                        setExtensionDuration(
+                          Math.max(1, Number(e.target.value)),
+                        )
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-stone-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Duration Unit
+                    </label>
+                    <select
+                      value={extensionUnit}
+                      onChange={(e) =>
+                        setExtensionUnit(
+                          e.target.value as "hours" | "days" | "months",
+                        )
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Reason for Extension (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Flight delay, extra business meetings, road trip continuation..."
+                    value={extensionReason}
+                    onChange={(e) => setExtensionReason(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+
+                <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-[11px] text-stone-600">
+                  💡 <strong>Quotation Flow:</strong> Once you submit, the
+                  garage manager will receive your request and reply with an
+                  official quotation rate per day / hour / month. You can review
+                  and approve it before anything is added to your bill.
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsExtensionModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingExtension}
+                    className="flex-1 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-sm disabled:opacity-60 flex items-center justify-center gap-1.5"
+                  >
+                    {isSubmittingExtension
+                      ? "Submitting..."
+                      : "Send Request to Manager"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  )
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Transforms detailed design parameters into a fully responsive web page, enabling users to seamlessly convert designs into functional websites.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

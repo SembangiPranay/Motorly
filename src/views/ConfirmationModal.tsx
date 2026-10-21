@@ -1,0 +1,229 @@
+import React from "react"
+import { createPortal } from "react-dom"
+import type { Car, BookingState, CustomerInfo } from "../types"
+import {
+  CheckIcon,
+  CalendarIcon,
+  LocationIcon,
+  QrCodeIcon,
+} from "../components/Icons"
+
+interface ConfirmationModalProps {
+  bookingId: string
+  car: Car
+  bookingState: BookingState
+  customer: CustomerInfo
+  totalAmount: number
+  onClose: () => void
+  onNavigateHome: () => void
+  onNavigateListing: () => void
+  onNavigateAdmin?: () => void
+  onNavigateMyBookings?: () => void
+}
+
+export default function ConfirmationModal({
+  bookingId,
+  car,
+  bookingState,
+  customer,
+  totalAmount,
+  onClose,
+  onNavigateHome,
+  onNavigateListing,
+  onNavigateAdmin,
+  onNavigateMyBookings,
+}: ConfirmationModalProps) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-8 shadow-2xl relative space-y-5 my-auto border border-stone-200 animate-scale-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close cross */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          ✕
+        </button>
+
+        {/* Success Icon */}
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto shadow-inner border border-green-200">
+            <CheckIcon size={32} />
+          </div>
+          <span className="inline-block px-3 py-1 rounded-full bg-orange-50 text-[#F97316] text-[11px] font-bold uppercase tracking-wider">
+            Booking Confirmed &amp; Dispatched
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#17191C] font-heading">
+            You're ready to drive!
+          </h2>
+          <p className="text-xs text-gray-500">
+            A confirmation voucher has been stored in the database and sent to{" "}
+            <span className="font-semibold text-gray-800">
+              {customer.email}
+            </span>
+            .
+          </p>
+        </div>
+
+        {/* Boarding Pass Style Voucher */}
+        <div className="rounded-2xl bg-gray-50 border border-gray-200 p-5 space-y-4 text-xs relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+            <div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                Reservation Reference
+              </p>
+              <p className="font-extrabold text-[#F97316] text-base font-mono">
+                {bookingId}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                Primary Driver
+              </p>
+              <p className="font-bold text-gray-800 text-sm">
+                {customer.firstName} {customer.lastName}
+              </p>
+            </div>
+          </div>
+
+          {/* Vehicle mini details */}
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-12 rounded-xl overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+              <img
+                src={car.image}
+                alt={car.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-bold text-gray-900 font-heading text-sm truncate">
+                {car.name}
+              </h4>
+              <p className="text-gray-500 text-[11px]">
+                {car.type} • {car.transmission} •{" "}
+                {car.plateNumber || "FL-492-MTR"}
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-[10px] text-gray-400 font-bold uppercase">
+                Paid Total
+              </p>
+              <p className="font-extrabold text-base text-gray-900 font-mono">
+                ${totalAmount.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          {/* Itinerary */}
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200">
+            <div>
+              <div className="flex items-center gap-1 text-gray-400 font-semibold mb-0.5">
+                <LocationIcon size={12} className="text-[#F97316]" />
+                <span>Pickup Hub</span>
+              </div>
+              <p className="font-bold text-gray-800 text-[11px] leading-tight">
+                {bookingState.pickupLocation}
+              </p>
+              <p className="text-gray-500 text-[10px] mt-0.5">
+                {bookingState.pickupDate} ({bookingState.pickupTime})
+              </p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1 text-gray-400 font-semibold mb-0.5">
+                <CalendarIcon size={12} className="text-[#F97316]" />
+                <span>Return Hub</span>
+              </div>
+              <p className="font-bold text-gray-800 text-[11px] leading-tight">
+                {bookingState.returnLocation}
+              </p>
+              <p className="text-gray-500 text-[10px] mt-0.5">
+                {bookingState.returnDate} ({bookingState.returnTime})
+              </p>
+            </div>
+          </div>
+
+          {/* Contactless QR Code section */}
+          <div className="pt-3 border-t border-dashed border-gray-200 flex items-center justify-between bg-white/60 -mx-5 -mb-5 p-4 rounded-b-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center">
+                <QrCodeIcon size={22} />
+              </div>
+              <div>
+                <p className="font-bold text-gray-800 text-xs">
+                  Express Terminal Check-in
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  Scan at kiosk for 60-second key handoff
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono text-[#F97316] font-bold bg-orange-50 px-2 py-1 rounded">
+              VERIFIED
+            </span>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="space-y-2 pt-1">
+          {onNavigateMyBookings && (
+            <button
+              onClick={() => {
+                onClose()
+                onNavigateMyBookings()
+              }}
+              className="w-full py-3 bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+            >
+              <span>🎟️ View Digital Boarding Pass in My Trips</span>
+            </button>
+          )}
+
+          {onNavigateAdmin && (
+            <button
+              onClick={() => {
+                onClose()
+                onNavigateAdmin()
+              }}
+              className="w-full py-2.5 bg-stone-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+            >
+              <span>⚙️ Inspect in Fleet Admin Mating Queue</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => window.print()}
+            className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition-colors"
+          >
+            Download Voucher PDF
+          </button>
+
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button
+              onClick={() => {
+                onClose()
+                onNavigateListing()
+              }}
+              className="py-2.5 border border-gray-300 hover:border-gray-400 text-gray-700 text-xs font-semibold rounded-xl transition-colors"
+            >
+              Browse Fleet
+            </button>
+            <button
+              onClick={() => {
+                onClose()
+                onNavigateHome()
+              }}
+              className="py-2.5 bg-[#17191C] hover:bg-black text-white text-xs font-semibold rounded-xl transition-colors"
+            >
+              Return Home
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}

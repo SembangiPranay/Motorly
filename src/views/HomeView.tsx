@@ -1,0 +1,1121 @@
+import React, { useState } from "react"
+import type { Car, BookingState, VehicleType } from "../types"
+import DateSchedulingModal from "../components/DateSchedulingModal"
+import {
+  CarIcon,
+  CalendarIcon,
+  LocationIcon,
+  ShieldIcon,
+  HeadsetIcon,
+  ClockIcon,
+  ArrowRightIcon,
+  ChevronDownIcon,
+  InfoIcon,
+  StarIcon,
+  CheckIcon,
+  ZapIcon,
+  SparklesIcon,
+} from "../components/Icons"
+
+interface HomeViewProps {
+  cars?: Car[]
+  bookingState: BookingState
+  setBookingState: React.Dispatch<React.SetStateAction<BookingState>>
+  onSearch: () => void
+  onSelectCategory: (category: VehicleType) => void
+  onSelectCar: (carId: string) => void
+  onQuickBook?: (carId: string) => void
+  onNavigateCompare?: () => void
+}
+
+export default function HomeView({
+  cars = [],
+  bookingState,
+  setBookingState,
+  onSearch,
+  onSelectCategory,
+  onSelectCar,
+  onQuickBook,
+  onNavigateCompare,
+}: HomeViewProps) {
+  const [differentReturnLocation, setDifferentReturnLocation] = useState(false)
+  const [selectedDuration, setSelectedDuration] =
+    useState<"Hourly" | "Daily" | "Weekly" | "Monthly">("Daily")
+  const [fleetFilter, setFleetFilter] = useState<string>("All")
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0)
+  const [calculatorDays, setCalculatorDays] = useState(3)
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+
+  // Quick category cards
+  const fleetCategories: {
+    type: VehicleType
+    label: string
+    price: string
+    image: string
+    carId: string
+    description: string
+  }[] = [
+    {
+      type: "Economy",
+      label: "Economy",
+      price: "From $35/day",
+      image: "/images/car-white.jpg",
+      carId: "toyota-corolla",
+      description: "Smart, fuel-efficient daily commuters with great MPG.",
+    },
+    {
+      type: "Sedan",
+      label: "Sedan",
+      price: "From $45/day",
+      image: "/images/car-dark.jpg",
+      carId: "toyota-camry",
+      description: "Comfortable, quiet highway cruisers for executive travel.",
+    },
+    {
+      type: "SUV",
+      label: "SUV",
+      price: "From $65/day",
+      image:
+        "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=800&q=80",
+      carId: "honda-crv",
+      description:
+        "Spacious all-weather crossovers built for family roadtrips.",
+    },
+    {
+      type: "Luxury",
+      label: "Luxury",
+      price: "From $120/day",
+      image: "/images/car-black.jpg",
+      carId: "bmw-3-series",
+      description: "Refined German performance and cutting-edge cockpit tech.",
+    },
+  ]
+
+  // Featured vehicles from live fleet
+  const featuredCars = (cars.length > 0 ? cars : [])
+    .filter((car) => {
+      if (fleetFilter === "All") return true
+      return car.type === fleetFilter
+    })
+    .slice(0, 4)
+
+  // FAQ Items
+  const faqItems = [
+    {
+      q: "What documents are required to pick up my rental vehicle?",
+      a: "All you need is a valid government-issued driver's license (held for at least 1 year) and a primary debit or credit card for identity verification. International drivers simply present their home country license and passport.",
+    },
+    {
+      q: "Are there any hidden airport surcharges or cancellation fees?",
+      a: "Zero hidden fees. The price you see on MOTORLY includes all mandatory state taxes, vehicle registration surcharges, and airport concession recovery fees. Free cancellations are honored up to 24 hours prior to pickup.",
+    },
+    {
+      q: "How does airport terminal pickup and car mating work?",
+      a: "Our automated dispatch engine mates your reservation directly with a clean, inspected vehicle in your selected category. When you arrive at MIA or LAX, your vehicle is pre-parked at the express terminal hub ready for key handoff in under 2 minutes.",
+    },
+    {
+      q: "Can I add an additional driver or child safety seat?",
+      a: "Yes! Spouses and domestic partners can be added at zero extra charge. You can also select child safety seats, ski racks, or GPS accessories directly during checkout.",
+    },
+  ]
+
+  return (
+    <div className="space-y-20 pb-24 animate-fade-in bg-[#FAF7F2]">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden pt-8 sm:pt-12 pb-24 sm:pb-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+            {/* Left Content Column */}
+            <div className="lg:col-span-6 z-10 flex flex-col justify-center space-y-6 lg:pr-4">
+              {/* Eyebrow - Clean uppercase text with generous tracking */}
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#F97316] animate-ping" />
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F97316]">
+                  FLEXIBLE CAR RENTALS
+                </p>
+              </div>
+
+              {/* Bold Editorial Headline */}
+              <h1 className="text-5xl sm:text-6xl lg:text-[70px] font-extrabold tracking-[-0.03em] text-[#17191C] leading-[1.04] font-heading">
+                Your next drive <br />
+                <span className="text-[#F97316]">starts here.</span>
+              </h1>
+
+              {/* Refined Subtitle */}
+              <p className="text-base sm:text-lg text-gray-500 max-w-lg leading-relaxed font-normal">
+                Clean cars. Flexible rental plans. Simple and secure booking for
+                every journey.
+              </p>
+
+              {/* Segmented Duration Switcher */}
+              <div className="pt-2">
+                <div className="inline-flex p-1.5 bg-[#EEF0F2] rounded-2xl gap-1 shadow-inner">
+                  {(["Hourly", "Daily", "Weekly", "Monthly"] as const).map(
+                    (mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDuration(mode)
+                          const days =
+                            mode === "Hourly"
+                              ? 1
+                              : mode === "Daily"
+                                ? 3
+                                : mode === "Weekly"
+                                  ? 7
+                                  : 30
+
+                          // Advance returnDate based on pickupDate + duration days
+                          let newReturnDate = bookingState.returnDate
+                          const start = Date.parse(bookingState.pickupDate)
+                          if (!isNaN(start)) {
+                            const end = new Date(
+                              start + days * 24 * 60 * 60 * 1000,
+                            )
+                            const monthNames = [
+                              "Jan",
+                              "Feb",
+                              "Mar",
+                              "Apr",
+                              "May",
+                              "Jun",
+                              "Jul",
+                              "Aug",
+                              "Sep",
+                              "Oct",
+                              "Nov",
+                              "Dec",
+                            ]
+                            newReturnDate = `${monthNames[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`
+                          }
+
+                          setBookingState((prev) => ({
+                            ...prev,
+                            rentalPlan:
+                              mode.toLowerCase() as BookingState["rentalPlan"],
+                            rentalDurationDays: days,
+                            returnDate: newReturnDate,
+                          }))
+                        }}
+                        className={`px-5 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                          selectedDuration === mode
+                            ? "bg-white text-[#F97316] font-bold shadow-sm"
+                            : "text-gray-500 hover:text-gray-900 font-medium"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-2 font-medium">
+                  {selectedDuration === "Hourly" &&
+                    "⚡ Pay only for the hours you need. Fuel included."}
+                  {selectedDuration === "Daily" &&
+                    "★ Most popular: Unlimited miles across state lines."}
+                  {selectedDuration === "Weekly" &&
+                    "🏷️ Save up to 18% automatically on 7+ day journeys."}
+                  {selectedDuration === "Monthly" &&
+                    "💎 Executive subscription: Free maintenance & monthly swaps."}
+                </p>
+              </div>
+            </div>
+
+            {/* Right Hero Image Card (Matching Reference Design with Glass Badge) */}
+            <div className="lg:col-span-6 relative flex items-center justify-center">
+              <div className="w-full relative rounded-[32px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.12)] border border-white/60 bg-gray-100 aspect-[551/354] transform hover:scale-[1.01] transition-transform duration-500 group">
+                <img
+                  src="/images/hero-clean.jpg"
+                  alt="Luxury white SUV parked by modern villa at golden hour"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+
+                {/* Floating Glassmorphism Badge from reference screenshot */}
+                <div className="absolute bottom-5 left-5 z-20 bg-white/90 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-xl border border-white/80 flex items-center gap-3 animate-fade-in max-w-xs">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md flex-shrink-0">
+                    <StarIcon size={20} filled className="text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-extrabold text-[#17191C] font-heading leading-tight">
+                      Highly rated fleet
+                    </h4>
+                    <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                      Clean vehicles • Transparent pricing
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Floating Search Widget Card */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mb-28 mt-8 sm:mt-12 relative z-20">
+          <div className="bg-white rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.06)] border border-gray-100/90 p-6 sm:p-7 space-y-4">
+            {/* Top Row: Different return location toggle */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Instant Vehicle Availability Search
+              </span>
+              <label className="flex items-center gap-2 cursor-pointer select-none group">
+                <div
+                  onClick={() =>
+                    setDifferentReturnLocation(!differentReturnLocation)
+                  }
+                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
+                    differentReturnLocation
+                      ? "bg-[#F97316]"
+                      : "bg-gray-300 group-hover:bg-gray-400"
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                      differentReturnLocation
+                        ? "translate-x-4"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </div>
+                <span className="text-xs font-medium text-gray-500 group-hover:text-gray-700 transition-colors">
+                  Different return location
+                </span>
+                <InfoIcon size={14} className="text-gray-400" />
+              </label>
+            </div>
+
+            {/* Responsive Inputs Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.3fr_1.1fr_1.1fr_auto] gap-3.5 items-end">
+              {/* Pickup Location */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-900">
+                  Pickup Location
+                </label>
+                <div className="relative h-[52px] border border-gray-200 hover:border-orange-300 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 rounded-xl px-3.5 flex items-center bg-white transition-all">
+                  <LocationIcon
+                    size={18}
+                    className="text-gray-400 mr-2.5 flex-shrink-0"
+                  />
+                  <select
+                    value={bookingState.pickupLocation}
+                    onChange={(e) =>
+                      setBookingState((prev) => ({
+                        ...prev,
+                        pickupLocation: e.target.value,
+                        ...(!differentReturnLocation
+                          ? { returnLocation: e.target.value }
+                          : {}),
+                      }))
+                    }
+                    className="w-full text-xs sm:text-sm font-medium text-gray-800 bg-transparent outline-none cursor-pointer truncate appearance-none pr-6"
+                  >
+                    <option value="Miami International Airport (MIA)">
+                      Miami International Airport (MIA)
+                    </option>
+                    <option value="Downtown Miami">Downtown Miami</option>
+                    <option value="Los Angeles International (LAX)">
+                      Los Angeles International (LAX)
+                    </option>
+                    <option value="New York JFK Airport">
+                      New York JFK Airport
+                    </option>
+                    <option value="Orlando International (MCO)">
+                      Orlando International (MCO)
+                    </option>
+                  </select>
+                  <ChevronDownIcon
+                    size={16}
+                    className="text-gray-400 pointer-events-none absolute right-3.5 flex-shrink-0"
+                  />
+                </div>
+              </div>
+
+              {/* Pickup Date & Time */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-900">
+                  Pickup Date &amp; Time
+                </label>
+                <div
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  className="relative h-[52px] border border-gray-200 hover:border-orange-400 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 rounded-xl px-3.5 flex items-center bg-white transition-all cursor-pointer group shadow-xs"
+                >
+                  <CalendarIcon
+                    size={18}
+                    className="text-[#F97316] mr-2.5 flex-shrink-0 group-hover:scale-110 transition-transform"
+                  />
+                  <div className="flex-1 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-bold text-stone-900">
+                      {bookingState.pickupDate}
+                    </span>
+                    <span className="text-xs font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md ml-1">
+                      {bookingState.pickupTime}
+                    </span>
+                  </div>
+                  <ChevronDownIcon
+                    size={14}
+                    className="text-gray-400 ml-2 flex-shrink-0 group-hover:text-stone-700 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Return Date & Time */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-900">
+                  Return Date &amp; Time
+                </label>
+                <div
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  className="relative h-[52px] border border-gray-200 hover:border-orange-400 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 rounded-xl px-3.5 flex items-center bg-white transition-all cursor-pointer group shadow-xs"
+                >
+                  <CalendarIcon
+                    size={18}
+                    className="text-[#F97316] mr-2.5 flex-shrink-0 group-hover:scale-110 transition-transform"
+                  />
+                  <div className="flex-1 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-bold text-stone-900">
+                      {bookingState.returnDate}
+                    </span>
+                    <span className="text-xs font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md ml-1">
+                      {bookingState.returnTime}
+                    </span>
+                  </div>
+                  <ChevronDownIcon
+                    size={14}
+                    className="text-gray-400 ml-2 flex-shrink-0 group-hover:text-stone-700 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Search Available Cars Button */}
+              <div className="w-full sm:col-span-2 lg:col-span-1">
+                <button
+                  type="button"
+                  onClick={onSearch}
+                  className="w-full lg:w-auto h-[52px] px-7 sm:px-8 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2.5 shadow-[0_6px_20px_rgba(249,115,22,0.35)] hover:shadow-[0_8px_25px_rgba(249,115,22,0.45)] hover:-translate-y-0.5 active:translate-y-0 transition-all whitespace-nowrap group"
+                >
+                  <span>Search Available Cars</span>
+                  <ArrowRightIcon
+                    size={16}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Optional Return Location if toggled on */}
+            {differentReturnLocation && (
+              <div className="pt-2 border-t border-gray-100 animate-fade-in">
+                <div className="max-w-md space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-900">
+                    Specific Return Location
+                  </label>
+                  <div className="relative h-[52px] border border-gray-200 hover:border-orange-300 focus-within:border-orange-500 rounded-xl px-3.5 flex items-center bg-white transition-all">
+                    <LocationIcon
+                      size={18}
+                      className="text-gray-400 mr-2.5 flex-shrink-0"
+                    />
+                    <select
+                      value={bookingState.returnLocation}
+                      onChange={(e) =>
+                        setBookingState((prev) => ({
+                          ...prev,
+                          returnLocation: e.target.value,
+                        }))
+                      }
+                      className="w-full text-xs sm:text-sm font-medium text-gray-800 bg-transparent outline-none cursor-pointer truncate appearance-none pr-6"
+                    >
+                      <option value="Miami International Airport (MIA)">
+                        Miami International Airport (MIA)
+                      </option>
+                      <option value="Downtown Miami">Downtown Miami</option>
+                      <option value="Los Angeles International (LAX)">
+                        Los Angeles International (LAX)
+                      </option>
+                      <option value="New York JFK Airport">
+                        New York JFK Airport
+                      </option>
+                      <option value="Orlando International (MCO)">
+                        Orlando International (MCO)
+                      </option>
+                    </select>
+                    <ChevronDownIcon
+                      size={16}
+                      className="text-gray-400 pointer-events-none absolute right-3.5 flex-shrink-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 4 Feature Badges */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow group">
+            <div className="w-12 h-12 rounded-xl bg-orange-50 group-hover:bg-[#F97316] group-hover:text-white transition-colors flex items-center justify-center text-[#F97316] flex-shrink-0">
+              <CarIcon size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-[#17191C] font-heading">
+                Clean Fleet
+              </h4>
+              <p className="text-xs text-gray-500">Sanitized &amp; inspected</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow group">
+            <div className="w-12 h-12 rounded-xl bg-orange-50 group-hover:bg-[#F97316] group-hover:text-white transition-colors flex items-center justify-center text-[#F97316] flex-shrink-0">
+              <ShieldIcon size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-[#17191C] font-heading">
+                Transparent Pricing
+              </h4>
+              <p className="text-xs text-gray-500">Zero hidden surcharges</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow group">
+            <div className="w-12 h-12 rounded-xl bg-orange-50 group-hover:bg-[#F97316] group-hover:text-white transition-colors flex items-center justify-center text-[#F97316] flex-shrink-0">
+              <ClockIcon size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-[#17191C] font-heading">
+                Flexible Plans
+              </h4>
+              <p className="text-xs text-gray-500">Hourly, daily, weekly</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 p-4 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:shadow-md transition-shadow group">
+            <div className="w-12 h-12 rounded-xl bg-orange-50 group-hover:bg-[#F97316] group-hover:text-white transition-colors flex items-center justify-center text-[#F97316] flex-shrink-0">
+              <HeadsetIcon size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-[#17191C] font-heading">
+                24/7 Roadside
+              </h4>
+              <p className="text-xs text-gray-500">Concierge support</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Popular Vehicles Instant Showcase (Live SQLite Fleet) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <SparklesIcon size={16} className="text-[#F97316]" />
+              <p className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
+                POPULAR CHOICES
+              </p>
+            </div>
+            <h2 className="text-3xl font-extrabold text-[#17191C] font-heading">
+              Ready for Instant Pickup Today
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Top-rated vehicles available at our airport and downtown hubs.
+            </p>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {["All", "Sedan", "SUV", "Luxury", "Economy"].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFleetFilter(cat)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                  fleetFilter === cat
+                    ? "bg-[#17191C] text-white shadow-sm"
+                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4 Cards Grid with 1-Click Quick Booking */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {featuredCars.map((car) => (
+            <div
+              key={car.id}
+              className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between group"
+            >
+              {/* Image & Badges */}
+              <div
+                className="relative h-48 bg-gray-50 overflow-hidden cursor-pointer"
+                onClick={() => onSelectCar(car.id)}
+              >
+                <img
+                  src={car.image}
+                  alt={car.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                  <span className="bg-[#17191C]/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                    {car.type}
+                  </span>
+                  {car.status === "Rented" && (
+                    <span className="bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-lg shadow-xs">
+                      🔴 Rented
+                    </span>
+                  )}
+                </div>
+                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
+                  <StarIcon size={12} filled className="text-amber-500" />
+                  <span className="text-[11px] font-bold text-gray-800">
+                    {car.rating}
+                  </span>
+                </div>
+              </div>
+
+              {/* Car Info */}
+              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                <div>
+                  <h3
+                    onClick={() => onSelectCar(car.id)}
+                    className="text-lg font-bold text-[#17191C] font-heading hover:text-[#F97316] transition-colors cursor-pointer"
+                  >
+                    {car.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                    <span>{car.transmission}</span>
+                    <span>•</span>
+                    <span>{car.fuelType}</span>
+                    <span>•</span>
+                    <span>{car.seats} Seats</span>
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-xl font-black text-[#17191C] font-heading">
+                      ${car.pricePerDay}
+                    </span>
+                    <span className="text-[11px] text-gray-400"> /day</span>
+                  </div>
+
+                  {/* 1-Click Fast Actions */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => onSelectCar(car.id)}
+                      className="px-3 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold transition-colors"
+                      title="Inspect Specifications"
+                    >
+                      Details
+                    </button>
+                    <button
+                      disabled={car.status === "Rented"}
+                      onClick={() => {
+                        if (car.status !== "Rented") {
+                          if (onQuickBook) onQuickBook(car.id)
+                          else onSelectCar(car.id)
+                        }
+                      }}
+                      className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1 group/btn ${
+                        car.status === "Rented"
+                          ? "bg-stone-200 text-stone-500 cursor-not-allowed"
+                          : "bg-[#F97316] hover:bg-[#EA580C] text-white"
+                      }`}
+                    >
+                      <ZapIcon size={13} />
+                      <span>{car.status === "Rented" ? "Rented" : "Book"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Comparison Studio Banner */}
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between p-4 bg-orange-50/80 border border-orange-200/80 rounded-2xl gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-white text-[#F97316] border border-orange-200 flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+              ⚡
+            </span>
+            <div className="text-xs">
+              <span className="font-bold text-stone-900 block">
+                Can't decide which car fits your trip?
+              </span>
+              <span className="text-stone-500">
+                Compare mileage, passenger capacity, insurance, and rates
+                side-by-side.
+              </span>
+            </div>
+          </div>
+          {onNavigateCompare && (
+            <button
+              onClick={onNavigateCompare}
+              className="px-4 py-2 bg-[#17191C] hover:bg-black text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0"
+            >
+              <span>Compare Vehicles Side-by-Side</span>
+              <ArrowRightIcon size={14} />
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Fleet Categories Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="fleet">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+              OUR FLEET
+            </p>
+            <h2 className="text-3xl font-extrabold text-[#17191C] font-heading">
+              Cars for Every Journey
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Explore our wide range of vehicles, from economy cars to premium
+              SUVs.
+            </p>
+          </div>
+          <button
+            onClick={onSearch}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-[#F97316] hover:text-[#EA580C] transition-colors group"
+          >
+            <span>View All Fleet</span>
+            <ArrowRightIcon
+              size={16}
+              className="group-hover:translate-x-1 transition-transform"
+            />
+          </button>
+        </div>
+
+        {/* Categories Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {fleetCategories.map((cat) => (
+            <div
+              key={cat.type}
+              onClick={() => onSelectCategory(cat.type)}
+              className="group cursor-pointer bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between"
+            >
+              <div className="p-5 pb-3">
+                <span className="text-xs font-bold text-[#F97316] bg-orange-50 px-2.5 py-1 rounded-md">
+                  {cat.price}
+                </span>
+                <h3 className="text-xl font-bold text-[#17191C] mt-2 font-heading">
+                  {cat.label}
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">
+                  {cat.description}
+                </p>
+              </div>
+              <div className="h-44 overflow-hidden px-4 flex items-center justify-center">
+                <img
+                  src={cat.image}
+                  alt={cat.label}
+                  className="w-full h-full object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+              <div className="p-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-semibold text-gray-500 group-hover:text-[#F97316] transition-colors">
+                <span>Browse {cat.label} Fleet</span>
+                <ArrowRightIcon
+                  size={14}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works: 3 Steps to the Road */}
+      <section
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        id="how-it-works"
+      >
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+            SEAMLESS EXPERIENCE
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-[#17191C] font-heading">
+            How MOTORLY Works
+          </h2>
+          <p className="text-sm text-gray-500 mt-2">
+            No counter queues, no paper forms. Hit the road in three
+            straightforward steps.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white p-7 rounded-3xl border border-gray-200/80 shadow-sm relative group hover:shadow-lg transition-shadow">
+            <span className="text-4xl font-black text-gray-200 font-heading absolute top-6 right-6">
+              01
+            </span>
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center font-bold mb-5">
+              <CarIcon size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-[#17191C] font-heading mb-2">
+              1. Choose Your Vehicle
+            </h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Select from over 17 verified, low-mileage vehicles. Choose hourly,
+              daily, or monthly flex plans with guaranteed models.
+            </p>
+          </div>
+
+          <div className="bg-white p-7 rounded-3xl border border-gray-200/80 shadow-sm relative group hover:shadow-lg transition-shadow">
+            <span className="text-4xl font-black text-gray-200 font-heading absolute top-6 right-6">
+              02
+            </span>
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center font-bold mb-5">
+              <ShieldIcon size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-[#17191C] font-heading mb-2">
+              2. 60-Second Digital Verification
+            </h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Upload your driver's license online. Our automated system approves
+              your reservation instantly without airport counter lines.
+            </p>
+          </div>
+
+          <div className="bg-white p-7 rounded-3xl border border-gray-200/80 shadow-sm relative group hover:shadow-lg transition-shadow">
+            <span className="text-4xl font-black text-gray-200 font-heading absolute top-6 right-6">
+              03
+            </span>
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center font-bold mb-5">
+              <ZapIcon size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-[#17191C] font-heading mb-2">
+              3. Express Terminal Pickup
+            </h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Your car is mated, sanitized, and parked at the terminal hub. Grab
+              the keys from your dedicated concierge and drive away.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Rental Savings Calculator */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-gradient-to-br from-[#17191C] to-[#25282D] text-white rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-[#F97316]/10 blur-3xl pointer-events-none" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="lg:col-span-7 space-y-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
+                TRANSPARENT VALUE
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold font-heading">
+                Calculate Your Rental Cost &amp; Savings
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-300 max-w-lg leading-relaxed">
+                Slide to select your rental duration. Notice how longer stays
+                unlock progressive discounts automatically.
+              </p>
+
+              {/* Interactive Duration Slider */}
+              <div className="pt-4 space-y-2 max-w-md">
+                <div className="flex justify-between text-xs font-bold">
+                  <span>
+                    Duration:{" "}
+                    <span className="text-[#F97316]">
+                      {calculatorDays} Days
+                    </span>
+                  </span>
+                  <span className="text-green-400">
+                    {calculatorDays >= 7
+                      ? "18% Multi-Day Discount Applied"
+                      : "Standard Daily Rate"}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="30"
+                  value={calculatorDays}
+                  onChange={(e) => setCalculatorDays(Number(e.target.value))}
+                  className="w-full accent-[#F97316] cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-gray-400 font-mono">
+                  <span>1 Day</span>
+                  <span>7 Days (Weekly)</span>
+                  <span>14 Days</span>
+                  <span>30 Days (Monthly)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Calculated Rate Card */}
+            <div className="lg:col-span-5 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 space-y-4">
+              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <span className="text-xs text-gray-300">
+                  Base Rate (avg Sedan)
+                </span>
+                <span className="text-xs font-bold font-mono">
+                  $45.00 / day
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <span className="text-xs text-gray-300">Rental Duration</span>
+                <span className="text-xs font-bold font-mono">
+                  {calculatorDays} days
+                </span>
+              </div>
+              {calculatorDays >= 7 && (
+                <div className="flex justify-between items-center text-green-400 border-b border-white/10 pb-3 text-xs">
+                  <span>Multi-Day Discount</span>
+                  <span className="font-bold font-mono">
+                    -${(45 * calculatorDays * 0.18).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2">
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold">
+                    Estimated Total
+                  </p>
+                  <p className="text-3xl font-black text-[#F97316] font-heading">
+                    $
+                    {(calculatorDays >= 7
+                      ? 45 * calculatorDays * 0.82 * 1.18
+                      : 45 * calculatorDays * 1.18
+                    ).toFixed(2)}
+                  </p>
+                </div>
+                <button
+                  onClick={onSearch}
+                  className="px-5 py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
+                >
+                  <span>Lock Rate</span>
+                  <ArrowRightIcon size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Customer Reviews & Testimonials */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+            CLIENT REVIEWS
+          </p>
+          <h2 className="text-3xl font-extrabold text-[#17191C] font-heading">
+            Trusted by Travelers Worldwide
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-3">
+            <div className="flex items-center gap-1 text-amber-500">
+              {[...Array(5)].map((_, i) => (
+                <StarIcon key={i} size={15} filled />
+              ))}
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed italic">
+              "Picked up the BMW 3-Series at Miami International Airport. The
+              contactless handoff took literally 90 seconds. Cleanest rental car
+              I've ever driven."
+            </p>
+            <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] font-bold flex items-center justify-center text-xs">
+                MC
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-900">Marcus Chen</p>
+                <p className="text-[10px] text-gray-400">
+                  Rented at MIA Terminal • Business Trip
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-3">
+            <div className="flex items-center gap-1 text-amber-500">
+              {[...Array(5)].map((_, i) => (
+                <StarIcon key={i} size={15} filled />
+              ))}
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed italic">
+              "No surprise fees at checkout! What you see is what you pay. We
+              rented the Honda CR-V for a 10-day family trip across Florida and
+              it was flawless."
+            </p>
+            <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] font-bold flex items-center justify-center text-xs">
+                ER
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-900">Elena Rostova</p>
+                <p className="text-[10px] text-gray-400">
+                  Rented SUV • Vacation Travel
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-3">
+            <div className="flex items-center gap-1 text-amber-500">
+              {[...Array(5)].map((_, i) => (
+                <StarIcon key={i} size={15} filled />
+              ))}
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed italic">
+              "Needed an economy car for 3 weeks while mine was in the shop. The
+              monthly flex pricing saved me hundreds compared to traditional
+              rental companies."
+            </p>
+            <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] font-bold flex items-center justify-center text-xs">
+                DW
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-900">David Wallace</p>
+                <p className="text-[10px] text-gray-400">
+                  Monthly Renter • Local Commute
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive FAQ Section */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10">
+          <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+            QUESTIONS &amp; ANSWERS
+          </p>
+          <h2 className="text-3xl font-extrabold text-[#17191C] font-heading">
+            Frequently Asked Questions
+          </h2>
+        </div>
+
+        <div className="space-y-3">
+          {faqItems.map((item, idx) => {
+            const isOpen = expandedFaq === idx
+            return (
+              <div
+                key={idx}
+                className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm transition-all"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpandedFaq(isOpen ? null : idx)}
+                  className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-sm text-[#17191C] font-heading hover:text-[#F97316] transition-colors"
+                >
+                  <span>{item.q}</span>
+                  <span
+                    className={`text-[#F97316] transform transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  >
+                    ▾
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="px-5 pb-5 pt-0 text-xs text-gray-500 leading-relaxed animate-fade-in border-t border-gray-100">
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Freedom to Explore Banner */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative rounded-3xl overflow-hidden bg-[#17191C] text-white p-8 sm:p-12 shadow-2xl">
+          <div className="absolute inset-0 opacity-20">
+            <img
+              src="/images/road.jpg"
+              alt="Scenic coastal highway"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-7 space-y-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
+                MORE THAN A RENTAL
+              </span>
+              <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight font-heading leading-tight">
+                Freedom to Explore Further
+              </h2>
+              <p className="text-gray-300 text-sm sm:text-base max-w-xl leading-relaxed">
+                Whether it's a weekend getaway, a business trip, or a long-term
+                stay, MOTORLY gets you there with ease, transparent pricing, and
+                24/7 care.
+              </p>
+              <div className="pt-2">
+                <button
+                  onClick={onSearch}
+                  className="px-6 py-3.5 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 group"
+                >
+                  <span>Explore Cars</span>
+                  <ArrowRightIcon
+                    size={16}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Statistics */}
+            <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
+                  17+
+                </p>
+                <p className="text-xs text-gray-300 mt-1">
+                  Active Fleet Vehicles
+                </p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
+                  100%
+                </p>
+                <p className="text-xs text-gray-300 mt-1">
+                  Transparent Pricing
+                </p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
+                  24/7
+                </p>
+                <p className="text-xs text-gray-300 mt-1">Customer Support</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
+                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
+                  4.9/5
+                </p>
+                <p className="text-xs text-gray-300 mt-1">
+                  Customer Satisfaction
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Date & Scheduling Calendar Modal */}
+      <DateSchedulingModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        pickupDate={bookingState.pickupDate}
+        pickupTime={bookingState.pickupTime}
+        returnDate={bookingState.returnDate}
+        returnTime={bookingState.returnTime}
+        pickupLocation={bookingState.pickupLocation}
+        onApply={(data) => {
+          setBookingState((prev) => ({
+            ...prev,
+            ...data,
+          }))
+          onSearch()
+        }}
+      />
+    </div>
+  )
+}

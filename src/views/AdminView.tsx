@@ -1,0 +1,6789 @@
+import React, { useState, useMemo, useEffect } from "react"
+import type {
+  Car,
+  BookingRecord,
+  VehicleType,
+  CarStatus,
+  BookingStatus,
+  Transmission,
+  FuelType,
+  CustomerUser,
+  PromoCode,
+  MaintenanceLog,
+  InspectionChecklistOut,
+  InspectionChecklistIn,
+  ExtensionQuote,
+} from "../types"
+import { api } from "../services/api"
+import GarageMapViewer from "../components/GarageMapViewer"
+import {
+  CarIcon,
+  PlusIcon,
+  SearchIcon,
+  EditIcon,
+  TrashIcon,
+  WrenchIcon,
+  LinkIcon,
+  CheckIcon,
+  ClockIcon,
+  ShieldIcon,
+  ArrowRightIcon,
+  ArrowLeftIcon,
+  LocationIcon,
+  CalendarIcon,
+  UserIcon,
+  LockIcon,
+  TagIcon,
+  ZapIcon,
+  SparklesIcon,
+  QrCodeIcon,
+  GridIcon,
+  ListIcon,
+} from "../components/Icons"
+
+interface AdminViewProps {
+  cars: Car[]
+  setCars: React.Dispatch<React.SetStateAction<Car[]>>
+  bookings: BookingRecord[]
+  setBookings: React.Dispatch<React.SetStateAction<BookingRecord[]>>
+  onExitAdmin: () => void
+  onLogoutAdmin?: () => void
+}
+
+export default function AdminView({
+  cars,
+  setCars,
+  bookings,
+  setBookings,
+  onExitAdmin,
+  onLogoutAdmin,
+}: AdminViewProps) {
+  // Navigation tabs
+  const [activeTab, setActiveTab] =
+    useState<"manifest" | "fleet" | "walkin" | "promos" | "crm" | "maintenance">(
+      "manifest",
+    )
+
+  // Notification Banner
+  const [notification, setNotification] = useState<string | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const notify = (msg: string) => {
+    setNotification(msg)
+    setTimeout(() => setNotification(null), 4500)
+  }
+
+  // --- Slide-out Inspection Drawer State ---
+  const [inspectedBooking, setInspectedBooking] =
+    useState<BookingRecord | null>(null)
+
+  // --- Promos State ---
+  const [promos, setPromos] = useState<PromoCode[]>([])
+  const [isPromoModalOpen, setIsPromoModalOpen] = useState(false)
+  const [newPromoData, setNewPromoData] = useState({
+    code: "",
+    discountPercent: 15,
+    description: "",
+    expiryDate: "2026-12-31",
+  })
+
+  // --- CRM Customers State ---
+  const [customers, setCustomers] = useState<CustomerUser & {
+    hasAccount: boolean
+    latestBooking: string
+  }[]>([])
+  const [customerSearch, setCustomerSearch] = useState("")
+  const [inspectedLicense, setInspectedLicense] = useState<{
+    name: string
+    licenseNum: string
+    state: string
+    expiry: string
+    file?: string
+  } | null>(null)
+
+  // --- Maintenance State ---
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([])
+  const [isMntModalOpen, setIsMntModalOpen] = useState(false)
+  const [newMntData, setNewMntData] = useState({
+    carId: cars[0]?.id || "toyota-camry",
+    serviceType: "Synthetic Oil Change & Inspection",
+    cost: 95,
+    odometer: 15200,
+    date: new Date().toISOString().split("T")[0],
+    status: "Completed" as "Scheduled" | "In Progress" | "Completed",
+    technicianNotes:
+      "Routine maintenance completed to manufacturer specification.",
+    setVehicleStatus: "",
+  })
+
+  // --- Walk-in Counter Dispatch State ---
+  const [walkinForm, setWalkinForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    licenseNumber: "",
+    licenseState: "Florida",
+    carId: cars.find((c) => c.status === "Available")?.id || cars[0]?.id || "",
+    pickupDate: "Today, Right Now",
+    returnDate: "In 3 Days",
+    totalDays: 3,
+    immediateCheckout: true,
+    notes: "Counter express walk-in reservation.",
+  })
+  const [isSubmittingWalkin, setIsSubmittingWalkin] = useState(false)
+
+  // --- Flow E: Key Handover Checklist Modal State ---
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
+  const [keyModalBooking, setKeyModalBooking] = useState<BookingRecord | null>(
+    null,
+  )
+  const [keyChecklist, setKeyChecklist] = useState<InspectionChecklistOut>({
+    odometerOut: 15200,
+    fuelLevelOut: "Full (100%)",
+    cleanlinessVerified: true,
+    tiresExteriorVerified: true,
+    inspectorStaff: "Admin Operations Lead",
+    timestamp: "",
+  })
+
+  // --- Flow F: Extension Quotation Modal State ---
+  const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false)
+  const [extensionBooking, setExtensionBooking] =
+    useState<BookingRecord | null>(null)
+  const [extensionQuoteData, setExtensionQuoteData] = useState<{
+    rateType: "hour" | "day" | "month"
+    rateAmount: number
+    totalQuotedAmount: number
+    notes: string
+  }>({
+    rateType: "day",
+    rateAmount: 65,
+    totalQuotedAmount: 130,
+    notes: "Includes full comprehensive coverage and roadside assistance.",
+  })
+
+  // --- Flow G: Return Vehicle Inspection Modal State ---
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
+  const [returnModalBooking, setReturnModalBooking] =
+    useState<BookingRecord | null>(null)
+  const [returnChecklist, setReturnChecklist] = useState<InspectionChecklistIn>(
+    {
+      odometerIn: 15450,
+      fuelLevelIn: "Full (100%)",
+      cleanlinessPassed: true,
+      damageFound: false,
+      damageNotes: "",
+      inspectionPassed: true,
+      inspectorStaff: "Admin Operations Lead",
+      timestamp: "",
+    },
+  )
+
+  // --- Fleet Search & Modals ---
+  const [fleetSearch, setFleetSearch] = useState("")
+  const [fleetStatusFilter, setFleetStatusFilter] = useState("all")
+  const [fleetViewMode, setFleetViewMode] = useState<"table" | "grid">("table")
+  const [isCarModalOpen, setIsCarModalOpen] = useState(false)
+  const [carModalTab, setCarModalTab] =
+    useState<"identity" | "rates" | "insurance" | "garage">("identity")
+  const [zoomedPhoto, setZoomedPhoto] = useState<{
+    url: string
+    title: string
+  } | null>(null)
+  const [editingCar, setEditingCar] = useState<Car | null>(null)
+  const [carFormData, setCarFormData] = useState<Partial<Car>>({
+    name: "Toyota Camry SE",
+    brand: "Toyota",
+    model: "Camry SE",
+    year: 2024,
+    type: "Sedan",
+    pricePerDay: 55,
+    pricePerHour: 8,
+    image: "/images/car-white.jpg",
+    seats: 5,
+    transmission: "Automatic",
+    fuelType: "Gasoline",
+    mileage: "32 MPG",
+    luggage: "3 Large Bags",
+    plateNumber: "FL-882-MTR",
+    location: "Miami International Airport (MIA)",
+    status: "Available",
+    healthScore: 98,
+    description:
+      "Pristine fleet rental vehicle with full telemetry and insurance certification.",
+    features: ["Bluetooth", "Backup Camera", "Apple CarPlay"],
+    insurancePolicy: "POL-FL-883201",
+    insuranceProvider: "Geico Commercial Fleet",
+    insuranceExpiry: "2027-12-31",
+    purchaseDate: "2024-01-15",
+    purchaseCost: 32500,
+    currentOdometer: 14200,
+    garageName: "Miami Airport Hub (MIA - Garage Bay 4)",
+    garageAddress: "4200 NW 21st St, Miami, FL 33142",
+    garageLat: 25.7959,
+    garageLng: -80.287,
+    garageBay: "Bay 14-B",
+  })
+
+  // --- Manifest Filters ---
+  const [manifestStatusFilter, setManifestStatusFilter] =
+    useState<string>("all")
+  const [manifestSearch, setManifestSearch] = useState("")
+
+  // Fetch initial secondary dataset (promos, maintenance, crm)
+  const loadAuxiliaryData = async () => {
+    try {
+      const [remotePromos, remoteMnt, remoteCustomers] = await Promise.all([
+        api.getPromos().catch(() => []),
+        api.getMaintenanceLogs().catch(() => []),
+        api.getAdminCustomers().catch(() => []),
+      ])
+      setPromos(remotePromos)
+      setMaintenanceLogs(remoteMnt)
+      setCustomers(remoteCustomers)
+    } catch (e) {
+      console.warn("Auxiliary data load:", e)
+    }
+  }
+
+  useEffect(() => {
+    loadAuxiliaryData()
+  }, [])
+
+  // Keyboard navigation: Escape key closes active drawers and modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (zoomedPhoto) setZoomedPhoto(null)
+        else if (inspectedLicense) setInspectedLicense(null)
+        else if (inspectedBooking) setInspectedBooking(null)
+        else if (isCarModalOpen) setIsCarModalOpen(false)
+        else if (isKeyModalOpen) setIsKeyModalOpen(false)
+        else if (isReturnModalOpen) setIsReturnModalOpen(false)
+        else if (isExtensionModalOpen) setIsExtensionModalOpen(false)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [
+    zoomedPhoto,
+    inspectedLicense,
+    inspectedBooking,
+    isCarModalOpen,
+    isKeyModalOpen,
+    isReturnModalOpen,
+    isExtensionModalOpen,
+  ])
+
+  // Date, Time & Duration formatting helpers for high-contrast presentation
+  const formatFullDateTime = (dateStr?: string): string => {
+    if (!dateStr) return "N/A"
+    try {
+      const d = new Date(dateStr)
+      if (!isNaN(d.getTime())) {
+        return (
+          d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }) +
+          " at " +
+          d.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+        )
+      }
+    } catch {}
+    return dateStr
+  }
+
+  const formatReadableTime = (
+    timeOrDateStr?: string,
+    fallback = "10:00 AM",
+  ): string => {
+    if (!timeOrDateStr) return fallback
+    if (/^\d{1,2}:\d{2}(\s*(AM|PM))?$/i.test(timeOrDateStr)) {
+      return timeOrDateStr.toUpperCase()
+    }
+    try {
+      const d = new Date(timeOrDateStr)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+      }
+    } catch {}
+    return fallback
+  }
+
+  const getBookingDurationInfo = (pickupDate?: string, returnDate?: string): {
+    days: number
+    hours: number
+    label: string
+  } => {
+    if (!pickupDate || !returnDate) {
+      return { days: 1, hours: 24, label: "1 Day (24 Hours)" }
+    }
+    try {
+      const p = new Date(pickupDate)
+      const r = new Date(returnDate)
+      if (!isNaN(p.getTime()) && !isNaN(r.getTime())) {
+        const diffMs = r.getTime() - p.getTime()
+        const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)))
+        const hours = days * 24
+        return {
+          days,
+          hours,
+          label: `${days} ${days === 1 ? "Day" : "Days"} (${hours} Hours)`,
+        }
+      }
+    } catch {}
+    return { days: 3, hours: 72, label: "3 Days (72 Hours)" }
+  }
+
+  const getElapsedClock = (
+    startTimeStr?: string,
+    endTimeStr?: string,
+  ): string => {
+    if (!startTimeStr) return "Not Started"
+    try {
+      const start = new Date(startTimeStr).getTime()
+      const end = endTimeStr ? new Date(endTimeStr).getTime() : Date.now()
+      if (!isNaN(start) && !isNaN(end)) {
+        const diffMs = Math.max(0, end - start)
+        const totalMinutes = Math.floor(diffMs / (1000 * 60))
+        const hours = Math.floor(totalMinutes / 60)
+        const minutes = totalMinutes % 60
+        const days = Math.floor(hours / 24)
+        if (days > 0) {
+          return `${days}d ${hours % 24}h ${minutes}m active`
+        }
+        return `${hours}h ${minutes}m active`
+      }
+    } catch {}
+    return "Active"
+  }
+
+  // Sync entire dashboard from backend SQLite
+  const handleRefreshData = async () => {
+    setIsSyncing(true)
+    try {
+      const [freshCars, freshBookings] = await Promise.all([
+        api.getCars(),
+        api.getBookings(),
+      ])
+      setCars(freshCars)
+      setBookings(freshBookings)
+      await loadAuxiliaryData()
+      notify("Fleet, manifest, and CRM synchronized with SQLite backend.")
+    } catch {
+      notify("Synchronization complete.")
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  // Executive Fleet KPI calculations
+  const stats = useMemo(() => {
+    const total = cars.length
+    const available = cars.filter(
+      (c) => c.status === "Available" || !c.status,
+    ).length
+    const rented = cars.filter((c) => c.status === "Rented").length
+    const maintenance = cars.filter((c) => c.status === "Maintenance").length
+    const cleaning = cars.filter((c) => c.status === "Cleaning").length
+    const utilization = total > 0 ? Math.round((rented / total) * 100) : 0
+    const activeRevenue = cars
+      .filter((c) => c.status === "Rented")
+      .reduce((sum, c) => sum + c.pricePerDay, 0)
+
+    const pendingMating = bookings.filter(
+      (b) => b.status === "Pending Assignment",
+    ).length
+    const inDrive = bookings.filter((b) => b.status === "Checked Out").length
+    const assigned = bookings.filter((b) => b.status === "Assigned").length
+
+    return {
+      total,
+      available,
+      rented,
+      maintenance,
+      cleaning,
+      utilization,
+      activeRevenue,
+      pendingMating,
+      inDrive,
+      assigned,
+    }
+  }, [cars, bookings])
+
+  // --- RESERVATION LIFECYCLE ACTIONS ---
+  const handleMateCar = async (bookingId: string, carId: string) => {
+    try {
+      const res = await api.mateCar(bookingId, carId)
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        setCars((prev) => prev.map((c) => (c.id === carId ? res.car : c)))
+        if (inspectedBooking?.id === bookingId) {
+          setInspectedBooking(res.booking)
+        }
+        notify(
+          `Vehicle ${res.car.name} (${res.car.plateNumber}) mated to booking ${bookingId}.`,
+        )
+      }
+    } catch (err: any) {
+      alert("Mating failed: " + err.message)
+    }
+  }
+
+  const handleUnmateCar = async (bookingId: string) => {
+    try {
+      const res = await api.unmateCar(bookingId)
+      if (res.success) {
+        const releasedCarId = bookings.find((b) => b.id === bookingId)
+          ?.matchedCarId
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        if (releasedCarId) {
+          setCars((prev) =>
+            prev.map((c) =>
+              c.id === releasedCarId ? { ...c, status: "Available" } : c,
+            ),
+          )
+        }
+        if (inspectedBooking?.id === bookingId) {
+          setInspectedBooking(res.booking)
+        }
+        notify(`Vehicle released from booking ${bookingId}.`)
+      }
+    } catch (err: any) {
+      alert("Unmating failed: " + err.message)
+    }
+  }
+
+  const handleAutoMate = (booking: BookingRecord) => {
+    // Find available vehicle matching requested category first, or any available
+    const match =
+      cars.find(
+        (c) =>
+          c.status === "Available" &&
+          (!booking.requestedCategory || c.type === booking.requestedCategory),
+      ) || cars.find((c) => c.status === "Available")
+
+    if (match) {
+      handleMateCar(booking.id, match.id)
+    } else {
+      alert(
+        "No available vehicles currently in fleet to mate. Turn around a vehicle from cleaning or maintenance.",
+      )
+    }
+  }
+
+  const handleAdvanceStatus = async (
+    bookingId: string,
+    targetStatus: BookingStatus,
+  ) => {
+    try {
+      const res = await api.updateBookingStatus(bookingId, {
+        status: targetStatus,
+      })
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        if (inspectedBooking?.id === bookingId) {
+          setInspectedBooking(res.booking)
+        }
+        // Refresh cars to get updated car statuses (e.g. Cleaning / Available)
+        const freshCars = await api.getCars()
+        setCars(freshCars)
+        notify(`Booking ${bookingId} transitioned to ${targetStatus}.`)
+      }
+    } catch (err: any) {
+      alert("Status transition failed: " + err.message)
+    }
+  }
+
+  // --- FLOW D: ADMIN APPROVAL ("GREEN SIGNAL") ---
+  const handleApproveBooking = async (bookingId: string) => {
+    try {
+      const res = await api.approveBooking(bookingId)
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        if (inspectedBooking?.id === bookingId) {
+          setInspectedBooking(res.booking)
+        }
+        notify(
+          `Green Signal granted for ${bookingId}! Customer pickup clearance unlocked.`,
+        )
+      }
+    } catch (err: any) {
+      alert("Approval failed: " + err.message)
+    }
+  }
+
+  // --- FLOW C: DOWNLOAD DRIVER LICENSE TICKET & ORIGINAL PHOTOS ---
+  const handleDownloadLicense = (
+    booking: BookingRecord,
+    side: "front" | "back" | "certificate" = "front",
+  ) => {
+    const url = api.getLicenseDownloadUrl(booking.id, side)
+    window.open(url, "_blank")
+    const label =
+      side === "certificate"
+        ? "Official SVG Certificate"
+        : `${side.toUpperCase()} Driver License Photo`
+    notify(
+      `Downloading ${label} for ${booking.customer.firstName} ${booking.customer.lastName}.`,
+    )
+  }
+
+  // --- FLOW E: KEY HANDOVER & RENTAL CLOCK START ---
+  const handleOpenKeyHandoff = (b: BookingRecord) => {
+    setKeyModalBooking(b)
+    const matchedCar = cars.find((c) => c.id === b.matchedCarId)
+    setKeyChecklist({
+      odometerOut: matchedCar?.currentOdometer || 15200,
+      fuelLevelOut: "Full (100%)",
+      cleanlinessVerified: true,
+      tiresExteriorVerified: true,
+      inspectorStaff: "Admin Operations Lead",
+      timestamp: new Date().toISOString(),
+    })
+    setIsKeyModalOpen(true)
+  }
+
+  const handleSubmitKeyHandoff = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!keyModalBooking) return
+    try {
+      const res = await api.handoverKeys(keyModalBooking.id, {
+        odometerOut: Number(keyChecklist.odometerOut),
+        fuelOut: keyChecklist.fuelLevelOut,
+        exteriorClean: keyChecklist.cleanlinessVerified,
+        tiresInspected: keyChecklist.tiresExteriorVerified,
+        staffSign: keyChecklist.inspectorStaff,
+      })
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === keyModalBooking.id ? res.booking : b)),
+        )
+        const freshCars = await api.getCars()
+        setCars(freshCars)
+        if (inspectedBooking?.id === keyModalBooking.id) {
+          setInspectedBooking(res.booking)
+        }
+        setIsKeyModalOpen(false)
+        notify(
+          `Keys handed over for ${keyModalBooking.id}! Rental clock officially running.`,
+        )
+      }
+    } catch (err: any) {
+      alert("Key handover failed: " + err.message)
+    }
+  }
+
+  // --- FLOW F: EXTENSION QUOTATION CONSOLE ---
+  const handleOpenExtensionQuote = (b: BookingRecord) => {
+    setExtensionBooking(b)
+    const matchedCar = cars.find((c) => c.id === b.matchedCarId)
+    const req = b.extensionRequest
+    const durationVal = req?.durationValue || 1
+    const unit = req?.durationUnit || "days"
+
+    let rateType: "hour" | "day" | "month" = "day"
+    let rateAmount = matchedCar?.pricePerDay || 65
+
+    if (unit.startsWith("hour")) {
+      rateType = "hour"
+      rateAmount = matchedCar?.pricePerHour || 10
+    } else if (unit.startsWith("month")) {
+      rateType = "month"
+      rateAmount = (matchedCar?.pricePerDay || 65) * 25
+    }
+
+    const total = rateAmount * durationVal
+    setExtensionQuoteData({
+      rateType,
+      rateAmount,
+      totalQuotedAmount: total,
+      notes: `Quotation for ${durationVal} ${unit} extension. Includes comprehensive fleet insurance.`,
+    })
+    setIsExtensionModalOpen(true)
+  }
+
+  const handleSubmitExtensionQuote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!extensionBooking) return
+    try {
+      const res = await api.quoteExtension(extensionBooking.id, {
+        rateType: extensionQuoteData.rateType,
+        rateAmount: Number(extensionQuoteData.rateAmount),
+        totalQuotedAmount: Number(extensionQuoteData.totalQuotedAmount),
+        adminNotes: extensionQuoteData.notes,
+      })
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === extensionBooking.id ? res.booking : b)),
+        )
+        if (inspectedBooking?.id === extensionBooking.id) {
+          setInspectedBooking(res.booking)
+        }
+        setIsExtensionModalOpen(false)
+        notify(
+          `Extension quotation of $${extensionQuoteData.totalQuotedAmount} dispatched to customer.`,
+        )
+      }
+    } catch (err: any) {
+      alert("Quotation dispatch failed: " + err.message)
+    }
+  }
+
+  const handleDeclineExtensionRequest = async (bookingId: string) => {
+    if (!window.confirm("Decline this rental extension request?")) return
+    try {
+      const res = await api.declineExtension(bookingId)
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.booking : b)),
+        )
+        if (inspectedBooking?.id === bookingId) {
+          setInspectedBooking(res.booking)
+        }
+        setIsExtensionModalOpen(false)
+        notify("Extension request declined.")
+      }
+    } catch (err: any) {
+      alert("Decline failed: " + err.message)
+    }
+  }
+
+  // --- FLOW G: RETURN INSPECTION & RIDE COMPLETION ---
+  const handleOpenReturnInspection = (b: BookingRecord) => {
+    setReturnModalBooking(b)
+    const matchedCar = cars.find((c) => c.id === b.matchedCarId)
+    const currentOdo =
+      b.checklistOut?.odometerOut || matchedCar?.currentOdometer || 15200
+    setReturnChecklist({
+      odometerIn: currentOdo + 120,
+      fuelLevelIn: "Full (100%)",
+      cleanlinessPassed: true,
+      damageFound: false,
+      damageNotes: "",
+      inspectionPassed: true,
+      inspectorStaff: "Admin Return Auditor",
+      timestamp: new Date().toISOString(),
+    })
+    setIsReturnModalOpen(true)
+  }
+
+  const handleSubmitReturnInspection = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!returnModalBooking) return
+    if (!returnChecklist.inspectionPassed) {
+      alert(
+        "Vehicle must be verified and marked as 'Inspection Passed' to close out the ride.",
+      )
+      return
+    }
+    try {
+      const res = await api.returnInspection(returnModalBooking.id, {
+        odometerIn: Number(returnChecklist.odometerIn),
+        fuelIn: returnChecklist.fuelLevelIn,
+        damageFound: returnChecklist.damageFound,
+        cleanlinessPass: returnChecklist.cleanlinessPassed,
+        inspectionPassed: returnChecklist.inspectionPassed,
+        staffSign: returnChecklist.inspectorStaff,
+        inspectionNotes: returnChecklist.damageNotes,
+      })
+      if (res.success) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === returnModalBooking.id ? res.booking : b)),
+        )
+        const freshCars = await api.getCars()
+        setCars(freshCars)
+        if (inspectedBooking?.id === returnModalBooking.id) {
+          setInspectedBooking(res.booking)
+        }
+        setIsReturnModalOpen(false)
+        notify(
+          `Return inspection certified! Booking ${returnModalBooking.id} completed and vehicle returned to fleet.`,
+        )
+      }
+    } catch (err: any) {
+      alert("Return inspection failed: " + err.message)
+    }
+  }
+
+  // --- WALK-IN COUNTER DISPATCH ---
+  const handleWalkinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!walkinForm.carId) {
+      alert("Please select a vehicle from the fleet.")
+      return
+    }
+    setIsSubmittingWalkin(true)
+    try {
+      const selectedCar = cars.find((c) => c.id === walkinForm.carId)
+      const totalAmount =
+        (selectedCar ? selectedCar.pricePerDay : 65) * walkinForm.totalDays
+
+      const res = await api.createCounterBooking({
+        firstName: walkinForm.firstName || "Walk-In",
+        lastName: walkinForm.lastName || "Guest",
+        email: walkinForm.email || `walkin.${Date.now()}@motorly.com`,
+        phone: walkinForm.phone || "+1 (555) 019-9922",
+        licenseNumber: walkinForm.licenseNumber || "FL-WALKIN-882",
+        licenseState: walkinForm.licenseState,
+        carId: walkinForm.carId,
+        pickupDate: walkinForm.pickupDate,
+        returnDate: walkinForm.returnDate,
+        totalAmount,
+        immediateCheckout: walkinForm.immediateCheckout,
+        notes: walkinForm.notes,
+      })
+
+      if (res.success) {
+        setBookings((prev) => [res.booking, ...prev])
+        const freshCars = await api.getCars()
+        setCars(freshCars)
+        notify(
+          `Walk-in reservation ${res.booking.id} created! Keys dispatched.`,
+        )
+        // Reset form
+        setWalkinForm({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          licenseNumber: "",
+          licenseState: "Florida",
+          carId:
+            cars.find((c) => c.status === "Available")?.id || cars[0]?.id || "",
+          pickupDate: "Today, Right Now",
+          returnDate: "In 3 Days",
+          totalDays: 3,
+          immediateCheckout: true,
+          notes: "Counter express walk-in reservation.",
+        })
+        setActiveTab("manifest")
+      }
+    } catch (err: any) {
+      alert("Counter dispatch failed: " + err.message)
+    } finally {
+      setIsSubmittingWalkin(false)
+    }
+  }
+
+  // --- PROMO CODES ---
+  const handleCreatePromo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const created = await api.createPromo(newPromoData)
+      setPromos((prev) => [created, ...prev])
+      setIsPromoModalOpen(false)
+      setNewPromoData({
+        code: "",
+        discountPercent: 15,
+        description: "",
+        expiryDate: "2026-12-31",
+      })
+      notify(
+        `Promo coupon ${created.code} (${created.discountPercent}%) created.`,
+      )
+    } catch (err: any) {
+      alert("Failed to create promo: " + err.message)
+    }
+  }
+
+  const handleTogglePromo = async (code: string) => {
+    try {
+      const updated = await api.togglePromo(code)
+      setPromos((prev) => prev.map((p) => (p.code === code ? updated : p)))
+      notify(
+        `Promo code ${code} is now ${
+          updated.isActive ? "ACTIVE" : "INACTIVE"
+        }.`,
+      )
+    } catch (err: any) {
+      alert("Failed to toggle promo: " + err.message)
+    }
+  }
+
+  const handleDeletePromo = async (code: string) => {
+    if (!window.confirm(`Delete promo code ${code}?`)) return
+    try {
+      await api.deletePromo(code)
+      setPromos((prev) => prev.filter((p) => p.code !== code))
+      notify(`Promo code ${code} deleted.`)
+    } catch (err: any) {
+      alert("Failed to delete promo: " + err.message)
+    }
+  }
+
+  // --- MAINTENANCE ---
+  const handleCreateMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const created = await api.createMaintenanceLog(newMntData)
+      setMaintenanceLogs((prev) => [created, ...prev])
+      setIsMntModalOpen(false)
+      if (newMntData.setVehicleStatus) {
+        const freshCars = await api.getCars()
+        setCars(freshCars)
+      }
+      notify(`Service work order ${created.id} logged successfully.`)
+    } catch (err: any) {
+      alert("Failed to create maintenance log: " + err.message)
+    }
+  }
+
+  // --- FLEET ADD / EDIT / DELETE ---
+  const handleOpenAddCar = () => {
+    setEditingCar(null)
+    setCarFormData({
+      name: "Toyota Camry SE",
+      brand: "Toyota",
+      model: "Camry SE",
+      year: 2024,
+      type: "Sedan",
+      pricePerDay: 55,
+      pricePerHour: 8,
+      image: "/images/car-white.jpg",
+      seats: 5,
+      transmission: "Automatic",
+      fuelType: "Gasoline",
+      mileage: "32 MPG",
+      luggage: "3 Bags",
+      plateNumber: `FL-${Math.floor(100 + Math.random() * 900)}-MTR`,
+      location: "Miami International Airport (MIA)",
+      status: "Available",
+      healthScore: 98,
+      description:
+        "Pristine fleet rental vehicle with full insurance certification.",
+      features: ["Bluetooth", "Backup Camera", "Apple CarPlay"],
+      insurancePolicy: `POL-FL-${Math.floor(100000 + Math.random() * 900000)}`,
+      insuranceProvider: "Geico Commercial Fleet",
+      insuranceExpiry: "2027-12-31",
+      purchaseDate: "2024-01-15",
+      purchaseCost: 32500,
+      currentOdometer: 14200,
+      garageName: "Miami Airport Hub (MIA - Garage Bay 4)",
+      garageAddress: "4200 NW 21st St, Miami, FL 33142",
+      garageLat: 25.7959,
+      garageLng: -80.287,
+      garageBay: `Bay ${Math.floor(1 + Math.random() * 20)}-${["A", "B", "C"][Math.floor(Math.random() * 3)]}`,
+    })
+    setIsCarModalOpen(true)
+  }
+
+  const handleOpenEditCar = (car: Car) => {
+    setEditingCar(car)
+    setCarFormData({
+      ...car,
+      insurancePolicy: car.insurancePolicy || "POL-FL-883201",
+      insuranceProvider: car.insuranceProvider || "Geico Commercial Fleet",
+      insuranceExpiry: car.insuranceExpiry || "2027-12-31",
+      purchaseDate: car.purchaseDate || "2024-01-15",
+      purchaseCost: car.purchaseCost || 32500,
+      currentOdometer: car.currentOdometer || 14200,
+      garageName: car.garageName || "Miami Airport Hub (MIA - Garage Bay 4)",
+      garageAddress: car.garageAddress || "4200 NW 21st St, Miami, FL 33142",
+      garageLat: car.garageLat || 25.7959,
+      garageLng: car.garageLng || -80.287,
+      garageBay: car.garageBay || "Bay 14-B",
+    })
+    setIsCarModalOpen(true)
+  }
+
+  const handleSaveCar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      if (editingCar) {
+        const updated = await api.updateCar(editingCar.id, carFormData)
+        setCars((prev) =>
+          prev.map((c) => (c.id === editingCar.id ? updated : c)),
+        )
+        notify(`Vehicle ${updated.name} updated.`)
+      } else {
+        const created = await api.createCar(carFormData)
+        setCars((prev) => [created, ...prev])
+        notify(`Vehicle ${created.name} registered into fleet.`)
+      }
+      setIsCarModalOpen(false)
+    } catch (err: any) {
+      alert("Failed to save car: " + err.message)
+    }
+  }
+
+  const handleDeleteCar = async (carId: string, carName: string) => {
+    if (
+      !window.confirm(
+        `Decommission and remove ${carName} from fleet inventory?`,
+      )
+    )
+      return
+    try {
+      await api.deleteCar(carId)
+      setCars((prev) => prev.filter((c) => c.id !== carId))
+      notify(`Vehicle ${carName} removed from fleet.`)
+    } catch (err: any) {
+      alert("Failed to delete car: " + err.message)
+    }
+  }
+
+  // Filtered reservations
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      const matchStatus =
+        manifestStatusFilter === "all" || b.status === manifestStatusFilter
+      const query = manifestSearch.toLowerCase()
+      const matchSearch =
+        !query ||
+        b.id.toLowerCase().includes(query) ||
+        b.customer.firstName.toLowerCase().includes(query) ||
+        b.customer.lastName.toLowerCase().includes(query) ||
+        b.customer.email.toLowerCase().includes(query) ||
+        (b.driver?.licenseNumber &&
+          b.driver.licenseNumber.toLowerCase().includes(query))
+      return matchStatus && matchSearch
+    })
+  }, [bookings, manifestStatusFilter, manifestSearch])
+
+  // Filtered fleet
+  const filteredFleet = useMemo(() => {
+    return cars.filter((c) => {
+      const matchStatus =
+        fleetStatusFilter === "all" || c.status === fleetStatusFilter
+      const query = fleetSearch.toLowerCase()
+      const matchSearch =
+        !query ||
+        c.name.toLowerCase().includes(query) ||
+        c.brand.toLowerCase().includes(query) ||
+        (c.plateNumber && c.plateNumber.toLowerCase().includes(query)) ||
+        c.type.toLowerCase().includes(query)
+      return matchStatus && matchSearch
+    })
+  }, [cars, fleetStatusFilter, fleetSearch])
+
+  // Filtered CRM
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((c) => {
+      const query = customerSearch.toLowerCase()
+      return (
+        !query ||
+        c.name.toLowerCase().includes(query) ||
+        c.email.toLowerCase().includes(query) ||
+        (c.driverLicenseNum && c.driverLicenseNum.toLowerCase().includes(query))
+      )
+    })
+  }, [customers, customerSearch])
+
+  // Theme state: defaults to Light Mode with LocalStorage persistence
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      return (
+        localStorage.getItem("motorly_admin_theme") as "light" | "dark" ||
+        "light"
+      )
+    } catch {
+      return "light"
+    }
+  })
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light"
+    setTheme(next)
+    try {
+      localStorage.setItem("motorly_admin_theme", next)
+    } catch {}
+  }
+  const isDark = theme === "dark"
+
+  return (
+    <div
+      className={`min-h-screen pb-24 font-sans transition-colors duration-200 ${
+        isDark ? "bg-[#111215] text-[#F3F4F6]" : "bg-[#FAF7F2] text-[#17191C]"
+      }`}
+    >
+      {/* Top Operations Header Bar */}
+      <header
+        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors ${
+          isDark
+            ? "bg-[#17191C]/95 border-stone-800"
+            : "bg-white/95 border-stone-200/90 shadow-2xs"
+        }`}
+      >
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Brand & Mode */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#F97316] text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm">
+                  M
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-black text-base tracking-tight ${
+                        isDark ? "text-white" : "text-[#17191C]"
+                      }`}
+                    >
+                      MOTORLY
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                        isDark
+                          ? "bg-orange-500/10 text-[#F97316] border-orange-500/20"
+                          : "bg-orange-50 text-[#F97316] border-orange-200"
+                      }`}
+                    >
+                      FLEET OPS CONSOLE
+                    </span>
+                  </div>
+                  <p
+                    className={`text-[10px] font-mono ${
+                      isDark ? "text-stone-400" : "text-stone-500"
+                    }`}
+                  >
+                    HQ Rental / Fleetio Enterprise Standard • SQLite Synced
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions & Exit */}
+            <div className="flex items-center gap-2.5">
+              {/* Light / Dark Mode Toggle */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                    : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-xs"
+                }`}
+                title="Toggle Light / Dark Mode"
+              >
+                <span>{isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRefreshData}
+                disabled={isSyncing}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                    : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-xs"
+                }`}
+              >
+                <span className={isSyncing ? "animate-spin" : ""}>↻</span>
+                <span>{isSyncing ? "Syncing..." : "Sync DB"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onExitAdmin}
+                className="px-3.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                ← Return to Customer Storefront
+              </button>
+
+              {onLogoutAdmin && (
+                <button
+                  type="button"
+                  onClick={onLogoutAdmin}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                    isDark
+                      ? "bg-stone-800/80 hover:bg-stone-700 text-stone-400 hover:text-white border-stone-800"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200 shadow-2xs"
+                  }`}
+                >
+                  Lock
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Module Navigation Tabs */}
+          <div
+            className={`flex overflow-x-auto no-scrollbar gap-1 pt-1 pb-2 border-t text-xs font-medium ${
+              isDark ? "border-stone-800/80" : "border-stone-200/80"
+            }`}
+          >
+            {[
+              {
+                id: "manifest",
+                label: "Manifest & Mating",
+                icon: <LinkIcon size={14} className="text-[#F97316]" />,
+                badge:
+                  stats.pendingMating > 0 ? (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold border ${
+                        isDark
+                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          : "bg-amber-100 text-amber-800 border-amber-200"
+                      }`}
+                    >
+                      {stats.pendingMating}
+                    </span>
+                  ) : null,
+              },
+              {
+                id: "fleet",
+                label: "Fleet Telemetry & Inventory",
+                icon: <CarIcon size={14} className="text-sky-500" />,
+                badge: (
+                  <span
+                    className={`text-[10px] font-mono ${
+                      isDark ? "text-stone-500" : "text-stone-400"
+                    }`}
+                  >
+                    ({cars.length})
+                  </span>
+                ),
+              },
+              {
+                id: "walkin",
+                label: "Walk-In Counter Dispatch",
+                icon: <ZapIcon size={14} className="text-amber-500" />,
+                badge: null,
+              },
+              {
+                id: "promos",
+                label: "Rate Rules & Coupons",
+                icon: <TagIcon size={14} className="text-emerald-500" />,
+                badge: (
+                  <span
+                    className={`text-[10px] font-mono ${
+                      isDark ? "text-stone-500" : "text-stone-400"
+                    }`}
+                  >
+                    ({promos.length})
+                  </span>
+                ),
+              },
+              {
+                id: "crm",
+                label: "Customer CRM & Drivers",
+                icon: <UserIcon size={14} className="text-purple-500" />,
+                badge: (
+                  <span
+                    className={`text-[10px] font-mono ${
+                      isDark ? "text-stone-500" : "text-stone-400"
+                    }`}
+                  >
+                    ({customers.length})
+                  </span>
+                ),
+              },
+              {
+                id: "maintenance",
+                label: "Maintenance & Health",
+                icon: <WrenchIcon size={14} className="text-rose-500" />,
+                badge: (
+                  <span
+                    className={`text-[10px] font-mono ${
+                      isDark ? "text-stone-500" : "text-stone-400"
+                    }`}
+                  >
+                    ({maintenanceLogs.length})
+                  </span>
+                ),
+              },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-3.5 py-2 rounded-lg transition whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                    isActive
+                      ? isDark
+                        ? "bg-stone-800 text-white font-bold shadow-sm"
+                        : "bg-[#17191C] text-white font-bold shadow-xs"
+                      : isDark
+                        ? "text-stone-400 hover:text-stone-200 hover:bg-stone-900"
+                        : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {tab.badge}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {/* Toast Alert */}
+        {notification && (
+          <div
+            className={`p-3.5 rounded-xl border text-xs font-medium flex items-center justify-between shadow-lg backdrop-blur-sm animate-fade-in ${
+              isDark
+                ? "bg-emerald-950/80 border-emerald-500/30 text-emerald-300"
+                : "bg-emerald-50 border-emerald-200 text-emerald-800"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <CheckIcon size={16} className="text-emerald-500" />
+              <span>{notification}</span>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="text-emerald-600 hover:text-emerald-800 font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Executive KPI Bar */}
+        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <div
+            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-md"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Total Fleet
+            </p>
+            <p
+              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
+                isDark ? "text-white" : "text-stone-900"
+              }`}
+            >
+              {stats.total}
+            </p>
+            <div className="flex items-center gap-2 text-[11px] font-medium">
+              <span className="text-emerald-600 font-bold">
+                {stats.available} Available
+              </span>
+              <span className={isDark ? "text-stone-600" : "text-stone-300"}>
+                •
+              </span>
+              <span className="text-amber-600 font-semibold">
+                {stats.rented} Rented
+              </span>
+            </div>
+          </div>
+
+          <div
+            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-md"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Fleet Utilization
+            </p>
+            <p className="text-2xl sm:text-3xl font-black font-mono my-1 text-emerald-500">
+              {stats.utilization}%
+            </p>
+            <div
+              className={`w-full h-1.5 rounded-full overflow-hidden ${
+                isDark ? "bg-stone-800" : "bg-stone-100"
+              }`}
+            >
+              <div
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${stats.utilization}%` }}
+              />
+            </div>
+          </div>
+
+          <div
+            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-md"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Active Daily Rev
+            </p>
+            <p
+              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
+                isDark ? "text-white" : "text-stone-900"
+              }`}
+            >
+              ${stats.activeRevenue.toLocaleString()}
+            </p>
+            <p
+              className={`text-[11px] ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              From active contracts
+            </p>
+          </div>
+
+          <div
+            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-md"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Pending Mating
+            </p>
+            <p
+              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
+                stats.pendingMating > 0
+                  ? "text-amber-500"
+                  : isDark
+                    ? "text-stone-300"
+                    : "text-stone-900"
+              }`}
+            >
+              {stats.pendingMating}
+            </p>
+            <p
+              className={`text-[11px] ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Awaiting car assignment
+            </p>
+          </div>
+
+          <div
+            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-md"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              In Drive (Checked Out)
+            </p>
+            <p className="text-2xl sm:text-3xl font-black font-mono my-1 text-sky-500">
+              {stats.inDrive}
+            </p>
+            <p
+              className={`text-[11px] ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Keys handed over
+            </p>
+          </div>
+
+          <div
+            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-md"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <p
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                isDark ? "text-stone-400" : "text-stone-500"
+              }`}
+            >
+              Maintenance / Wash
+            </p>
+            <p
+              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
+                isDark ? "text-stone-300" : "text-stone-900"
+              }`}
+            >
+              {stats.maintenance + stats.cleaning}
+            </p>
+            <div className="flex items-center gap-2 text-[11px] font-medium">
+              <span className="text-rose-500 font-semibold">
+                {stats.maintenance} Service
+              </span>
+              <span className={isDark ? "text-stone-600" : "text-stone-300"}>
+                •
+              </span>
+              <span className="text-amber-500 font-semibold">
+                {stats.cleaning} Cleaning
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================
+            TAB 1: RESERVATION MANIFEST & MATING
+            ======================================================== */}
+        {activeTab === "manifest" && (
+          <section
+            className={`border rounded-2xl overflow-hidden transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-xl"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            {/* Manifest Toolbar */}
+            <div
+              className={`p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                isDark
+                  ? "border-stone-800 bg-[#17191C]"
+                  : "border-stone-200/80 bg-white"
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="relative w-72">
+                  <SearchIcon
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                  />
+                  <input
+                    type="text"
+                    value={manifestSearch}
+                    onChange={(e) => setManifestSearch(e.target.value)}
+                    placeholder="Search ID, customer, license..."
+                    className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                    }`}
+                  />
+                </div>
+
+                {/* Status Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+                  {[
+                    { id: "all", label: "All Reservations" },
+                    { id: "Pending Assignment", label: "Pending Mating" },
+                    { id: "Assigned", label: "Assigned" },
+                    { id: "Checked Out", label: "In Drive" },
+                    { id: "Returned", label: "Returned" },
+                    { id: "Completed", label: "Completed" },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setManifestStatusFilter(s.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        manifestStatusFilter === s.id
+                          ? "bg-[#F97316] text-white font-bold shadow-xs"
+                          : isDark
+                            ? "bg-stone-900 text-stone-400 hover:text-stone-200 border border-stone-800"
+                            : "bg-stone-50 text-stone-600 hover:text-stone-900 border border-stone-200 hover:bg-stone-100"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right tools */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab("walkin")}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isDark
+                      ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                      : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs"
+                  }`}
+                >
+                  <ZapIcon size={14} />+ Express Walk-In
+                </button>
+              </div>
+            </div>
+
+            {/* Manifest Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr
+                    className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                      isDark
+                        ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                        : "bg-stone-50/90 border-stone-200 text-stone-500"
+                    }`}
+                  >
+                    <th className="px-4 py-3.5 w-36 text-left">Reservation</th>
+                    <th className="px-4 py-3.5 w-48 text-left">
+                      Customer / Driver
+                    </th>
+                    <th className="px-4 py-3.5 w-56 text-left">
+                      Pickup Hub & Dates
+                    </th>
+                    <th className="px-3 py-3.5 w-24 text-center">Category</th>
+                    <th className="px-4 py-3.5 w-52 text-left">
+                      Mated Vehicle
+                    </th>
+                    <th className="px-4 py-3.5 w-44 text-left">
+                      Lifecycle &amp; Signals
+                    </th>
+                    <th className="px-4 py-3.5 w-28 text-right">Amount</th>
+                    <th className="px-4 py-3.5 w-44 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody
+                  className={`divide-y font-sans ${
+                    isDark ? "divide-stone-800/60" : "divide-stone-100"
+                  }`}
+                >
+                  {filteredBookings.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className={`py-12 text-center text-xs ${
+                          isDark ? "text-stone-500" : "text-stone-400"
+                        }`}
+                      >
+                        No reservations match the filter criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredBookings.map((b) => {
+                      const matedCar = cars.find((c) => c.id === b.matchedCarId)
+                      const isWalkIn =
+                        b.id.startsWith("MTR-") ||
+                        b.createdAt
+                          ?.toLowerCase()
+                          .includes("counter dispatch") ||
+                        b.createdAt?.toLowerCase().includes("walk-in")
+                      const cleanCreatedDate = b.createdAt
+                        ? b.createdAt
+                            .replace(/Counter Dispatch\s*\(/i, "")
+                            .replace(/\)$/, "")
+                            .trim()
+                        : "Recently"
+
+                      // Format location string cleanly without text blowout
+                      const codeMatch =
+                        b.pickupLocation?.match(/\(([A-Z]{3,4})\)/)
+                      const airportCode = codeMatch ? codeMatch[1] : ""
+                      const hubCleanName = (b.pickupLocation || "Station Hub")
+                        .replace(/\s*\([A-Z]{3,4}\)/, "")
+                        .replace(/International Airport/i, "Intl")
+                        .replace(/Airport/i, "Hub")
+                        .trim()
+
+                      return (
+                        <tr
+                          key={b.id}
+                          onClick={() => setInspectedBooking(b)}
+                          className={`cursor-pointer transition group ${
+                            isDark
+                              ? "hover:bg-stone-800/50 border-stone-800/60"
+                              : "hover:bg-orange-50/40 border-stone-100"
+                          }`}
+                        >
+                          {/* Col 1: ID & Date */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`font-mono font-bold text-xs block group-hover:text-[#F97316] transition ${
+                                  isDark ? "text-white" : "text-stone-900"
+                                }`}
+                              >
+                                {b.id}
+                              </span>
+                              {isWalkIn && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
+                                  Walk-In
+                                </span>
+                              )}
+                            </div>
+                            <p
+                              className={`text-[11px] font-mono mt-0.5 whitespace-nowrap ${
+                                isDark ? "text-stone-400" : "text-stone-500"
+                              }`}
+                            >
+                              {cleanCreatedDate}
+                            </p>
+                          </td>
+
+                          {/* Col 2: Customer / Driver */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                                  isDark
+                                    ? "bg-stone-800 text-stone-300 border border-stone-700"
+                                    : "bg-orange-50 text-orange-700 border border-orange-200/80"
+                                }`}
+                              >
+                                {(b.customer.firstName?.[0] || "U") +
+                                  (b.customer.lastName?.[0] || "")}
+                              </div>
+                              <div className="min-w-0">
+                                <div
+                                  className={`font-semibold text-xs truncate max-w-[130px] ${
+                                    isDark ? "text-stone-100" : "text-stone-900"
+                                  }`}
+                                  title={`${b.customer.firstName} ${b.customer.lastName}`}
+                                >
+                                  {b.customer.firstName} {b.customer.lastName}
+                                </div>
+                                <div
+                                  className="text-[11px] font-mono text-stone-400 truncate max-w-[130px]"
+                                  title={b.customer.phone || b.customer.email}
+                                >
+                                  {b.customer.phone ||
+                                    b.customer.email ||
+                                    "No contact"}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Col 3: Route & Hub */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="flex items-center gap-1.5 font-medium text-xs leading-tight">
+                              {airportCode && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 border ${
+                                    isDark
+                                      ? "bg-stone-800 text-stone-200 border-stone-700"
+                                      : "bg-stone-100 text-stone-700 border-stone-200"
+                                  }`}
+                                >
+                                  {airportCode}
+                                </span>
+                              )}
+                              <span
+                                className={`truncate max-w-[130px] ${
+                                  isDark ? "text-stone-200" : "text-stone-800"
+                                }`}
+                                title={b.pickupLocation}
+                              >
+                                {hubCleanName}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-stone-500 dark:text-stone-400 mt-1 whitespace-nowrap">
+                              <CalendarIcon
+                                size={12}
+                                className="text-stone-400 shrink-0"
+                              />
+                              <span>
+                                {b.pickupDate} → {b.returnDate}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Col 4: Category */}
+                          <td className="px-3 py-3.5 align-middle text-center">
+                            <span
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block ${
+                                b.requestedCategory === "SUV"
+                                  ? isDark
+                                    ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30"
+                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                  : b.requestedCategory === "Luxury"
+                                    ? isDark
+                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                      : "bg-amber-50 text-amber-700 border-amber-200"
+                                    : b.requestedCategory === "Electric"
+                                      ? isDark
+                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      : isDark
+                                        ? "bg-stone-800 text-stone-300 border-stone-700"
+                                        : "bg-stone-100 text-stone-700 border-stone-200"
+                              }`}
+                            >
+                              {b.requestedCategory || "Standard"}
+                            </span>
+                          </td>
+
+                          {/* Col 5: Mated Car */}
+                          <td className="px-4 py-3.5 align-middle">
+                            {matedCar ? (
+                              <div>
+                                <div
+                                  className={`font-bold text-xs truncate max-w-[170px] ${
+                                    isDark ? "text-stone-200" : "text-stone-900"
+                                  }`}
+                                  title={matedCar.name}
+                                >
+                                  {matedCar.name}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border inline-block shrink-0 ${
+                                      isDark
+                                        ? "bg-stone-800 text-amber-400 border-stone-700"
+                                        : "bg-amber-50 text-amber-800 border-amber-200"
+                                    }`}
+                                  >
+                                    {matedCar.plateNumber || "NO-PLATE"}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-mono truncate max-w-[110px] ${
+                                      isDark
+                                        ? "text-stone-400"
+                                        : "text-stone-500"
+                                    }`}
+                                    title={matedCar.garageBay || "Bay 14-B"}
+                                  >
+                                    {matedCar.garageBay || "Bay 14-B"}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center">
+                                <span
+                                  className={`px-2 py-1 rounded-md text-[11px] font-bold border inline-flex items-center gap-1.5 ${
+                                    isDark
+                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                      : "bg-amber-50 text-amber-800 border-amber-200"
+                                  }`}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                  Unassigned
+                                </span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Col 6: Status & Signals */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="flex flex-col gap-1 items-start">
+                              {b.status === "Pending Assignment" && (
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                    isDark
+                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                      : "bg-amber-50 text-amber-800 border-amber-200"
+                                  }`}
+                                >
+                                  Pending Mating
+                                </span>
+                              )}
+                              {b.status === "Assigned" && (
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                    isDark
+                                      ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                                      : "bg-sky-50 text-sky-800 border-sky-200"
+                                  }`}
+                                >
+                                  Assigned / Staged
+                                </span>
+                              )}
+                              {b.status === "Checked Out" && (
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                    isDark
+                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  }`}
+                                >
+                                  In Drive
+                                </span>
+                              )}
+                              {b.status === "Returned" && (
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                    isDark
+                                      ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                      : "bg-purple-50 text-purple-800 border-purple-200"
+                                  }`}
+                                >
+                                  Returned (Audit)
+                                </span>
+                              )}
+                              {b.status === "Completed" && (
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                    isDark
+                                      ? "bg-stone-700/40 text-stone-400 border-stone-700"
+                                      : "bg-stone-100 text-stone-600 border-stone-200"
+                                  }`}
+                                >
+                                  Completed
+                                </span>
+                              )}
+                              {b.status === "Cancelled" && (
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                    isDark
+                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                      : "bg-rose-50 text-rose-800 border-rose-200"
+                                  }`}
+                                >
+                                  Cancelled
+                                </span>
+                              )}
+
+                              {/* Operational Signals in neat secondary row */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {b.approvedByAdmin ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" />
+                                    Signal Active
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleApproveBooking(b.id)
+                                    }}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white border-emerald-500/40"
+                                        : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                                    }`}
+                                    title="Approve booking and send green signal to customer"
+                                  >
+                                    ⚡ Give Signal
+                                  </button>
+                                )}
+
+                                {(b.extensionStatus === "Pending" ||
+                                  b.extensionStatus === "Requested") && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleOpenExtensionQuote(b)
+                                    }}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 animate-pulse cursor-pointer whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-amber-500/20 hover:bg-amber-500 text-amber-200 border-amber-500/40"
+                                        : "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
+                                    }`}
+                                    title="Customer requested booking extension - click to quote"
+                                  >
+                                    🔔 Quote Ext
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Col 7: Total Amount */}
+                          <td className="px-4 py-3.5 text-right align-middle">
+                            <div
+                              className={`font-mono font-black text-xs ${
+                                isDark ? "text-white" : "text-stone-900"
+                              }`}
+                            >
+                              ${b.totalAmount.toFixed(2)}
+                            </div>
+                            <div className="text-[10px] font-mono text-stone-400 mt-0.5">
+                              {b.status === "Completed"
+                                ? "Settled"
+                                : "Auth Captured"}
+                            </div>
+                          </td>
+
+                          {/* Col 8: Lifecycle Actions */}
+                          <td
+                            className="px-4 py-3.5 text-right align-middle"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                              {b.status === "Pending Assignment" && (
+                                <button
+                                  onClick={() => handleAutoMate(b)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shadow-2xs cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                                >
+                                  <ZapIcon size={12} /> Auto-Mate
+                                </button>
+                              )}
+
+                              {b.status === "Assigned" && (
+                                <>
+                                  <button
+                                    onClick={() => handleOpenKeyHandoff(b)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                    title="Handoff keys & start rental clock"
+                                  >
+                                    <ZapIcon size={12} /> Keys
+                                  </button>
+                                  <button
+                                    onClick={() => handleUnmateCar(b.id)}
+                                    className={`p-1.5 rounded-lg text-xs transition border cursor-pointer ${
+                                      isDark
+                                        ? "bg-stone-800 hover:bg-rose-900/40 hover:text-rose-400 hover:border-rose-700/50 text-stone-400 border-stone-700"
+                                        : "bg-stone-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-stone-600 border-stone-200"
+                                    }`}
+                                    title="Unassign vehicle from reservation"
+                                  >
+                                    <TrashIcon size={12} />
+                                  </button>
+                                </>
+                              )}
+
+                              {b.status === "Checked Out" && (
+                                <button
+                                  onClick={() => handleOpenReturnInspection(b)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                  title="Perform return vehicle audit"
+                                >
+                                  <WrenchIcon size={12} /> Return Audit
+                                </button>
+                              )}
+
+                              {b.status === "Returned" && (
+                                <button
+                                  onClick={() => handleOpenReturnInspection(b)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 dark:bg-stone-700 dark:hover:bg-stone-600 text-white font-bold text-xs transition shadow-2xs cursor-pointer whitespace-nowrap"
+                                >
+                                  Verify Audit
+                                </button>
+                              )}
+
+                              {b.status === "Completed" && (
+                                <span className="text-[11px] font-mono text-stone-400 px-2 py-1">
+                                  Archived
+                                </span>
+                              )}
+
+                              {/* Secondary Action: Download Driver ID Verification */}
+                              <button
+                                onClick={() => handleDownloadLicense(b)}
+                                className={`p-1.5 rounded-lg text-xs transition border flex items-center justify-center cursor-pointer shrink-0 ${
+                                  isDark
+                                    ? "bg-stone-800 hover:bg-[#F97316] text-stone-400 hover:text-white border-stone-700"
+                                    : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-600 border-stone-200"
+                                }`}
+                                title="Download Driver ID Verification Documents"
+                              >
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                  />
+                                </svg>
+                              </button>
+
+                              {/* Secondary Action: Inspect Details Modal */}
+                              <button
+                                onClick={() => setInspectedBooking(b)}
+                                className={`p-1.5 rounded-lg text-xs transition border flex items-center justify-center cursor-pointer shrink-0 ${
+                                  isDark
+                                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                                    : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200"
+                                }`}
+                                title="Inspect Full Booking Details & Telemetry"
+                              >
+                                <ArrowRightIcon size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* ========================================================
+            TAB 2: FLEET TELEMETRY & INVENTORY
+            ======================================================== */}
+        {activeTab === "fleet" && (
+          <section
+            className={`border rounded-2xl overflow-hidden transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-xl"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            {/* Toolbar */}
+            <div
+              className={`p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                isDark
+                  ? "border-stone-800 bg-[#17191C]"
+                  : "border-stone-200/80 bg-white"
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative w-72">
+                  <SearchIcon
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                  />
+                  <input
+                    type="text"
+                    value={fleetSearch}
+                    onChange={(e) => setFleetSearch(e.target.value)}
+                    placeholder="Search plate, model, make..."
+                    className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                    }`}
+                  />
+                </div>
+
+                {/* Status chips */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  {[
+                    "all",
+                    "Available",
+                    "Rented",
+                    "Maintenance",
+                    "Cleaning",
+                  ].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setFleetStatusFilter(st)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        fleetStatusFilter === st
+                          ? "bg-sky-600 text-white font-bold shadow-xs"
+                          : isDark
+                            ? "bg-stone-900 text-stone-400 hover:text-stone-200 border border-stone-800"
+                            : "bg-stone-50 text-stone-600 hover:text-stone-900 border border-stone-200 hover:bg-stone-100"
+                      }`}
+                    >
+                      {st === "all" ? "All Fleet" : st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex items-center rounded-lg p-0.5 border ${
+                    isDark
+                      ? "bg-stone-900 border-stone-800"
+                      : "bg-stone-100 border-stone-200"
+                  }`}
+                >
+                  <button
+                    onClick={() => setFleetViewMode("table")}
+                    className={`p-1.5 rounded cursor-pointer ${
+                      fleetViewMode === "table"
+                        ? isDark
+                          ? "bg-stone-800 text-white"
+                          : "bg-white text-stone-900 shadow-2xs font-bold"
+                        : "text-stone-500 hover:text-stone-700"
+                    }`}
+                  >
+                    <ListIcon size={16} />
+                  </button>
+                  <button
+                    onClick={() => setFleetViewMode("grid")}
+                    className={`p-1.5 rounded cursor-pointer ${
+                      fleetViewMode === "grid"
+                        ? isDark
+                          ? "bg-stone-800 text-white"
+                          : "bg-white text-stone-900 shadow-2xs font-bold"
+                        : "text-stone-500 hover:text-stone-700"
+                    }`}
+                  >
+                    <GridIcon size={16} />
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleOpenAddCar}
+                  className="px-3.5 py-2 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <PlusIcon size={14} />+ Register Vehicle
+                </button>
+              </div>
+            </div>
+
+            {/* Fleet View Mode */}
+            {fleetViewMode === "table" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr
+                      className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                        isDark
+                          ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                          : "bg-stone-50/90 border-stone-200 text-stone-500"
+                      }`}
+                    >
+                      <th className="px-5 py-3.5">Vehicle / Specs</th>
+                      <th className="px-5 py-3.5">Plate & Hub</th>
+                      <th className="px-5 py-3.5">Status Override</th>
+                      <th className="px-5 py-3.5">Health & Sanitation</th>
+                      <th className="px-5 py-3.5">Fuel / Battery</th>
+                      <th className="px-5 py-3.5 text-right">Daily Rate</th>
+                      <th className="px-5 py-3.5 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    className={`divide-y font-sans ${
+                      isDark ? "divide-stone-800/60" : "divide-stone-100"
+                    }`}
+                  >
+                    {filteredFleet.map((c) => (
+                      <tr
+                        key={c.id}
+                        className={`transition ${
+                          isDark
+                            ? "hover:bg-stone-800/50 border-stone-800/60"
+                            : "hover:bg-orange-50/40 border-stone-100"
+                        }`}
+                      >
+                        {/* Vehicle details */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-12 h-9 rounded-lg overflow-hidden shrink-0 border ${
+                                isDark
+                                  ? "bg-stone-800 border-stone-700"
+                                  : "bg-stone-100 border-stone-200"
+                              }`}
+                            >
+                              <img
+                                src={c.image}
+                                alt={c.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <div
+                                className={`font-bold text-xs ${
+                                  isDark ? "text-white" : "text-stone-900"
+                                }`}
+                              >
+                                {c.name}
+                              </div>
+                              <div
+                                className={`text-[11px] ${
+                                  isDark ? "text-stone-400" : "text-stone-500"
+                                }`}
+                              >
+                                {c.year} • {c.type} • {c.fuelType}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Plate & Hub */}
+                        <td className="px-5 py-3.5">
+                          <span
+                            className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] border inline-block ${
+                              isDark
+                                ? "bg-stone-900 border-stone-700 text-stone-200"
+                                : "bg-stone-100 border-stone-200 text-stone-800"
+                            }`}
+                          >
+                            {c.plateNumber || "N/A"}
+                          </span>
+                          <div
+                            className={`text-[11px] mt-1 truncate max-w-[150px] ${
+                              isDark ? "text-stone-500" : "text-stone-400"
+                            }`}
+                          >
+                            {c.location || "Miami MIA"}
+                          </div>
+                        </td>
+
+                        {/* Status Override */}
+                        <td className="px-5 py-3.5">
+                          <select
+                            value={c.status || "Available"}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value as CarStatus
+                              const updated = await api.updateCarStatus(
+                                c.id,
+                                newStatus,
+                              )
+                              setCars((prev) =>
+                                prev.map((x) => (x.id === c.id ? updated : x)),
+                              )
+                              notify(
+                                `${c.name} status updated to ${newStatus}.`,
+                              )
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
+                              c.status === "Available"
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                : c.status === "Rented"
+                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                  : c.status === "Maintenance"
+                                    ? "bg-rose-500/10 text-rose-600 border-rose-500/30"
+                                    : "bg-purple-500/10 text-purple-600 border-purple-500/30"
+                            }`}
+                          >
+                            <option value="Available">Available</option>
+                            <option value="Rented">Rented</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Cleaning">Cleaning</option>
+                          </select>
+                        </td>
+
+                        {/* Health score */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`font-mono font-bold ${
+                                isDark ? "text-white" : "text-stone-900"
+                              }`}
+                            >
+                              {c.healthScore || 98}%
+                            </span>
+                            <div
+                              className={`w-16 h-1.5 rounded-full overflow-hidden ${
+                                isDark ? "bg-stone-800" : "bg-stone-100"
+                              }`}
+                            >
+                              <div
+                                className="bg-emerald-500 h-full rounded-full"
+                                style={{ width: `${c.healthScore || 98}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span
+                            className={`text-[10px] ${
+                              isDark ? "text-stone-500" : "text-stone-400"
+                            }`}
+                          >
+                            Inspection Pass
+                          </span>
+                        </td>
+
+                        {/* Fuel */}
+                        <td
+                          className={`px-5 py-3.5 font-mono ${
+                            isDark ? "text-stone-300" : "text-stone-700"
+                          }`}
+                        >
+                          {c.mileage || "30 MPG"}
+                        </td>
+
+                        {/* Daily Rate */}
+                        <td
+                          className={`px-5 py-3.5 text-right font-mono font-bold ${
+                            isDark ? "text-white" : "text-stone-900"
+                          }`}
+                        >
+                          ${c.pricePerDay}/day
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-3.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditCar(c)}
+                              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                isDark
+                                  ? "hover:bg-stone-800 text-stone-400 hover:text-white border-stone-800"
+                                  : "hover:bg-stone-100 text-stone-600 hover:text-stone-900 border-stone-200"
+                              }`}
+                              title="Edit specifications"
+                            >
+                              <EditIcon size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCar(c.id, c.name)}
+                              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                isDark
+                                  ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
+                                  : "hover:bg-rose-50 text-stone-500 hover:text-rose-600 border-stone-200"
+                              }`}
+                              title="Decommission vehicle"
+                            >
+                              <TrashIcon size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* Grid view */
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredFleet.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`border rounded-2xl p-4 flex flex-col justify-between transition ${
+                      isDark
+                        ? "bg-stone-900/60 border-stone-800 hover:border-stone-700"
+                        : "bg-white border-stone-200 shadow-2xs hover:border-orange-300 hover:shadow-xs"
+                    }`}
+                  >
+                    <div>
+                      <div
+                        className={`aspect-video rounded-xl overflow-hidden mb-3 border ${
+                          isDark
+                            ? "bg-stone-800 border-stone-800"
+                            : "bg-stone-100 border-stone-200"
+                        }`}
+                      >
+                        <img
+                          src={c.image}
+                          alt={c.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4
+                            className={`font-bold text-sm ${
+                              isDark ? "text-white" : "text-stone-900"
+                            }`}
+                          >
+                            {c.name}
+                          </h4>
+                          <p
+                            className={`text-xs ${
+                              isDark ? "text-stone-400" : "text-stone-500"
+                            }`}
+                          >
+                            {c.year} • {c.type}
+                          </p>
+                        </div>
+                        <span
+                          className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
+                            isDark
+                              ? "text-amber-400 bg-stone-800 border-stone-700"
+                              : "text-amber-800 bg-amber-50 border-amber-200"
+                          }`}
+                        >
+                          {c.plateNumber}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`mt-4 pt-3 border-t flex items-center justify-between ${
+                        isDark ? "border-stone-800" : "border-stone-100"
+                      }`}
+                    >
+                      <span
+                        className={`font-mono font-bold text-sm ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        ${c.pricePerDay}/day
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenEditCar(c)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                            isDark
+                              ? "bg-stone-800 text-stone-300 hover:text-white border-stone-700"
+                              : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200 shadow-2xs"
+                          }`}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ========================================================
+            TAB 3: ⚡ WALK-IN COUNTER DISPATCH (< 60s)
+            ======================================================== */}
+        {activeTab === "walkin" && (
+          <section
+            className={`border rounded-2xl p-6 sm:p-8 max-w-4xl mx-auto transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-2xl text-white"
+                : "bg-white border-stone-200/90 shadow-xs text-stone-900"
+            }`}
+          >
+            <div
+              className={`flex items-center gap-3 pb-6 border-b ${
+                isDark ? "border-stone-800" : "border-stone-200/80"
+              }`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+                <ZapIcon size={20} />
+              </div>
+              <div>
+                <h3
+                  className={`text-lg font-black ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  ⚡ Express Walk-In Counter Dispatch
+                </h3>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDark ? "text-stone-400" : "text-stone-500"
+                  }`}
+                >
+                  Rapid counter booking for walk-in airport travelers with
+                  instantaneous key dispatch.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleWalkinSubmit} className="mt-6 space-y-6">
+              {/* Step 1: Customer Details */}
+              <div>
+                <h4
+                  className={`text-xs font-bold uppercase tracking-wider mb-3 ${
+                    isDark ? "text-stone-400" : "text-stone-500"
+                  }`}
+                >
+                  Step 1: Driver Identification
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={walkinForm.firstName}
+                      onChange={(e) =>
+                        setWalkinForm({
+                          ...walkinForm,
+                          firstName: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Marcus"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={walkinForm.lastName}
+                      onChange={(e) =>
+                        setWalkinForm({
+                          ...walkinForm,
+                          lastName: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Vance"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Email (For e-Receipt)
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={walkinForm.email}
+                      onChange={(e) =>
+                        setWalkinForm({ ...walkinForm, email: e.target.value })
+                      }
+                      placeholder="customer@email.com"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={walkinForm.phone}
+                      onChange={(e) =>
+                        setWalkinForm({ ...walkinForm, phone: e.target.value })
+                      }
+                      placeholder="+1 (555) 000-0000"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Driver License Number
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={walkinForm.licenseNumber}
+                      onChange={(e) =>
+                        setWalkinForm({
+                          ...walkinForm,
+                          licenseNumber: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. FL-9940182"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Issuing State / Jurisdiction
+                    </label>
+                    <input
+                      type="text"
+                      value={walkinForm.licenseState}
+                      onChange={(e) =>
+                        setWalkinForm({
+                          ...walkinForm,
+                          licenseState: e.target.value,
+                        })
+                      }
+                      placeholder="Florida"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Available Vehicle Selector */}
+              <div
+                className={`pt-4 border-t ${
+                  isDark ? "border-stone-800" : "border-stone-200/80"
+                }`}
+              >
+                <h4
+                  className={`text-xs font-bold uppercase tracking-wider mb-3 ${
+                    isDark ? "text-stone-400" : "text-stone-500"
+                  }`}
+                >
+                  Step 2: Assign Staged Vehicle
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {cars
+                    .filter((c) => c.status === "Available")
+                    .map((car) => {
+                      const isSelected = walkinForm.carId === car.id
+                      return (
+                        <div
+                          key={car.id}
+                          onClick={() =>
+                            setWalkinForm({ ...walkinForm, carId: car.id })
+                          }
+                          className={`p-3 rounded-xl border cursor-pointer transition flex items-center gap-3 ${
+                            isSelected
+                              ? isDark
+                                ? "bg-amber-500/10 border-amber-500 text-white"
+                                : "bg-amber-50 border-amber-400 text-stone-900 shadow-2xs"
+                              : isDark
+                                ? "bg-stone-900/60 border-stone-800 text-stone-400 hover:border-stone-700"
+                                : "bg-stone-50 border-stone-200 text-stone-600 hover:border-stone-300"
+                          }`}
+                        >
+                          <div
+                            className={`w-12 h-9 rounded overflow-hidden shrink-0 ${
+                              isDark ? "bg-stone-800" : "bg-stone-200"
+                            }`}
+                          >
+                            <img
+                              src={car.image}
+                              alt={car.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`font-bold text-xs truncate ${
+                                isDark ? "text-white" : "text-stone-900"
+                              }`}
+                            >
+                              {car.name}
+                            </p>
+                            <p
+                              className={`text-[10px] font-mono ${
+                                isDark ? "text-stone-400" : "text-stone-500"
+                              }`}
+                            >
+                              {car.plateNumber} • ${car.pricePerDay}/day
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+
+              {/* Step 3: Rental Parameters & Immediate Dispatch */}
+              <div
+                className={`pt-4 border-t grid grid-cols-1 sm:grid-cols-3 gap-4 ${
+                  isDark ? "border-stone-800" : "border-stone-200/80"
+                }`}
+              >
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Rental Duration (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={walkinForm.totalDays}
+                    onChange={(e) =>
+                      setWalkinForm({
+                        ...walkinForm,
+                        totalDays: Number(e.target.value) || 1,
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-sm font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Pickup Time
+                  </label>
+                  <input
+                    type="text"
+                    value={walkinForm.pickupDate}
+                    onChange={(e) =>
+                      setWalkinForm({
+                        ...walkinForm,
+                        pickupDate: e.target.value,
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Return Schedule
+                  </label>
+                  <input
+                    type="text"
+                    value={walkinForm.returnDate}
+                    onChange={(e) =>
+                      setWalkinForm({
+                        ...walkinForm,
+                        returnDate: e.target.value,
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-sm transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="immediateCheckout"
+                  checked={walkinForm.immediateCheckout}
+                  onChange={(e) =>
+                    setWalkinForm({
+                      ...walkinForm,
+                      immediateCheckout: e.target.checked,
+                    })
+                  }
+                  className="rounded text-orange-500 focus:ring-0 cursor-pointer"
+                />
+                <label
+                  htmlFor="immediateCheckout"
+                  className={`text-xs font-medium cursor-pointer ${
+                    isDark ? "text-stone-300" : "text-stone-700"
+                  }`}
+                >
+                  Dispatch Keys Immediately (Sets lifecycle directly to{" "}
+                  <span className="text-emerald-500 font-bold">
+                    Checked Out
+                  </span>
+                  )
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmittingWalkin}
+                className="w-full py-3.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-sm transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+              >
+                <ZapIcon size={16} />
+                {isSubmittingWalkin
+                  ? "Issuing Reservation..."
+                  : "Complete Counter Walk-In & Hand Over Keys"}
+              </button>
+            </form>
+          </section>
+        )}
+
+        {/* ========================================================
+            TAB 4: RATE RULES & PROMO COUPONS
+            ======================================================== */}
+        {activeTab === "promos" && (
+          <section
+            className={`border rounded-2xl overflow-hidden transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-xl"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <div
+              className={`p-4 sm:p-5 border-b flex items-center justify-between ${
+                isDark
+                  ? "border-stone-800 bg-[#17191C]"
+                  : "border-stone-200/80 bg-white"
+              }`}
+            >
+              <div>
+                <h3
+                  className={`text-base font-bold flex items-center gap-2 ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  <TagIcon size={16} className="text-emerald-500" />
+                  Promo Coupon Rule Engine
+                </h3>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDark ? "text-stone-400" : "text-stone-500"
+                  }`}
+                >
+                  Dynamic discounts applied live during customer checkout and
+                  rate calculation.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPromoModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <PlusIcon size={14} />+ Create Promo Code
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr
+                    className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                      isDark
+                        ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                        : "bg-stone-50/90 border-stone-200 text-stone-500"
+                    }`}
+                  >
+                    <th className="px-5 py-3.5">Coupon Code</th>
+                    <th className="px-5 py-3.5">Discount</th>
+                    <th className="px-5 py-3.5">Description</th>
+                    <th className="px-5 py-3.5">Expiration</th>
+                    <th className="px-5 py-3.5">Usage Count</th>
+                    <th className="px-5 py-3.5">Active Status</th>
+                    <th className="px-5 py-3.5 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody
+                  className={`divide-y font-sans ${
+                    isDark ? "divide-stone-800/60" : "divide-stone-100"
+                  }`}
+                >
+                  {promos.map((p) => (
+                    <tr
+                      key={p.code}
+                      className={`transition ${
+                        isDark
+                          ? "hover:bg-stone-800/50 border-stone-800/60"
+                          : "hover:bg-orange-50/40 border-stone-100"
+                      }`}
+                    >
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`px-2.5 py-1 rounded-md font-mono font-bold text-xs border inline-block ${
+                            isDark
+                              ? "bg-stone-900 text-emerald-400 border-emerald-500/30"
+                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          }`}
+                        >
+                          {p.code}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono font-black text-sm ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        {p.discountPercent}% OFF
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 max-w-xs ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        {p.description}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono ${
+                          isDark ? "text-stone-400" : "text-stone-500"
+                        }`}
+                      >
+                        {p.expiryDate}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        {p.usageCount} redemptions
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <button
+                          onClick={() => handleTogglePromo(p.code)}
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer ${
+                            p.isActive
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                              : isDark
+                                ? "bg-stone-800 text-stone-500 border-stone-700"
+                                : "bg-stone-100 text-stone-400 border-stone-200"
+                          }`}
+                        >
+                          {p.isActive ? "● Active" : "○ Inactive"}
+                        </button>
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <button
+                          onClick={() => handleDeletePromo(p.code)}
+                          className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                            isDark
+                              ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
+                              : "hover:bg-rose-50 text-stone-400 hover:text-rose-600 border-stone-200"
+                          }`}
+                          title="Delete coupon"
+                        >
+                          <TrashIcon size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* ========================================================
+            TAB 5: CUSTOMER CRM & DRIVER VERIFICATION
+            ======================================================== */}
+        {activeTab === "crm" && (
+          <section
+            className={`border rounded-2xl overflow-hidden transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-xl"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <div
+              className={`p-4 sm:p-5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                isDark
+                  ? "border-stone-800 bg-[#17191C]"
+                  : "border-stone-200/80 bg-white"
+              }`}
+            >
+              <div>
+                <h3
+                  className={`text-base font-bold flex items-center gap-2 ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  <UserIcon size={16} className="text-purple-500" />
+                  Customer Directory & Driver CRM
+                </h3>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDark ? "text-stone-400" : "text-stone-500"
+                  }`}
+                >
+                  Lifetime rental spend, driver license verification, and VIP
+                  tiering.
+                </p>
+              </div>
+
+              <div className="relative w-64">
+                <SearchIcon
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                />
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Filter customer name or email..."
+                  className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr
+                    className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                      isDark
+                        ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                        : "bg-stone-50/90 border-stone-200 text-stone-500"
+                    }`}
+                  >
+                    <th className="px-5 py-3.5">Customer Name</th>
+                    <th className="px-5 py-3.5">Contact Email & Phone</th>
+                    <th className="px-5 py-3.5">Driver License</th>
+                    <th className="px-5 py-3.5">VIP Tier</th>
+                    <th className="px-5 py-3.5">Trips Count</th>
+                    <th className="px-5 py-3.5 text-right">Lifetime Spend</th>
+                    <th className="px-5 py-3.5 text-center">Verification</th>
+                  </tr>
+                </thead>
+                <tbody
+                  className={`divide-y font-sans ${
+                    isDark ? "divide-stone-800/60" : "divide-stone-100"
+                  }`}
+                >
+                  {filteredCustomers.map((cust) => (
+                    <tr
+                      key={cust.id}
+                      className={`transition ${
+                        isDark
+                          ? "hover:bg-stone-800/50 border-stone-800/60"
+                          : "hover:bg-orange-50/40 border-stone-100"
+                      }`}
+                    >
+                      <td
+                        className={`px-5 py-3.5 font-semibold ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
+                              isDark
+                                ? "bg-stone-800 text-stone-300"
+                                : "bg-stone-100 text-stone-700"
+                            }`}
+                          >
+                            {cust.name.charAt(0)}
+                          </div>
+                          <span>{cust.name}</span>
+                          {cust.hasAccount && (
+                            <span className="text-[10px] text-emerald-500 font-mono font-bold">
+                              ✓ App
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div
+                          className={`font-mono text-[11px] ${
+                            isDark ? "text-stone-300" : "text-stone-700"
+                          }`}
+                        >
+                          {cust.email}
+                        </div>
+                        <div
+                          className={`text-[10px] font-mono ${
+                            isDark ? "text-stone-500" : "text-stone-400"
+                          }`}
+                        >
+                          {cust.phone || "No phone"}
+                        </div>
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        {cust.driverLicenseNum || "Unverified"}
+                        {cust.driverLicenseState && (
+                          <span
+                            className={`text-[10px] ${
+                              isDark ? "text-stone-500" : "text-stone-400"
+                            }`}
+                          >
+                            {" "}
+                            ({cust.driverLicenseState})
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                            cust.vipTier === "VIP"
+                              ? "bg-amber-500/10 text-amber-500 border border-amber-500/30"
+                              : cust.vipTier === "Gold"
+                                ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/30"
+                                : isDark
+                                  ? "bg-stone-800 text-stone-400"
+                                  : "bg-stone-100 text-stone-600 border border-stone-200"
+                          }`}
+                        >
+                          {cust.vipTier || "Standard"}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        {cust.totalBookings || 0} trips
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 text-right font-mono font-bold ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        ${(cust.totalSpent || 0).toFixed(2)}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <button
+                          onClick={() =>
+                            setInspectedLicense({
+                              name: cust.name,
+                              licenseNum: cust.driverLicenseNum || "DL-99018",
+                              state: cust.driverLicenseState || "Florida",
+                              expiry: cust.driverLicenseExpiry || "12/2029",
+                              file: "driver_license_front.jpg",
+                            })
+                          }
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                            isDark
+                              ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                              : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200 shadow-2xs"
+                          }`}
+                        >
+                          View ID
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* ========================================================
+            TAB 6: MAINTENANCE & FLEET HEALTH
+            ======================================================== */}
+        {activeTab === "maintenance" && (
+          <section
+            className={`border rounded-2xl overflow-hidden transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 shadow-xl"
+                : "bg-white border-stone-200/90 shadow-xs"
+            }`}
+          >
+            <div
+              className={`p-4 sm:p-5 border-b flex items-center justify-between ${
+                isDark
+                  ? "border-stone-800 bg-[#17191C]"
+                  : "border-stone-200/80 bg-white"
+              }`}
+            >
+              <div>
+                <h3
+                  className={`text-base font-bold flex items-center gap-2 ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  <WrenchIcon size={16} className="text-rose-500" />
+                  Fleet Maintenance & Service Logs
+                </h3>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isDark ? "text-stone-400" : "text-stone-500"
+                  }`}
+                >
+                  Track oil services, ceramic brake overhauls, EV battery
+                  diagnostics, and service work orders.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsMntModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <PlusIcon size={14} />+ Log Service Ticket
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr
+                    className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                      isDark
+                        ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                        : "bg-stone-50/90 border-stone-200 text-stone-500"
+                    }`}
+                  >
+                    <th className="px-5 py-3.5">Work Order ID</th>
+                    <th className="px-5 py-3.5">Vehicle</th>
+                    <th className="px-5 py-3.5">Service Type</th>
+                    <th className="px-5 py-3.5">Odometer</th>
+                    <th className="px-5 py-3.5">Date</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5 text-right">Cost</th>
+                    <th className="px-5 py-3.5">Technician Notes</th>
+                  </tr>
+                </thead>
+                <tbody
+                  className={`divide-y font-sans ${
+                    isDark ? "divide-stone-800/60" : "divide-stone-100"
+                  }`}
+                >
+                  {maintenanceLogs.map((log) => (
+                    <tr
+                      key={log.id}
+                      className={`transition ${
+                        isDark
+                          ? "hover:bg-stone-800/50 border-stone-800/60"
+                          : "hover:bg-orange-50/40 border-stone-100"
+                      }`}
+                    >
+                      <td
+                        className={`px-5 py-3.5 font-mono font-bold ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        {log.id}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-semibold ${
+                          isDark ? "text-stone-200" : "text-stone-900"
+                        }`}
+                      >
+                        {log.carName || log.carId}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        {log.serviceType}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono ${
+                          isDark ? "text-stone-400" : "text-stone-500"
+                        }`}
+                      >
+                        {log.odometer.toLocaleString()} mi
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono ${
+                          isDark ? "text-stone-400" : "text-stone-500"
+                        }`}
+                      >
+                        {log.date}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
+                            log.status === "Completed"
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                          }`}
+                        >
+                          {log.status}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 text-right font-mono font-bold ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        ${log.cost.toFixed(2)}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 max-w-xs truncate ${
+                          isDark ? "text-stone-400" : "text-stone-500"
+                        }`}
+                      >
+                        {log.technicianNotes || "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* ========================================================
+          SLIDE-OUT INSPECTION DRAWER (Reservation Manifest)
+          ======================================================== */}
+      {inspectedBooking && (
+        <div
+          onClick={() => setInspectedBooking(null)}
+          className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm flex justify-end animate-fade-in cursor-pointer"
+        >
+          <div
+            onClick={() => setInspectedBooking(null)}
+            className={`w-full max-w-xl border-l h-full overflow-y-auto p-6 sm:p-8 flex flex-col justify-between shadow-2xl transition cursor-default ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+            title="Click anywhere on the white background to go back"
+          >
+            <div className="space-y-4">
+              {/* Drawer Top Header */}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={`sticky top-0 z-20 -mx-6 -mt-6 sm:-mx-8 sm:-mt-8 p-6 sm:p-8 border-b backdrop-blur-md flex items-center justify-between ${
+                  isDark
+                    ? "bg-[#17191C]/95 border-stone-800"
+                    : "bg-white/95 border-stone-200/90 shadow-2xs"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setInspectedBooking(null)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      isDark
+                        ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
+                        : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-700 border border-stone-200 shadow-2xs"
+                    }`}
+                    title="Return to Manifest Table (or press Esc)"
+                  >
+                    <ArrowLeftIcon size={14} />
+                    <span>Back</span>
+                  </button>
+                  <div>
+                    <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider block">
+                      RESERVATION INSPECTION SHEET
+                    </span>
+                    <h3
+                      className={`text-lg font-black font-mono mt-0.5 leading-none ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      {inspectedBooking.id}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInspectedBooking(null)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 shadow-2xs"
+                  }`}
+                  title="Close (Esc or click white space)"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Status Banner with Green Signal */}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={`my-3 p-4 rounded-xl border space-y-3 transition ${
+                  isDark
+                    ? "bg-stone-900 border-stone-800 text-white"
+                    : "bg-white border-stone-200 text-stone-900 shadow-xs"
+                }`}
+              >
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-stone-500 dark:text-stone-400 block mb-1">
+                      Current Lifecycle Stage
+                    </span>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 ${
+                        inspectedBooking.status === "Completed"
+                          ? isDark
+                            ? "bg-emerald-950/40 text-emerald-300 border-emerald-500/30"
+                            : "bg-emerald-50 text-emerald-900 border-emerald-300"
+                          : inspectedBooking.status === "Checked Out"
+                            ? isDark
+                              ? "bg-sky-950/40 text-sky-300 border-sky-500/30"
+                              : "bg-sky-50 text-sky-900 border-sky-200"
+                            : inspectedBooking.status === "Assigned"
+                              ? isDark
+                                ? "bg-amber-950/40 text-amber-300 border-amber-500/30"
+                                : "bg-amber-50 text-amber-900 border-amber-200"
+                              : isDark
+                                ? "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                                : "bg-orange-50 text-orange-900 border-orange-200"
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          inspectedBooking.status === "Completed"
+                            ? "bg-emerald-500"
+                            : inspectedBooking.status === "Checked Out"
+                              ? "bg-sky-500 animate-pulse"
+                              : "bg-orange-500 animate-pulse"
+                        }`}
+                      />
+                      {inspectedBooking.status}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {inspectedBooking.status === "Pending Assignment" && (
+                      <button
+                        onClick={() => handleAutoMate(inspectedBooking)}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-sm cursor-pointer flex items-center gap-1.5"
+                      >
+                        <ZapIcon size={13} /> Auto-Mate Vehicle
+                      </button>
+                    )}
+                    {inspectedBooking.status === "Assigned" && (
+                      <button
+                        onClick={() => handleOpenKeyHandoff(inspectedBooking)}
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <ZapIcon size={13} /> Handoff Keys & Start Clock
+                      </button>
+                    )}
+                    {inspectedBooking.status === "Checked Out" && (
+                      <button
+                        onClick={() =>
+                          handleOpenReturnInspection(inspectedBooking)
+                        }
+                        className="px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <WrenchIcon size={13} /> Return Inspection
+                      </button>
+                    )}
+                    {inspectedBooking.status === "Returned" && (
+                      <button
+                        onClick={() =>
+                          handleOpenReturnInspection(inspectedBooking)
+                        }
+                        className="px-3.5 py-1.5 rounded-lg bg-stone-700 hover:bg-stone-600 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <CheckIcon size={13} /> Verify Turnaround Audit
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Flow D: Green Signal Approval Banner */}
+                {inspectedBooking.approvedByAdmin ? (
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between text-xs transition ${
+                      isDark
+                        ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-950"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse shrink-0" />
+                      <span
+                        className={`font-bold ${
+                          isDark ? "text-emerald-300" : "text-emerald-950"
+                        }`}
+                      >
+                        Green Signal Active — Garage Clearance Granted
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded border whitespace-nowrap shrink-0 ${
+                        isDark
+                          ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
+                          : "bg-emerald-100 text-emerald-900 border-emerald-300 shadow-2xs"
+                      }`}
+                    >
+                      {inspectedBooking.approvedAt
+                        ? `Approved ${formatFullDateTime(inspectedBooking.approvedAt)}`
+                        : "Verified"}
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition ${
+                      isDark
+                        ? "bg-amber-950/40 border-amber-500/40 text-amber-200"
+                        : "bg-amber-50 border-amber-200 text-amber-950"
+                    }`}
+                  >
+                    <div>
+                      <p
+                        className={`font-bold text-sm ${
+                          isDark ? "text-amber-300" : "text-amber-950"
+                        }`}
+                      >
+                        Awaiting Garage Manager Green Signal
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          isDark ? "text-stone-400" : "text-amber-800"
+                        }`}
+                      >
+                        Verify driver license documents before granting garage
+                        clearance.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleApproveBooking(inspectedBooking.id)}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckIcon size={14} /> Give Green Signal
+                    </button>
+                  </div>
+                )}
+
+                {/* Flow E: Key Handoff Clock Status */}
+                {inspectedBooking.keysHandedAt && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs space-y-1.5 transition ${
+                      isDark
+                        ? "bg-stone-950 border-stone-800 text-stone-200"
+                        : "bg-sky-50 border-sky-200 text-sky-950"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span
+                        className={`font-bold flex items-center gap-1.5 ${
+                          isDark ? "text-sky-400" : "text-sky-950"
+                        }`}
+                      >
+                        <ClockIcon size={14} className="text-sky-500" />
+                        Rental Clock Active (Keys Handed Over)
+                      </span>
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded border ${
+                          isDark
+                            ? "bg-stone-800 text-stone-300 border-stone-700"
+                            : "bg-white text-sky-950 border-sky-200 shadow-2xs"
+                        }`}
+                      >
+                        🕒 {formatFullDateTime(inspectedBooking.keysHandedAt)}
+                      </span>
+                    </div>
+                    {inspectedBooking.checklistOut && (
+                      <p
+                        className={`text-xs ${
+                          isDark ? "text-stone-400" : "text-sky-900"
+                        }`}
+                      >
+                        Departure Odometer:{" "}
+                        <span
+                          className={`font-mono font-bold ${
+                            isDark ? "text-white" : "text-sky-950"
+                          }`}
+                        >
+                          {inspectedBooking.checklistOut.odometerOut.toLocaleString()}{" "}
+                          mi
+                        </span>{" "}
+                        • Fuel Level:{" "}
+                        <span
+                          className={`font-semibold ${
+                            isDark ? "text-white" : "text-sky-950"
+                          }`}
+                        >
+                          {inspectedBooking.checklistOut.fuelLevelOut}
+                        </span>{" "}
+                        • Dispatch Officer:{" "}
+                        <span
+                          className={`font-semibold ${
+                            isDark ? "text-stone-200" : "text-sky-950"
+                          }`}
+                        >
+                          {inspectedBooking.checklistOut.inspectorStaff ||
+                            "Admin Lead"}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* RENTAL TIME, SCHEDULE & DURATION CARD */}
+              {(() => {
+                const durationInfo = getBookingDurationInfo(
+                  inspectedBooking.pickupDate,
+                  inspectedBooking.returnDate,
+                )
+                const pickupTimeStr = formatReadableTime(
+                  inspectedBooking.pickupDate?.includes(":")
+                    ? inspectedBooking.pickupDate
+                    : undefined,
+                  "10:00 AM",
+                )
+                const returnTimeStr = formatReadableTime(
+                  inspectedBooking.returnDate?.includes(":")
+                    ? inspectedBooking.returnDate
+                    : undefined,
+                  "10:00 AM",
+                )
+                const elapsedClock = getElapsedClock(
+                  inspectedBooking.keysHandedAt,
+                  inspectedBooking.checklistIn?.timestamp,
+                )
+
+                return (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`my-3 p-4 rounded-xl border transition ${
+                      isDark
+                        ? "bg-stone-900/60 border-stone-800 text-white"
+                        : "bg-white border-stone-200 text-stone-900 shadow-xs"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-[#F97316] flex items-center justify-center font-bold">
+                          <ClockIcon size={15} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                            Rental Time &amp; Duration
+                          </h4>
+                          <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                            Booked schedule &amp; active rental duration
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20">
+                        ⏱️ {durationInfo.label}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3.5">
+                      {/* Pickup Details */}
+                      <div
+                        className={`p-3 rounded-xl border ${
+                          isDark
+                            ? "bg-stone-950 border-stone-800"
+                            : "bg-stone-50 border-stone-200"
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          Pickup Schedule
+                        </span>
+                        <p className="font-bold text-sm text-stone-900 dark:text-white mt-1">
+                          {inspectedBooking.pickupDate}
+                        </p>
+                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                          🕒 Scheduled Time: {pickupTimeStr}
+                        </p>
+                        <p
+                          className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
+                          title={inspectedBooking.pickupLocation}
+                        >
+                          📍 {inspectedBooking.pickupLocation}
+                        </p>
+                      </div>
+
+                      {/* Return Details */}
+                      <div
+                        className={`p-3 rounded-xl border ${
+                          isDark
+                            ? "bg-stone-950 border-stone-800"
+                            : "bg-stone-50 border-stone-200"
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          Return Schedule
+                        </span>
+                        <p className="font-bold text-sm text-stone-900 dark:text-white mt-1">
+                          {inspectedBooking.returnDate}
+                        </p>
+                        <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mt-0.5">
+                          🕒 Scheduled Time: {returnTimeStr}
+                        </p>
+                        <p
+                          className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
+                          title={inspectedBooking.returnLocation}
+                        >
+                          📍 {inspectedBooking.returnLocation}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Active Clock Duration Bar if Dispatched */}
+                    {inspectedBooking.keysHandedAt && (
+                      <div
+                        className={`mt-3 p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+                          isDark
+                            ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-950"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                          <span className="font-semibold">
+                            Rental Clock Started:{" "}
+                            <span className="font-normal">
+                              {formatFullDateTime(
+                                inspectedBooking.keysHandedAt,
+                              )}
+                            </span>
+                          </span>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded text-[11px] font-bold border shrink-0 ${
+                            isDark
+                              ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
+                              : "bg-white text-emerald-900 border-emerald-300 shadow-2xs"
+                          }`}
+                        >
+                          {inspectedBooking.status === "Completed"
+                            ? "Completed Duration"
+                            : "Elapsed Time"}
+                          : {elapsedClock}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Flow F: Extension Request Alert Banner */}
+              {(inspectedBooking.extensionStatus === "Pending" ||
+                inspectedBooking.extensionStatus === "Requested") && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`mb-4 p-4 rounded-xl border text-xs space-y-2 transition ${
+                    isDark
+                      ? "bg-amber-950/40 border-amber-500/50 text-amber-200"
+                      : "bg-amber-50 border-amber-200 text-amber-950"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-sm">
+                      🔔 Customer Requested Rental Extension
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 uppercase">
+                      Action Required
+                    </span>
+                  </div>
+                  <div
+                    className={`p-2.5 rounded-lg border space-y-1 ${
+                      isDark
+                        ? "bg-stone-950 border-stone-800 text-stone-300"
+                        : "bg-white border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <p>
+                      Extra Time Requested:{" "}
+                      <strong
+                        className={`font-mono ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        +{inspectedBooking.extensionRequest?.durationValue}{" "}
+                        {inspectedBooking.extensionRequest?.durationUnit}
+                      </strong>
+                    </p>
+                    <p>
+                      Customer Notes:{" "}
+                      <em
+                        className={isDark ? "text-stone-400" : "text-stone-600"}
+                      >
+                        "
+                        {inspectedBooking.extensionRequest?.reason ||
+                          "Trip extended."}
+                        "
+                      </em>
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => handleOpenExtensionQuote(inspectedBooking)}
+                      className="flex-1 py-2 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shadow-sm"
+                    >
+                      Create &amp; Send Quotation →
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleDeclineExtensionRequest(inspectedBooking.id)
+                      }
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold transition ${
+                        isDark
+                          ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                          : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                      }`}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {inspectedBooking.extensionStatus === "Quoted" &&
+                inspectedBooking.extensionQuote && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`mb-4 p-3 rounded-xl border text-xs space-y-1 transition ${
+                      isDark
+                        ? "bg-sky-950/40 border-sky-500/40 text-sky-200"
+                        : "bg-sky-50 border-sky-200 text-sky-950"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sky-700 dark:text-sky-400">
+                        Quotation Dispatched to Customer
+                      </span>
+                      <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                        +$
+                        {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
+                          2,
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                      Rate: ${inspectedBooking.extensionQuote.rateAmount} /{" "}
+                      {inspectedBooking.extensionQuote.rateType} • Awaiting
+                      customer approval in self-service portal.
+                    </p>
+                  </div>
+                )}
+
+              {inspectedBooking.extensionStatus === "Approved" &&
+                inspectedBooking.extensionQuote && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`mb-4 p-3.5 rounded-xl border text-xs flex items-center justify-between transition ${
+                      isDark
+                        ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-950"
+                    }`}
+                  >
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Extension Approved &amp; Added to Billing (+$
+                      {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
+                        2,
+                      )}
+                      )
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                        isDark
+                          ? "bg-emerald-900/40 text-emerald-300 border-emerald-700"
+                          : "bg-white text-emerald-900 border-emerald-300 shadow-2xs"
+                      }`}
+                    >
+                      Bill Total Updated
+                    </span>
+                  </div>
+                )}
+
+              {/* Customer Profile & Verification */}
+              <div className="space-y-4">
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`p-4 rounded-xl border transition ${
+                    isDark
+                      ? "bg-stone-900/60 border-stone-800 text-white"
+                      : "bg-white border-stone-200 text-stone-900 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                      <UserIcon size={14} className="text-[#F97316]" /> Customer
+                      &amp; Driver Information
+                    </h4>
+                    <button
+                      onClick={() =>
+                        handleDownloadLicense(inspectedBooking, "certificate")
+                      }
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold font-mono transition border flex items-center gap-1.5 shadow-sm ${
+                        isDark
+                          ? "bg-stone-800 hover:bg-[#F97316] text-stone-300 hover:text-white border-stone-700"
+                          : "bg-white hover:bg-[#F97316] text-stone-700 hover:text-white border-stone-200"
+                      }`}
+                      title="Download Official SVG ID Certificate"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
+                      </svg>
+                      Download SVG Certificate
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3.5 text-xs pt-1">
+                    <div>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 block mb-0.5">
+                        Legal Name
+                      </span>
+                      <p
+                        className={`font-bold text-sm ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        {inspectedBooking.customer.firstName}{" "}
+                        {inspectedBooking.customer.lastName}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 block mb-0.5">
+                        Phone Contact
+                      </span>
+                      <p
+                        className={`font-semibold text-sm ${
+                          isDark ? "text-stone-100" : "text-stone-900"
+                        }`}
+                      >
+                        {inspectedBooking.customer.phone}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 block mb-0.5">
+                        Email Address
+                      </span>
+                      <p
+                        className={`font-medium ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        {inspectedBooking.customer.email}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 block mb-0.5">
+                        Driver License
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className={`font-mono font-bold text-xs px-2 py-0.5 rounded border ${
+                            isDark
+                              ? "bg-amber-950/40 text-amber-300 border-amber-600/40"
+                              : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}
+                        >
+                          {inspectedBooking.driver?.licenseNumber ||
+                            "FL-VND-88912"}
+                        </span>
+                        <span className="text-[11px] font-bold text-stone-500 dark:text-stone-400">
+                          ({inspectedBooking.driver?.licenseState || "FL"})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Flow C: Customer Real Driver License Identification Photos */}
+                  <div
+                    className={`mt-4 pt-3.5 border-t space-y-2.5 ${
+                      isDark ? "border-stone-800" : "border-stone-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                        Uploaded Driver License Documents
+                      </span>
+                      <span className="text-[10px] text-emerald-500 font-bold">
+                        ✓ High-Resolution Real Uploads
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Front Photo Card */}
+                      {(() => {
+                        const frontSrc =
+                          inspectedBooking.driver?.licensePhotoFront ||
+                          (inspectedBooking.driver?.licenseFileName?.startsWith(
+                            "data:",
+                          )
+                            ? inspectedBooking.driver.licenseFileName
+                            : null) ||
+                          api.getLicenseDownloadUrl(
+                            inspectedBooking.id,
+                            "front",
+                          )
+                        return (
+                          <div
+                            className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 ${
+                              isDark
+                                ? "bg-stone-950 border-stone-800"
+                                : "bg-white border-stone-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-bold text-stone-700 dark:text-stone-300">
+                                License Front Photo
+                              </span>
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {inspectedBooking.driver?.licenseFileName ||
+                                  "front_id.png"}
+                              </span>
+                            </div>
+                            <div
+                              onClick={() =>
+                                setZoomedPhoto({
+                                  url: frontSrc,
+                                  title: `Driver License Front - ${inspectedBooking.customer.firstName} ${inspectedBooking.customer.lastName}`,
+                                })
+                              }
+                              className="relative h-28 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 cursor-zoom-in group"
+                              title="Click to zoom / view full resolution"
+                            >
+                              <img
+                                src={frontSrc}
+                                alt="Driver License Front"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                                🔍 Click to Zoom
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDownloadLicense(
+                                    inspectedBooking,
+                                    "front",
+                                  )
+                                }
+                                className="flex-1 py-1.5 px-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                📥 Download Front
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Back Photo Card */}
+                      {(() => {
+                        const backSrc =
+                          inspectedBooking.driver?.licensePhotoBack ||
+                          (inspectedBooking.driver?.licenseBackFileName?.startsWith(
+                            "data:",
+                          )
+                            ? inspectedBooking.driver.licenseBackFileName
+                            : null) ||
+                          api.getLicenseDownloadUrl(inspectedBooking.id, "back")
+                        return (
+                          <div
+                            className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 ${
+                              isDark
+                                ? "bg-stone-950 border-stone-800"
+                                : "bg-white border-stone-200"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-bold text-stone-700 dark:text-stone-300">
+                                License Back Barcode
+                              </span>
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {inspectedBooking.driver?.licenseBackFileName ||
+                                  "back_id.png"}
+                              </span>
+                            </div>
+                            <div
+                              onClick={() =>
+                                setZoomedPhoto({
+                                  url: backSrc,
+                                  title: `Driver License Back - ${inspectedBooking.customer.firstName} ${inspectedBooking.customer.lastName}`,
+                                })
+                              }
+                              className="relative h-28 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 cursor-zoom-in group"
+                              title="Click to zoom / view full resolution"
+                            >
+                              <img
+                                src={backSrc}
+                                alt="Driver License Back"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
+                                🔍 Click to Zoom
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDownloadLicense(
+                                    inspectedBooking,
+                                    "back",
+                                  )
+                                }
+                                className="flex-1 py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-900 text-white text-[11px] font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                📥 Download Back
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mated Vehicle Card & Exact Garage Hub */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`p-4 rounded-xl border transition ${
+                    isDark
+                      ? "bg-stone-900/60 border-stone-800"
+                      : "bg-stone-50 border-stone-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                      <CarIcon size={14} className="text-sky-500" /> Staged
+                      Vehicle & Garage Allocation
+                    </h4>
+                    {inspectedBooking.matchedCarId && (
+                      <button
+                        onClick={() => handleUnmateCar(inspectedBooking.id)}
+                        className="text-[11px] text-rose-500 hover:text-rose-600 font-semibold cursor-pointer"
+                      >
+                        Unmate / Release
+                      </button>
+                    )}
+                  </div>
+
+                  {inspectedBooking.matchedCarId ? (
+                    (() => {
+                      const c = cars.find(
+                        (x) => x.id === inspectedBooking.matchedCarId,
+                      )
+                      return c ? (
+                        <div className="space-y-3">
+                          <div
+                            className={`flex items-center gap-4 p-3 rounded-lg border ${
+                              isDark
+                                ? "bg-stone-950 border-stone-800"
+                                : "bg-white border-stone-200"
+                            }`}
+                          >
+                            <div className="w-16 h-12 rounded bg-stone-200 dark:bg-stone-800 overflow-hidden shrink-0">
+                              <img
+                                src={c.image}
+                                alt={c.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className={`font-bold text-sm ${
+                                    isDark ? "text-white" : "text-stone-900"
+                                  }`}
+                                >
+                                  {c.name}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${
+                                    isDark
+                                      ? "bg-stone-800 text-amber-400 border-stone-700"
+                                      : "bg-amber-50 text-amber-700 border-amber-200"
+                                  }`}
+                                >
+                                  {c.plateNumber}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[11px] mt-0.5 ${
+                                  isDark ? "text-stone-400" : "text-stone-500"
+                                }`}
+                              >
+                                {c.type} • {c.location} • Health {c.healthScore}
+                                %
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Flow A/B: Exact Garage Hub & Bay Location */}
+                          <div
+                            className={`p-3 rounded-lg border text-xs space-y-1 ${
+                              isDark
+                                ? "bg-stone-950 border-stone-800"
+                                : "bg-white border-stone-200"
+                            }`}
+                          >
+                            <span className="text-[10px] uppercase font-bold text-stone-500 block">
+                              Assigned Garage Hub & Stall
+                            </span>
+                            <p
+                              className={`font-bold ${
+                                isDark ? "text-white" : "text-stone-900"
+                              }`}
+                            >
+                              {c.garageName ||
+                                "MOTORLY Central Hub & Garage Bay 4"}
+                            </p>
+                            <p
+                              className={`font-mono text-[11px] ${
+                                isDark ? "text-stone-400" : "text-stone-500"
+                              }`}
+                            >
+                              {c.garageAddress ||
+                                "4200 NW 21st St, Miami, FL 33142"}
+                            </p>
+                            <p className="text-amber-600 font-mono font-bold text-[11px]">
+                              Allocated Bay: {c.garageBay || "Bay 14-B"}
+                            </p>
+                          </div>
+                        </div>
+                      ) : null
+                    })()
+                  ) : (
+                    <div>
+                      <p className="text-xs text-amber-600 font-semibold mb-2">
+                        No vehicle currently mated. Select an available car
+                        below:
+                      </p>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value)
+                            handleMateCar(inspectedBooking.id, e.target.value)
+                        }}
+                        defaultValue=""
+                        className={`w-full px-3 py-2 rounded-lg text-xs transition ${
+                          isDark
+                            ? "bg-stone-950 border border-stone-700 text-white"
+                            : "bg-white border border-stone-200 text-stone-900"
+                        }`}
+                      >
+                        <option value="" disabled>
+                          -- Choose Vehicle to Mate --
+                        </option>
+                        {cars
+                          .filter((c) => c.status === "Available")
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} ({c.plateNumber}) - {c.type} ($
+                              {c.pricePerDay}/day)
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Itinerary */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`p-4 rounded-xl border text-xs space-y-2 transition ${
+                    isDark
+                      ? "bg-stone-900/60 border-stone-800"
+                      : "bg-stone-50 border-stone-200"
+                  }`}
+                >
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
+                    Trip Logistics
+                  </h4>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Pickup Location:</span>
+                    <span
+                      className={`font-medium ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      {inspectedBooking.pickupLocation}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Pickup Date/Time:</span>
+                    <span
+                      className={`font-mono ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      {inspectedBooking.pickupDate}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Return Location:</span>
+                    <span
+                      className={`font-medium ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      {inspectedBooking.returnLocation}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">Return Date/Time:</span>
+                    <span
+                      className={`font-mono ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      {inspectedBooking.returnDate}
+                    </span>
+                  </div>
+                  <div
+                    className={`pt-2 border-t flex justify-between font-mono font-bold text-sm ${
+                      isDark
+                        ? "border-stone-800 text-white"
+                        : "border-stone-200 text-stone-900"
+                    }`}
+                  >
+                    <span>Total Billing:</span>
+                    <span className="text-emerald-500">
+                      ${inspectedBooking.totalAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Flow G: Return Inspection Summary if Completed */}
+                {inspectedBooking.checklistIn && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`p-3 rounded-xl border text-xs space-y-1 transition ${
+                      isDark
+                        ? "bg-stone-900/60 border-stone-800"
+                        : "bg-stone-50 border-stone-200"
+                    }`}
+                  >
+                    <span className="font-bold text-emerald-500">
+                      ✓ Return Vehicle Inspection Audit Completed
+                    </span>
+                    <p
+                      className={`text-[11px] ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Odometer In:{" "}
+                      <span
+                        className={`font-mono ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        {inspectedBooking.checklistIn.odometerIn.toLocaleString()}{" "}
+                        mi
+                      </span>{" "}
+                      • Fuel In:{" "}
+                      <span
+                        className={`font-mono ${
+                          isDark ? "text-white" : "text-stone-900"
+                        }`}
+                      >
+                        {inspectedBooking.checklistIn.fuelLevelIn}
+                      </span>{" "}
+                      • Auditor:{" "}
+                      <span
+                        className={
+                          isDark
+                            ? "text-stone-300"
+                            : "text-stone-700 font-medium"
+                        }
+                      >
+                        {inspectedBooking.checklistIn.inspectorStaff}
+                      </span>
+                    </p>
+                    {inspectedBooking.checklistIn.damageFound && (
+                      <p className="text-[11px] text-rose-500">
+                        Damage Notes: {inspectedBooking.checklistIn.damageNotes}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`pt-6 border-t flex gap-3 ${
+                isDark ? "border-stone-800" : "border-stone-200"
+              }`}
+            >
+              <button
+                onClick={() => setInspectedBooking(null)}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                    : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                }`}
+              >
+                Close Drawer
+              </button>
+              {inspectedBooking.status !== "Cancelled" && (
+                <button
+                  onClick={() => {
+                    if (window.confirm("Cancel this reservation?")) {
+                      handleAdvanceStatus(inspectedBooking.id, "Cancelled")
+                    }
+                  }}
+                  className="py-2.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition"
+                >
+                  Cancel Booking
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: ADD / EDIT VEHICLE (Flow A: Fleet, Insurance & Garage Map)
+          ======================================================== */}
+      {isCarModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fade-in">
+          <div
+            className={`border rounded-3xl max-w-6xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden transition ${
+              isDark
+                ? "bg-[#14161A] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            {/* Executive Header */}
+            <div
+              className={`px-6 py-4.5 border-b flex items-center justify-between shrink-0 ${
+                isDark
+                  ? "border-stone-800 bg-stone-900/40"
+                  : "border-stone-200/90 bg-stone-50/70"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-[#F97316] border border-orange-500/20 flex items-center justify-center font-black">
+                  <CarIcon size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider">
+                      FLEET ASSET REGISTRATION • FLEETIO / HQ RENTAL SPEC
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      LIVE SYNC
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black font-heading tracking-tight mt-0.5">
+                    {editingCar
+                      ? `Modify Fleet Asset: ${editingCar.name}`
+                      : "Register New Commercial Fleet Vehicle"}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCarModalOpen(false)}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition cursor-pointer ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
+                  }`}
+                  title="Close Modal"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Segmented Top Section Tabs */}
+            <div
+              className={`px-6 py-2.5 border-b flex overflow-x-auto no-scrollbar gap-2 shrink-0 ${
+                isDark
+                  ? "border-stone-800 bg-stone-900/20"
+                  : "border-stone-200/80 bg-stone-100/40"
+              }`}
+            >
+              {[
+                {
+                  id: "identity",
+                  label: "1. Core Identity & Specs",
+                  icon: "🏷️",
+                  desc: "Make, Model, Body & Visuals",
+                },
+                {
+                  id: "rates",
+                  label: "2. Rates & Powertrain",
+                  icon: "💰",
+                  desc: "Pricing, Fuel & Health",
+                },
+                {
+                  id: "insurance",
+                  label: "3. Insurance & Acquisition",
+                  icon: "🛡️",
+                  desc: "Commercial Policy & Mileage",
+                },
+                {
+                  id: "garage",
+                  label: "4. Garage Hub & GPS Map",
+                  icon: "📍",
+                  desc: "Stall Bay & Interactive Engine",
+                },
+              ].map((tab) => {
+                const isActive = carModalTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setCarModalTab(tab.id as any)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? "bg-[#F97316] text-white shadow-sm"
+                        : isDark
+                          ? "bg-stone-900/80 hover:bg-stone-800 text-stone-300 border border-stone-800"
+                          : "bg-white hover:bg-stone-100 text-stone-700 border border-stone-200"
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    <span className="font-heading">{tab.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Modal Body: Two-Column Studio Layout */}
+            <form
+              onSubmit={handleSaveCar}
+              className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+            >
+              {/* Left Column (Inputs for Active Tab) */}
+              <div className="lg:col-span-7 space-y-5">
+                {/* TAB 1: IDENTITY & CLASSIFICATION */}
+                {carModalTab === "identity" && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
+                        Vehicle Identity & Classification
+                      </h4>
+                      <span className="text-[11px] text-stone-400 font-mono">
+                        VIN & Visual Storefront Attributes
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Manufacturer / Brand{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Toyota, BMW, Mercedes"
+                          value={carFormData.brand || ""}
+                          onChange={(e) => {
+                            const newBrand = e.target.value
+                            setCarFormData({
+                              ...carFormData,
+                              brand: newBrand,
+                              name: `${newBrand} ${carFormData.model || ""}`.trim(),
+                            })
+                          }}
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Model Name & Trim{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Camry XSE, 330i M-Sport"
+                          value={carFormData.model || ""}
+                          onChange={(e) => {
+                            const newModel = e.target.value
+                            setCarFormData({
+                              ...carFormData,
+                              model: newModel,
+                              name: `${carFormData.brand || ""} ${newModel}`.trim(),
+                            })
+                          }}
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Model Year
+                        </label>
+                        <input
+                          type="number"
+                          min="2018"
+                          max="2027"
+                          value={carFormData.year || 2024}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              year: Number(e.target.value),
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          License Plate Registration
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. FL-882-MTR"
+                          value={carFormData.plateNumber || ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              plateNumber: e.target.value.toUpperCase(),
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-amber-400"
+                              : "bg-stone-50 border border-stone-300 text-amber-700 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Category Selector with Interactive Chips */}
+                    <div>
+                      <label className="block text-xs font-bold mb-1.5 text-stone-600 dark:text-stone-300">
+                        Vehicle Classification Tier
+                      </label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {([
+                          "Economy",
+                          "Sedan",
+                          "SUV",
+                          "Luxury",
+                          "Van",
+                        ] as VehicleType[]).map((cat) => {
+                          const isSelected =
+                            (carFormData.type || "Sedan") === cat
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() =>
+                                setCarFormData({ ...carFormData, type: cat })
+                              }
+                              className={`py-2 px-2.5 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                                isSelected
+                                  ? "bg-[#F97316] text-white border-[#F97316] shadow-sm"
+                                  : isDark
+                                    ? "bg-stone-900 text-stone-300 border-stone-700 hover:border-stone-500"
+                                    : "bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-300"
+                              }`}
+                            >
+                              <span>
+                                {cat === "Sedan"
+                                  ? "🚗"
+                                  : cat === "SUV"
+                                    ? "🚙"
+                                    : cat === "Luxury"
+                                      ? "✨"
+                                      : cat === "Economy"
+                                        ? "⚡"
+                                        : "🚐"}
+                              </span>
+                              <span className="text-[11px] font-heading">
+                                {cat}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Vehicle Photo URL & 1-Click Verified Presets */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-stone-600 dark:text-stone-300">
+                        Vehicle Image Asset URL
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="/images/car-white.jpg or https://..."
+                        value={carFormData.image || ""}
+                        onChange={(e) =>
+                          setCarFormData({
+                            ...carFormData,
+                            image: e.target.value,
+                          })
+                        }
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                          isDark
+                            ? "bg-stone-900 border border-stone-700 text-white"
+                            : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                        }`}
+                      />
+
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                          1-Click Verified Photos:
+                        </span>
+                        {[
+                          {
+                            label: "White Sedan",
+                            url: "/images/car-white.jpg",
+                          },
+                          { label: "Black SUV", url: "/images/car-black.jpg" },
+                          { label: "Red Coupe", url: "/images/car-red.jpg" },
+                          {
+                            label: "Silver Luxury",
+                            url: "/images/car-silver.jpg",
+                          },
+                          {
+                            label: "Tesla EV",
+                            url: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=800&q=80",
+                          },
+                          {
+                            label: "Range Rover",
+                            url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
+                          },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() =>
+                              setCarFormData({
+                                ...carFormData,
+                                image: preset.url,
+                              })
+                            }
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition border cursor-pointer ${
+                              carFormData.image === preset.url
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : isDark
+                                  ? "bg-stone-800 text-stone-300 border-stone-700 hover:bg-stone-700"
+                                  : "bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200"
+                            }`}
+                          >
+                            📷 {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Operational Status & Capacity */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Fleet Status
+                        </label>
+                        <select
+                          value={carFormData.status || "Available"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              status: e.target.value as CarStatus,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        >
+                          <option value="Available">
+                            Available (Storefront)
+                          </option>
+                          <option value="Rented">Rented (Active Trip)</option>
+                          <option value="Maintenance">
+                            Maintenance (Service Bay)
+                          </option>
+                          <option value="Cleaning">Cleaning & Detailing</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Seating Capacity
+                        </label>
+                        <input
+                          type="number"
+                          min="2"
+                          max="9"
+                          value={carFormData.seats || 5}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              seats: Number(e.target.value),
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Luggage Capacity
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 3 Bags"
+                          value={carFormData.luggage || "3 Bags"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              luggage: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: RATES & POWERTRAIN */}
+                {carModalTab === "rates" && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
+                        Rental Rates & Performance Telemetry
+                      </h4>
+                      <span className="text-[11px] text-stone-400 font-mono">
+                        Billing Matrix & Drivetrain
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Price Per Day */}
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Standard Daily Rate ($/day){" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
+                            $
+                          </span>
+                          <input
+                            type="number"
+                            min="10"
+                            max="2500"
+                            value={carFormData.pricePerDay || 55}
+                            onChange={(e) =>
+                              setCarFormData({
+                                ...carFormData,
+                                pricePerDay: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-black transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                              isDark
+                                ? "bg-stone-900 border border-stone-700 text-orange-400"
+                                : "bg-stone-50 border border-stone-300 text-orange-600 focus:bg-white"
+                            }`}
+                          />
+                        </div>
+                        <p className="text-[10px] text-stone-400 mt-1 font-mono">
+                          Weekly Est: $
+                          {((carFormData.pricePerDay || 55) * 7).toFixed(0)} •
+                          Monthly Est: $
+                          {((carFormData.pricePerDay || 55) * 30).toFixed(0)}
+                        </p>
+                      </div>
+
+                      {/* Price Per Hour */}
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Hourly Rate ($/hour)
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
+                            $
+                          </span>
+                          <input
+                            type="number"
+                            min="2"
+                            max="500"
+                            value={carFormData.pricePerHour || 8}
+                            onChange={(e) =>
+                              setCarFormData({
+                                ...carFormData,
+                                pricePerHour: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                              isDark
+                                ? "bg-stone-900 border border-stone-700 text-white"
+                                : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Transmission */}
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Transmission
+                        </label>
+                        <select
+                          value={carFormData.transmission || "Automatic"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              transmission: e.target.value as Transmission,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        >
+                          <option value="Automatic">
+                            ⚙️ Automatic Transmission
+                          </option>
+                          <option value="Manual">🕹️ Manual 6-Speed</option>
+                        </select>
+                      </div>
+
+                      {/* Fuel Type */}
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Fuel &amp; Powertrain
+                        </label>
+                        <select
+                          value={carFormData.fuelType || "Gasoline"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              fuelType: e.target.value as FuelType,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        >
+                          <option value="Gasoline">
+                            ⛽ Gasoline (Standard)
+                          </option>
+                          <option value="Hybrid">
+                            🔋 Hybrid Electric (Eco)
+                          </option>
+                          <option value="Electric">
+                            ⚡ Full Electric (EV)
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* Fuel Efficiency */}
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Fuel Economy / Mileage
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 32 MPG or 118 MPGe"
+                          value={carFormData.mileage || "32 MPG"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              mileage: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      {/* Health Score */}
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Fleet Telemetry Health Score (
+                          {carFormData.healthScore || 98}%)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="50"
+                            max="100"
+                            value={carFormData.healthScore || 98}
+                            onChange={(e) =>
+                              setCarFormData({
+                                ...carFormData,
+                                healthScore: Number(e.target.value),
+                              })
+                            }
+                            className="flex-1 accent-[#F97316] cursor-pointer"
+                          />
+                          <span className="font-mono text-xs font-bold text-emerald-500 w-10 text-right">
+                            {carFormData.healthScore || 98}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: INSURANCE & ACQUISITION */}
+                {carModalTab === "insurance" && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-500">
+                        Commercial Insurance & Fleet Acquisition
+                      </h4>
+                      <span className="text-[11px] text-stone-400 font-mono">
+                        Liability & Odometer Audit
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Commercial Insurance Carrier{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. State Farm Commercial, Geico Fleet"
+                          value={carFormData.insuranceProvider || ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              insuranceProvider: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Policy Certificate ID{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. POL-STF-994021"
+                          value={carFormData.insurancePolicy || ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              insurancePolicy: e.target.value.toUpperCase(),
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-emerald-400"
+                              : "bg-stone-50 border border-stone-300 text-emerald-700 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Insurance Expiry Date
+                        </label>
+                        <input
+                          type="date"
+                          value={carFormData.insuranceExpiry || "2027-12-31"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              insuranceExpiry: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Fleet Acquisition Date
+                        </label>
+                        <input
+                          type="date"
+                          value={carFormData.purchaseDate || "2024-01-15"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              purchaseDate: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Vehicle Purchase Price ($)
+                        </label>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-3.5 font-bold text-stone-400 text-xs">
+                            $
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="32500"
+                            value={carFormData.purchaseCost || 32500}
+                            onChange={(e) =>
+                              setCarFormData({
+                                ...carFormData,
+                                purchaseCost: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                              isDark
+                                ? "bg-stone-900 border border-stone-700 text-white"
+                                : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Certified Odometer (mi){" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative flex items-center">
+                          <input
+                            type="number"
+                            placeholder="14200"
+                            value={carFormData.currentOdometer || 14200}
+                            onChange={(e) =>
+                              setCarFormData({
+                                ...carFormData,
+                                currentOdometer: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                              isDark
+                                ? "bg-stone-900 border border-stone-700 text-amber-300"
+                                : "bg-stone-50 border border-stone-300 text-amber-700 focus:bg-white"
+                            }`}
+                          />
+                          <span className="absolute right-3.5 font-mono text-xs font-bold text-stone-400">
+                            mi
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: GARAGE HUB & GPS MAP ENGINE */}
+                {carModalTab === "garage" && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-sky-500">
+                        Assigned Garage Hub &amp; Google Map Engine
+                      </h4>
+                      <span className="text-[11px] text-stone-400 font-mono">
+                        GPS: {carFormData.garageLat?.toFixed(4)},{" "}
+                        {carFormData.garageLng?.toFixed(4)}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Garage Hub Facility Name{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Miami Airport Central Garage"
+                          value={carFormData.garageName || ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              garageName: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Exact Facility Address{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="4200 NW 21st St, Miami, FL 33142"
+                          value={carFormData.garageAddress || ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              garageAddress: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                          Allocated Stall / Bay Number
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Bay 14-B"
+                          value={carFormData.garageBay || "Bay 14-B"}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              garageBay: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-sky-400"
+                              : "bg-stone-50 border border-stone-300 text-sky-700 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Integrated Interactive Map Engine */}
+                    <div className="pt-2">
+                      <GarageMapViewer
+                        garageName={carFormData.garageName}
+                        garageAddress={carFormData.garageAddress}
+                        garageBay={carFormData.garageBay}
+                        lat={carFormData.garageLat}
+                        lng={carFormData.garageLng}
+                        isEditable={true}
+                        height="260px"
+                        onLocationChange={(lat, lng, address) => {
+                          setCarFormData((prev) => ({
+                            ...prev,
+                            garageLat: lat,
+                            garageLng: lng,
+                            garageAddress: address,
+                          }))
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Live Customer Storefront Card Preview */}
+              <div className="lg:col-span-5 sticky top-2 space-y-4">
+                <div
+                  className={`p-5 rounded-3xl border shadow-lg space-y-4 transition ${
+                    isDark
+                      ? "bg-stone-900/90 border-stone-800"
+                      : "bg-stone-50/90 border-stone-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-800 pb-3">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#F97316] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      LIVE STOREFRONT PREVIEW
+                    </span>
+                    <span className="text-[10px] text-stone-400 font-mono">
+                      Customer Facing
+                    </span>
+                  </div>
+
+                  {/* Customer Storefront Vehicle Card */}
+                  <div
+                    className={`rounded-2xl border overflow-hidden shadow-sm transition ${
+                      isDark
+                        ? "bg-stone-950 border-stone-800"
+                        : "bg-white border-stone-200"
+                    }`}
+                  >
+                    {/* Image Preview */}
+                    <div className="relative h-44 bg-stone-100 dark:bg-stone-900 overflow-hidden">
+                      <img
+                        src={carFormData.image || "/images/car-white.jpg"}
+                        alt={carFormData.name || "Vehicle Preview"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          ;(e.target as any).src = "/images/car-white.jpg"
+                        }}
+                      />
+                      <span className="absolute top-3 left-3 bg-[#17191C]/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        {carFormData.type || "Sedan"}
+                      </span>
+                      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
+                        <span className="text-amber-500 text-xs">★</span>
+                        <span className="text-[10px] font-bold text-stone-900">
+                          5.0 (New)
+                        </span>
+                      </div>
+                      <div className="absolute bottom-2.5 left-2.5">
+                        <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-400 text-stone-950 shadow-xs">
+                          {carFormData.plateNumber || "FL-882-MTR"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card Content */}
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-baseline justify-between">
+                        <div>
+                          <h4 className="font-heading font-extrabold text-base tracking-tight text-stone-900 dark:text-white">
+                            {carFormData.brand || "Brand"}{" "}
+                            {carFormData.model || "Model"}{" "}
+                            <span className="text-stone-400 text-xs font-normal">
+                              ({carFormData.year || 2024})
+                            </span>
+                          </h4>
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            {carFormData.seats || 5} Seats •{" "}
+                            {carFormData.transmission || "Automatic"} •{" "}
+                            {carFormData.fuelType || "Gasoline"} •{" "}
+                            {carFormData.mileage || "30 MPG"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Trust & Guarantee Chips */}
+                      <div className="space-y-1.5 pt-1 border-t border-stone-100 dark:border-stone-900 text-[11px]">
+                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                          <span>🛡️</span>
+                          <span className="font-semibold">
+                            {carFormData.insuranceProvider ||
+                              "Commercial Insurance"}{" "}
+                            ({carFormData.insurancePolicy || "Verified"})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
+                          <span>📍</span>
+                          <span className="font-medium truncate">
+                            {carFormData.garageName || "Central Garage"} •{" "}
+                            {carFormData.garageBay || "Bay 14-B"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pricing Footer */}
+                      <div className="pt-2 border-t border-stone-100 dark:border-stone-900 flex items-center justify-between">
+                        <div>
+                          <span className="text-xl font-black text-[#F97316] font-heading">
+                            ${carFormData.pricePerDay || 55}
+                          </span>
+                          <span className="text-[10px] text-stone-400 font-semibold">
+                            {" "}
+                            / day
+                          </span>
+                          <span className="text-[10px] text-stone-400 block">
+                            (${carFormData.pricePerHour || 8}/hr)
+                          </span>
+                        </div>
+
+                        <span className="px-3 py-1.5 rounded-xl bg-orange-500/10 text-[#F97316] border border-orange-500/20 text-xs font-bold font-heading">
+                          Instant Book Ready
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Action Controls */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCarModalOpen(false)}
+                    className={`flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      isDark
+                        ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                        : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-black transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer font-heading"
+                  >
+                    <CheckIcon size={14} />
+                    <span>Save &amp; Deploy to Fleet</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: CREATE PROMO CODE
+          ======================================================== */}
+      {isPromoModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`border rounded-2xl max-w-md w-full p-6 shadow-2xl transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            <h3
+              className={`text-lg font-black mb-4 ${
+                isDark ? "text-white" : "text-stone-900"
+              }`}
+            >
+              Create New Promotional Coupon
+            </h3>
+            <form onSubmit={handleCreatePromo} className="space-y-4">
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Promo Code String
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. FLASH30"
+                  value={newPromoData.code}
+                  onChange={(e) =>
+                    setNewPromoData({
+                      ...newPromoData,
+                      code: e.target.value.toUpperCase(),
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-sm font-mono uppercase focus:outline-none focus:border-emerald-500 transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Discount Percentage (%)
+                </label>
+                <input
+                  type="number"
+                  min="5"
+                  max="75"
+                  required
+                  value={newPromoData.discountPercent}
+                  onChange={(e) =>
+                    setNewPromoData({
+                      ...newPromoData,
+                      discountPercent: Number(e.target.value),
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-sm font-mono focus:outline-none focus:border-emerald-500 transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Description / Campaign
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 30% Flash Weekend Discount"
+                  value={newPromoData.description}
+                  onChange={(e) =>
+                    setNewPromoData({
+                      ...newPromoData,
+                      description: e.target.value,
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs focus:outline-none focus:border-emerald-500 transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Expiration Date
+                </label>
+                <input
+                  type="date"
+                  value={newPromoData.expiryDate}
+                  onChange={(e) =>
+                    setNewPromoData({
+                      ...newPromoData,
+                      expiryDate: e.target.value,
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-500 transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPromoModalOpen(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
+                >
+                  Publish Coupon
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: CREATE MAINTENANCE LOG
+          ======================================================== */}
+      {isMntModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`border rounded-2xl max-w-lg w-full p-6 shadow-2xl transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            <h3
+              className={`text-lg font-black mb-4 ${
+                isDark ? "text-white" : "text-stone-900"
+              }`}
+            >
+              Log Fleet Maintenance Work Order
+            </h3>
+            <form onSubmit={handleCreateMaintenance} className="space-y-4">
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Target Vehicle
+                </label>
+                <select
+                  value={newMntData.carId}
+                  onChange={(e) =>
+                    setNewMntData({ ...newMntData, carId: e.target.value })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                >
+                  {cars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.plateNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Service Type
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newMntData.serviceType}
+                  onChange={(e) =>
+                    setNewMntData({
+                      ...newMntData,
+                      serviceType: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Synthetic Oil Change, Brake Inspection, Tire Rotation"
+                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Cost ($)
+                  </label>
+                  <input
+                    type="number"
+                    value={newMntData.cost}
+                    onChange={(e) =>
+                      setNewMntData({
+                        ...newMntData,
+                        cost: Number(e.target.value),
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Odometer Mileage
+                  </label>
+                  <input
+                    type="number"
+                    value={newMntData.odometer}
+                    onChange={(e) =>
+                      setNewMntData({
+                        ...newMntData,
+                        odometer: Number(e.target.value),
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
+                      isDark
+                        ? "bg-stone-900 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Technician Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={newMntData.technicianNotes}
+                  onChange={(e) =>
+                    setNewMntData({
+                      ...newMntData,
+                      technicianNotes: e.target.value,
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                    isDark
+                      ? "bg-stone-900 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsMntModalOpen(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm"
+                >
+                  Log Work Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: DRIVER LICENSE PREVIEW
+          ======================================================== */}
+      {inspectedLicense && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-between pb-3 border-b ${
+                isDark ? "border-stone-800" : "border-stone-200"
+              }`}
+            >
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <ShieldIcon size={16} className="text-emerald-500" />
+                Verified Driver Identification
+              </h3>
+              <button
+                onClick={() => setInspectedLicense(null)}
+                className={`font-bold transition ${
+                  isDark
+                    ? "text-stone-400 hover:text-white"
+                    : "text-stone-400 hover:text-stone-700"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* License Card Mock */}
+            <div
+              className={`my-5 p-5 rounded-2xl border relative overflow-hidden transition ${
+                isDark
+                  ? "bg-gradient-to-br from-stone-900 to-stone-950 border-stone-700"
+                  : "bg-stone-50 border-stone-200/90"
+              }`}
+            >
+              <div
+                className={`flex items-center justify-between border-b pb-2 mb-3 ${
+                  isDark ? "border-stone-800" : "border-stone-200"
+                }`}
+              >
+                <span className="text-[10px] font-bold tracking-widest text-[#F97316]">
+                  OFFICIAL DRIVER LICENSE RECORD
+                </span>
+                <span className="text-[10px] font-mono text-emerald-500 font-bold">
+                  STATE CERTIFIED
+                </span>
+              </div>
+              <div className="flex gap-4 items-center">
+                <div
+                  className={`w-16 h-20 rounded-lg border flex items-center justify-center text-xs font-mono font-bold ${
+                    isDark
+                      ? "bg-stone-800 border-stone-700 text-stone-400"
+                      : "bg-stone-200 border-stone-300 text-stone-500"
+                  }`}
+                >
+                  PHOTO
+                </div>
+                <div className="space-y-1 text-xs">
+                  <p
+                    className={`font-bold text-sm ${
+                      isDark ? "text-white" : "text-stone-900"
+                    }`}
+                  >
+                    {inspectedLicense.name}
+                  </p>
+                  <p
+                    className={`font-mono ${
+                      isDark ? "text-stone-300" : "text-stone-700 font-semibold"
+                    }`}
+                  >
+                    DL: {inspectedLicense.licenseNum}
+                  </p>
+                  <p className={isDark ? "text-stone-400" : "text-stone-600"}>
+                    Jurisdiction: {inspectedLicense.state}
+                  </p>
+                  <p
+                    className={`font-mono text-[11px] ${
+                      isDark ? "text-stone-400" : "text-stone-500"
+                    }`}
+                  >
+                    Expires: {inspectedLicense.expiry}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setInspectedLicense(null)}
+              className={`w-full py-2.5 rounded-xl text-xs font-bold transition ${
+                isDark
+                  ? "bg-stone-800 hover:bg-stone-700 text-white"
+                  : "bg-stone-100 hover:bg-stone-200 text-stone-800"
+              }`}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {/* ========================================================
+          MODAL: KEY HANDOVER CHECKLIST (Flow E: Timer Starts)
+          ======================================================== */}
+      {isKeyModalOpen && keyModalBooking && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`border rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-between pb-3 border-b ${
+                isDark ? "border-stone-800" : "border-stone-200"
+              }`}
+            >
+              <div>
+                <span className="text-[10px] font-mono font-bold text-emerald-500 uppercase tracking-wider">
+                  FLOW E: KEY HANDOVER PROTOCOL
+                </span>
+                <h3 className="text-lg font-black mt-0.5 flex items-center gap-2">
+                  <ZapIcon size={18} className="text-emerald-500" />
+                  Key Handoff & Clock Initiation
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsKeyModalOpen(false)}
+                className={`font-bold transition ${
+                  isDark
+                    ? "text-stone-400 hover:text-white"
+                    : "text-stone-400 hover:text-stone-700"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Vehicle & Customer Capsule */}
+            <div
+              className={`my-4 p-3 rounded-xl border text-xs space-y-1 ${
+                isDark
+                  ? "bg-stone-900 border-stone-800"
+                  : "bg-stone-50 border-stone-200"
+              }`}
+            >
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-500"}>
+                  Reservation ID:
+                </span>
+                <span
+                  className={`font-mono font-bold ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  {keyModalBooking.id}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-500"}>
+                  Customer:
+                </span>
+                <span
+                  className={`font-semibold ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  {keyModalBooking.customer.firstName}{" "}
+                  {keyModalBooking.customer.lastName}
+                </span>
+              </div>
+              {(() => {
+                const c = cars.find(
+                  (x) => x.id === keyModalBooking.matchedCarId,
+                )
+                return c ? (
+                  <div
+                    className={`flex justify-between pt-1 border-t text-amber-500 font-medium ${
+                      isDark ? "border-stone-800" : "border-stone-200"
+                    }`}
+                  >
+                    <span>Vehicle & Stall:</span>
+                    <span className="font-mono font-bold">
+                      {c.name} ({c.plateNumber}) • {c.garageBay || "Bay 14-B"}
+                    </span>
+                  </div>
+                ) : null
+              })()}
+            </div>
+
+            <form onSubmit={handleSubmitKeyHandoff} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Departure Odometer (mi)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={keyChecklist.odometerOut}
+                    onChange={(e) =>
+                      setKeyChecklist({
+                        ...keyChecklist,
+                        odometerOut: Number(e.target.value),
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
+                      isDark
+                        ? "bg-stone-950 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Departure Fuel Level
+                  </label>
+                  <select
+                    value={keyChecklist.fuelLevelOut}
+                    onChange={(e) =>
+                      setKeyChecklist({
+                        ...keyChecklist,
+                        fuelLevelOut: e.target.value,
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                      isDark
+                        ? "bg-stone-950 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  >
+                    <option value="Full (100%)">Full (100%)</option>
+                    <option value="90%">90%</option>
+                    <option value="80%">80%</option>
+                    <option value="75%">75%</option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                className={`space-y-2 pt-2 border-t text-xs ${
+                  isDark ? "border-stone-800" : "border-stone-200"
+                }`}
+              >
+                <label
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                    isDark
+                      ? "bg-stone-900 border-stone-800 hover:bg-stone-850"
+                      : "bg-stone-50 border-stone-200 hover:bg-stone-100/80"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={keyChecklist.cleanlinessVerified}
+                    onChange={(e) =>
+                      setKeyChecklist({
+                        ...keyChecklist,
+                        cleanlinessVerified: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                  />
+                  <div>
+                    <span
+                      className={`font-semibold block ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      Vehicle Sanitized & Cleaned
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDark ? "text-stone-400" : "text-stone-500"
+                      }`}
+                    >
+                      Pristine condition certified for customer.
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                    isDark
+                      ? "bg-stone-900 border-stone-800 hover:bg-stone-850"
+                      : "bg-stone-50 border-stone-200 hover:bg-stone-100/80"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={keyChecklist.tiresExteriorVerified}
+                    onChange={(e) =>
+                      setKeyChecklist({
+                        ...keyChecklist,
+                        tiresExteriorVerified: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                  />
+                  <div>
+                    <span
+                      className={`font-semibold block ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      Tires & Exterior Walkaround Complete
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDark ? "text-stone-400" : "text-stone-500"
+                      }`}
+                    >
+                      No unauthorized baseline scratches or damage.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Dispatch Staff Member
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={keyChecklist.inspectorStaff}
+                  onChange={(e) =>
+                    setKeyChecklist({
+                      ...keyChecklist,
+                      inspectorStaff: e.target.value,
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                    isDark
+                      ? "bg-stone-950 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+
+              {/* Notice */}
+              <div
+                className={`p-3 rounded-xl border text-[11px] ${
+                  isDark
+                    ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
+                    : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                }`}
+              >
+                ⚡ <strong>Clock Start Notice:</strong> Submitting will record
+                this exact timestamp, start the customer's live rental timer,
+                and transition this vehicle to <strong>Rented</strong>.
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsKeyModalOpen(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <CheckIcon size={14} /> Keys Given & Start Clock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: EXTENSION QUOTATION CONSOLE (Flow F)
+          ======================================================== */}
+      {isExtensionModalOpen && extensionBooking && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`border rounded-3xl max-w-lg w-full p-6 shadow-2xl transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-between pb-3 border-b ${
+                isDark ? "border-stone-800" : "border-stone-200"
+              }`}
+            >
+              <div>
+                <span className="text-[10px] font-mono font-bold text-amber-500 uppercase tracking-wider">
+                  FLOW F: EXTENSION PRICING CONSOLE
+                </span>
+                <h3 className="text-lg font-black mt-0.5 flex items-center gap-2">
+                  <ClockIcon size={18} className="text-amber-500" />
+                  Dispatch Extension Quotation
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsExtensionModalOpen(false)}
+                className={`font-bold transition ${
+                  isDark
+                    ? "text-stone-400 hover:text-white"
+                    : "text-stone-400 hover:text-stone-700"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Request Details */}
+            <div
+              className={`my-4 p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                isDark
+                  ? "bg-amber-950/30 border-amber-500/30"
+                  : "bg-amber-50/80 border-amber-200"
+              }`}
+            >
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-600"}>
+                  Requested Extension:
+                </span>
+                <span
+                  className={`font-mono font-bold text-sm ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  +{extensionBooking.extensionRequest?.durationValue}{" "}
+                  {extensionBooking.extensionRequest?.durationUnit}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-600"}>
+                  Customer Reason:
+                </span>
+                <span
+                  className={`italic truncate max-w-xs ${
+                    isDark ? "text-stone-300" : "text-stone-700"
+                  }`}
+                >
+                  "
+                  {extensionBooking.extensionRequest?.reason || "Extended trip"}
+                  "
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitExtensionQuote} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Rate Basis
+                  </label>
+                  <select
+                    value={extensionQuoteData.rateType}
+                    onChange={(e) => {
+                      const newType = e.target.value as "hour" | "day" | "month"
+                      const matchedCar = cars.find(
+                        (c) => c.id === extensionBooking.matchedCarId,
+                      )
+                      let newRate = matchedCar?.pricePerDay || 65
+                      if (newType === "hour")
+                        newRate = matchedCar?.pricePerHour || 10
+                      if (newType === "month")
+                        newRate = (matchedCar?.pricePerDay || 65) * 25
+                      const duration =
+                        extensionBooking.extensionRequest?.durationValue || 1
+                      setExtensionQuoteData({
+                        ...extensionQuoteData,
+                        rateType: newType,
+                        rateAmount: newRate,
+                        totalQuotedAmount: newRate * duration,
+                      })
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                      isDark
+                        ? "bg-stone-950 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  >
+                    <option value="hour">Per Hour</option>
+                    <option value="day">Per Day</option>
+                    <option value="month">Per Month</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Rate Amount ($)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={extensionQuoteData.rateAmount}
+                    onChange={(e) => {
+                      const amt = Number(e.target.value)
+                      const duration =
+                        extensionBooking.extensionRequest?.durationValue || 1
+                      setExtensionQuoteData({
+                        ...extensionQuoteData,
+                        rateAmount: amt,
+                        totalQuotedAmount: amt * duration,
+                      })
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
+                      isDark
+                        ? "bg-stone-950 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Total Extension Quoted ($)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={extensionQuoteData.totalQuotedAmount}
+                  onChange={(e) =>
+                    setExtensionQuoteData({
+                      ...extensionQuoteData,
+                      totalQuotedAmount: Number(e.target.value),
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-sm font-mono font-bold transition ${
+                    isDark
+                      ? "bg-stone-950 border border-stone-700 text-emerald-400"
+                      : "bg-stone-50 border border-stone-200 text-emerald-600 focus:bg-white"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Quotation Conditions / Message to Customer
+                </label>
+                <textarea
+                  rows={2}
+                  value={extensionQuoteData.notes}
+                  onChange={(e) =>
+                    setExtensionQuoteData({
+                      ...extensionQuoteData,
+                      notes: e.target.value,
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                    isDark
+                      ? "bg-stone-950 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeclineExtensionRequest(extensionBooking.id)
+                  }
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+                    isDark
+                      ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                      : "bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200"
+                  }`}
+                >
+                  Decline
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <ArrowRightIcon size={14} /> Send Quotation to Customer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: RETURN VEHICLE INSPECTION & AUDIT (Flow G)
+          ======================================================== */}
+      {isReturnModalOpen && returnModalBooking && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className={`border rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-between pb-3 border-b ${
+                isDark ? "border-stone-800" : "border-stone-200"
+              }`}
+            >
+              <div>
+                <span className="text-[10px] font-mono font-bold text-purple-500 uppercase tracking-wider">
+                  FLOW G: POST-TRIP AUDIT
+                </span>
+                <h3 className="text-lg font-black mt-0.5 flex items-center gap-2">
+                  <WrenchIcon size={18} className="text-purple-500" />
+                  Vehicle Return Inspection & Closeout
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsReturnModalOpen(false)}
+                className={`font-bold transition ${
+                  isDark
+                    ? "text-stone-400 hover:text-white"
+                    : "text-stone-400 hover:text-stone-700"
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              className={`my-4 p-3 rounded-xl border text-xs space-y-1 ${
+                isDark
+                  ? "bg-stone-900 border-stone-800"
+                  : "bg-stone-50 border-stone-200"
+              }`}
+            >
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-500"}>
+                  Reservation:
+                </span>
+                <span
+                  className={`font-mono font-bold ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  {returnModalBooking.id}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-500"}>
+                  Customer:
+                </span>
+                <span
+                  className={`font-semibold ${
+                    isDark ? "text-white" : "text-stone-900"
+                  }`}
+                >
+                  {returnModalBooking.customer.firstName}{" "}
+                  {returnModalBooking.customer.lastName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className={isDark ? "text-stone-400" : "text-stone-500"}>
+                  Departure Odometer:
+                </span>
+                <span
+                  className={`font-mono ${
+                    isDark ? "text-stone-300" : "text-stone-700 font-semibold"
+                  }`}
+                >
+                  {returnModalBooking.checklistOut?.odometerOut || 15200} mi
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitReturnInspection} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Return Odometer (mi)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={returnChecklist.odometerIn}
+                    onChange={(e) =>
+                      setReturnChecklist({
+                        ...returnChecklist,
+                        odometerIn: Number(e.target.value),
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
+                      isDark
+                        ? "bg-stone-950 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label
+                    className={`block text-xs font-semibold mb-1 ${
+                      isDark ? "text-stone-400" : "text-stone-600"
+                    }`}
+                  >
+                    Return Fuel Level
+                  </label>
+                  <select
+                    value={returnChecklist.fuelLevelIn}
+                    onChange={(e) =>
+                      setReturnChecklist({
+                        ...returnChecklist,
+                        fuelLevelIn: e.target.value,
+                      })
+                    }
+                    className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                      isDark
+                        ? "bg-stone-950 border border-stone-700 text-white"
+                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                    }`}
+                  >
+                    <option value="Full (100%)">Full (100%)</option>
+                    <option value="90%">90%</option>
+                    <option value="80%">80%</option>
+                    <option value="75%">75%</option>
+                    <option value="50%">50%</option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                className={`space-y-2 pt-2 border-t text-xs ${
+                  isDark ? "border-stone-800" : "border-stone-200"
+                }`}
+              >
+                <label
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                    isDark
+                      ? "bg-stone-900 border-stone-800 hover:bg-stone-850"
+                      : "bg-stone-50 border-stone-200 hover:bg-stone-100/80"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={returnChecklist.cleanlinessPassed}
+                    onChange={(e) =>
+                      setReturnChecklist({
+                        ...returnChecklist,
+                        cleanlinessPassed: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                  />
+                  <div>
+                    <span
+                      className={`font-semibold block ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      Interior Cleanliness Verified
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDark ? "text-stone-400" : "text-stone-500"
+                      }`}
+                    >
+                      No excessive trash, odors, or spills.
+                    </span>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                    isDark
+                      ? "bg-stone-900 border-stone-800 hover:bg-stone-850"
+                      : "bg-stone-50 border-stone-200 hover:bg-stone-100/80"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={returnChecklist.damageFound}
+                    onChange={(e) =>
+                      setReturnChecklist({
+                        ...returnChecklist,
+                        damageFound: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-rose-500 focus:ring-0"
+                  />
+                  <div>
+                    <span
+                      className={`font-semibold block ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      Damage Identified on Return
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDark ? "text-stone-400" : "text-stone-500"
+                      }`}
+                    >
+                      Check if scratches, dents, or wheel rash found.
+                    </span>
+                  </div>
+                </label>
+
+                {returnChecklist.damageFound && (
+                  <div
+                    className={`p-3 border rounded-xl space-y-1 ${
+                      isDark
+                        ? "bg-rose-950/30 border-rose-500/40"
+                        : "bg-rose-50 border-rose-200"
+                    }`}
+                  >
+                    <label
+                      className={`block text-[11px] font-bold ${
+                        isDark ? "text-rose-400" : "text-rose-600"
+                      }`}
+                    >
+                      Damage Assessment Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Describe location and severity of damage..."
+                      value={returnChecklist.damageNotes}
+                      onChange={(e) =>
+                        setReturnChecklist({
+                          ...returnChecklist,
+                          damageNotes: e.target.value,
+                        })
+                      }
+                      className={`w-full px-3 py-1.5 rounded-lg text-xs transition ${
+                        isDark
+                          ? "bg-stone-950 border border-stone-700 text-white"
+                          : "bg-white border border-stone-200 text-stone-900 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                )}
+
+                <label
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition ${
+                    isDark
+                      ? "bg-purple-950/30 border-purple-500/40"
+                      : "bg-purple-50 border-purple-200"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={returnChecklist.inspectionPassed}
+                    onChange={(e) =>
+                      setReturnChecklist({
+                        ...returnChecklist,
+                        inspectionPassed: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-purple-500 focus:ring-0"
+                  />
+                  <div>
+                    <span
+                      className={`font-bold block ${
+                        isDark ? "text-purple-300" : "text-purple-800"
+                      }`}
+                    >
+                      Complete Inspection Certified & Passed
+                    </span>
+                    <span
+                      className={`text-[11px] ${
+                        isDark ? "text-stone-400" : "text-stone-600"
+                      }`}
+                    >
+                      Vehicle is cleared to complete the rental ride and release
+                      custody.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <div>
+                <label
+                  className={`block text-xs font-semibold mb-1 ${
+                    isDark ? "text-stone-400" : "text-stone-600"
+                  }`}
+                >
+                  Inspector / Lead Auditor
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={returnChecklist.inspectorStaff}
+                  onChange={(e) =>
+                    setReturnChecklist({
+                      ...returnChecklist,
+                      inspectorStaff: e.target.value,
+                    })
+                  }
+                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                    isDark
+                      ? "bg-stone-950 border border-stone-700 text-white"
+                      : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                  }`}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsReturnModalOpen(false)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition shadow-sm"
+                >
+                  Complete Ride & Release Fleet
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: FULL IMAGE ZOOM INSPECTION FOR DRIVER LICENSE
+          ======================================================== */}
+      {zoomedPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setZoomedPhoto(null)}
+        >
+          <div
+            className={`max-w-3xl w-full rounded-3xl p-5 border shadow-2xl relative space-y-4 ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <h3 className="font-bold text-sm tracking-tight">
+                  {zoomedPhoto.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoomedPhoto(null)}
+                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 flex items-center justify-center text-xs font-bold transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden bg-stone-100 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 flex items-center justify-center min-h-[360px] max-h-[70vh]">
+              <img
+                src={zoomedPhoto.url}
+                alt={zoomedPhoto.title}
+                className="max-h-[68vh] w-auto max-w-full object-contain rounded-xl shadow-lg"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <span className="text-stone-500 font-mono text-[11px]">
+                Official Verified Customer Verification Record
+              </span>
+              <div className="flex gap-2">
+                <a
+                  href={zoomedPhoto.url}
+                  download="Driver_License_Capture.png"
+                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition shadow-xs flex items-center gap-1.5"
+                >
+                  📥 Download Image File
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setZoomedPhoto(null)}
+                  className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-bold text-xs transition cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

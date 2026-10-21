@@ -1,0 +1,641 @@
+import type {
+  Car,
+  BookingRecord,
+  CarStatus,
+  VehicleType,
+  CustomerUser,
+  PromoCode,
+  MaintenanceLog,
+  BookingStatus,
+} from "../types"
+
+// Base API endpoints - supports relative proxy or direct backend port
+const PRIMARY_BASE = "/api"
+const FALLBACK_BASE = "http://localhost:3001/api"
+
+class ApiService {
+  private getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    const adminToken = localStorage.getItem("motorly_admin_token")
+    if (adminToken) {
+      headers["Authorization"] = `Bearer ${adminToken}`
+    } else {
+      const customerToken = localStorage.getItem("motorly_customer_token")
+      if (customerToken) {
+        headers["Authorization"] = `Bearer ${customerToken}`
+      }
+    }
+    return headers
+  }
+
+  private async request(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<Response> {
+    const mergedHeaders = {
+      ...this.getHeaders(),
+      ...(options.headers as Record<string, string> || {}),
+    }
+    const config: RequestInit = {
+      ...options,
+      headers: mergedHeaders,
+    }
+
+    // Try relative URL first (Vite dev proxy)
+    try {
+      const res = await fetch(`${PRIMARY_BASE}${endpoint}`, config)
+      if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
+        return res
+      }
+    } catch {
+      // Network failed on relative, fall through to direct backend
+    }
+
+    // Fallback to direct backend URL
+    return fetch(`${FALLBACK_BASE}${endpoint}`, config)
+  }
+
+  // --- Customer Authentication & Self-Service Portal ---
+  async registerCustomer(userData: {
+    email: string
+    password: string
+    name: string
+    phone?: string
+    driverLicenseNum?: string
+    driverLicenseState?: string
+    driverLicenseExpiry?: string
+  }): Promise<{
+    success: boolean
+    token?: string
+    user?: CustomerUser
+    message?: string
+  }> {
+    const res = await this.request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(userData),
+    })
+    const data = await res.json()
+    if (res.ok && data.token) {
+      localStorage.setItem("motorly_customer_token", data.token)
+      localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
+    }
+    return data
+  }
+
+  async loginCustomer(credentials: {
+    email: string
+    password: string
+  }): Promise<{
+    success: boolean
+    token?: string
+    user?: CustomerUser
+    message?: string
+  }> {
+    const res = await this.request("/auth/customer-login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    })
+    const data = await res.json()
+    if (res.ok && data.token) {
+      localStorage.setItem("motorly_customer_token", data.token)
+      localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
+    }
+    return data
+  }
+
+  async getCustomerProfile(): Promise<CustomerUser | null> {
+    const token = localStorage.getItem("motorly_customer_token")
+    if (!token) return null
+
+    try {
+      const res = await this.request("/auth/customer-me")
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem("motorly_customer_token")
+          localStorage.removeItem("motorly_customer_user")
+        }
+        return null
+      }
+      const data = await res.json()
+      return data.user || null
+    } catch {
+      return null
+    }
+  }
+
+  logoutCustomer() {
+    localStorage.removeItem("motorly_customer_token")
+    localStorage.removeItem("motorly_customer_user")
+    this.request("/auth/customer-logout", { method: "POST" }).catch(() => {})
+  }
+
+  async getCustomerBookings(email?: string): Promise<BookingRecord[]> {
+    const query = email ? `?email=${encodeURIComponent(email)}` : ""
+    const res = await this.request(`/users/bookings${query}`)
+    if (!res.ok) throw new Error("Failed to fetch customer reservations")
+    return res.json()
+  }
+
+  // --- Auth & Admin Verification ---
+  async adminLogin(password: string): Promise<{
+    success: boolean
+    token?: string
+    message?: string
+  }> {
+    try {
+      const res = await this.request("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      })
+      const data = await res.json()
+      if (res.ok && data.token) {
+        localStorage.setItem("motorly_admin_token", data.token)
+      }
+      return data
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Failed to reach backend.",
+      }
+    }
+  }
+
+  async verifyAdminSession(): Promise<boolean> {
+    const token = localStorage.getItem("motorly_admin_token")
+    if (!token) return false
+
+    try {
+      const res = await this.request("/auth/verify", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      })
+      const data = await res.json()
+      return Boolean(data.authenticated)
+    } catch {
+      return false
+    }
+  }
+
+  logoutAdmin() {
+    localStorage.removeItem("motorly_admin_token")
+  }
+
+  // --- Cars / Fleet Management ---
+  async getCars(filters?: {
+    status?: string
+    type?: string
+    search?: string
+    maxPrice?: number
+    pickupDate?: string
+    returnDate?: string
+  }): Promise<Car[]> {
+    const params = new URLSearchParams()
+    if (filters?.status && filters.status !== "all")
+      params.append("status", filters.status)
+    if (filters?.type && filters.type !== "all")
+      params.append("type", filters.type)
+    if (filters?.search) params.append("search", filters.search)
+    if (filters?.maxPrice)
+      params.append("maxPrice", filters.maxPrice.toString())
+    if (filters?.pickupDate) params.append("pickupDate", filters.pickupDate)
+    if (filters?.returnDate) params.append("returnDate", filters.returnDate)
+
+    const queryString = params.toString() ? `?${params.toString()}` : ""
+    const res = await this.request(`/cars${queryString}`)
+    if (!res.ok) throw new Error("Failed to fetch vehicles from backend")
+    return res.json()
+  }
+
+  async getCarById(id: string): Promise<Car> {
+    const res = await this.request(`/cars/${id}`)
+    if (!res.ok) throw new Error(`Vehicle ${id} not found`)
+    return res.json()
+  }
+
+  async createCar(car: Partial<Car>): Promise<Car> {
+    const res = await this.request("/cars", {
+      method: "POST",
+      body: JSON.stringify(car),
+    })
+    if (!res.ok) throw new Error("Failed to create vehicle")
+    return res.json()
+  }
+
+  async updateCar(id: string, car: Partial<Car>): Promise<Car> {
+    const res = await this.request(`/cars/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(car),
+    })
+    if (!res.ok) throw new Error("Failed to update vehicle")
+    return res.json()
+  }
+
+  async updateCarStatus(id: string, status: CarStatus): Promise<Car> {
+    const res = await this.request(`/cars/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) throw new Error("Failed to update vehicle status")
+    return res.json()
+  }
+
+  async deleteCar(id: string): Promise<boolean> {
+    const res = await this.request(`/cars/${id}`, {
+      method: "DELETE",
+    })
+    return res.ok
+  }
+
+  // --- Bookings & Vehicle Mating ---
+  async getBookings(): Promise<BookingRecord[]> {
+    const res = await this.request("/bookings")
+    if (!res.ok) throw new Error("Failed to fetch bookings")
+    return res.json()
+  }
+
+  async createBooking(bookingData: any): Promise<BookingRecord> {
+    const res = await this.request("/bookings", {
+      method: "POST",
+      body: JSON.stringify(bookingData),
+    })
+    if (!res.ok) throw new Error("Failed to create booking")
+    return res.json()
+  }
+
+  async mateCar(bookingId: string, carId: string): Promise<{
+    success: boolean
+    booking: BookingRecord
+    car: Car
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/mate`, {
+      method: "POST",
+      body: JSON.stringify({ carId }),
+    })
+    if (!res.ok) throw new Error("Failed to mate vehicle to booking")
+    return res.json()
+  }
+
+  async unmateCar(bookingId: string): Promise<{
+    success: boolean
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/unmate`, {
+      method: "POST",
+    })
+    if (!res.ok) throw new Error("Failed to release vehicle")
+    return res.json()
+  }
+
+  async updateBookingStatus(
+    bookingId: string,
+    data: {
+      status: BookingStatus
+      odometerOut?: number
+      odometerIn?: number
+      fuelLevelOut?: string
+      fuelLevelIn?: string
+      notes?: string
+    },
+  ): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to advance booking lifecycle")
+    return res.json()
+  }
+
+  // --- Step D: Admin Approval ("Green Signal") ---
+  async approveBooking(bookingId: string): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/approve`, {
+      method: "POST",
+    })
+    if (!res.ok) throw new Error("Failed to approve reservation request")
+    return res.json()
+  }
+
+  // --- Step E: Key Handoff & Checklist (Timer Starts) ---
+  async handoverKeys(
+    bookingId: string,
+    data: {
+      odometerOut: number
+      fuelOut: string
+      exteriorClean?: boolean
+      tiresInspected?: boolean
+      staffSign?: string
+    },
+  ): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/handover-keys`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to confirm key handover")
+    return res.json()
+  }
+
+  // --- Step F: Extension Negotiation Workflow ---
+  async requestExtension(
+    bookingId: string,
+    data: {
+      extraDuration: number
+      unit: "hours" | "days" | "months"
+      customerNotes?: string
+    },
+  ): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/request-extension`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to submit extension request")
+    return res.json()
+  }
+
+  async quoteExtension(
+    bookingId: string,
+    data: {
+      rateType: "hour" | "day" | "month"
+      rateAmount: number
+      totalQuotedAmount: number
+      adminNotes?: string
+    },
+  ): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/quote-extension`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to send extension quotation")
+    return res.json()
+  }
+
+  async approveExtension(bookingId: string): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/approve-extension`, {
+      method: "POST",
+    })
+    if (!res.ok) throw new Error("Failed to approve quotation")
+    return res.json()
+  }
+
+  async declineExtension(bookingId: string): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/decline-extension`, {
+      method: "POST",
+    })
+    if (!res.ok) throw new Error("Failed to decline extension")
+    return res.json()
+  }
+
+  // --- Step G: Return Inspection Checklist ---
+  async returnInspection(
+    bookingId: string,
+    data: {
+      odometerIn: number
+      fuelIn: string
+      damageFound?: boolean
+      cleanlinessPass?: boolean
+      inspectionPassed?: boolean
+      staffSign?: string
+      inspectionNotes?: string
+    },
+  ): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${bookingId}/return-inspection`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to complete return inspection")
+    return res.json()
+  }
+
+  // Driver License Download URL
+  getLicenseDownloadUrl(
+    bookingId: string,
+    side: "front" | "back" | "certificate" = "front",
+  ): string {
+    return `/api/bookings/${bookingId}/download-license?side=${side}`
+  }
+
+  // Check vehicle availability for specific date range
+  async checkCarAvailability(
+    carId: string,
+    pickupDate: string,
+    returnDate: string,
+  ): Promise<{
+    carId: string
+    isAvailable: boolean
+    carStatus: string
+    conflict?: {
+      conflictingBookingId: string
+      customerName: string
+      pickupDate: string
+      returnDate: string
+      status: string
+    } | null
+  }> {
+    try {
+      const res = await this.request(
+        `/cars/${carId}/availability?pickupDate=${encodeURIComponent(
+          pickupDate,
+        )}&returnDate=${encodeURIComponent(returnDate)}`,
+      )
+      if (!res.ok) return { carId, isAvailable: true, carStatus: "Available" }
+      return res.json()
+    } catch {
+      return { carId, isAvailable: true, carStatus: "Available" }
+    }
+  }
+
+  async createCounterBooking(data: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+    carId: string
+    pickupDate?: string
+    returnDate?: string
+    totalAmount?: number
+    immediateCheckout?: boolean
+    licenseNumber?: string
+    licenseState?: string
+    notes?: string
+  }): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request("/admin/counter-booking", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to dispatch counter reservation")
+    return res.json()
+  }
+
+  // --- CRM & Customers Directory ---
+  async getAdminCustomers(): Promise<CustomerUser & {
+    hasAccount: boolean
+    latestBooking: string
+  }[]> {
+    const res = await this.request("/admin/customers")
+    if (!res.ok) throw new Error("Failed to fetch customer directory")
+    return res.json()
+  }
+
+  // --- Promo Codes & Dynamic Coupons ---
+  async getPromos(): Promise<PromoCode[]> {
+    const res = await this.request("/promos")
+    if (!res.ok) throw new Error("Failed to fetch promo rules")
+    return res.json()
+  }
+
+  async createPromo(data: {
+    code: string
+    discountPercent: number
+    description: string
+    expiryDate: string
+  }): Promise<PromoCode> {
+    const res = await this.request("/promos", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to create promo code")
+    return res.json()
+  }
+
+  async togglePromo(code: string): Promise<PromoCode> {
+    const res = await this.request(
+      `/promos/${encodeURIComponent(code)}/toggle`,
+      {
+        method: "PATCH",
+      },
+    )
+    if (!res.ok) throw new Error("Failed to toggle promo code")
+    return res.json()
+  }
+
+  async deletePromo(code: string): Promise<boolean> {
+    const res = await this.request(`/promos/${encodeURIComponent(code)}`, {
+      method: "DELETE",
+    })
+    return res.ok
+  }
+
+  async validatePromo(code: string): Promise<{
+    valid: boolean
+    code: string
+    discountPercent: number
+    description: string
+    message: string
+  }> {
+    const res = await this.request("/promos/validate", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    })
+    return res.json()
+  }
+
+  // --- Maintenance & Service Logs ---
+  async getMaintenanceLogs(): Promise<MaintenanceLog[]> {
+    const res = await this.request("/maintenance")
+    if (!res.ok) throw new Error("Failed to fetch maintenance logs")
+    return res.json()
+  }
+
+  async createMaintenanceLog(data: {
+    carId: string
+    serviceType: string
+    cost: number
+    odometer: number
+    date: string
+    status: "Scheduled" | "In Progress" | "Completed"
+    technicianNotes: string
+    setVehicleStatus?: string
+  }): Promise<MaintenanceLog> {
+    const res = await this.request("/maintenance", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error("Failed to create maintenance work order")
+    return res.json()
+  }
+
+  async updateMaintenanceStatus(
+    id: string,
+    status: string,
+  ): Promise<MaintenanceLog> {
+    const res = await this.request(`/maintenance/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) throw new Error("Failed to update maintenance status")
+    return res.json()
+  }
+
+  // --- Admin Stats ---
+  async getAdminStats(): Promise<{
+    fleet: {
+      total: number
+      available: number
+      rented: number
+      maintenance: number
+      cleaning: number
+      utilization: number
+      activeRevenue: number
+    }
+    bookings: {
+      total: number
+      pendingMating: number
+      assigned: number
+    }
+  }> {
+    const res = await this.request("/admin/stats")
+    if (!res.ok) throw new Error("Failed to fetch admin stats")
+    return res.json()
+  }
+
+  // --- File Upload ---
+  async uploadLicenseFile(fileName: string): Promise<{
+    success: boolean
+    fileName: string
+    url: string
+  }> {
+    const res = await this.request("/upload", {
+      method: "POST",
+      body: JSON.stringify({ fileName }),
+    })
+    return res.json()
+  }
+}
+
+export const api = new ApiService()
