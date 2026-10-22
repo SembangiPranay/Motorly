@@ -42,6 +42,16 @@ app.use((req, _res, next) => {
   next()
 })
 
+// Public Health Check Endpoint
+app.get(["/api", "/api/health"], async (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "MOTORLY Fleet API",
+    supabase: db.isSupabase,
+    timestamp: new Date().toISOString(),
+  })
+})
+
 // Helper to format car row from SQLite
 function formatCarRow(row: any) {
   if (!row) return null
