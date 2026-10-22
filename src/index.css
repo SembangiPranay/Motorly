@@ -40,6 +40,19 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   background: #9ca3af;
 }
 
+/* Hide scrollbar for Chrome, Safari, Opera and modern browsers */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
 /* Utility animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -57,4 +70,13 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 .animate-scale-up {
   animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0.9; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

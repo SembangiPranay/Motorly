@@ -43,6 +43,23 @@ interface ListingViewProps {
   onQuickBook?: (carId: string) => void
 }
 
+function formatDisplayDate(dateStr?: string) {
+  if (!dateStr) return ""
+  try {
+    const parts = dateStr.split("-")
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10) - 1
+      const day = parseInt(parts[2], 10)
+      const d = new Date(year, month, day)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      }
+    }
+  } catch {}
+  return dateStr
+}
+
 export default function ListingView({
   cars: initialCars,
   bookingState,
@@ -87,7 +104,7 @@ export default function ListingView({
     bookingState.rentalDurationDays,
   ])
 
-  // Synchronize with SQLite Backend on mount and when dates change
+  // Synchronize with backend availability on mount and when dates change
   useEffect(() => {
     let isMounted = true
     async function syncBackendAvailability() {
@@ -142,7 +159,12 @@ export default function ListingView({
           const matchName = car.name.toLowerCase().includes(q)
           const matchBrand = car.brand.toLowerCase().includes(q)
           const matchType = car.type.toLowerCase().includes(q)
-          const matchLocation = (car.garageName || car.location || "")
+          const matchLocation = (
+            car.garageName ||
+            car.garageAddress ||
+            car.location ||
+            ""
+          )
             .toLowerCase()
             .includes(q)
           if (!matchName && !matchBrand && !matchType && !matchLocation)
@@ -285,50 +307,205 @@ export default function ListingView({
 
   const comparedCars = liveCars.filter((c) => compareIds.includes(c.id))
 
+  // Shared Filter Controls (Used in Desktop Sidebar & Mobile Bottom Sheet Drawer)
+  const renderFilterControls = () => (
+    <div className="space-y-6">
+      {/* Vehicle Type */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
+          Vehicle Category
+        </h4>
+        <div className="space-y-2">
+          {(["Economy", "Sedan", "SUV", "Luxury", "Van"] as VehicleType[]).map(
+            (type) => {
+              const count = liveCars.filter((c) => c.type === type).length
+              const checked = filterState.types.includes(type)
+              return (
+                <label
+                  key={type}
+                  className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black py-0.5 group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleTypeToggle(type)}
+                      className="w-4 h-4 rounded border-stone-300 text-[#F97316] focus:ring-[#F97316]"
+                    />
+                    <span className="font-semibold group-hover:text-[#F97316] transition-colors">
+                      {type}
+                    </span>
+                  </div>
+                  <span className="text-stone-400 font-semibold text-[11px]">
+                    ({count})
+                  </span>
+                </label>
+              )
+            },
+          )}
+        </div>
+      </div>
+
+      {/* Price Range Slider */}
+      <div className="space-y-3 pt-3.5 border-t border-stone-100">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
+            Max Daily Rate
+          </h4>
+          <span className="text-sm font-black text-[#F97316] font-mono">
+            ${filterState.maxPrice}/day
+          </span>
+        </div>
+        <input
+          type="range"
+          min="30"
+          max="500"
+          step="10"
+          value={filterState.maxPrice}
+          onChange={(e) =>
+            setFilterState((prev) => ({
+              ...prev,
+              maxPrice: Number(e.target.value),
+            }))
+          }
+          className="w-full accent-[#F97316] cursor-pointer"
+        />
+        <div className="flex justify-between text-[11px] font-semibold text-stone-400 font-mono">
+          <span>$30</span>
+          <span>$250</span>
+          <span>$500</span>
+        </div>
+      </div>
+
+      {/* Transmission */}
+      <div className="space-y-3 pt-3.5 border-t border-stone-100">
+        <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
+          Transmission
+        </h4>
+        <div className="space-y-2">
+          {(["Automatic", "Manual"] as Transmission[]).map((label) => (
+            <label
+              key={label}
+              className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black"
+            >
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={filterState.transmissions.includes(label)}
+                  onChange={() => handleTransmissionToggle(label)}
+                  className="w-4 h-4 rounded border-stone-300 text-[#F97316] focus:ring-[#F97316]"
+                />
+                <span className="font-semibold">{label}</span>
+              </div>
+              <span className="text-stone-400 font-semibold text-[11px]">
+                ({liveCars.filter((c) => c.transmission === label).length})
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Fuel & Powertrain */}
+      <div className="space-y-3 pt-3.5 border-t border-stone-100">
+        <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
+          Powertrain &amp; Fuel
+        </h4>
+        <div className="space-y-2">
+          {(["Gasoline", "Hybrid", "Electric"] as FuelType[]).map((label) => (
+            <label
+              key={label}
+              className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black"
+            >
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={filterState.fuelTypes.includes(label)}
+                  onChange={() => handleFuelToggle(label)}
+                  className="w-4 h-4 rounded border-stone-300 text-[#F97316] focus:ring-[#F97316]"
+                />
+                <span className="font-semibold">{label}</span>
+              </div>
+              <span className="text-stone-400 font-semibold text-[11px]">
+                ({liveCars.filter((c) => c.fuelType === label).length})
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Passenger Capacity */}
+      <div className="space-y-3 pt-3.5 border-t border-stone-100">
+        <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
+          Passenger Capacity
+        </h4>
+        <div className="grid grid-cols-4 gap-2">
+          {[2, 4, 5, 6].map((seatNum) => {
+            const isChecked = filterState.seats.includes(seatNum)
+            return (
+              <button
+                key={seatNum}
+                type="button"
+                onClick={() => handleSeatToggle(seatNum)}
+                className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                  isChecked
+                    ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
+                    : "bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-400"
+                }`}
+              >
+                {seatNum === 6 ? "5+" : seatNum} Seats
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="pb-28 animate-fade-in bg-[#FAF7F2] text-stone-900 min-h-screen">
-      {/* Top Showroom Header Banner: Crisp White Light Theme */}
-      <div className="relative bg-white border-b border-stone-200/90 py-10 px-4 sm:px-6 lg:px-8 xl:px-12 overflow-hidden shadow-xs">
-        <div className="relative w-full max-w-[1780px] mx-auto z-10 text-center space-y-3.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#F97316] text-[11px] font-extrabold uppercase tracking-widest">
+      {/* Top Showroom Header Banner */}
+      <div className="relative bg-white border-b border-stone-200/90 py-5 sm:py-8 px-4 sm:px-6 lg:px-8 xl:px-12 overflow-hidden shadow-xs">
+        <div className="relative w-full max-w-[1780px] mx-auto z-10 text-center space-y-2.5 sm:space-y-3.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#F97316] text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest">
             <SparklesIcon size={12} />
             <span>Verified Fleet Inventory</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight font-heading text-[#17191C]">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-heading text-[#17191C]">
             Find Your Ideal Vehicle
           </h1>
 
-          <p className="text-xs sm:text-sm text-stone-600 max-w-2xl mx-auto font-medium">
-            Certified premium fleet ready for instant reservation, contactless
-            hub dispatch, and airport terminal handover.
+          <p className="text-xs sm:text-sm text-stone-500 max-w-xl mx-auto font-medium hidden sm:block">
+            Certified premium fleet ready for instant reservation, contactless hub dispatch, and airport terminal handover.
           </p>
 
-          {/* Interactive Date & Schedule Trip Strip (Tapping opens DateSchedulingModal immediately) */}
+          {/* Sleek, Luxury Trip Summary Strip (Tapping opens DateSchedulingModal immediately) */}
           <div
             onClick={() => setIsScheduleModalOpen(true)}
-            className="max-w-4xl mx-auto mt-6 bg-[#FAF7F2] hover:bg-stone-100/80 rounded-2xl p-3.5 sm:p-4 text-[#17191C] shadow-sm flex flex-wrap items-center justify-between gap-4 border border-stone-200 hover:border-orange-400 transition-all cursor-pointer group"
+            className="w-full max-w-3xl mx-auto mt-3 sm:mt-5 bg-stone-50/80 hover:bg-stone-100/90 rounded-2xl p-2.5 sm:p-3.5 text-[#17191C] shadow-xs flex items-center justify-between gap-2.5 sm:gap-4 border border-stone-200/80 hover:border-orange-400 transition-all cursor-pointer group"
           >
-            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-stone-800">
-              <LocationIcon size={18} className="text-[#F97316] shrink-0" />
-              <span className="truncate">Fleet Garage Pickup (Set by Owner)</span>
-            </div>
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-orange-100/80 text-[#F97316] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <CalendarIcon size={18} />
+              </div>
 
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-stone-600">
-              <CalendarIcon
-                size={18}
-                className="text-[#F97316] shrink-0 group-hover:scale-110 transition-transform"
-              />
-              <span>
-                {bookingState.pickupDate} ({bookingState.pickupTime})
-              </span>
-              <span className="text-stone-400">→</span>
-              <span>
-                {bookingState.returnDate} ({bookingState.returnTime})
-              </span>
-              <span className="text-xs font-bold text-[#F97316] bg-orange-100/80 px-2.5 py-1 rounded-md ml-1 shadow-xs">
-                {tripDurationDays} {tripDurationDays === 1 ? "day" : "days"}
-              </span>
+              <div className="min-w-0 text-left">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <span className="text-xs sm:text-sm font-extrabold text-stone-900 tracking-tight">
+                    {formatDisplayDate(bookingState.pickupDate)} ({bookingState.pickupTime}) – {formatDisplayDate(bookingState.returnDate)} ({bookingState.returnTime})
+                  </span>
+                  <span className="text-[10px] sm:text-xs font-bold text-[#F97316] bg-orange-100 px-2 py-0.5 rounded-md">
+                    {tripDurationDays} {tripDurationDays === 1 ? "day" : "days"}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-stone-500 font-medium truncate mt-0.5">
+                  <LocationIcon size={12} className="text-[#F97316] shrink-0" />
+                  <span className="truncate">
+                    {bookingState.pickupLocation || "Fleet Garage Hub (Set by Owner)"}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <button
@@ -337,19 +514,19 @@ export default function ListingView({
                 e.stopPropagation()
                 setIsScheduleModalOpen(true)
               }}
-              className="px-4 py-2 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold rounded-xl transition-all ml-auto shadow-sm cursor-pointer flex items-center gap-1.5"
+              className="px-3 sm:px-4 py-2 bg-white group-hover:bg-[#F97316] text-stone-700 group-hover:text-white border border-stone-200 group-hover:border-[#F97316] text-xs font-bold rounded-xl transition-all ml-auto shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
             >
-              <span>Change Dates</span>
+              <span>Change</span>
               <ArrowRightIcon size={12} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* STICKY TOOLBAR: Stays pinned at top when scrolling down (Clean White Light Theme) */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs py-3 px-4 sm:px-6 lg:px-8 xl:px-10 transition-all">
-        <div className="w-full max-w-[1780px] mx-auto space-y-3">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      {/* STICKY TOOLBAR: Stays pinned at top when scrolling down */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs py-2.5 sm:py-3 px-3 sm:px-6 lg:px-8 xl:px-10 transition-all">
+        <div className="w-full max-w-[1780px] mx-auto space-y-2.5">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
             {/* Live Search Bar */}
             <div className="relative flex-1 max-w-md">
               <SearchIcon
@@ -358,7 +535,7 @@ export default function ListingView({
               />
               <input
                 type="text"
-                placeholder="Search make, model, category, or airport hub..."
+                placeholder="Search make, model, or hub..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-10 pl-9 pr-8 text-xs border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-stone-50/80 text-stone-900 font-medium shadow-xs"
@@ -373,8 +550,8 @@ export default function ListingView({
               )}
             </div>
 
-            {/* Controls Row (Uniform h-10 Controls with Perfect Alignment & Mobile Horizontal Smooth Scroll) */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar sm:overflow-visible pb-1 sm:pb-0 w-full sm:w-auto">
+            {/* Controls Row with smooth no-scrollbar */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scrollbar-none pb-0.5 sm:pb-0 w-full sm:w-auto">
               {/* Desktop Filter Toggle */}
               <button
                 type="button"
@@ -401,32 +578,34 @@ export default function ListingView({
 
               {/* Mobile Filter Toggle */}
               <button
-                onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-                className="lg:hidden h-10 px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
+                onClick={() => setMobileFilterOpen(true)}
+                className="lg:hidden h-10 px-3 bg-stone-100 hover:bg-stone-200 text-stone-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
               >
                 <FilterIcon size={14} className="text-[#F97316]" />
-                <span>
-                  Filters{" "}
-                  {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
-                </span>
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-[#F97316] text-white text-[10px] flex items-center justify-center font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
               </button>
 
-              {/* HIGHLY VISIBLE COMPARE STUDIO BUTTON IN HEADER (Exact h-10 Height) */}
+              {/* Compare Studio Button */}
               <button
                 type="button"
                 onClick={() => {
                   if (onNavigateCompare) onNavigateCompare()
                   else setIsCompareOpen(true)
                 }}
-                className={`h-10 px-3.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs whitespace-nowrap shrink-0 ${
+                className={`h-10 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap shrink-0 ${
                   compareIds.length > 0
                     ? "bg-[#F97316] hover:bg-[#EA580C] text-white ring-2 ring-orange-300 shadow-md"
                     : "bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 hover:border-orange-300"
                 }`}
                 title="Open Side-by-Side Comparison Studio"
               >
-                <span className="text-sm">⚖️</span>
-                <span className="font-extrabold">Compare Studio</span>
+                <span>⚖️</span>
+                <span className="font-extrabold hidden min-[400px]:inline">Compare</span>
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
                     compareIds.length > 0
@@ -436,12 +615,10 @@ export default function ListingView({
                 >
                   {compareIds.length}
                 </span>
-                <ArrowRightIcon size={12} />
               </button>
 
-              {/* Sort Dropdown (Exact h-10 Height) */}
-              <div className="flex items-center gap-1.5 text-xs font-medium text-stone-500 shrink-0">
-                <span className="hidden sm:inline">Sort:</span>
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-1 text-xs font-medium text-stone-500 shrink-0">
                 <select
                   value={filterState.sortBy}
                   onChange={(e) =>
@@ -450,16 +627,16 @@ export default function ListingView({
                       sortBy: e.target.value as FilterState["sortBy"],
                     }))
                   }
-                  className="h-10 px-3 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs whitespace-nowrap"
+                  className="h-10 px-2.5 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs whitespace-nowrap"
                 >
-                  <option value="recommended">Featured / Recommended</option>
+                  <option value="recommended">Recommended</option>
                   <option value="price-asc">Price: Low to High</option>
                   <option value="price-desc">Price: High to Low</option>
-                  <option value="rating">Top Customer Rated</option>
+                  <option value="rating">Top Rated</option>
                 </select>
               </div>
 
-              {/* View Mode Switcher (Exact h-10 Height) */}
+              {/* View Mode Switcher */}
               <div className="h-10 p-1 bg-stone-100 rounded-xl border border-stone-200 flex items-center shrink-0">
                 <button
                   onClick={() => setViewMode("grid")}
@@ -487,11 +664,11 @@ export default function ListingView({
             </div>
           </div>
 
-          {/* Quick Filter Category Pills: White Surfaces with Vibrant Highlights */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none pt-1 border-t border-stone-200/80">
+          {/* Quick Filter Category Pills: Zero Scrollbars */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none pb-1 pt-1 text-xs border-t border-stone-100">
             <button
               onClick={clearAllFilters}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 filterState.types.length === 0 &&
                 filterState.maxPrice === 500 &&
                 !searchQuery
@@ -503,7 +680,7 @@ export default function ListingView({
             </button>
             <button
               onClick={() => handleTypeToggle("SUV")}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 filterState.types.includes("SUV")
                   ? "bg-[#F97316] text-white shadow-xs"
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
@@ -513,7 +690,7 @@ export default function ListingView({
             </button>
             <button
               onClick={() => handleTypeToggle("Sedan")}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 filterState.types.includes("Sedan")
                   ? "bg-[#F97316] text-white shadow-xs"
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
@@ -523,7 +700,7 @@ export default function ListingView({
             </button>
             <button
               onClick={() => handleTypeToggle("Luxury")}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 filterState.types.includes("Luxury")
                   ? "bg-[#F97316] text-white shadow-xs"
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
@@ -533,7 +710,7 @@ export default function ListingView({
             </button>
             <button
               onClick={() => handleFuelToggle("Hybrid")}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 filterState.fuelTypes.includes("Hybrid")
                   ? "bg-[#F97316] text-white shadow-xs"
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
@@ -554,7 +731,7 @@ export default function ListingView({
                   maxPrice: prev.maxPrice <= 60 ? 500 : 60,
                 }))
               }
-              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 filterState.maxPrice <= 60
                   ? "bg-[#F97316] text-white shadow-xs"
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
@@ -563,11 +740,10 @@ export default function ListingView({
               Under $60/day
             </button>
 
-            {/* Clear Filters Button when Active */}
             {activeFilterCount > 0 && (
               <button
                 onClick={clearAllFilters}
-                className="ml-auto text-xs font-bold text-[#F97316] hover:underline cursor-pointer whitespace-nowrap px-2"
+                className="ml-auto text-xs font-bold text-[#F97316] hover:underline cursor-pointer whitespace-nowrap px-2 shrink-0"
               >
                 Clear Filters ({activeFilterCount})
               </button>
@@ -578,15 +754,10 @@ export default function ListingView({
 
       {/* Main Full-Width Fleet Explorer Viewport */}
       <div className="w-full max-w-[1780px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-5">
-        {/* Layout: Sticky Sidebar + Vehicles Grid */}
         <div className="flex flex-col lg:flex-row items-start gap-6">
-          {/* Left Sidebar Filter Panel: Pure White Light Surface */}
-          {(desktopFilterOpen || mobileFilterOpen) && (
-            <aside
-              className={`w-full lg:w-72 xl:w-80 shrink-0 bg-white rounded-3xl border border-stone-200 p-5 shadow-sm space-y-6 lg:sticky lg:top-[128px] max-h-[calc(100vh-148px)] overflow-y-auto scrollbar-thin z-20 ${
-                mobileFilterOpen ? "block" : "hidden lg:block"
-              }`}
-            >
+          {/* Left Desktop Sidebar Filter Panel */}
+          {desktopFilterOpen && (
+            <aside className="hidden lg:block w-72 xl:w-80 shrink-0 bg-white rounded-3xl border border-stone-200 p-5 shadow-sm space-y-6 lg:sticky lg:top-[128px] max-h-[calc(100vh-148px)] overflow-y-auto scrollbar-thin z-20">
               <div className="flex items-center justify-between border-b border-stone-100 pb-3.5">
                 <h3 className="font-extrabold text-base text-stone-900 font-heading flex items-center gap-2">
                   <FilterIcon size={18} className="text-[#F97316]" />
@@ -602,172 +773,13 @@ export default function ListingView({
                 )}
               </div>
 
-              {/* Vehicle Type */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
-                  Vehicle Category
-                </h4>
-                <div className="space-y-2">
-                  {([
-                    "Economy",
-                    "Sedan",
-                    "SUV",
-                    "Luxury",
-                    "Van",
-                  ] as VehicleType[]).map((type) => {
-                    const count = liveCars.filter((c) => c.type === type).length
-                    const checked = filterState.types.includes(type)
-                    return (
-                      <label
-                        key={type}
-                        className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black py-0.5 group"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => handleTypeToggle(type)}
-                            className="w-4 h-4 rounded border-stone-300 text-[#F97316] focus:ring-[#F97316]"
-                          />
-                          <span className="font-semibold group-hover:text-[#F97316] transition-colors">
-                            {type}
-                          </span>
-                        </div>
-                        <span className="text-stone-400 font-semibold text-[11px]">
-                          ({count})
-                        </span>
-                      </label>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Price Range Slider */}
-              <div className="space-y-3 pt-3.5 border-t border-stone-100">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
-                    Max Daily Rate
-                  </h4>
-                  <span className="text-sm font-black text-[#F97316] font-mono">
-                    ${filterState.maxPrice}/day
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="30"
-                  max="500"
-                  step="10"
-                  value={filterState.maxPrice}
-                  onChange={(e) =>
-                    setFilterState((prev) => ({
-                      ...prev,
-                      maxPrice: Number(e.target.value),
-                    }))
-                  }
-                  className="w-full accent-[#F97316] cursor-pointer"
-                />
-                <div className="flex justify-between text-[11px] font-semibold text-stone-400 font-mono">
-                  <span>$30</span>
-                  <span>$250</span>
-                  <span>$500</span>
-                </div>
-              </div>
-
-              {/* Transmission */}
-              <div className="space-y-3 pt-3.5 border-t border-stone-100">
-                <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
-                  Transmission
-                </h4>
-                <div className="space-y-2">
-                  {(["Automatic", "Manual"] as Transmission[]).map((label) => (
-                    <label
-                      key={label}
-                      className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          checked={filterState.transmissions.includes(label)}
-                          onChange={() => handleTransmissionToggle(label)}
-                          className="w-4 h-4 rounded border-stone-300 text-[#F97316] focus:ring-[#F97316]"
-                        />
-                        <span className="font-semibold">{label}</span>
-                      </div>
-                      <span className="text-stone-400 font-semibold text-[11px]">
-                        (
-                        {
-                          liveCars.filter((c) => c.transmission === label)
-                            .length
-                        }
-                        )
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Fuel & Powertrain */}
-              <div className="space-y-3 pt-3.5 border-t border-stone-100">
-                <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
-                  Powertrain &amp; Fuel
-                </h4>
-                <div className="space-y-2">
-                  {(["Gasoline", "Hybrid", "Electric"] as FuelType[]).map(
-                    (label) => (
-                      <label
-                        key={label}
-                        className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <input
-                            type="checkbox"
-                            checked={filterState.fuelTypes.includes(label)}
-                            onChange={() => handleFuelToggle(label)}
-                            className="w-4 h-4 rounded border-stone-300 text-[#F97316] focus:ring-[#F97316]"
-                          />
-                          <span className="font-semibold">{label}</span>
-                        </div>
-                        <span className="text-stone-400 font-semibold text-[11px]">
-                          ({liveCars.filter((c) => c.fuelType === label).length}
-                          )
-                        </span>
-                      </label>
-                    ),
-                  )}
-                </div>
-              </div>
-
-              {/* Passenger Capacity */}
-              <div className="space-y-3 pt-3.5 border-t border-stone-100">
-                <h4 className="text-xs font-extrabold text-stone-900 uppercase tracking-wider">
-                  Passenger Capacity
-                </h4>
-                <div className="grid grid-cols-4 gap-2">
-                  {[2, 4, 5, 6].map((seatNum) => {
-                    const isChecked = filterState.seats.includes(seatNum)
-                    return (
-                      <button
-                        key={seatNum}
-                        type="button"
-                        onClick={() => handleSeatToggle(seatNum)}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                          isChecked
-                            ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
-                            : "bg-stone-50 text-stone-700 border-stone-200 hover:border-stone-400"
-                        }`}
-                      >
-                        {seatNum === 6 ? "5+" : seatNum} Seats
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              {renderFilterControls()}
             </aside>
           )}
 
           {/* Right Main Vehicle Display Section */}
           <main className="flex-1 min-w-0 w-full space-y-4">
-            {/* Results Header Counter & Live Backend Status Indicator */}
+            {/* Results Header Counter & Live Status Indicator */}
             <div className="flex items-center justify-between text-xs text-stone-500 px-1">
               <span className="font-medium">
                 Showing{" "}
@@ -787,8 +799,8 @@ export default function ListingView({
                 />
                 <span>
                   {backendSyncing
-                    ? "Syncing Backend..."
-                    : "Live SQLite Inventory Verified"}
+                    ? "Syncing Fleet..."
+                    : "Live Fleet Availability Verified"}
                 </span>
               </span>
             </div>
@@ -815,9 +827,9 @@ export default function ListingView({
                 </button>
               </div>
             ) : viewMode === "grid" ? (
-              /* GRID VIEW: High-Impact Visual Showcase where whole car fits in (100% White Light Theme) */
+              /* GRID VIEW: High-Impact Visual Showcase */
               <div
-                className={`grid gap-6 ${
+                className={`grid gap-5 sm:gap-6 ${
                   desktopFilterOpen
                     ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
                     : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
@@ -839,12 +851,12 @@ export default function ListingView({
                       key={car.id}
                       className="bg-white rounded-3xl border border-stone-200/90 hover:border-orange-300 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
                     >
-                      {/* Framed Image Showcase: Whole car fits in cleanly with subtle ambient backdrop */}
+                      {/* Framed Image Showcase: Clean 4-corner badges */}
                       <div
                         className="relative h-52 sm:h-56 w-full bg-gradient-to-b from-stone-50 via-stone-100/50 to-stone-50/20 flex items-center justify-center overflow-hidden cursor-pointer rounded-t-3xl border-b border-stone-100 select-none"
                         onClick={() => onSelectCar(car.id)}
                       >
-                        {/* Ambient Blurred Backdrop - Seamlessly fills sides with natural car lighting */}
+                        {/* Ambient Backdrop */}
                         <img
                           src={car.image}
                           alt=""
@@ -853,10 +865,10 @@ export default function ListingView({
                         />
                         <div className="absolute inset-0 bg-stone-50/50 pointer-events-none" />
 
-                        {/* Ground Ambient Reflection Shadow */}
+                        {/* Ground Shadow */}
                         <div className="absolute bottom-2.5 inset-x-8 h-3 bg-stone-900/10 rounded-full blur-[6px] pointer-events-none transform scale-95 transition-transform group-hover:scale-100" />
 
-                        {/* Foreground Vehicle Image with Full Silhouette Containment */}
+                        {/* Foreground Vehicle Image */}
                         <img
                           src={car.image}
                           alt={car.name}
@@ -864,27 +876,23 @@ export default function ListingView({
                           className="relative z-10 w-full h-full object-contain p-3.5 sm:p-4 group-hover:scale-105 transition-transform duration-300 ease-out drop-shadow-md"
                         />
 
-                        {/* Top Left Badges: Year & Category + Status */}
-                        <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-1.5 pointer-events-none">
-                          <span className="bg-stone-900/85 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg border border-white/10 shadow-xs">
-                            {car.year} • {car.type}
-                          </span>
+                        {/* Top Left: Clean Availability Status Badge */}
+                        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 pointer-events-none">
                           {isRentedOrConflicted ? (
-                            <span className="bg-rose-600/90 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
+                            <span className="bg-rose-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                               {car.conflict ? "Reserved" : "Rented"}
                             </span>
                           ) : (
-                            <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
+                            <span className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white" />
                               Available
                             </span>
                           )}
                         </div>
 
-                        {/* Top Right Symmetrical Action Pair (Matched w-9 h-9 Dimensions with Perfect Alignment) */}
-                        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
-                          {/* Symmetrical Quick Compare Button */}
+                        {/* Top Right: Glassmorphism Action Buttons (Compare & Favorite) */}
+                        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -893,19 +901,18 @@ export default function ListingView({
                             }}
                             title={
                               isCompared
-                                ? "Remove from comparison"
+                                ? "Remove from compare"
                                 : "Add to comparison studio"
                             }
-                            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition shadow-xs cursor-pointer ${
+                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center transition shadow-xs cursor-pointer backdrop-blur-md ${
                               isCompared
                                 ? "bg-[#F97316] text-white border-orange-500 ring-2 ring-orange-300"
-                                : "bg-white/95 text-stone-700 border-stone-200 hover:border-[#F97316] hover:text-[#F97316]"
+                                : "bg-white/90 text-stone-700 border-stone-200 hover:border-[#F97316] hover:text-[#F97316]"
                             }`}
                           >
-                            <span className="text-sm">⚖️</span>
+                            <span className="text-xs sm:text-sm">⚖️</span>
                           </button>
 
-                          {/* Symmetrical Favorite Button */}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -915,19 +922,19 @@ export default function ListingView({
                             title={
                               isFav ? "Saved to favorites" : "Save to favorites"
                             }
-                            className="w-9 h-9 rounded-xl bg-white/95 border border-stone-200 flex items-center justify-center text-stone-400 hover:text-red-500 shadow-xs transition hover:scale-105 active:scale-95 cursor-pointer"
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/90 backdrop-blur-md border border-stone-200 flex items-center justify-center text-stone-400 hover:text-red-500 shadow-xs transition hover:scale-105 active:scale-95 cursor-pointer"
                           >
                             <HeartIcon
-                              size={15}
+                              size={14}
                               filled={isFav}
                               className={isFav ? "text-red-500" : ""}
                             />
                           </button>
                         </div>
 
-                        {/* Bottom Overlay Badges: Rating & Instant Handoff */}
+                        {/* Bottom Left: Rating Badge */}
                         <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 pointer-events-none">
-                          <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[11px] font-bold text-stone-900 border border-stone-200 shadow-xs flex items-center gap-1">
+                          <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold text-stone-900 border border-stone-200/80 shadow-xs flex items-center gap-1">
                             <StarIcon
                               size={11}
                               filled
@@ -938,20 +945,23 @@ export default function ListingView({
                               ({car.reviewsCount || 48})
                             </span>
                           </div>
-                          <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-emerald-700 border border-stone-200 shadow-xs hidden sm:flex items-center gap-1">
-                            <ZapIcon size={10} className="text-[#F97316]" />
-                            <span>Instant Handoff</span>
-                          </div>
+                        </div>
+
+                        {/* Bottom Right: Year & Category */}
+                        <div className="absolute bottom-3 right-3 z-20 pointer-events-none">
+                          <span className="bg-stone-900/85 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md border border-white/10 shadow-xs">
+                            {car.year} • {car.type}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Card Content & Efficient Specifications */}
-                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
+                      {/* Card Content */}
+                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3.5">
                         <div className="space-y-2.5">
                           {/* Brand & Vehicle Title */}
                           <div>
-                            <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                              {car.brand} • {car.year}
+                            <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                              {car.brand}
                             </div>
                             <h3
                               onClick={() => onSelectCar(car.id)}
@@ -961,54 +971,55 @@ export default function ListingView({
                             </h3>
                           </div>
 
-                          {/* Pickup Location & Garage Bay */}
-                          <div className="flex items-center gap-1.5 text-xs text-stone-600 font-medium truncate">
+                          {/* Garage Hub Location (Owner-Defined Garage) */}
+                          <div className="flex items-center gap-1.5 text-xs text-stone-600 font-medium truncate bg-stone-50/80 px-2.5 py-1.5 rounded-xl border border-stone-200/60">
                             <LocationIcon
-                              size={14}
+                              size={13}
                               className="text-[#F97316] shrink-0"
                             />
                             <span className="truncate">
                               {car.garageName ||
+                                car.garageAddress ||
                                 car.location ||
-                                "Miami International Airport (MIA)"}
+                                "Miami Executive Garage"}
                             </span>
                             {car.garageBay && (
-                              <span className="shrink-0 text-[10px] bg-stone-100 text-stone-600 font-bold px-1.5 py-0.5 rounded">
+                              <span className="shrink-0 text-[10px] bg-white text-stone-700 font-bold px-1.5 py-0.5 rounded border border-stone-200">
                                 Bay {car.garageBay}
                               </span>
                             )}
                           </div>
 
-                          {/* 4 Micro Specs Grid with Clean Vector Icons */}
-                          <div className="grid grid-cols-2 gap-1.5 pt-1 text-xs text-stone-600 font-medium">
-                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-200/80">
+                          {/* 4 Micro Specs Grid */}
+                          <div className="grid grid-cols-2 gap-1.5 text-xs text-stone-600 font-medium">
+                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-100">
                               <UserIcon
-                                size={13}
+                                size={12}
                                 className="text-stone-400 shrink-0"
                               />
                               <span className="truncate">
                                 {car.seats} Seats
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-200/80">
+                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-100">
                               <TransmissionIcon
-                                size={13}
+                                size={12}
                                 className="text-stone-400 shrink-0"
                               />
                               <span className="truncate">
                                 {car.transmission}
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-200/80">
+                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-100">
                               <FuelIcon
-                                size={13}
+                                size={12}
                                 className="text-stone-400 shrink-0"
                               />
                               <span className="truncate">{car.fuelType}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-200/80">
+                            <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1.5 rounded-lg border border-stone-100">
                               <SparklesIcon
-                                size={13}
+                                size={12}
                                 className="text-stone-400 shrink-0"
                               />
                               <span className="truncate">
@@ -1049,48 +1060,15 @@ export default function ListingView({
                             </div>
                           </div>
 
-                          {/* Action Buttons Row: Exact h-10 Height on All 3 Buttons with Zero Misalignment */}
+                          {/* Clean 2-Button Action Row on Mobile */}
                           <div className="flex items-center gap-2 w-full">
-                            {/* COMPARE BUTTON: Exact h-10 Height, Label & Clean Icon */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleCompare(car.id)
-                              }}
-                              className={`h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-                                isCompared
-                                  ? "bg-[#F97316] text-white border-[#F97316] shadow-sm ring-2 ring-orange-400/30"
-                                  : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200 hover:border-orange-300"
-                              }`}
-                              title={
-                                isCompared
-                                  ? "Remove from comparison"
-                                  : "Compare this vehicle"
-                              }
-                            >
-                              {isCompared ? (
-                                <CheckIcon
-                                  size={12}
-                                  className="text-white shrink-0"
-                                />
-                              ) : (
-                                <span className="text-xs shrink-0">⚖️</span>
-                              )}
-                              <span className="hidden min-[380px]:inline">
-                                {isCompared ? "Compared" : "Compare"}
-                              </span>
-                            </button>
-
-                            {/* DETAILS BUTTON: Exact h-10 Height */}
                             <button
                               onClick={() => onSelectCar(car.id)}
-                              className="h-10 px-3.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 font-bold text-xs transition cursor-pointer whitespace-nowrap shrink-0"
+                              className="h-10 px-4 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 font-bold text-xs transition cursor-pointer whitespace-nowrap shrink-0"
                             >
                               Details
                             </button>
 
-                            {/* INSTANT BOOK BUTTON: Exact h-10 Height with Flex Expansion */}
                             <button
                               disabled={isRentedOrConflicted}
                               onClick={() => {
@@ -1099,7 +1077,7 @@ export default function ListingView({
                                   else onSelectCar(car.id)
                                 }
                               }}
-                              className={`flex-1 h-10 px-3 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap truncate ${
+                              className={`flex-1 h-10 px-4 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap truncate ${
                                 isRentedOrConflicted
                                   ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none"
                                   : "bg-[#F97316] hover:bg-[#EA580C] active:scale-[0.98] text-white hover:shadow-md"
@@ -1122,11 +1100,9 @@ export default function ListingView({
                 })}
               </div>
             ) : (
-              /* LIST VIEW: High-Density Studio Rows where whole car fits in (100% White Light Theme) */
+              /* LIST VIEW: High-Density Studio Rows */
               <div className="space-y-4">
                 {filteredCars.map((car) => {
-                  const isFav = favorites.includes(car.id)
-                  const isCompared = compareIds.includes(car.id)
                   const tripTotal = car.pricePerDay * tripDurationDays
 
                   const isRentedOrConflicted =
@@ -1139,7 +1115,7 @@ export default function ListingView({
                       key={car.id}
                       className="bg-white rounded-3xl border border-stone-200 hover:border-orange-300 p-4 sm:p-5 shadow-xs hover:shadow-lg transition-all flex flex-col md:flex-row items-center gap-5 group"
                     >
-                      {/* Vehicle Image Frame (Whole car fully contained) */}
+                      {/* Vehicle Image Frame */}
                       <div
                         className="w-full md:w-64 h-44 rounded-2xl overflow-hidden bg-stone-50 flex-shrink-0 relative flex items-center justify-center cursor-pointer border border-stone-100 select-none"
                         onClick={() => onSelectCar(car.id)}
@@ -1194,7 +1170,7 @@ export default function ListingView({
                           </div>
                         </div>
 
-                        {/* Hub location */}
+                        {/* Garage Hub Location */}
                         <div className="flex items-center gap-1.5 text-xs text-stone-600 font-medium">
                           <LocationIcon
                             size={14}
@@ -1202,8 +1178,9 @@ export default function ListingView({
                           />
                           <span>
                             {car.garageName ||
+                              car.garageAddress ||
                               car.location ||
-                              "Miami International Airport (MIA)"}
+                              "Miami Executive Garage"}
                           </span>
                           {car.garageBay && (
                             <span className="text-[10px] bg-stone-100 text-stone-600 font-bold px-1.5 py-0.5 rounded">
@@ -1273,21 +1250,6 @@ export default function ListingView({
 
                         <div className="flex items-center gap-2">
                           <button
-                            type="button"
-                            onClick={() => toggleCompare(car.id)}
-                            title={
-                              isCompared ? "Remove from comparison" : "Compare"
-                            }
-                            className={`h-10 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
-                              isCompared
-                                ? "bg-[#F97316] text-white border-[#F97316] shadow-sm"
-                                : "border-stone-200 bg-stone-50 text-stone-700 hover:border-orange-300"
-                            }`}
-                          >
-                            <span>⚖️</span>
-                            <span>{isCompared ? "Compared" : "Compare"}</span>
-                          </button>
-                          <button
                             onClick={() => onSelectCar(car.id)}
                             className="h-10 px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap"
                           >
@@ -1327,7 +1289,7 @@ export default function ListingView({
         </div>
       </div>
 
-      {/* Floating Comparison Dock Bar (Always Centered & High Z-Index) */}
+      {/* Floating Comparison Dock Bar */}
       {compareIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center px-4 w-full max-w-xl animate-fade-in pointer-events-none">
           <div className="pointer-events-auto bg-[#17191C]/95 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-700/80 flex items-center gap-4 w-full justify-between">
@@ -1365,6 +1327,71 @@ export default function ListingView({
           </div>
         </div>
       )}
+
+      {/* Mobile Filter Bottom Sheet Modal Drawer (Slide-up native UX) */}
+      {mobileFilterOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9998] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in lg:hidden"
+            onClick={() => setMobileFilterOpen(false)}
+          >
+            <div
+              className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl animate-slide-up border-t border-stone-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drawer Drag Handle & Header */}
+              <div className="pt-3 pb-3 px-5 border-b border-stone-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FilterIcon size={18} className="text-[#F97316]" />
+                  <h3 className="font-extrabold text-base text-stone-900 font-heading">
+                    Fleet Filters
+                  </h3>
+                  {activeFilterCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-[#F97316] text-white text-[11px] flex items-center justify-center font-bold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-xs font-bold text-[#F97316] hover:underline cursor-pointer"
+                    >
+                      Reset All
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setMobileFilterOpen(false)}
+                    className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 hover:text-stone-900 text-sm font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Filter Controls */}
+              <div className="p-5 overflow-y-auto space-y-6 flex-1">
+                {renderFilterControls()}
+              </div>
+
+              {/* Sticky Apply Button */}
+              <div className="p-4 border-t border-stone-100 bg-stone-50/90 backdrop-blur-sm">
+                <button
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-bold rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>
+                    Show {filteredCars.length} Available{" "}
+                    {filteredCars.length === 1 ? "Vehicle" : "Vehicles"}
+                  </span>
+                  <ArrowRightIcon size={14} />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* Comparison Modal Drawer */}
       {isCompareOpen &&
