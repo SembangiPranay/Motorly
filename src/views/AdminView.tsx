@@ -190,6 +190,30 @@ export default function AdminView({
     title: string
   } | null>(null)
   const [editingCar, setEditingCar] = useState<Car | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+
+  const handleDevicePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image file size should be under 5MB.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setCarFormData((prev) => ({
+          ...prev,
+          image: reader.result as string,
+        }))
+        notify("Vehicle photo uploaded from device successfully!")
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
   const [carFormData, setCarFormData] = useState<Partial<Car>>({
     name: "Toyota Camry SE",
     brand: "Toyota",
@@ -999,6 +1023,16 @@ export default function AdminView({
     }
   })
 
+  useEffect(() => {
+    try {
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark")
+      } else {
+        document.documentElement.classList.remove("dark")
+      }
+    } catch {}
+  }, [theme])
+
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light"
     setTheme(next)
@@ -1011,7 +1045,7 @@ export default function AdminView({
   return (
     <div
       className={`min-h-screen pb-24 font-sans transition-colors duration-200 ${
-        isDark ? "bg-[#111215] text-[#F3F4F6]" : "bg-[#FAF7F2] text-[#17191C]"
+        isDark ? "dark bg-[#111215] text-[#F3F4F6]" : "bg-[#FAF7F2] text-[#17191C]"
       }`}
     >
       {/* Top Operations Header Bar */}
@@ -1207,7 +1241,7 @@ export default function AdminView({
             {[
               {
                 id: "manifest",
-                label: "Manifest & Mating",
+                label: "Active Bookings",
                 icon: <LinkIcon size={14} className="text-[#F97316]" />,
                 badge:
                   stats.pendingMating > 0 ? (
@@ -1224,7 +1258,7 @@ export default function AdminView({
               },
               {
                 id: "fleet",
-                label: "Fleet Telemetry & Inventory",
+                label: "Fleet Vehicles",
                 icon: <CarIcon size={14} className="text-sky-500" />,
                 badge: (
                   <span
@@ -1238,13 +1272,13 @@ export default function AdminView({
               },
               {
                 id: "walkin",
-                label: "Walk-In Counter Dispatch",
+                label: "Walk-In Booking",
                 icon: <ZapIcon size={14} className="text-amber-500" />,
                 badge: null,
               },
               {
                 id: "promos",
-                label: "Rate Rules & Coupons",
+                label: "Coupons & Discounts",
                 icon: <TagIcon size={14} className="text-emerald-500" />,
                 badge: (
                   <span
@@ -1258,7 +1292,7 @@ export default function AdminView({
               },
               {
                 id: "crm",
-                label: "Customer CRM & Drivers",
+                label: "Customers & Drivers",
                 icon: <UserIcon size={14} className="text-purple-500" />,
                 badge: (
                   <span
@@ -1272,7 +1306,7 @@ export default function AdminView({
               },
               {
                 id: "maintenance",
-                label: "Maintenance & Health",
+                label: "Vehicle Maintenance",
                 icon: <WrenchIcon size={14} className="text-rose-500" />,
                 badge: (
                   <span
@@ -1441,7 +1475,7 @@ export default function AdminView({
                 isDark ? "text-stone-400" : "text-stone-500"
               }`}
             >
-              Pending Mating
+              Needs Car Assigned
             </p>
             <p
               className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
@@ -1475,7 +1509,7 @@ export default function AdminView({
                 isDark ? "text-stone-400" : "text-stone-500"
               }`}
             >
-              In Drive (Checked Out)
+              Active Trips (On Road)
             </p>
             <p className="text-2xl sm:text-3xl font-black font-mono my-1 text-sky-500">
               {stats.inDrive}
@@ -1567,9 +1601,9 @@ export default function AdminView({
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
                   {[
                     { id: "all", label: "All Reservations" },
-                    { id: "Pending Assignment", label: "Pending Mating" },
-                    { id: "Assigned", label: "Assigned" },
-                    { id: "Checked Out", label: "In Drive" },
+                    { id: "Pending Assignment", label: "Needs Car" },
+                    { id: "Assigned", label: "Confirmed" },
+                    { id: "Checked Out", label: "Active Trips" },
                     { id: "Returned", label: "Returned" },
                     { id: "Completed", label: "Completed" },
                   ].map((s) => (
@@ -1610,7 +1644,7 @@ export default function AdminView({
               {filteredBookings.length === 0 ? (
                 <div
                   className={`py-12 text-center text-xs ${
-                    isDark ? "text-stone-500" : "text-stone-400"
+                    isDark ? "text-stone-500" : "text-stone-500 font-medium"
                   }`}
                 >
                   No reservations match the filter criteria.
@@ -1646,13 +1680,19 @@ export default function AdminView({
                             }`}
                           >
                             {b.status === "Assigned"
-                              ? "Assigned / Staged"
+                              ? "Confirmed (Ready)"
                               : b.status === "Checked Out"
-                                ? "In Drive"
-                                : b.status}
+                                ? "Active Trip"
+                                : b.status === "Pending Assignment"
+                                  ? "Needs Car"
+                                  : b.status}
                           </span>
                         </div>
-                        <span className="font-mono font-black text-sm text-stone-900 dark:text-white">
+                        <span
+                          className={`font-mono font-black text-sm ${
+                            isDark ? "text-white" : "text-stone-900"
+                          }`}
+                        >
                           ${b.totalAmount || 0}
                         </span>
                       </div>
@@ -1664,36 +1704,68 @@ export default function AdminView({
                             (b.customer.lastName?.[0] || "")}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">
+                          <h4
+                            className={`font-extrabold text-xs truncate ${
+                              isDark ? "text-stone-100" : "text-stone-900"
+                            }`}
+                          >
                             {b.customer.firstName} {b.customer.lastName}
                           </h4>
-                          <p className="text-[11px] text-stone-500 dark:text-stone-400 font-mono truncate">
+                          <p
+                            className={`text-[11px] font-mono truncate font-medium ${
+                              isDark ? "text-stone-400" : "text-stone-600"
+                            }`}
+                          >
                             {b.customer.phone || b.customer.email}
                           </p>
                         </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300">
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                            isDark
+                              ? "bg-stone-800 text-stone-300"
+                              : "bg-stone-100 text-stone-700 border border-stone-200"
+                          }`}
+                        >
                           {b.requestedCategory || "Vehicle"}
                         </span>
                       </div>
 
                       {/* Vehicle */}
-                      <div className="p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-800 flex items-center justify-between gap-3 text-xs">
+                      <div
+                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+                          isDark
+                            ? "bg-stone-800/60 border-stone-800"
+                            : "bg-stone-50 border-stone-200"
+                        }`}
+                      >
                         {matedCar ? (
                           <div className="flex items-center gap-2.5 min-w-0">
                             <img
                               src={matedCar.image}
                               alt={matedCar.name}
-                              className="w-12 h-9 rounded-lg object-cover bg-stone-200 shrink-0 border border-stone-200 dark:border-stone-700"
+                              className={`w-12 h-9 rounded-lg object-cover shrink-0 border ${
+                                isDark
+                                  ? "bg-stone-800 border-stone-700"
+                                  : "bg-white border-stone-200"
+                              }`}
                             />
                             <div className="min-w-0">
-                              <span className="font-bold text-stone-900 dark:text-white truncate block">
+                              <span
+                                className={`font-bold truncate block ${
+                                  isDark ? "text-white" : "text-stone-900"
+                                }`}
+                              >
                                 {matedCar.name}
                               </span>
                               <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 px-1 rounded">
+                                <span className="font-mono text-[10px] font-bold text-amber-800 bg-amber-100/90 px-1 rounded">
                                   {matedCar.plateNumber}
                                 </span>
-                                <span className="text-[10px] text-stone-500 font-mono">
+                                <span
+                                  className={`text-[10px] font-mono font-medium ${
+                                    isDark ? "text-stone-400" : "text-stone-600"
+                                  }`}
+                                >
                                   {matedCar.garageBay || "Bay 14-B"}
                                 </span>
                               </div>
@@ -1702,7 +1774,7 @@ export default function AdminView({
                         ) : (
                           <div className="flex items-center justify-between w-full">
                             <span className="text-amber-600 font-bold text-xs flex items-center gap-1">
-                              ⚠️ Unassigned Vehicle
+                              ⚠️ Needs Car Assigned
                             </span>
                             <button
                               type="button"
@@ -1712,14 +1784,18 @@ export default function AdminView({
                               }}
                               className="px-2.5 py-1 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-[11px] shadow-2xs cursor-pointer flex items-center gap-1"
                             >
-                              ⚡ Auto-Mate
+                              ⚡ Auto-Assign
                             </button>
                           </div>
                         )}
                       </div>
 
                       {/* Schedule & Hub */}
-                      <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400 font-mono">
+                      <div
+                        className={`flex items-center justify-between text-[11px] font-mono font-medium ${
+                          isDark ? "text-stone-400" : "text-stone-600"
+                        }`}
+                      >
                         <span>
                           📅 {b.pickupDate} → {b.returnDate}
                         </span>
@@ -1731,7 +1807,9 @@ export default function AdminView({
 
                       {/* Action Toolbar */}
                       <div
-                        className="pt-2 border-t border-stone-100 dark:border-stone-800 flex flex-wrap items-center justify-between gap-2"
+                        className={`pt-2 border-t flex flex-wrap items-center justify-between gap-2 ${
+                          isDark ? "border-stone-800" : "border-stone-100"
+                        }`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center gap-1.5">
@@ -1746,8 +1824,8 @@ export default function AdminView({
                               }`}
                             >
                               {b.approvedByAdmin
-                                ? "✓ Signal Active"
-                                : "⚡ Give Signal"}
+                                ? "✓ Approved"
+                                : "⚡ Approve"}
                             </button>
                           )}
 
@@ -1757,7 +1835,7 @@ export default function AdminView({
                               onClick={() => handleOpenKeyHandoff(b)}
                               className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer"
                             >
-                              🔑 Keys
+                              🔑 Handover Keys
                             </button>
                           )}
 
@@ -1767,7 +1845,7 @@ export default function AdminView({
                               onClick={() => handleOpenReturnInspection(b)}
                               className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer"
                             >
-                              🏁 Inspect
+                              🏁 Return Check
                             </button>
                           )}
                         </div>
@@ -1775,9 +1853,13 @@ export default function AdminView({
                         <button
                           type="button"
                           onClick={() => setInspectedBooking(b)}
-                          className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 font-semibold text-xs transition cursor-pointer"
+                          className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
+                            isDark
+                              ? "bg-stone-800 hover:bg-stone-700 text-stone-200"
+                              : "bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200"
+                          }`}
                         >
-                          Inspect Details →
+                          View Details →
                         </button>
                       </div>
                     </div>
@@ -4704,7 +4786,7 @@ export default function AdminView({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider">
-                      FLEET ASSET REGISTRATION • FLEETIO / HQ RENTAL SPEC
+                      FLEET MANAGEMENT • GARAGE HUB
                     </span>
                     <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                       LIVE SYNC
@@ -4712,8 +4794,8 @@ export default function AdminView({
                   </div>
                   <h3 className="text-lg sm:text-xl font-black font-heading tracking-tight mt-0.5">
                     {editingCar
-                      ? `Modify Fleet Asset: ${editingCar.name}`
-                      : "Register New Commercial Fleet Vehicle"}
+                      ? `Edit Vehicle: ${editingCar.name}`
+                      : "Add New Vehicle"}
                   </h3>
                 </div>
               </div>
@@ -4745,27 +4827,27 @@ export default function AdminView({
               {[
                 {
                   id: "identity",
-                  label: "1. Core Identity & Specs",
+                  label: "1. Vehicle Details",
                   icon: "🏷️",
-                  desc: "Make, Model, Body & Visuals",
+                  desc: "Make, Model, Year & Photo",
                 },
                 {
                   id: "rates",
-                  label: "2. Rates & Powertrain",
+                  label: "2. Pricing & Engine",
                   icon: "💰",
-                  desc: "Pricing, Fuel & Health",
+                  desc: "Rates, Fuel & Specs",
                 },
                 {
                   id: "insurance",
-                  label: "3. Insurance & Acquisition",
+                  label: "3. Insurance & Policy",
                   icon: "🛡️",
-                  desc: "Commercial Policy & Mileage",
+                  desc: "Coverage & Mileage",
                 },
                 {
                   id: "garage",
-                  label: "4. Garage Hub & GPS Map",
+                  label: "4. Garage Location",
                   icon: "📍",
-                  desc: "Stall Bay & Interactive Engine",
+                  desc: "Facility & Parking Bay",
                 },
               ].map((tab) => {
                 const isActive = carModalTab === tab.id
@@ -4799,18 +4881,18 @@ export default function AdminView({
                 {/* TAB 1: IDENTITY & CLASSIFICATION */}
                 {carModalTab === "identity" && (
                   <div className="space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                    <div className={`flex items-center justify-between pb-2 border-b ${isDark ? "border-stone-800" : "border-stone-200"}`}>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
-                        Vehicle Identity & Classification
+                        Vehicle Identity & Category
                       </h4>
                       <span className="text-[11px] text-stone-400 font-mono">
-                        VIN & Visual Storefront Attributes
+                        Brand, Model & Visual Photo
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Manufacturer / Brand{" "}
                           <span className="text-red-500">*</span>
                         </label>
@@ -4830,13 +4912,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Model Name & Trim{" "}
                           <span className="text-red-500">*</span>
                         </label>
@@ -4856,13 +4938,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Model Year
                         </label>
                         <input
@@ -4879,13 +4961,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           License Plate Registration
                         </label>
                         <input
@@ -4901,7 +4983,7 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-amber-400"
-                              : "bg-stone-50 border border-stone-300 text-amber-700 focus:bg-white"
+                              : "bg-white border border-stone-300 text-amber-700 focus:bg-white"
                           }`}
                         />
                       </div>
@@ -4909,8 +4991,8 @@ export default function AdminView({
 
                     {/* Category Selector with Interactive Chips */}
                     <div>
-                      <label className="block text-xs font-bold mb-1.5 text-stone-600 dark:text-stone-300">
-                        Vehicle Classification Tier
+                      <label className={`block text-xs font-bold mb-1.5 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                        Car Category
                       </label>
                       <div className="grid grid-cols-5 gap-2">
                         {([
@@ -4957,31 +5039,99 @@ export default function AdminView({
                       </div>
                     </div>
 
-                    {/* Vehicle Photo URL & 1-Click Verified Presets */}
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-stone-600 dark:text-stone-300">
-                        Vehicle Image Asset URL
-                      </label>
+                    {/* Vehicle Photo Upload (From Device + URL + Presets) */}
+                    <div className="space-y-2.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className={`block text-xs font-bold ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Vehicle Photo
+                        </label>
+                        {carFormData.image && (
+                          <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                            ✓ Photo Loaded
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Hidden File Input for Device Photo */}
                       <input
-                        type="text"
-                        placeholder="https://images.unsplash.com/... or verified image URL"
-                        value={carFormData.image || ""}
-                        onChange={(e) =>
-                          setCarFormData({
-                            ...carFormData,
-                            image: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
-                          isDark
-                            ? "bg-stone-900 border border-stone-700 text-white"
-                            : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
-                        }`}
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleDevicePhotoUpload}
                       />
 
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                          1-Click Verified Photos:
+                      {/* Add Photo from Device Button */}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full py-2.5 px-4 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F97316] border-2 border-dashed border-orange-300 hover:border-orange-500 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-2xs group"
+                      >
+                        <span className="text-base group-hover:scale-110 transition-transform">📷</span>
+                        <span>Add Photo from Device (Gallery / Camera)</span>
+                      </button>
+
+                      {/* Active Loaded Image Preview */}
+                      {carFormData.image && (
+                        <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                          isDark ? "bg-stone-900 border-stone-800" : "bg-stone-50 border-stone-200"
+                        }`}>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={carFormData.image}
+                              alt="Loaded Preview"
+                              className="w-14 h-10 rounded-lg object-cover bg-stone-200 border border-stone-300 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className={`text-xs font-bold truncate ${isDark ? "text-stone-200" : "text-stone-800"}`}>
+                                Active Vehicle Photo
+                              </p>
+                              <p className="text-[10px] text-stone-400 truncate font-mono max-w-[200px] sm:max-w-xs">
+                                {carFormData.image.startsWith("data:")
+                                  ? "Uploaded from device"
+                                  : carFormData.image}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setCarFormData({ ...carFormData, image: "" })}
+                            className="px-2.5 py-1 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Optional Direct URL Link Input */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-[11px] font-semibold ${isDark ? "text-stone-400" : "text-stone-600"}`}>
+                            Or paste web image link:
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="https://images.unsplash.com/... or direct web link"
+                          value={carFormData.image?.startsWith("data:") ? "" : (carFormData.image || "")}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+                              image: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      {/* 1-Click Sample Photos */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-stone-400" : "text-stone-500"}`}>
+                          Sample Photos:
                         </span>
                         {[
                           {
@@ -5031,12 +5181,11 @@ export default function AdminView({
                         ))}
                       </div>
                     </div>
-
                     {/* Operational Status & Capacity */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Fleet Status
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Availability Status
                         </label>
                         <select
                           value={carFormData.status || "Available"}
@@ -5049,22 +5198,18 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         >
-                          <option value="Available">
-                            Available (Storefront)
-                          </option>
+                          <option value="Available">Available for Rent</option>
                           <option value="Rented">Rented (Active Trip)</option>
-                          <option value="Maintenance">
-                            Maintenance (Service Bay)
-                          </option>
-                          <option value="Cleaning">Cleaning & Detailing</option>
+                          <option value="Maintenance">In Maintenance</option>
+                          <option value="Cleaning">Being Cleaned</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Seating Capacity
                         </label>
                         <input
@@ -5081,13 +5226,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Luggage Capacity
                         </label>
                         <input
@@ -5103,7 +5248,7 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
@@ -5114,21 +5259,20 @@ export default function AdminView({
                 {/* TAB 2: RATES & POWERTRAIN */}
                 {carModalTab === "rates" && (
                   <div className="space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                    <div className={`flex items-center justify-between pb-2 border-b ${isDark ? "border-stone-800" : "border-stone-200"}`}>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
-                        Rental Rates & Performance Telemetry
+                        Pricing &amp; Engine Specifications
                       </h4>
                       <span className="text-[11px] text-stone-400 font-mono">
-                        Billing Matrix & Drivetrain
+                        Daily/Hourly Rates &amp; Drivetrain
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Price Per Day */}
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Standard Daily Rate ($/day){" "}
-                          <span className="text-red-500">*</span>
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Price Per Day ($) <span className="text-red-500">*</span>
                         </label>
                         <div className="relative flex items-center">
                           <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
@@ -5148,7 +5292,7 @@ export default function AdminView({
                             className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-black transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                               isDark
                                 ? "bg-stone-900 border border-stone-700 text-orange-400"
-                                : "bg-stone-50 border border-stone-300 text-orange-600 focus:bg-white"
+                                : "bg-white border border-stone-300 text-orange-600 focus:bg-white"
                             }`}
                           />
                         </div>
@@ -5162,8 +5306,8 @@ export default function AdminView({
 
                       {/* Price Per Hour */}
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Hourly Rate ($/hour)
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Price Per Hour ($)
                         </label>
                         <div className="relative flex items-center">
                           <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
@@ -5183,7 +5327,7 @@ export default function AdminView({
                             className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                               isDark
                                 ? "bg-stone-900 border border-stone-700 text-white"
-                                : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                                : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                             }`}
                           />
                         </div>
@@ -5191,7 +5335,7 @@ export default function AdminView({
 
                       {/* Transmission */}
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Transmission
                         </label>
                         <select
@@ -5205,7 +5349,7 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         >
                           <option value="Automatic">
@@ -5217,7 +5361,7 @@ export default function AdminView({
 
                       {/* Fuel Type */}
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Fuel &amp; Powertrain
                         </label>
                         <select
@@ -5231,7 +5375,7 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         >
                           <option value="Gasoline">
@@ -5248,7 +5392,7 @@ export default function AdminView({
 
                       {/* Fuel Efficiency */}
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Fuel Economy / Mileage
                         </label>
                         <input
@@ -5264,15 +5408,15 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       {/* Health Score */}
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Fleet Telemetry Health Score (
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Vehicle Condition Score (
                           {carFormData.healthScore || 98}%)
                         </label>
                         <div className="flex items-center gap-2">
@@ -5301,19 +5445,19 @@ export default function AdminView({
                 {/* TAB 3: INSURANCE & ACQUISITION */}
                 {carModalTab === "insurance" && (
                   <div className="space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                    <div className={`flex items-center justify-between pb-2 border-b ${isDark ? "border-stone-800" : "border-stone-200"}`}>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-500">
-                        Commercial Insurance & Fleet Acquisition
+                        Commercial Insurance &amp; Policy Details
                       </h4>
                       <span className="text-[11px] text-stone-400 font-mono">
-                        Liability & Odometer Audit
+                        Liability &amp; Odometer Record
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Commercial Insurance Carrier{" "}
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Insurance Carrier{" "}
                           <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -5330,13 +5474,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Policy Certificate ID{" "}
                           <span className="text-red-500">*</span>
                         </label>
@@ -5354,13 +5498,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-emerald-400"
-                              : "bg-stone-50 border border-stone-300 text-emerald-700 focus:bg-white"
+                              : "bg-white border border-stone-300 text-emerald-700 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Insurance Expiry Date
                         </label>
                         <input
@@ -5375,14 +5519,14 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Fleet Acquisition Date
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Purchase Date
                         </label>
                         <input
                           type="date"
@@ -5396,13 +5540,13 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
                           Vehicle Purchase Price ($)
                         </label>
                         <div className="relative flex items-center">
@@ -5422,15 +5566,15 @@ export default function AdminView({
                             className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                               isDark
                                 ? "bg-stone-900 border border-stone-700 text-white"
-                                : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                                : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                             }`}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Certified Odometer (mi){" "}
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Current Odometer (mi){" "}
                           <span className="text-red-500">*</span>
                         </label>
                         <div className="relative flex items-center">
@@ -5447,7 +5591,7 @@ export default function AdminView({
                             className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                               isDark
                                 ? "bg-stone-900 border border-stone-700 text-amber-300"
-                                : "bg-stone-50 border border-stone-300 text-amber-700 focus:bg-white"
+                                : "bg-white border border-stone-300 text-amber-700 focus:bg-white"
                             }`}
                           />
                           <span className="absolute right-3.5 font-mono text-xs font-bold text-stone-400">
@@ -5462,9 +5606,9 @@ export default function AdminView({
                 {/* TAB 4: GARAGE HUB & GPS MAP ENGINE */}
                 {carModalTab === "garage" && (
                   <div className="space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-800">
+                    <div className={`flex items-center justify-between pb-2 border-b ${isDark ? "border-stone-800" : "border-stone-200"}`}>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-sky-500">
-                        Assigned Garage Hub &amp; Google Map Engine
+                        Assigned Garage Location &amp; Map
                       </h4>
                       <span className="text-[11px] text-stone-400 font-mono">
                         GPS: {carFormData.garageLat?.toFixed(4)},{" "}
@@ -5474,8 +5618,8 @@ export default function AdminView({
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Garage Hub Facility Name{" "}
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Garage Facility Name{" "}
                           <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -5492,14 +5636,14 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Exact Facility Address{" "}
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Facility Address{" "}
                           <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -5516,14 +5660,14 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-stone-50 border border-stone-300 text-stone-900 focus:bg-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                           }`}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold mb-1 text-stone-600 dark:text-stone-300">
-                          Allocated Stall / Bay Number
+                        <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                          Parking Bay Number
                         </label>
                         <input
                           type="text"
@@ -5538,7 +5682,7 @@ export default function AdminView({
                           className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-sky-400"
-                              : "bg-stone-50 border border-stone-300 text-sky-700 focus:bg-white"
+                              : "bg-white border border-stone-300 text-sky-700 focus:bg-white"
                           }`}
                         />
                       </div>
@@ -5574,16 +5718,16 @@ export default function AdminView({
                   className={`p-5 rounded-3xl border shadow-lg space-y-4 transition ${
                     isDark
                       ? "bg-stone-900/90 border-stone-800"
-                      : "bg-stone-50/90 border-stone-200"
+                      : "bg-stone-50 border-stone-200"
                   }`}
                 >
-                  <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-800 pb-3">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#F97316] flex items-center gap-1.5">
+                  <div className={`flex items-center justify-between border-b pb-3 ${isDark ? "border-stone-800" : "border-stone-200"}`}>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316] flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      LIVE STOREFRONT PREVIEW
+                      Customer Preview
                     </span>
-                    <span className="text-[10px] text-stone-400 font-mono">
-                      Customer Facing
+                    <span className={`text-[10px] font-medium ${isDark ? "text-stone-400" : "text-stone-500"}`}>
+                      How customers see this car
                     </span>
                   </div>
 
@@ -5596,7 +5740,7 @@ export default function AdminView({
                     }`}
                   >
                     {/* Image Preview */}
-                    <div className="relative h-44 bg-stone-100 dark:bg-stone-900 overflow-hidden">
+                    <div className="relative h-44 bg-stone-100 overflow-hidden">
                       <img
                         src={carFormData.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"}
                         alt={carFormData.name || "Vehicle Preview"}
@@ -5625,14 +5769,14 @@ export default function AdminView({
                     <div className="p-4 space-y-3">
                       <div className="flex items-baseline justify-between">
                         <div>
-                          <h4 className="font-heading font-extrabold text-base tracking-tight text-stone-900 dark:text-white">
+                          <h4 className={`font-heading font-extrabold text-base tracking-tight ${isDark ? "text-white" : "text-stone-900"}`}>
                             {carFormData.brand || "Brand"}{" "}
                             {carFormData.model || "Model"}{" "}
                             <span className="text-stone-400 text-xs font-normal">
                               ({carFormData.year || 2024})
                             </span>
                           </h4>
-                          <p className="text-[11px] text-stone-500 mt-0.5">
+                          <p className="text-[11px] text-stone-500 mt-0.5 font-medium">
                             {carFormData.seats || 5} Seats •{" "}
                             {carFormData.transmission || "Automatic"} •{" "}
                             {carFormData.fuelType || "Gasoline"} •{" "}
@@ -5642,8 +5786,8 @@ export default function AdminView({
                       </div>
 
                       {/* Trust & Guarantee Chips */}
-                      <div className="space-y-1.5 pt-1 border-t border-stone-100 dark:border-stone-900 text-[11px]">
-                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <div className={`space-y-1.5 pt-1 border-t text-[11px] ${isDark ? "border-stone-800" : "border-stone-100"}`}>
+                        <div className="flex items-center gap-1.5 text-emerald-600">
                           <span>🛡️</span>
                           <span className="font-semibold">
                             {carFormData.insuranceProvider ||
@@ -5651,7 +5795,7 @@ export default function AdminView({
                             ({carFormData.insurancePolicy || "Verified"})
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
+                        <div className="flex items-center gap-1.5 text-sky-600">
                           <span>📍</span>
                           <span className="font-medium truncate">
                             {carFormData.garageName || "Central Garage"} •{" "}
@@ -5661,7 +5805,7 @@ export default function AdminView({
                       </div>
 
                       {/* Pricing Footer */}
-                      <div className="pt-2 border-t border-stone-100 dark:border-stone-900 flex items-center justify-between">
+                      <div className={`pt-2 border-t flex items-center justify-between ${isDark ? "border-stone-800" : "border-stone-100"}`}>
                         <div>
                           <span className="text-xl font-black text-[#F97316] font-heading">
                             ${carFormData.pricePerDay || 55}
@@ -5670,7 +5814,7 @@ export default function AdminView({
                             {" "}
                             / day
                           </span>
-                          <span className="text-[10px] text-stone-400 block">
+                          <span className="text-[10px] text-stone-400 block font-medium">
                             (${carFormData.pricePerHour || 8}/hr)
                           </span>
                         </div>
@@ -5698,10 +5842,10 @@ export default function AdminView({
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-black transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer font-heading"
+                    className="flex-1 py-3 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer font-heading"
                   >
                     <CheckIcon size={14} />
-                    <span>Save &amp; Deploy to Fleet</span>
+                    <span>{editingCar ? "Save Changes" : "Save & Add to Fleet"}</span>
                   </button>
                 </div>
               </div>
