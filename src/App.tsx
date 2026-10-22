@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react"
 import type {
-  ViewMode,
   Car,
+  BookingRecord,
   BookingState,
-  FilterState,
-  VehicleType,
   CustomerInfo,
   DriverInfo,
   PaymentInfo,
-  BookingRecord,
+  FilterState,
+  VehicleType,
+  ViewMode,
   CustomerUser,
 } from "./types"
 import { CARS } from "./data/cars"
@@ -27,9 +27,71 @@ import MyBookingsView from "./views/MyBookingsView"
 import CompareView from "./views/CompareView"
 import AuthView from "./views/AuthView"
 
+function getUpcomingFormattedDate(daysAhead: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + daysAhead)
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>("home")
-  const [authInitialTab, setAuthInitialTab] = useState<"customer" | "admin">("customer")
+  // Customer Authentication Profile State with localStorage persistence
+  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => {
+    try {
+      const saved = localStorage.getItem("motorly_customer_user")
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  // Admin Authentication State with localStorage token persistence
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(
+    () => {
+      return Boolean(localStorage.getItem("motorly_admin_token"))
+    },
+  )
+
+  // Current View State with persistent reload restore
+  const [currentView, setCurrentView] = useState<ViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(
+        "motorly_current_view",
+      ) as ViewMode | null
+      const hasAdminToken = Boolean(
+        localStorage.getItem("motorly_admin_token"),
+      )
+      if (saved === "admin" && !hasAdminToken) return "home"
+      const validViews: ViewMode[] = [
+        "home",
+        "listing",
+        "detail",
+        "checkout",
+        "admin",
+        "my-bookings",
+        "compare",
+        "auth",
+      ]
+      if (saved && validViews.includes(saved)) {
+        return saved
+      }
+    } catch {}
+    return "home"
+  })
+
+  // Persist currentView to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("motorly_current_view", currentView)
+    } catch {}
+  }, [currentView])
+
+  const [authInitialTab, setAuthInitialTab] = useState<"customer" | "admin">(
+    "customer",
+  )
   const [authReturnView, setAuthReturnView] = useState<ViewMode>("home")
   const [selectedCarId, setSelectedCarId] = useState<string>("toyota-camry")
   const [favorites, setFavorites] = useState<string[]>([
@@ -42,28 +104,24 @@ export default function App() {
   ])
   const [showDevNav, setShowDevNav] = useState(false)
 
-  // Customer Authentication Profile State
-  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(null)
-
-  // Dynamic Fleet State (synced with SQLite Backend)
+  // Dynamic Fleet State (synced with Supabase Backend)
   const [cars, setCars] = useState<Car[]>(CARS)
 
   // Dynamic Bookings State (for car mating / allocation)
   const [bookings, setBookings] = useState<BookingRecord[]>(INITIAL_BOOKINGS)
 
-  // Admin Authentication State (Password 0709)
+  // Admin Authentication Modal State
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false)
   const [isBackendConnected, setIsBackendConnected] = useState(false)
 
-  // Booking parameters matching reference design
+  // Booking parameters matching reference design with dynamic upcoming dates
   const [bookingState, setBookingState] = useState<BookingState>({
     carId: "toyota-camry",
     pickupLocation: "Miami International Airport (MIA)",
-    pickupDate: "Mar 15, 2026",
+    pickupDate: getUpcomingFormattedDate(2),
     pickupTime: "10:00 AM",
     returnLocation: "Miami International Airport (MIA)",
-    returnDate: "Mar 18, 2026",
+    returnDate: getUpcomingFormattedDate(5),
     returnTime: "10:00 AM",
     rentalDurationDays: 3,
     protectionPlan: true,
@@ -89,12 +147,17 @@ export default function App() {
     totalAmount: number
   } | null>(null)
 
-  // Sync with Backend SQLite on initial application mount
+  // Sync with Backend (Supabase PostgreSQL / SQLite fallback) on initial mount
   useEffect(() => {
     async function initData() {
       try {
-        const isAuth = await api.verifyAdminSession()
-        setIsAdminAuthenticated(isAuth)
+        const isAuth = await api.verifyAdminSession().catch(() => false)
+        if (isAuth) {
+          setIsAdminAuthenticated(true)
+        } else if (localStorage.getItem("motorly_admin_token")) {
+          // Keep optimistic true if token exists
+          setIsAdminAuthenticated(true)
+        }
 
         // Load customer session if present
         const customerProfile = await api.getCustomerProfile().catch(() => null)
@@ -148,6 +211,21 @@ export default function App() {
     setCurrentView("listing")
   }
 
+  // Enforce customer login for booking reservations
+  const handleProceedToCheckout = (carId?: string) => {
+    if (carId) {
+      setSelectedCarId(carId)
+      setBookingState((prev) => ({ ...prev, carId }))
+    }
+    if (!currentUser) {
+      setAuthInitialTab("customer")
+      setAuthReturnView("checkout")
+      setCurrentView("auth")
+    } else {
+      setCurrentView("checkout")
+    }
+  }
+
   // Guard navigation to Admin view with backend password authentication
   const handleNavigate = (view: ViewMode) => {
     if (view === "admin") {
@@ -175,13 +253,12 @@ export default function App() {
     totalAmount: number
     bookingId: string
   }) => {
-    // Show confirmation modal to customer
-    setConfirmedBooking({
-      bookingId: details.bookingId,
-      car: activeCar,
-      customer: details.customer,
-      totalAmount: details.totalAmount,
-    })
+    if (!currentUser) {
+      setAuthInitialTab("customer")
+      setAuthReturnView("checkout")
+      setCurrentView("auth")
+      return
+    }
 
     const garageLoc =
       activeCar.garageAddress ||
@@ -205,20 +282,33 @@ export default function App() {
       userId: currentUser?.id,
     }
 
-    // Optimistic state update
-    setBookings((prev) => [newRecordPayload, ...prev])
-    setCars((prev) =>
-      prev.map((c) => (c.id === activeCar.id ? { ...c, status: "Rented" } : c)),
-    )
-
-    // Dynamic backend sync into SQLite
+    // Dynamic backend sync into Supabase PostgreSQL
     try {
-      await api.createBooking(newRecordPayload)
+      const created = await api.createBooking(newRecordPayload)
+      // Successfully saved in Supabase PostgreSQL!
+      setBookings((prev) => [
+        created,
+        ...prev.filter((b) => b.id !== created.id),
+      ])
       await api.updateCarStatus(activeCar.id, "Rented").catch(() => {})
       const freshCars = await api.getCars().catch(() => null)
       if (freshCars) setCars(freshCars)
-    } catch (e) {
-      console.warn("Booking backend persistence:", e)
+
+      // Show confirmation modal to customer only after verified persistence
+      setConfirmedBooking({
+        bookingId: created.id,
+        car: activeCar,
+        customer: details.customer,
+        totalAmount: details.totalAmount,
+      })
+    } catch (e: any) {
+      console.error("Booking backend persistence error:", e)
+      alert(
+        `Reservation Failed: ${
+          e.message ||
+          "Could not reserve vehicle. Please select alternative dates or car."
+        }`,
+      )
     }
   }
 
@@ -249,11 +339,7 @@ export default function App() {
             onSearch={() => setCurrentView("listing")}
             onSelectCategory={handleSelectCategory}
             onSelectCar={handleSelectCar}
-            onQuickBook={(carId) => {
-              setSelectedCarId(carId)
-              setBookingState((prev) => ({ ...prev, carId }))
-              setCurrentView("checkout")
-            }}
+            onQuickBook={handleProceedToCheckout}
             onNavigateCompare={() => setCurrentView("compare")}
           />
         )}
@@ -271,11 +357,7 @@ export default function App() {
             setCompareIds={setCompareIds}
             onNavigateCompare={() => setCurrentView("compare")}
             onSelectCar={handleSelectCar}
-            onQuickBook={(carId) => {
-              setSelectedCarId(carId)
-              setBookingState((prev) => ({ ...prev, carId }))
-              setCurrentView("checkout")
-            }}
+            onQuickBook={handleProceedToCheckout}
           />
         )}
 
@@ -285,11 +367,7 @@ export default function App() {
             compareIds={compareIds}
             setCompareIds={setCompareIds}
             onSelectCar={handleSelectCar}
-            onQuickBook={(carId) => {
-              setSelectedCarId(carId)
-              setBookingState((prev) => ({ ...prev, carId }))
-              setCurrentView("checkout")
-            }}
+            onQuickBook={handleProceedToCheckout}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
           />
@@ -301,7 +379,7 @@ export default function App() {
             allCars={cars}
             bookingState={bookingState}
             setBookingState={setBookingState}
-            onProceedToBooking={() => setCurrentView("checkout")}
+            onProceedToBooking={() => handleProceedToCheckout()}
             onSelectSimilarCar={handleSelectCar}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
@@ -313,6 +391,12 @@ export default function App() {
             car={activeCar}
             bookingState={bookingState}
             setBookingState={setBookingState}
+            currentUser={currentUser}
+            onNavigateAuth={(returnView) => {
+              setAuthInitialTab("customer")
+              setAuthReturnView(returnView || "checkout")
+              setCurrentView("auth")
+            }}
             onConfirmBooking={handleConfirmBooking}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
@@ -362,6 +446,7 @@ export default function App() {
             onLogoutAdmin={() => {
               api.logoutAdmin()
               setIsAdminAuthenticated(false)
+              localStorage.setItem("motorly_current_view", "home")
               setCurrentView("home")
             }}
           />

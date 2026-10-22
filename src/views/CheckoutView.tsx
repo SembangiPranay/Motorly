@@ -5,6 +5,8 @@ import type {
   CustomerInfo,
   DriverInfo,
   PaymentInfo,
+  CustomerUser,
+  ViewMode,
 } from "../types"
 import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
@@ -25,6 +27,8 @@ interface CheckoutViewProps {
   car: Car
   bookingState: BookingState
   setBookingState: React.Dispatch<React.SetStateAction<BookingState>>
+  currentUser?: CustomerUser | null
+  onNavigateAuth?: (returnView: ViewMode) => void
   onConfirmBooking: (bookingDetails: {
     customer: CustomerInfo
     driver: DriverInfo
@@ -40,6 +44,8 @@ export default function CheckoutView({
   car,
   bookingState,
   setBookingState,
+  currentUser,
+  onNavigateAuth,
   onConfirmBooking,
   onNavigateHome,
   onNavigateListing,
@@ -97,6 +103,34 @@ export default function CheckoutView({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fileBackInputRef = useRef<HTMLInputElement>(null)
+
+  // Populate form from authenticated customer user profile
+  useEffect(() => {
+    if (currentUser) {
+      const parts = (currentUser.name || "").trim().split(" ")
+      const first = parts[0] || ""
+      const last = parts.slice(1).join(" ") || ""
+      setCustomer((prev) => ({
+        ...prev,
+        firstName: first || prev.firstName,
+        lastName: last || prev.lastName,
+        email: currentUser.email || prev.email,
+        phone: currentUser.phone || prev.phone,
+      }))
+      if (currentUser.driverLicenseNum) {
+        setDriver((prev) => ({
+          ...prev,
+          licenseNumber: currentUser.driverLicenseNum || prev.licenseNumber,
+          licenseState: currentUser.driverLicenseState || prev.licenseState,
+          licenseExpiry: currentUser.driverLicenseExpiry || prev.licenseExpiry,
+        }))
+      }
+      setPayment((prev) => ({
+        ...prev,
+        cardHolderName: currentUser.name || prev.cardHolderName,
+      }))
+    }
+  }, [currentUser])
 
   // Double Booking Prevention: Check vehicle availability for active dates
   useEffect(() => {
@@ -260,6 +294,10 @@ export default function CheckoutView({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!currentUser) {
+      onNavigateAuth?.("checkout")
+      return
+    }
     if (!availabilityCheck.isAvailable) {
       alert(
         `Double Booking Conflict: ${car.name} is reserved from ${availabilityCheck.conflict?.pickupDate} to ${availabilityCheck.conflict?.returnDate}. Please choose different dates or select another vehicle.`,
@@ -336,6 +374,46 @@ export default function CheckoutView({
           <span>⚡ Express Demo Autofill (1-Click)</span>
         </button>
       </div>
+
+      {/* Customer Account Verification Status Banner */}
+      {currentUser ? (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-900 font-medium shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+              ✓
+            </span>
+            <span>
+              Signed in as <strong>{currentUser.name}</strong> ({currentUser.email}) · Driver Account Active
+            </span>
+          </div>
+          <span className="text-[10px] font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+            {currentUser.vipTier || "Standard"} Member
+          </span>
+        </div>
+      ) : (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold">
+              <LockIcon size={18} />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-stone-900">
+                Customer Account Required to Reserve
+              </h4>
+              <p className="text-xs text-stone-600 mt-0.5">
+                You must be logged in with a verified customer account to confirm your rental reservation, authorize insurance, and receive garage dispatch signals.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigateAuth?.("checkout")}
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition shrink-0 cursor-pointer"
+          >
+            Sign In / Register Now →
+          </button>
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -970,29 +1048,40 @@ export default function CheckoutView({
             </div>
 
             {/* Submit Button */}
-            <button
-              id="confirm-booking-btn"
-              type="submit"
-              disabled={isSubmitting || !availabilityCheck.isAvailable}
-              className={`w-full py-4 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${
-                !availabilityCheck.isAvailable
-                  ? "bg-stone-400 cursor-not-allowed opacity-75"
-                  : "bg-[#F97316] hover:bg-[#EA580C] hover:shadow-xl"
-              }`}
-            >
-              {isSubmitting ? (
-                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : !availabilityCheck.isAvailable ? (
-                <span>🚫 Unavailable for Selected Dates</span>
-              ) : (
-                <>
-                  <LockIcon size={16} />
-                  <span>
-                    Authorize &amp; Confirm (${totalAmount.toFixed(2)})
-                  </span>
-                </>
-              )}
-            </button>
+            {!currentUser ? (
+              <button
+                type="button"
+                onClick={() => onNavigateAuth?.("checkout")}
+                className="w-full py-4 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm bg-[#F97316] hover:bg-[#EA580C] cursor-pointer"
+              >
+                <LockIcon size={16} />
+                <span>Sign In with Account to Confirm (${totalAmount.toFixed(2)})</span>
+              </button>
+            ) : (
+              <button
+                id="confirm-booking-btn"
+                type="submit"
+                disabled={isSubmitting || !availabilityCheck.isAvailable}
+                className={`w-full py-4 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm cursor-pointer ${
+                  !availabilityCheck.isAvailable
+                    ? "bg-stone-400 cursor-not-allowed opacity-75"
+                    : "bg-[#F97316] hover:bg-[#EA580C] hover:shadow-xl"
+                }`}
+              >
+                {isSubmitting ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : !availabilityCheck.isAvailable ? (
+                  <span>🚫 Unavailable for Selected Dates</span>
+                ) : (
+                  <>
+                    <LockIcon size={16} />
+                    <span>
+                      Authorize &amp; Confirm (${totalAmount.toFixed(2)})
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Reassurance */}
             <p className="text-[10px] text-gray-400 text-center leading-tight">
@@ -1013,22 +1102,33 @@ export default function CheckoutView({
             ${totalAmount.toFixed(2)}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            const btn = document.getElementById("confirm-booking-btn")
-            if (btn) btn.click()
-          }}
-          disabled={isSubmitting || !availabilityCheck.isAvailable}
-          className={`h-11 px-5 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${
-            !availabilityCheck.isAvailable
-              ? "bg-stone-400 cursor-not-allowed"
-              : "bg-[#F97316] hover:bg-[#EA580C] active:scale-95"
-          }`}
-        >
-          <LockIcon size={14} />
-          <span>{isSubmitting ? "Processing..." : "Confirm & Pay"}</span>
-        </button>
+        {!currentUser ? (
+          <button
+            type="button"
+            onClick={() => onNavigateAuth?.("checkout")}
+            className="h-11 px-5 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer bg-[#F97316] hover:bg-[#EA580C] active:scale-95"
+          >
+            <LockIcon size={14} />
+            <span>Sign In to Book</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              const btn = document.getElementById("confirm-booking-btn")
+              if (btn) btn.click()
+            }}
+            disabled={isSubmitting || !availabilityCheck.isAvailable}
+            className={`h-11 px-5 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${
+              !availabilityCheck.isAvailable
+                ? "bg-stone-400 cursor-not-allowed"
+                : "bg-[#F97316] hover:bg-[#EA580C] active:scale-95"
+            }`}
+          >
+            <LockIcon size={14} />
+            <span>{isSubmitting ? "Processing..." : "Confirm & Pay"}</span>
+          </button>
+        )}
       </div>
 
       {/* Interactive Date & Scheduling Calendar Modal */}
