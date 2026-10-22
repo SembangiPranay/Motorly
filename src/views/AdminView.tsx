@@ -8,6 +8,7 @@ import type {
   Transmission,
   FuelType,
   CustomerUser,
+  AdminCustomerRecord,
   PromoCode,
   MaintenanceLog,
   InspectionChecklistOut,
@@ -88,10 +89,7 @@ export default function AdminView({
   })
 
   // --- CRM Customers State ---
-  const [customers, setCustomers] = useState<CustomerUser & {
-    hasAccount: boolean
-    latestBooking: string
-  }[]>([])
+  const [customers, setCustomers] = useState<AdminCustomerRecord[]>([])
   const [customerSearch, setCustomerSearch] = useState("")
   const [inspectedLicense, setInspectedLicense] = useState<{
     name: string
@@ -200,7 +198,7 @@ export default function AdminView({
     type: "Sedan",
     pricePerDay: 55,
     pricePerHour: 8,
-    image: "/images/car-white.jpg",
+    image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     seats: 5,
     transmission: "Automatic",
     fuelType: "Gasoline",
@@ -569,7 +567,7 @@ export default function AdminView({
     try {
       const res = await api.handoverKeys(keyModalBooking.id, {
         odometerOut: Number(keyChecklist.odometerOut),
-        fuelOut: keyChecklist.fuelLevelOut,
+        fuelOut: keyChecklist.fuelLevelOut || "100%",
         exteriorClean: keyChecklist.cleanlinessVerified,
         tiresInspected: keyChecklist.tiresExteriorVerified,
         staffSign: keyChecklist.inspectorStaff,
@@ -699,7 +697,7 @@ export default function AdminView({
     try {
       const res = await api.returnInspection(returnModalBooking.id, {
         odometerIn: Number(returnChecklist.odometerIn),
-        fuelIn: returnChecklist.fuelLevelIn,
+        fuelIn: returnChecklist.fuelLevelIn || "100%",
         damageFound: returnChecklist.damageFound,
         cleanlinessPass: returnChecklist.cleanlinessPassed,
         inspectionPassed: returnChecklist.inspectionPassed,
@@ -859,7 +857,7 @@ export default function AdminView({
       type: "Sedan",
       pricePerDay: 55,
       pricePerHour: 8,
-      image: "/images/car-white.jpg",
+      image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       seats: 5,
       transmission: "Automatic",
       fuelType: "Gasoline",
@@ -4701,7 +4699,7 @@ export default function AdminView({
                       </label>
                       <input
                         type="text"
-                        placeholder="/images/car-white.jpg or https://..."
+                        placeholder="https://images.unsplash.com/... or verified image URL"
                         value={carFormData.image || ""}
                         onChange={(e) =>
                           setCarFormData({
@@ -4723,13 +4721,19 @@ export default function AdminView({
                         {[
                           {
                             label: "White Sedan",
-                            url: "/images/car-white.jpg",
+                            url: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
                           },
-                          { label: "Black SUV", url: "/images/car-black.jpg" },
-                          { label: "Red Coupe", url: "/images/car-red.jpg" },
+                          {
+                            label: "Black SUV",
+                            url: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+                          },
+                          {
+                            label: "Red Coupe",
+                            url: "https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80",
+                          },
                           {
                             label: "Silver Luxury",
-                            url: "/images/car-silver.jpg",
+                            url: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
                           },
                           {
                             label: "Tesla EV",
@@ -5329,11 +5333,11 @@ export default function AdminView({
                     {/* Image Preview */}
                     <div className="relative h-44 bg-stone-100 dark:bg-stone-900 overflow-hidden">
                       <img
-                        src={carFormData.image || "/images/car-white.jpg"}
+                        src={carFormData.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"}
                         alt={carFormData.name || "Vehicle Preview"}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          ;(e.target as any).src = "/images/car-white.jpg"
+                          ;(e.target as any).src = "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
                         }}
                       />
                       <span className="absolute top-3 left-3 bg-[#17191C]/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">

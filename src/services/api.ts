@@ -4,6 +4,7 @@ import type {
   CarStatus,
   VehicleType,
   CustomerUser,
+  AdminCustomerRecord,
   PromoCode,
   MaintenanceLog,
   BookingStatus,
@@ -30,6 +31,15 @@ class ApiService {
     return headers
   }
 
+  async safeJson(res: Response, fallback: any = null): Promise<any> {
+    try {
+      const text = await res.text()
+      return text ? JSON.parse(text) : fallback
+    } catch {
+      return fallback
+    }
+  }
+
   private async request(
     endpoint: string,
     options: RequestInit = {},
@@ -43,18 +53,30 @@ class ApiService {
       headers: mergedHeaders,
     }
 
-    // Try relative URL first (Vite dev proxy)
+    const isLocalhost =
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+
+    // Try relative URL first (standard in Vercel and Vite dev proxy)
     try {
       const res = await fetch(`${PRIMARY_BASE}${endpoint}`, config)
-      if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
+      if (
+        !isLocalhost ||
+        (res.status !== 404 && res.status !== 502 && res.status !== 503)
+      ) {
         return res
       }
-    } catch {
-      // Network failed on relative, fall through to direct backend
+    } catch (e) {
+      if (!isLocalhost) throw e
     }
 
-    // Fallback to direct backend URL
-    return fetch(`${FALLBACK_BASE}${endpoint}`, config)
+    // In local development only, fallback to direct backend port 3001
+    if (isLocalhost) {
+      return fetch(`${FALLBACK_BASE}${endpoint}`, config)
+    }
+
+    throw new Error("Unable to reach backend service.")
   }
 
   // --- Customer Authentication & Self-Service Portal ---
@@ -76,8 +98,17 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(userData),
     })
-    const data = await res.json()
-    if (res.ok && data.token) {
+    const data = await this.safeJson(res, null)
+    if (!res.ok || !data) {
+      return {
+        success: false,
+        message:
+          data?.message ||
+          data?.error ||
+          `Registration failed (HTTP ${res.status}).`,
+      }
+    }
+    if (data.token) {
       localStorage.setItem("motorly_customer_token", data.token)
       localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
     }
@@ -97,8 +128,19 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(credentials),
     })
-    const data = await res.json()
-    if (res.ok && data.token) {
+    const data = await this.safeJson(res, null)
+    if (!res.ok || !data) {
+      return {
+        success: false,
+        message:
+          data?.message ||
+          data?.error ||
+          (res.status === 500
+            ? "Server error. Please verify backend database configuration."
+            : `Login failed (HTTP ${res.status}).`),
+      }
+    }
+    if (data.token) {
       localStorage.setItem("motorly_customer_token", data.token)
       localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
     }
@@ -118,8 +160,8 @@ class ApiService {
         }
         return null
       }
-      const data = await res.json()
-      return data.user || null
+      const data = await this.safeJson(res, null)
+      return data?.user || null
     } catch {
       return null
     }
@@ -135,7 +177,8 @@ class ApiService {
     const query = email ? `?email=${encodeURIComponent(email)}` : ""
     const res = await this.request(`/users/bookings${query}`)
     if (!res.ok) throw new Error("Failed to fetch customer reservations")
-    return res.json()
+    const data = await this.safeJson(res, [])
+    return Array.isArray(data) ? data : []
   }
 
   // --- Auth & Admin Verification ---
@@ -151,8 +194,19 @@ class ApiService {
         method: "POST",
         body: JSON.stringify({ password, email }),
       })
-      const data = await res.json()
-      if (res.ok && data.token) {
+      const data = await this.safeJson(res, null)
+      if (!res.ok || !data) {
+        return {
+          success: false,
+          message:
+            data?.message ||
+            data?.error ||
+            (res.status === 500
+              ? "Backend server error. Please verify your Supabase DATABASE_URL in Vercel settings."
+              : `Authentication failed (HTTP ${res.status}).`),
+        }
+      }
+      if (data.token) {
         localStorage.setItem("motorly_admin_token", data.token)
         if (data.user) {
           localStorage.setItem("motorly_admin_user", JSON.stringify(data.user))
@@ -181,15 +235,11 @@ class ApiService {
         method: "POST",
         body: JSON.stringify({ token }),
       })
-      const data = await res.json()
-      return Boolean(data.authenticated)
+      const data = await this.safeJson(res, null)
+      return Boolean(data?.authenticated)
     } catch {
       return false
     }
-  }
-
-  logoutAdmin() {
-    localStorage.removeItem("motorly_admin_token")
   }
 
   // --- Cars / Fleet Management ---
@@ -513,10 +563,7 @@ class ApiService {
   }
 
   // --- CRM & Customers Directory ---
-  async getAdminCustomers(): Promise<CustomerUser & {
-    hasAccount: boolean
-    latestBooking: string
-  }[]> {
+  async getAdminCustomers(): Promise<AdminCustomerRecord[]> {
     const res = await this.request("/admin/customers")
     if (!res.ok) throw new Error("Failed to fetch customer directory")
     return res.json()
@@ -568,11 +615,31 @@ class ApiService {
     description: string
     message: string
   }> {
-    const res = await this.request("/promos/validate", {
-      method: "POST",
-      body: JSON.stringify({ code }),
-    })
-    return res.json()
+    try {
+      const res = await this.request("/promos/validate", {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      })
+      const data = await this.safeJson(res, null)
+      if (data && typeof data.valid === "boolean") {
+        return data
+      }
+      return {
+        valid: false,
+        code,
+        discountPercent: 0,
+        description: "",
+        message: data?.message || "Invalid or inactive promo code.",
+      }
+    } catch {
+      return {
+        valid: false,
+        code,
+        discountPercent: 0,
+        description: "",
+        message: "Unable to validate coupon code at this time.",
+      }
+    }
   }
 
   // --- Maintenance & Service Logs ---
@@ -640,11 +707,17 @@ class ApiService {
     fileName: string
     url: string
   }> {
-    const res = await this.request("/upload", {
-      method: "POST",
-      body: JSON.stringify({ fileName }),
-    })
-    return res.json()
+    try {
+      const res = await this.request("/upload", {
+        method: "POST",
+        body: JSON.stringify({ fileName }),
+      })
+      const data = await this.safeJson(res, null)
+      if (data && data.url) return data
+      return { success: false, fileName, url: "" }
+    } catch {
+      return { success: false, fileName, url: "" }
+    }
   }
 }
 

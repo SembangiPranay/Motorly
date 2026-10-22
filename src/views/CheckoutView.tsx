@@ -201,15 +201,37 @@ export default function CheckoutView({
     })
   }
 
-  const handleApplyPromo = () => {
-    if (promoCode.trim().toUpperCase() === "DRIVE15") {
-      setPromoDiscount(0.15)
-      setPromoStatus("Success: 15% discount applied!")
-    } else {
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim().toUpperCase()
+    if (!code) {
       setPromoDiscount(0)
-      setPromoStatus("Invalid coupon code. Try: DRIVE15")
+      setPromoStatus("Please enter a promo code.")
+      return
     }
-    setTimeout(() => setPromoStatus(null), 3500)
+
+    try {
+      const res = await api.validatePromo(code)
+      if (res && res.valid) {
+        const discountFraction = (res.discountPercent || 15) / 100
+        setPromoDiscount(discountFraction)
+        setPromoStatus(`Success: ${res.discountPercent}% discount applied (${res.code})!`)
+      } else if (code === "DRIVE15") {
+        setPromoDiscount(0.15)
+        setPromoStatus("Success: 15% discount applied!")
+      } else {
+        setPromoDiscount(0)
+        setPromoStatus(res?.message || "Invalid coupon code. Try: DRIVE15")
+      }
+    } catch {
+      if (code === "DRIVE15") {
+        setPromoDiscount(0.15)
+        setPromoStatus("Success: 15% discount applied!")
+      } else {
+        setPromoDiscount(0)
+        setPromoStatus("Invalid coupon code. Try: DRIVE15")
+      }
+    }
+    setTimeout(() => setPromoStatus(null), 4500)
   }
 
   // Calculations matching reference design with promo support and live date math

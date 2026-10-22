@@ -17,6 +17,9 @@ import {
   SparklesIcon,
 } from "../components/Icons"
 
+const DEFAULT_FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
+
 interface HomeViewProps {
   cars?: Car[]
   bookingState: BookingState
@@ -59,7 +62,8 @@ export default function HomeView({
       type: "Economy",
       label: "Economy",
       price: "From $35/day",
-      image: "/images/car-white.jpg",
+      image:
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
       carId: "toyota-corolla",
       description: "Smart, fuel-efficient daily commuters with great MPG.",
     },
@@ -67,7 +71,8 @@ export default function HomeView({
       type: "Sedan",
       label: "Sedan",
       price: "From $45/day",
-      image: "/images/car-dark.jpg",
+      image:
+        "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
       carId: "toyota-camry",
       description: "Comfortable, quiet highway cruisers for executive travel.",
     },
@@ -85,7 +90,8 @@ export default function HomeView({
       type: "Luxury",
       label: "Luxury",
       price: "From $120/day",
-      image: "/images/car-black.jpg",
+      image:
+        "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
       carId: "bmw-3-series",
       description: "Refined German performance and cutting-edge cockpit tech.",
     },
@@ -226,7 +232,7 @@ export default function HomeView({
             <div className="lg:col-span-6 relative flex items-center justify-center">
               <div className="w-full relative rounded-[32px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.12)] border border-white/60 bg-gray-100 aspect-[551/354] transform hover:scale-[1.01] transition-transform duration-500 group">
                 <img
-                  src="/images/hero-clean.jpg"
+                  src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80"
                   alt="Luxury white SUV parked by modern villa at golden hour"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
@@ -554,6 +560,10 @@ export default function HomeView({
                 <img
                   src={car.image}
                   alt={car.name}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null
+                    e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
@@ -711,6 +721,10 @@ export default function HomeView({
                 <img
                   src={cat.image}
                   alt={cat.label}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null
+                    e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
+                  }}
                   className="w-full h-full object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500"
                 />
               </div>
@@ -1030,7 +1044,7 @@ export default function HomeView({
         <div className="relative rounded-3xl overflow-hidden bg-[#17191C] text-white p-8 sm:p-12 shadow-2xl">
           <div className="absolute inset-0 opacity-20">
             <img
-              src="/images/road.jpg"
+              src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80"
               alt="Scenic coastal highway"
               className="w-full h-full object-cover"
             />

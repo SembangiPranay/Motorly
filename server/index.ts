@@ -11,7 +11,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Initialize Database (Supabase directly with SQLite mirror fallback)
-await initDatabase()
+try {
+  await initDatabase()
+} catch (err: any) {
+  console.warn("[DB Init Warning]", err?.message)
+}
 
 const app = express()
 const PORT = process.env.PORT_BACKEND || 3001
@@ -29,6 +33,14 @@ interface JwtUserPayload {
 
 app.use(cors())
 app.use(express.json({ limit: "20mb" }))
+
+// Normalize routes if running behind serverless rewrites (e.g. Vercel /api rewrites)
+app.use((req, _res, next) => {
+  if (!req.url.startsWith("/api")) {
+    req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url)
+  }
+  next()
+})
 
 // Helper to format car row from SQLite
 function formatCarRow(row: any) {
@@ -724,7 +736,7 @@ app.post("/api/cars", async (req, res) => {
   const galleryJson = JSON.stringify(
     car.gallery && car.gallery.length
       ? car.gallery
-      : [car.image || "/images/car-white.jpg"],
+      : [car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"],
   )
   const featuresJson = JSON.stringify(
     car.features || ["Bluetooth", "Apple CarPlay"],
@@ -753,7 +765,7 @@ app.post("/api/cars", async (req, res) => {
     car.type || "Sedan",
     Number(car.pricePerDay) || 50,
     Number(car.pricePerHour) || 7,
-    car.image || "/images/car-white.jpg",
+    car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     galleryJson,
     Number(car.rating) || 5.0,
     Number(car.reviewsCount) || 1,
@@ -980,6 +992,16 @@ app.post("/api/bookings", async (req, res) => {
 
   // CRITICAL: Prevent Double Booking of the same car for overlapping dates
   if (matchedCarId) {
+    const vehicleExists = await db
+      .prepare("SELECT id FROM vehicles WHERE id = ?")
+      .get(matchedCarId) as any
+    if (!vehicleExists) {
+      return res.status(400).json({
+        success: false,
+        error: `Selected vehicle "${matchedCarId}" does not exist in fleet inventory.`,
+      })
+    }
+
     const conflict = await findVehicleBookingConflict(
       matchedCarId,
       pickupDate,
@@ -2016,6 +2038,18 @@ app.post("/api/upload", async (req, res) => {
     success: true,
     fileName: cleanName,
     url: `/uploads/${cleanName}`,
+  })
+})
+
+// Global JSON Error Handler (Guarantees all backend errors return JSON, not HTML)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("[Backend Error]", err?.message || err)
+  if (res.headersSent) {
+    return next(err)
+  }
+  return res.status(err?.status || 500).json({
+    success: false,
+    error: err?.message || "Internal server error occurred.",
   })
 })
 

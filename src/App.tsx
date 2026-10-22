@@ -196,6 +196,7 @@ export default function App() {
       status: "Assigned" as const,
       totalAmount: details.totalAmount,
       createdAt: "Just now",
+      userId: currentUser?.id,
     }
 
     // Optimistic state update
@@ -477,11 +478,7 @@ export default function App() {
               <span className="text-gray-600">|</span>
               <button
                 onClick={() => handleNavigate("admin")}
-                className={`px-3 py-1.5 rounded-xl transition-colors font-bold flex items-center gap-1 ${
-                  currentView === "admin"
-                    ? "bg-[#F97316] text-white font-black"
-                    : "bg-orange-500/20 text-[#F97316] hover:bg-orange-500/30"
-                }`}
+                className="px-3 py-1.5 rounded-xl transition-colors font-bold flex items-center gap-1 bg-orange-500/20 text-[#F97316] hover:bg-orange-500/30"
               >
                 ⚙️ Admin Panel
               </button>

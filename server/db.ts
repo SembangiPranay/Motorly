@@ -1,6 +1,6 @@
-import { DatabaseSync } from "node:sqlite"
 import fs from "node:fs"
 import path from "node:path"
+import os from "node:os"
 import { fileURLToPath } from "node:url"
 import pg from "pg"
 
@@ -16,14 +16,28 @@ try {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Ensure data directory exists for local SQLite fallback
-const dataDir = path.join(__dirname, "data")
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
+// Ensure data directory exists for local SQLite fallback (or temp dir in serverless)
+let sqliteInstance: any = null
+export let dbPath = ""
+try {
+  // Use dynamic import so Node runtimes without node:sqlite (e.g. Node 18/20 on Vercel) never crash on boot
+  const sqliteMod = await import("node:sqlite").catch(() => null)
+  if (sqliteMod && sqliteMod.DatabaseSync) {
+    let dataDir = path.join(__dirname, "data")
+    if (process.env.VERCEL === "1" || process.env.NOW_REGION) {
+      dataDir = path.join(os.tmpdir(), "drive_rent_data")
+    }
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true })
+    }
+    dbPath = path.join(dataDir, "drive_rent.db")
+    sqliteInstance = new sqliteMod.DatabaseSync(dbPath)
+  }
+} catch (e: any) {
+  console.warn("[DB] Local SQLite initialization skipped/disabled:", e?.message)
 }
 
-const dbPath = path.join(dataDir, "drive_rent.db")
-export const sqlite = new DatabaseSync(dbPath)
+export const sqlite = sqliteInstance
 
 // Supabase PostgreSQL Configuration
 // Primary pooler host (AWS us-east-1, port 6543) provides universal IPv4/IPv6 support
@@ -57,6 +71,9 @@ export const db = {
   },
 
   async all(sql: string, ...params: any[]): Promise<any[]> {
+    if (!isSupabaseActive && !sqlite) {
+      await ensureDatabase()
+    }
     if (isSupabaseActive && supabasePool) {
       try {
         const translated = translateSql(sql)
@@ -67,10 +84,16 @@ export const db = {
         throw err
       }
     }
-    return sqlite.prepare(sql).all(...params) as any[]
+    if (sqlite) {
+      return sqlite.prepare(sql).all(...params) as any[]
+    }
+    throw new Error("No database connection available (Supabase offline and SQLite unavailable).")
   },
 
   async get(sql: string, ...params: any[]): Promise<any> {
+    if (!isSupabaseActive && !sqlite) {
+      await ensureDatabase()
+    }
     if (isSupabaseActive && supabasePool) {
       try {
         const translated = translateSql(sql)
@@ -81,13 +104,19 @@ export const db = {
         throw err
       }
     }
-    return sqlite.prepare(sql).get(...params) as any
+    if (sqlite) {
+      return sqlite.prepare(sql).get(...params) as any
+    }
+    throw new Error("No database connection available (Supabase offline and SQLite unavailable).")
   },
 
   async run(
     sql: string,
     ...params: any[]
   ): Promise<{ changes: number; rowCount: number }> {
+    if (!isSupabaseActive && !sqlite) {
+      await ensureDatabase()
+    }
     if (isSupabaseActive && supabasePool) {
       try {
         const translated = translateSql(sql)
@@ -101,11 +130,14 @@ export const db = {
         throw err
       }
     }
-    const res = sqlite.prepare(sql).run(...params) as any
-    return {
-      changes: res?.changes || 1,
-      rowCount: res?.changes || 1,
+    if (sqlite) {
+      const res = sqlite.prepare(sql).run(...params) as any
+      return {
+        changes: res?.changes || 1,
+        rowCount: res?.changes || 1,
+      }
     }
+    throw new Error("No database connection available (Supabase offline and SQLite unavailable).")
   },
 
   prepare(sql: string) {
@@ -117,12 +149,16 @@ export const db = {
   },
 }
 
+// Lazy/Safe DB ensure
+export async function ensureDatabase(): Promise<boolean> {
+  if (isSupabaseActive && supabasePool) return true
+  await initDatabase()
+  return isSupabaseActive || Boolean(sqlite)
+}
+
 // Initialize Tables
 export async function initDatabase() {
-  // First, initialize local SQLite tables as fallback
-  initSqliteTables()
-
-  // Next, attempt direct connection to Supabase PostgreSQL
+  // First, attempt direct connection to Supabase PostgreSQL (Universal AWS pooler port 6543)
   console.log("[DB] Connecting to Supabase PostgreSQL...")
   try {
     const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL]
@@ -133,7 +169,7 @@ export async function initDatabase() {
         const pool = new Pool({
           connectionString: connStr,
           ssl: { rejectUnauthorized: false },
-          connectionTimeoutMillis: 5000,
+          connectionTimeoutMillis: 3500,
           max: 10,
         })
 
@@ -167,6 +203,17 @@ export async function initDatabase() {
     console.warn(
       `[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`
     )
+  }
+
+  // Second, if local SQLite is supported in this runtime, initialize local fallback mirror
+  if (sqlite) {
+    try {
+      initSqliteTables()
+    } catch (e: any) {
+      console.warn("[DB] Local SQLite mirror setup skipped:", e?.message)
+    }
+  } else {
+    console.log("[DB] Running in pure Supabase PostgreSQL serverless mode.")
   }
 }
 
@@ -343,6 +390,7 @@ async function initSupabaseTables(pool: pg.Pool) {
 }
 
 function initSqliteTables() {
+  if (!sqlite) return
   // 1. Vehicles Table
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS vehicles (
@@ -574,6 +622,7 @@ function initSqliteTables() {
 }
 
 function seedVehicles() {
+  if (!sqlite) return
   const insertStmt = sqlite.prepare(`
     INSERT INTO vehicles (
       id, name, brand, model, year, type, price_per_day, price_per_hour,
@@ -596,9 +645,9 @@ function seedVehicles() {
       type: "Sedan",
       price_per_day: 45,
       price_per_hour: 6,
-      image: "/images/car-white.jpg",
+      image:
+        "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       gallery: JSON.stringify([
-        "/images/car-white.jpg",
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
         "https://images.unsplash.com/photo-1590362891988-f77804703080?auto=format&fit=crop&w=1200&q=80",
       ]),
@@ -637,7 +686,7 @@ function seedVehicles() {
         "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80",
       gallery: JSON.stringify([
         "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80",
-        "/images/car-dark.jpg",
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
       ]),
       rating: 4.9,
       reviews_count: 98,
@@ -674,7 +723,7 @@ function seedVehicles() {
         "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80",
       gallery: JSON.stringify([
         "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80",
-        "/images/car-white.jpg",
+        "https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&w=1200&q=80",
       ]),
       rating: 4.9,
       reviews_count: 156,
@@ -742,8 +791,12 @@ function seedVehicles() {
       type: "Luxury",
       price_per_day: 120,
       price_per_hour: 16,
-      image: "/images/car-black.jpg",
-      gallery: JSON.stringify(["/images/car-black.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.9,
       reviews_count: 142,
       seats: 5,
@@ -775,8 +828,12 @@ function seedVehicles() {
       type: "Sedan",
       price_per_day: 50,
       price_per_hour: 7,
-      image: "/images/car-dark.jpg",
-      gallery: JSON.stringify(["/images/car-dark.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.8,
       reviews_count: 76,
       seats: 5,
@@ -807,8 +864,12 @@ function seedVehicles() {
       type: "Sedan",
       price_per_day: 42,
       price_per_hour: 6,
-      image: "/images/car-white.jpg",
-      gallery: JSON.stringify(["/images/car-white.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.6,
       reviews_count: 65,
       seats: 5,
@@ -839,8 +900,12 @@ function seedVehicles() {
       type: "Sedan",
       price_per_day: 40,
       price_per_hour: 5,
-      image: "/images/car-dark.jpg",
-      gallery: JSON.stringify(["/images/car-dark.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.7,
       reviews_count: 58,
       seats: 5,
@@ -907,8 +972,12 @@ function seedVehicles() {
       type: "Luxury",
       price_per_day: 130,
       price_per_hour: 18,
-      image: "/images/car-black.jpg",
-      gallery: JSON.stringify(["/images/car-black.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.9,
       reviews_count: 94,
       seats: 5,
@@ -1010,8 +1079,11 @@ function seedVehicles() {
       type: "Economy",
       price_per_day: 35,
       price_per_hour: 5,
-      image: "/images/car-white.jpg",
-      gallery: JSON.stringify(["/images/car-white.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1623869675781-80aa31012a5a?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1623869675781-80aa31012a5a?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.7,
       reviews_count: 140,
       seats: 5,
@@ -1042,8 +1114,11 @@ function seedVehicles() {
       type: "Economy",
       price_per_day: 36,
       price_per_hour: 5,
-      image: "/images/car-dark.jpg",
-      gallery: JSON.stringify(["/images/car-dark.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.8,
       reviews_count: 104,
       seats: 5,
@@ -1074,8 +1149,11 @@ function seedVehicles() {
       type: "Economy",
       price_per_day: 34,
       price_per_hour: 4,
-      image: "/images/car-white.jpg",
-      gallery: JSON.stringify(["/images/car-white.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.6,
       reviews_count: 49,
       seats: 5,
@@ -1106,8 +1184,11 @@ function seedVehicles() {
       type: "Van",
       price_per_day: 85,
       price_per_hour: 11,
-      image: "/images/car-dark.jpg",
-      gallery: JSON.stringify(["/images/car-dark.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.8,
       reviews_count: 42,
       seats: 7,
@@ -1138,8 +1219,11 @@ function seedVehicles() {
       type: "Van",
       price_per_day: 80,
       price_per_hour: 10,
-      image: "/images/car-white.jpg",
-      gallery: JSON.stringify(["/images/car-white.jpg"]),
+      image:
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      gallery: JSON.stringify([
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      ]),
       rating: 4.8,
       reviews_count: 38,
       seats: 7,
@@ -1195,6 +1279,7 @@ function seedVehicles() {
 }
 
 function seedBookings() {
+  if (!sqlite) return
   const insertStmt = sqlite.prepare(`
     INSERT INTO bookings (
       id, customer_first_name, customer_last_name, customer_email, customer_phone,
@@ -1344,6 +1429,7 @@ function seedBookings() {
 }
 
 function seedUsers() {
+  if (!sqlite) return
   const insertStmt = sqlite.prepare(`
     INSERT INTO users (
       id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
@@ -1419,6 +1505,7 @@ function seedUsers() {
 }
 
 function seedPromos() {
+  if (!sqlite) return
   const insertStmt = sqlite.prepare(`
     INSERT INTO promo_codes (
       code, discount_percent, description, is_active, expiry_date, usage_count
@@ -1474,6 +1561,7 @@ function seedPromos() {
 }
 
 function seedMaintenance() {
+  if (!sqlite) return
   const insertStmt = sqlite.prepare(`
     INSERT INTO maintenance_logs (
       id, car_id, service_type, cost, odometer, date, status, technician_notes

@@ -10,9 +10,9 @@ export const CARS: Car[] = [
     type: "Sedan",
     pricePerDay: 45,
     pricePerHour: 6,
-    image: "/images/car-white.jpg",
+    image:
+      "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     gallery: [
-      "/images/car-white.jpg",
       "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1590362891988-f77804703080?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
@@ -55,7 +55,6 @@ export const CARS: Car[] = [
       "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80",
     gallery: [
       "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80",
-      "/images/car-dark.jpg",
       "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
     ],
@@ -96,7 +95,7 @@ export const CARS: Car[] = [
     gallery: [
       "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&w=1200&q=80",
-      "/images/car-white.jpg",
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
     ],
     rating: 4.9,
     reviewsCount: 156,
@@ -134,8 +133,8 @@ export const CARS: Car[] = [
       "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
     gallery: [
       "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
-      "/images/car-dark.jpg",
-      "/images/road.jpg",
+      "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
     ],
     rating: 4.7,
     reviewsCount: 82,
@@ -168,9 +167,9 @@ export const CARS: Car[] = [
     type: "Luxury",
     pricePerDay: 120,
     pricePerHour: 16,
-    image: "/images/car-black.jpg",
+    image:
+      "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
     gallery: [
-      "/images/car-black.jpg",
       "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
     ],
@@ -206,8 +205,11 @@ export const CARS: Car[] = [
     type: "Sedan",
     pricePerDay: 50,
     pricePerHour: 7,
-    image: "/images/car-dark.jpg",
-    gallery: ["/images/car-dark.jpg", "/images/car-white.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.8,
     reviewsCount: 76,
     seats: 5,
@@ -232,8 +234,11 @@ export const CARS: Car[] = [
     type: "Sedan",
     pricePerDay: 42,
     pricePerHour: 6,
-    image: "/images/car-white.jpg",
-    gallery: ["/images/car-white.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.6,
     reviewsCount: 65,
     seats: 5,
@@ -258,8 +263,11 @@ export const CARS: Car[] = [
     type: "Sedan",
     pricePerDay: 40,
     pricePerHour: 5,
-    image: "/images/car-dark.jpg",
-    gallery: ["/images/car-dark.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.7,
     reviewsCount: 58,
     seats: 5,
@@ -319,8 +327,11 @@ export const CARS: Car[] = [
     type: "Luxury",
     pricePerDay: 130,
     pricePerHour: 18,
-    image: "/images/car-black.jpg",
-    gallery: ["/images/car-black.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.9,
     reviewsCount: 94,
     seats: 5,
@@ -419,8 +430,11 @@ export const CARS: Car[] = [
     type: "Economy",
     pricePerDay: 35,
     pricePerHour: 5,
-    image: "/images/car-white.jpg",
-    gallery: ["/images/car-white.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.7,
     reviewsCount: 140,
     seats: 5,
@@ -450,8 +464,11 @@ export const CARS: Car[] = [
     type: "Economy",
     pricePerDay: 36,
     pricePerHour: 5,
-    image: "/images/car-dark.jpg",
-    gallery: ["/images/car-dark.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.8,
     reviewsCount: 104,
     seats: 5,
@@ -481,8 +498,11 @@ export const CARS: Car[] = [
     type: "Economy",
     pricePerDay: 34,
     pricePerHour: 4,
-    image: "/images/car-white.jpg",
-    gallery: ["/images/car-white.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.6,
     reviewsCount: 49,
     seats: 5,
@@ -512,8 +532,11 @@ export const CARS: Car[] = [
     type: "Van",
     pricePerDay: 85,
     pricePerHour: 11,
-    image: "/images/car-dark.jpg",
-    gallery: ["/images/car-dark.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.8,
     reviewsCount: 42,
     seats: 7,
@@ -543,8 +566,11 @@ export const CARS: Car[] = [
     type: "Van",
     pricePerDay: 80,
     pricePerHour: 10,
-    image: "/images/car-white.jpg",
-    gallery: ["/images/car-white.jpg"],
+    image:
+      "https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=1200&q=80",
+    ],
     rating: 4.8,
     reviewsCount: 38,
     seats: 7,

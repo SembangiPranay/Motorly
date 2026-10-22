@@ -1,4 +1,4 @@
-export type VehicleType = "Economy" | "Sedan" | "SUV" | "Luxury" | "Van"
+export type VehicleType = "Economy" | "Sedan" | "SUV" | "Luxury" | "Van" | "Electric"
 export type Transmission = "Automatic" | "Manual"
 export type FuelType = "Gasoline" | "Hybrid" | "Electric"
 export type CarStatus = "Available" | "Rented" | "Maintenance" | "Cleaning"
@@ -101,37 +101,51 @@ export interface FilterState {
 
 export interface ExtensionRequest {
   extraDuration: number
+  durationValue?: number
   unit: "hours" | "days" | "months"
-  newReturnDate: string
+  durationUnit?: "hours" | "days" | "months" | string
+  newReturnDate?: string
   customerNotes?: string
-  requestedAt: string
+  reason?: string
+  requestedAt?: string
 }
 
 export interface ExtensionQuote {
-  rateType: "hour" | "day" | "month"
-  rateAmount: number
+  rateType?: "hour" | "day" | "month" | string
+  rateAmount?: number
   totalQuotedAmount: number
+  durationValue?: number
+  durationUnit?: "hours" | "days" | "months" | string
   adminNotes?: string
-  quotedAt: string
+  notes?: string
+  quotedAt?: string
 }
 
 export interface InspectionChecklistOut {
   odometerOut: number
-  fuelOut: string
-  exteriorClean: boolean
-  tiresInspected: boolean
-  keysGiven: boolean
-  staffSign: string
+  fuelOut?: string
+  fuelLevelOut?: string
+  exteriorClean?: boolean
+  cleanlinessVerified?: boolean
+  tiresInspected?: boolean
+  tiresExteriorVerified?: boolean
+  keysGiven?: boolean
+  staffSign?: string
+  inspectorStaff?: string
   timestamp: string
 }
 
 export interface InspectionChecklistIn {
   odometerIn: number
-  fuelIn: string
-  damageFound: boolean
-  cleanlinessPass: boolean
-  inspectionPassed: boolean
-  staffSign: string
+  fuelIn?: string
+  fuelLevelIn?: string
+  damageFound?: boolean
+  damageNotes?: string
+  cleanlinessPass?: boolean
+  cleanlinessPassed?: boolean
+  inspectionPassed?: boolean
+  staffSign?: string
+  inspectorStaff?: string
   timestamp: string
 }
 
@@ -162,7 +176,7 @@ export interface BookingRecord {
   keysHandedAt?: string
   checklistOut?: InspectionChecklistOut
   // Step F: Extension Negotiation
-  extensionStatus?: "None" | "Requested" | "Quoted" | "Approved" | "Declined"
+  extensionStatus?: "None" | "Requested" | "Quoted" | "Approved" | "Declined" | "Pending"
   extensionRequest?: ExtensionRequest
   extensionQuote?: ExtensionQuote
   // Step G: Return Inspection
@@ -184,6 +198,11 @@ export interface CustomerUser {
   totalBookings?: number
   totalSpent?: number
   createdAt?: string
+}
+
+export type AdminCustomerRecord = CustomerUser & {
+  hasAccount: boolean
+  latestBooking: string
 }
 
 export interface PromoCode {

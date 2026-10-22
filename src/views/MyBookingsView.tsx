@@ -758,7 +758,7 @@ export default function MyBookingsView({
                               <div className="flex justify-between text-stone-600">
                                 <span>Quoted Rate:</span>
                                 <span className="font-bold text-stone-900">
-                                  ${b.extensionQuote.rateAmount.toFixed(2)} /{" "}
+                                  ${(b.extensionQuote.rateAmount ?? 0).toFixed(2)} /{" "}
                                   {b.extensionQuote.rateType}
                                 </span>
                               </div>
@@ -816,7 +816,7 @@ export default function MyBookingsView({
                                 src={
                                   matedCar
                                     ? matedCar.image
-                                    : "/images/car-white.jpg"
+                                    : "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80"
                                 }
                                 alt="Vehicle"
                                 className="w-full h-full object-cover"
@@ -1093,7 +1093,7 @@ export default function MyBookingsView({
                       src={
                         selectedVoucher.car
                           ? selectedVoucher.car.image
-                          : "/images/car-white.jpg"
+                          : "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80"
                       }
                       alt="Car"
                       className="w-full h-full object-cover"
