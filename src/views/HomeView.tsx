@@ -41,7 +41,6 @@ export default function HomeView({
   onQuickBook,
   onNavigateCompare,
 }: HomeViewProps) {
-  const [differentReturnLocation, setDifferentReturnLocation] = useState(false)
   const [selectedDuration, setSelectedDuration] =
     useState<"Hourly" | "Daily" | "Weekly" | "Monthly">("Daily")
   const [fleetFilter, setFleetFilter] = useState<string>("All")
@@ -259,80 +258,37 @@ export default function HomeView({
         {/* Floating Search Widget Card */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mb-28 mt-8 sm:mt-12 relative z-20">
           <div className="bg-white rounded-3xl shadow-[0_16px_45px_rgba(0,0,0,0.06)] border border-gray-100/90 p-6 sm:p-7 space-y-4">
-            {/* Top Row: Different return location toggle */}
+            {/* Top Row: Garage Staging Info */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                 Instant Vehicle Availability Search
               </span>
-              <label className="flex items-center gap-2 cursor-pointer select-none group">
-                <div
-                  onClick={() =>
-                    setDifferentReturnLocation(!differentReturnLocation)
-                  }
-                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
-                    differentReturnLocation
-                      ? "bg-[#F97316]"
-                      : "bg-gray-300 group-hover:bg-gray-400"
-                  }`}
-                >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                      differentReturnLocation
-                        ? "translate-x-4"
-                        : "translate-x-0"
-                    }`}
-                  />
-                </div>
-                <span className="text-xs font-medium text-gray-500 group-hover:text-gray-700 transition-colors">
-                  Different return location
-                </span>
-                <InfoIcon size={14} className="text-gray-400" />
-              </label>
+              <div className="flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full font-medium">
+                <LocationIcon size={13} className="text-[#F97316]" />
+                <span>Garage locations set per vehicle by owner</span>
+              </div>
             </div>
 
             {/* Responsive Inputs Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.3fr_1.1fr_1.1fr_auto] gap-3.5 items-end">
-              {/* Pickup Location */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.2fr_1.1fr_1.1fr_auto] gap-3.5 items-end">
+              {/* Garage Hub Indicator */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-900">
-                  Pickup Location
+                  Garage Location
                 </label>
-                <div className="relative h-[52px] border border-gray-200 hover:border-orange-300 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 rounded-xl px-3.5 flex items-center bg-white transition-all">
+                <div className="relative h-[52px] border border-amber-200 bg-amber-50/40 rounded-xl px-3.5 flex items-center transition-all">
                   <LocationIcon
                     size={18}
-                    className="text-gray-400 mr-2.5 flex-shrink-0"
+                    className="text-[#F97316] mr-2.5 flex-shrink-0"
                   />
-                  <select
-                    value={bookingState.pickupLocation}
-                    onChange={(e) =>
-                      setBookingState((prev) => ({
-                        ...prev,
-                        pickupLocation: e.target.value,
-                        ...(!differentReturnLocation
-                          ? { returnLocation: e.target.value }
-                          : {}),
-                      }))
-                    }
-                    className="w-full text-xs sm:text-sm font-medium text-gray-800 bg-transparent outline-none cursor-pointer truncate appearance-none pr-6"
-                  >
-                    <option value="Miami International Airport (MIA)">
-                      Miami International Airport (MIA)
-                    </option>
-                    <option value="Downtown Miami">Downtown Miami</option>
-                    <option value="Los Angeles International (LAX)">
-                      Los Angeles International (LAX)
-                    </option>
-                    <option value="New York JFK Airport">
-                      New York JFK Airport
-                    </option>
-                    <option value="Orlando International (MCO)">
-                      Orlando International (MCO)
-                    </option>
-                  </select>
-                  <ChevronDownIcon
-                    size={16}
-                    className="text-gray-400 pointer-events-none absolute right-3.5 flex-shrink-0"
-                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs sm:text-sm font-bold text-stone-900 block truncate">
+                      Assigned by Vehicle Owner
+                    </span>
+                    <span className="text-[10px] text-stone-500 block truncate">
+                      Pickup directly from vehicle's staged garage bay
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -407,51 +363,6 @@ export default function HomeView({
                 </button>
               </div>
             </div>
-
-            {/* Optional Return Location if toggled on */}
-            {differentReturnLocation && (
-              <div className="pt-2 border-t border-gray-100 animate-fade-in">
-                <div className="max-w-md space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-900">
-                    Specific Return Location
-                  </label>
-                  <div className="relative h-[52px] border border-gray-200 hover:border-orange-300 focus-within:border-orange-500 rounded-xl px-3.5 flex items-center bg-white transition-all">
-                    <LocationIcon
-                      size={18}
-                      className="text-gray-400 mr-2.5 flex-shrink-0"
-                    />
-                    <select
-                      value={bookingState.returnLocation}
-                      onChange={(e) =>
-                        setBookingState((prev) => ({
-                          ...prev,
-                          returnLocation: e.target.value,
-                        }))
-                      }
-                      className="w-full text-xs sm:text-sm font-medium text-gray-800 bg-transparent outline-none cursor-pointer truncate appearance-none pr-6"
-                    >
-                      <option value="Miami International Airport (MIA)">
-                        Miami International Airport (MIA)
-                      </option>
-                      <option value="Downtown Miami">Downtown Miami</option>
-                      <option value="Los Angeles International (LAX)">
-                        Los Angeles International (LAX)
-                      </option>
-                      <option value="New York JFK Airport">
-                        New York JFK Airport
-                      </option>
-                      <option value="Orlando International (MCO)">
-                        Orlando International (MCO)
-                      </option>
-                    </select>
-                    <ChevronDownIcon
-                      size={16}
-                      className="text-gray-400 pointer-events-none absolute right-3.5 flex-shrink-0"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </section>

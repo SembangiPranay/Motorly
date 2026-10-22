@@ -124,25 +124,27 @@ export default function ConfirmationModal({
             <div>
               <div className="flex items-center gap-1 text-gray-400 font-semibold mb-0.5">
                 <LocationIcon size={12} className="text-[#F97316]" />
-                <span>Pickup Hub</span>
+                <span>Garage Location</span>
               </div>
               <p className="font-bold text-gray-800 text-[11px] leading-tight">
-                {bookingState.pickupLocation}
+                {car.garageName || car.garageAddress || car.location || bookingState.pickupLocation}
               </p>
-              <p className="text-gray-500 text-[10px] mt-0.5">
-                {bookingState.pickupDate} ({bookingState.pickupTime})
-              </p>
+              {car.garageBay && (
+                <span className="inline-block mt-0.5 text-[9px] font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 rounded">
+                  {car.garageBay}
+                </span>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-1 text-gray-400 font-semibold mb-0.5">
                 <CalendarIcon size={12} className="text-[#F97316]" />
-                <span>Return Hub</span>
+                <span>Rental Dates</span>
               </div>
               <p className="font-bold text-gray-800 text-[11px] leading-tight">
-                {bookingState.returnLocation}
+                {bookingState.pickupDate} → {bookingState.returnDate}
               </p>
               <p className="text-gray-500 text-[10px] mt-0.5">
-                {bookingState.returnDate} ({bookingState.returnTime})
+                {bookingState.pickupTime} Pickup
               </p>
             </div>
           </div>

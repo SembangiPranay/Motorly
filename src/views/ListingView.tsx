@@ -311,7 +311,7 @@ export default function ListingView({
           >
             <div className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-stone-800">
               <LocationIcon size={18} className="text-[#F97316] shrink-0" />
-              <span className="truncate">{bookingState.pickupLocation}</span>
+              <span className="truncate">Fleet Garage Pickup (Set by Owner)</span>
             </div>
 
             <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-stone-600">

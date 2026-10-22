@@ -663,38 +663,26 @@ export default function CarDetailView({
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Pickup Location
+                  Garage Location (Pickup &amp; Return)
                 </label>
-                <div className="relative flex items-center">
+                <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5">
                   <LocationIcon
                     size={16}
-                    className="absolute left-3 text-gray-400"
+                    className="text-[#F97316] mt-0.5 shrink-0"
                   />
-                  <select
-                    value={bookingState.pickupLocation}
-                    onChange={(e) =>
-                      setBookingState((prev) => ({
-                        ...prev,
-                        pickupLocation: e.target.value,
-                        returnLocation: e.target.value,
-                      }))
-                    }
-                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                  >
-                    <option value="Miami International Airport (MIA)">
-                      Miami International Airport (MIA)
-                    </option>
-                    <option value="Downtown Miami">Downtown Miami</option>
-                    <option value="Los Angeles International (LAX)">
-                      Los Angeles International (LAX)
-                    </option>
-                    <option value="New York JFK Airport">
-                      New York JFK Airport
-                    </option>
-                    <option value="Orlando International (MCO)">
-                      Orlando International (MCO)
-                    </option>
-                  </select>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-xs text-stone-900 truncate">
+                      {car.garageName || "MOTORLY Central Hub & Garage"}
+                    </p>
+                    <p className="text-[11px] text-stone-600 truncate mt-0.5">
+                      {car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142"}
+                    </p>
+                    {car.garageBay && (
+                      <span className="inline-block mt-1 text-[10px] font-mono font-bold text-amber-800 bg-white border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs">
+                        Stall: {car.garageBay}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

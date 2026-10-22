@@ -183,12 +183,18 @@ export default function App() {
       totalAmount: details.totalAmount,
     })
 
+    const garageLoc =
+      activeCar.garageAddress ||
+      activeCar.garageName ||
+      activeCar.location ||
+      "MOTORLY Central Hub"
+
     const newRecordPayload = {
       id: details.bookingId,
       customer: details.customer,
       driver: details.driver,
-      pickupLocation: bookingState.pickupLocation,
-      returnLocation: bookingState.returnLocation,
+      pickupLocation: garageLoc,
+      returnLocation: garageLoc,
       pickupDate: bookingState.pickupDate,
       returnDate: bookingState.returnDate,
       requestedCategory: activeCar.type,

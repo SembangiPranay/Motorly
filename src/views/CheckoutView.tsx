@@ -7,7 +7,6 @@ import type {
   PaymentInfo,
 } from "../types"
 import { api } from "../services/api"
-import GarageMapViewer from "../components/GarageMapViewer"
 import DateSchedulingModal from "../components/DateSchedulingModal"
 import {
   ShieldIcon,
@@ -740,7 +739,7 @@ export default function CheckoutView({
                 </p>
                 <p className="text-[11px] text-gray-600">
                   You will pay upon vehicle pickup at{" "}
-                  {bookingState.pickupLocation}. We hold your vehicle
+                  {car.garageName || car.garageAddress || "the garage facility"}. We hold your vehicle
                   reservation without charging your card today.
                 </p>
               </div>
@@ -776,21 +775,6 @@ export default function CheckoutView({
 
             {/* Itinerary */}
             <div className="space-y-3 text-xs border-b border-gray-100 pb-4">
-              <div className="flex items-start gap-2">
-                <LocationIcon
-                  size={14}
-                  className="text-[#F97316] mt-0.5 flex-shrink-0"
-                />
-                <div>
-                  <span className="font-bold text-gray-900 block">
-                    Pickup &amp; Return Hub
-                  </span>
-                  <span className="text-gray-500">
-                    {bookingState.pickupLocation}
-                  </span>
-                </div>
-              </div>
-
               <div
                 onClick={() => setIsScheduleModalOpen(true)}
                 className="flex items-start justify-between p-2.5 rounded-xl hover:bg-orange-50/50 border border-transparent hover:border-orange-200 transition-all cursor-pointer group"
@@ -823,26 +807,44 @@ export default function CheckoutView({
               </div>
             </div>
 
-            {/* Garage Hub & Interactive Map */}
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-bold text-gray-700 block uppercase tracking-wider">
-                Staged Garage Location
-              </span>
-              <GarageMapViewer
-                garageName={
-                  car.garageName ||
-                  `${car.location || "Miami International Airport"} Staging Facility`
-                }
-                garageAddress={
-                  car.garageAddress ||
-                  car.location ||
-                  "4200 NW 21st St, Miami, FL 33142"
-                }
-                garageBay={car.garageBay || "Bay 14-B"}
-                lat={car.garageLat || 25.7959}
-                lng={car.garageLng || -80.287}
-                height="190px"
-              />
+            {/* Garage Location (Assigned by Garage Owner) */}
+            <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <LocationIcon size={14} className="text-[#F97316]" />
+                  Garage Location (Pickup &amp; Return)
+                </span>
+                {car.garageBay && (
+                  <span className="bg-white border border-amber-300 text-amber-900 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md shadow-2xs">
+                    {car.garageBay}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <h5 className="font-bold text-xs sm:text-sm text-stone-900">
+                  {car.garageName || "MOTORLY Central Hub & Garage"}
+                </h5>
+                <p className="text-[11px] text-stone-600 leading-snug mt-0.5">
+                  {car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142"}
+                </p>
+              </div>
+
+              <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-stone-500 text-[10px]">
+                  Configured by vehicle garage owner
+                </span>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    car.garageAddress || car.garageName || car.location || "4200 NW 21st St, Miami, FL 33142"
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-[#F97316] hover:text-[#EA580C] hover:underline flex items-center gap-1 text-[11px]"
+                >
+                  Google Maps ↗
+                </a>
+              </div>
             </div>
 
             {/* Conflict Alert Banner if Double Booking Detected */}
