@@ -408,6 +408,7 @@ export default function App() {
             cars={cars}
             currentUser={currentUser}
             setCurrentUser={setCurrentUser}
+            allBookings={bookings}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
           />

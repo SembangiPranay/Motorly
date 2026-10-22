@@ -50,12 +50,58 @@ export default function CheckoutView({
   onNavigateHome,
   onNavigateListing,
 }: CheckoutViewProps) {
-  // Form States
-  const [customer, setCustomer] = useState<CustomerInfo>({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@email.com",
-    phone: "(305) 123-4567",
+  // Helper to compress uploaded image before storing/sending
+  const compressImage = (
+    file: File,
+    maxDim = 1200,
+    quality = 0.8,
+  ): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          let width = img.width
+          let height = img.height
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width)
+              width = maxDim
+            } else {
+              width = Math.round((width * maxDim) / height)
+              height = maxDim
+            }
+          }
+          const canvas = document.createElement("canvas")
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext("2d")
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height)
+            resolve(canvas.toDataURL("image/jpeg", quality))
+          } else {
+            resolve((e.target?.result as string) || "")
+          }
+        }
+        img.onerror = () => resolve((e.target?.result as string) || "")
+        img.src = (e.target?.result as string) || ""
+      }
+      reader.onerror = () => resolve("")
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Form States - Initialize from authenticated customer
+  const [customer, setCustomer] = useState<CustomerInfo>(() => {
+    const parts = (currentUser?.name || "").trim().split(" ")
+    const first = parts[0] || "Customer"
+    const last = parts.slice(1).join(" ") || "Renter"
+    return {
+      firstName: first,
+      lastName: last,
+      email: currentUser?.email || "customer@example.com",
+      phone: currentUser?.phone || "+1 (305) 555-0199",
+    }
   })
 
   const [driver, setDriver] = useState<DriverInfo>({
@@ -167,34 +213,32 @@ export default function CheckoutView({
     }
   }, [car?.id, bookingState.pickupDate, bookingState.returnDate])
 
-  const handleFileChange = (
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     isBack = false,
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       setIsUploading(true)
-      const reader = new FileReader()
-      reader.onload = () => {
-        const dataUrl = reader.result as string
+      try {
+        const compressedDataUrl = await compressImage(file, 1200, 0.8)
         if (isBack) {
           setUploadedBackFile(file.name)
-          setUploadedBackDataUrl(dataUrl)
+          setUploadedBackDataUrl(compressedDataUrl)
         } else {
           setUploadedFile(file.name)
-          setUploadedFrontDataUrl(dataUrl)
+          setUploadedFrontDataUrl(compressedDataUrl)
         }
-        setIsUploading(false)
-      }
-      reader.onerror = () => {
+      } catch (err) {
+        console.warn("Image compression failed, using fallback", err)
         if (isBack) {
           setUploadedBackFile(file.name)
         } else {
           setUploadedFile(file.name)
         }
+      } finally {
         setIsUploading(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -307,9 +351,18 @@ export default function CheckoutView({
     setIsSubmitting(true)
     const randomId = "MTR-" + Math.floor(100000 + Math.random() * 900000)
 
+    const cleanEmail = (currentUser?.email || customer.email || "").trim().toLowerCase()
+    const nameParts = (currentUser?.name || `${customer.firstName} ${customer.lastName}`).trim().split(" ")
+    const finalCustomer: CustomerInfo = {
+      firstName: customer.firstName || nameParts[0] || "Customer",
+      lastName: customer.lastName || nameParts.slice(1).join(" ") || "Renter",
+      email: cleanEmail,
+      phone: customer.phone || currentUser?.phone || "+1 (555) 019-9000",
+    }
+
     setTimeout(() => {
       onConfirmBooking({
-        customer,
+        customer: finalCustomer,
         driver: {
           ...driver,
           licenseFileName: uploadedFile,
@@ -322,7 +375,7 @@ export default function CheckoutView({
         bookingId: randomId,
       })
       setIsSubmitting(false)
-    }, 400)
+    }, 300)
   }
 
   return (

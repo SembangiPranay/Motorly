@@ -101,6 +101,39 @@ function formatCarRow(row: any) {
   }
 }
 
+// Helper to sort bookings chronologically so recent bookings are always at the top
+function parseBookingDateSort(val: any): number {
+  if (!val) return 0
+  if (typeof val === "string") {
+    const lower = val.toLowerCase().trim()
+    if (lower === "just now" || lower.startsWith("just now")) {
+      return Date.now() + 1000000 // Always prioritize newest bookings at the top
+    }
+    if (lower.startsWith("today")) {
+      return Date.now() - 3600 * 1000
+    }
+    if (lower.startsWith("yesterday")) {
+      return Date.now() - 86400 * 1000
+    }
+    if (lower.includes("days ago")) {
+      const match = lower.match(/(\d+)\s*days\s*ago/)
+      const days = match ? parseInt(match[1], 10) : 3
+      return Date.now() - days * 86400 * 1000
+    }
+    let cleanStr = val
+      .replace(/Counter Dispatch\s*\(/i, "")
+      .replace(/\)$/, "")
+      .trim()
+    if (!cleanStr.match(/\b20\d\d\b/)) {
+      cleanStr = `${cleanStr}, 2026`
+    }
+    const parsed = Date.parse(cleanStr)
+    if (!isNaN(parsed)) return parsed
+  }
+  if (val instanceof Date) return val.getTime()
+  return 0
+}
+
 // Helper to format booking row from SQLite
 function formatBookingRow(row: any) {
   if (!row) return null
@@ -143,6 +176,27 @@ function formatBookingRow(row: any) {
     if (row.extension_quote) extensionQuote = JSON.parse(row.extension_quote)
   } catch {}
 
+  // Compact photo reference to avoid sending megabytes of base64 in list API responses
+  const hasFrontBase64 =
+    row.driver_license_file && row.driver_license_file.startsWith("data:")
+  const hasBackBase64 =
+    row.driver_license_back_file &&
+    row.driver_license_back_file.startsWith("data:")
+
+  const licenseFileName = hasFrontBase64
+    ? "driver_license_front.jpg"
+    : row.driver_license_file || undefined
+  const licenseBackFileName = hasBackBase64
+    ? "driver_license_back.jpg"
+    : row.driver_license_back_file || undefined
+
+  const licensePhotoFront = hasFrontBase64
+    ? `/api/bookings/${row.id}/download-license?side=front`
+    : row.driver_license_file || undefined
+  const licensePhotoBack = hasBackBase64
+    ? `/api/bookings/${row.id}/download-license?side=back`
+    : row.driver_license_back_file || undefined
+
   return {
     id: row.id,
     customer: {
@@ -156,17 +210,10 @@ function formatBookingRow(row: any) {
       licenseNumber: row.driver_license_num || "",
       licenseState: row.driver_license_state || "",
       licenseExpiry: row.driver_license_expiry || "",
-      licenseFileName: row.driver_license_file || undefined,
-      licenseBackFileName: row.driver_license_back_file || undefined,
-      licensePhotoFront:
-        row.driver_license_file && row.driver_license_file.startsWith("data:")
-          ? row.driver_license_file
-          : undefined,
-      licensePhotoBack:
-        row.driver_license_back_file &&
-        row.driver_license_back_file.startsWith("data:")
-          ? row.driver_license_back_file
-          : undefined,
+      licenseFileName,
+      licenseBackFileName,
+      licensePhotoFront,
+      licensePhotoBack,
       selfieFileName: row.driver_selfie_file || undefined,
     },
     pickupLocation: row.pickup_location,
@@ -636,31 +683,62 @@ app.get("/api/users/bookings", async (req, res) => {
     ? authHeader.substring(7)
     : null
   let userEmail = req.query.email as string | undefined
+  let targetUserId = ""
 
   if (token) {
-    const session = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
-      .get(token) as any
-    if (session) {
-      const user = await db.prepare("SELECT email FROM users WHERE id = ?")
-        .get(session.user_id) as any
-      if (user) {
-        userEmail = user.email
+    const decoded = verifyJwtToken(token)
+    if (decoded && decoded.role === "customer") {
+      targetUserId = decoded.userId
+      userEmail = decoded.email || userEmail
+    } else {
+      const session = (await db
+        .prepare("SELECT user_id FROM customer_sessions WHERE token = ?")
+        .get(token)) as any
+      if (session) {
+        targetUserId = session.user_id
+        const user = (await db
+          .prepare("SELECT email FROM users WHERE id = ?")
+          .get(session.user_id)) as any
+        if (user) {
+          userEmail = user.email
+        }
       }
     }
   }
 
-  if (!userEmail) {
+  const cleanEmail = (userEmail || "").trim().toLowerCase()
+
+  if (!cleanEmail && !targetUserId) {
     return res
       .status(400)
       .json({ error: "Authentication or email required to view reservations." })
   }
 
-  const rows = await db.prepare(`
-    SELECT * FROM bookings 
-    WHERE customer_email = ? 
-    ORDER BY created_at DESC
-  `)
-    .all(userEmail.trim().toLowerCase())
+  let rows: any[] = []
+  if (cleanEmail && targetUserId) {
+    rows = (await db
+      .prepare(
+        `SELECT * FROM bookings WHERE LOWER(customer_email) = ? OR user_id = ? ORDER BY created_at DESC`,
+      )
+      .all(cleanEmail, targetUserId)) as any[]
+  } else if (cleanEmail) {
+    rows = (await db
+      .prepare(
+        `SELECT * FROM bookings WHERE LOWER(customer_email) = ? ORDER BY created_at DESC`,
+      )
+      .all(cleanEmail)) as any[]
+  } else {
+    rows = (await db
+      .prepare(
+        `SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC`,
+      )
+      .all(targetUserId)) as any[]
+  }
+
+  rows.sort(
+    (a, b) =>
+      parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at),
+  )
 
   return res.json(rows.map(formatBookingRow))
 })
@@ -981,7 +1059,13 @@ app.get("/api/cars/:id/availability", async (req, res) => {
 
 // GET all bookings
 app.get("/api/bookings", async (req, res) => {
-  const rows = await db.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all()
+  const rows = (await db
+    .prepare("SELECT * FROM bookings ORDER BY created_at DESC")
+    .all()) as any[]
+  rows.sort(
+    (a, b) =>
+      parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at),
+  )
   return res.json(rows.map(formatBookingRow))
 })
 
@@ -992,6 +1076,7 @@ app.post("/api/bookings", async (req, res) => {
   const nowText = new Date().toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   })
@@ -1047,7 +1132,7 @@ app.post("/api/bookings", async (req, res) => {
     id,
     b.customer?.firstName || "Guest",
     b.customer?.lastName || "Customer",
-    b.customer?.email || "customer@example.com",
+    (b.customer?.email || "customer@example.com").trim().toLowerCase(),
     b.customer?.phone || "+1 (555) 000-0000",
     b.driver?.dateOfBirth || null,
     b.driver?.licenseNumber || null,
@@ -1123,8 +1208,12 @@ app.get("/api/bookings/:id/download-license", async (req, res) => {
       const buffer = Buffer.from(match[2], "base64")
       const filename = `DL_${side.toUpperCase()}_${cleanName}_${booking.id}.${ext}`
 
+      const isDownload = req.query.download === "1"
       res.setHeader("Content-Type", mimeType)
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`)
+      res.setHeader(
+        "Content-Disposition",
+        `${isDownload ? "attachment" : "inline"}; filename="${filename}"`,
+      )
       return res.send(buffer)
     }
   }
@@ -1182,8 +1271,12 @@ app.get("/api/bookings/:id/download-license", async (req, res) => {
   <text x="410" y="335" fill="#F97316" font-size="11" font-weight="800">MOTORLY SECURE ID</text>
 </svg>`
 
+  const isDownload = req.query.download === "1"
   res.setHeader("Content-Type", "image/svg+xml")
-  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`)
+  res.setHeader(
+    "Content-Disposition",
+    `${isDownload ? "attachment" : "inline"}; filename="${fileName}"`,
+  )
   return res.send(svgContent)
 })
 
@@ -1644,6 +1737,7 @@ app.post("/api/admin/counter-booking", async (req, res) => {
   const nowText = new Date().toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   })

@@ -192,26 +192,61 @@ export default function AdminView({
   const [editingCar, setEditingCar] = useState<Car | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
-  const handleDevicePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressVehiclePhoto = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          let width = img.width
+          let height = img.height
+          const maxDim = 1200
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width)
+              width = maxDim
+            } else {
+              width = Math.round((width * maxDim) / height)
+              height = maxDim
+            }
+          }
+          const canvas = document.createElement("canvas")
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext("2d")
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height)
+            resolve(canvas.toDataURL("image/jpeg", 0.8))
+          } else {
+            resolve((e.target?.result as string) || "")
+          }
+        }
+        img.onerror = () => resolve((e.target?.result as string) || "")
+        img.src = (e.target?.result as string) || ""
+      }
+      reader.onerror = () => resolve("")
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleDevicePhotoUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image file size should be under 5MB.")
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
+    try {
+      const compressed = await compressVehiclePhoto(file)
+      if (compressed) {
         setCarFormData((prev) => ({
           ...prev,
-          image: reader.result as string,
+          image: compressed,
         }))
-        notify("Vehicle photo uploaded from device successfully!")
+        notify("Vehicle photo uploaded & optimized successfully!")
       }
+    } catch {
+      notify("Failed to process photo.")
     }
-    reader.readAsDataURL(file)
   }
 
   const [carFormData, setCarFormData] = useState<Partial<Car>>({
@@ -559,7 +594,8 @@ export default function AdminView({
     booking: BookingRecord,
     side: "front" | "back" | "certificate" = "front",
   ) => {
-    const url = api.getLicenseDownloadUrl(booking.id, side)
+    const baseUrl = api.getLicenseDownloadUrl(booking.id, side)
+    const url = baseUrl.includes("?") ? `${baseUrl}&download=1` : `${baseUrl}?download=1`
     window.open(url, "_blank")
     const label =
       side === "certificate"

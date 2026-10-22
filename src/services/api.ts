@@ -15,17 +15,27 @@ const PRIMARY_BASE = "/api"
 const FALLBACK_BASE = "http://localhost:3001/api"
 
 class ApiService {
-  private getHeaders(): Record<string, string> {
+  private getHeaders(role?: "admin" | "customer"): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     }
     const adminToken = localStorage.getItem("motorly_admin_token")
-    if (adminToken) {
-      headers["Authorization"] = `Bearer ${adminToken}`
-    } else {
-      const customerToken = localStorage.getItem("motorly_customer_token")
+    const customerToken = localStorage.getItem("motorly_customer_token")
+
+    if (role === "customer") {
       if (customerToken) {
         headers["Authorization"] = `Bearer ${customerToken}`
+      }
+    } else if (role === "admin") {
+      if (adminToken) {
+        headers["Authorization"] = `Bearer ${adminToken}`
+      }
+    } else {
+      // Default: if customer token exists and no explicit admin role requested, use customer token; otherwise admin token
+      if (customerToken) {
+        headers["Authorization"] = `Bearer ${customerToken}`
+      } else if (adminToken) {
+        headers["Authorization"] = `Bearer ${adminToken}`
       }
     }
     return headers
@@ -43,10 +53,11 @@ class ApiService {
   private async request(
     endpoint: string,
     options: RequestInit = {},
+    role?: "admin" | "customer",
   ): Promise<Response> {
     const mergedHeaders = {
-      ...this.getHeaders(),
-      ...(options.headers as Record<string, string> || {}),
+      ...this.getHeaders(role),
+      ...((options.headers as Record<string, string>) || {}),
     }
     const config: RequestInit = {
       ...options,
@@ -149,33 +160,53 @@ class ApiService {
 
   async getCustomerProfile(): Promise<CustomerUser | null> {
     const token = localStorage.getItem("motorly_customer_token")
-    if (!token) return null
+    if (!token) {
+      // Check stored user fallback
+      const stored = localStorage.getItem("motorly_customer_user")
+      try {
+        return stored ? JSON.parse(stored) : null
+      } catch {
+        return null
+      }
+    }
 
     try {
-      const res = await this.request("/auth/customer-me")
+      const res = await this.request("/auth/customer-me", {}, "customer")
       if (!res.ok) {
         if (res.status === 401) {
           localStorage.removeItem("motorly_customer_token")
           localStorage.removeItem("motorly_customer_user")
+          return null
         }
-        return null
+        // If server 500 or timeout, preserve cached user from localStorage
+        const stored = localStorage.getItem("motorly_customer_user")
+        return stored ? JSON.parse(stored) : null
       }
       const data = await this.safeJson(res, null)
+      if (data?.user) {
+        localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
+      }
       return data?.user || null
     } catch {
-      return null
+      // Network hiccup - return cached user if available
+      const stored = localStorage.getItem("motorly_customer_user")
+      try {
+        return stored ? JSON.parse(stored) : null
+      } catch {
+        return null
+      }
     }
   }
 
   logoutCustomer() {
     localStorage.removeItem("motorly_customer_token")
     localStorage.removeItem("motorly_customer_user")
-    this.request("/auth/customer-logout", { method: "POST" }).catch(() => {})
+    this.request("/auth/customer-logout", { method: "POST" }, "customer").catch(() => {})
   }
 
   async getCustomerBookings(email?: string): Promise<BookingRecord[]> {
     const query = email ? `?email=${encodeURIComponent(email)}` : ""
-    const res = await this.request(`/users/bookings${query}`)
+    const res = await this.request(`/users/bookings${query}`, {}, "customer")
     if (!res.ok) throw new Error("Failed to fetch customer reservations")
     const data = await this.safeJson(res, [])
     return Array.isArray(data) ? data : []
@@ -193,7 +224,7 @@ class ApiService {
       const res = await this.request("/auth/login", {
         method: "POST",
         body: JSON.stringify({ password, email }),
-      })
+      }, "admin")
       const data = await this.safeJson(res, null)
       if (!res.ok || !data) {
         return {
@@ -231,10 +262,14 @@ class ApiService {
     if (!token) return false
 
     try {
-      const res = await this.request("/auth/verify", {
-        method: "POST",
-        body: JSON.stringify({ token }),
-      })
+      const res = await this.request(
+        "/auth/verify",
+        {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        },
+        "admin",
+      )
       const data = await this.safeJson(res, null)
       return Boolean(data?.authenticated)
     } catch {
@@ -310,16 +345,20 @@ class ApiService {
 
   // --- Bookings & Vehicle Mating ---
   async getBookings(): Promise<BookingRecord[]> {
-    const res = await this.request("/bookings")
+    const res = await this.request("/bookings", {}, "admin")
     if (!res.ok) throw new Error("Failed to fetch bookings")
     return res.json()
   }
 
   async createBooking(bookingData: any): Promise<BookingRecord> {
-    const res = await this.request("/bookings", {
-      method: "POST",
-      body: JSON.stringify(bookingData),
-    })
+    const res = await this.request(
+      "/bookings",
+      {
+        method: "POST",
+        body: JSON.stringify(bookingData),
+      },
+      "customer",
+    )
     if (!res.ok) throw new Error("Failed to create booking")
     return res.json()
   }
@@ -329,10 +368,14 @@ class ApiService {
     booking: BookingRecord
     car: Car
   }> {
-    const res = await this.request(`/bookings/${bookingId}/mate`, {
-      method: "POST",
-      body: JSON.stringify({ carId }),
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/mate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ carId }),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to mate vehicle to booking")
     return res.json()
   }
@@ -341,9 +384,13 @@ class ApiService {
     success: boolean
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/unmate`, {
-      method: "POST",
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/unmate`,
+      {
+        method: "POST",
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to release vehicle")
     return res.json()
   }
@@ -363,10 +410,14 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/status`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to advance booking lifecycle")
     return res.json()
   }
@@ -377,9 +428,13 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/approve`, {
-      method: "POST",
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/approve`,
+      {
+        method: "POST",
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to approve reservation request")
     return res.json()
   }
@@ -399,10 +454,14 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/handover-keys`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/handover-keys`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to confirm key handover")
     return res.json()
   }
@@ -420,10 +479,14 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/request-extension`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/request-extension`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "customer",
+    )
     if (!res.ok) throw new Error("Failed to submit extension request")
     return res.json()
   }
@@ -441,10 +504,14 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/quote-extension`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/quote-extension`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to send extension quotation")
     return res.json()
   }
@@ -454,9 +521,13 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/approve-extension`, {
-      method: "POST",
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/approve-extension`,
+      {
+        method: "POST",
+      },
+      "customer",
+    )
     if (!res.ok) throw new Error("Failed to approve quotation")
     return res.json()
   }
@@ -466,9 +537,13 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/decline-extension`, {
-      method: "POST",
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/decline-extension`,
+      {
+        method: "POST",
+      },
+      "customer",
+    )
     if (!res.ok) throw new Error("Failed to decline extension")
     return res.json()
   }
@@ -490,10 +565,14 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request(`/bookings/${bookingId}/return-inspection`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      `/bookings/${bookingId}/return-inspection`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to complete return inspection")
     return res.json()
   }

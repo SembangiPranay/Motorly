@@ -20,6 +20,7 @@ interface MyBookingsViewProps {
   cars: Car[]
   currentUser: CustomerUser | null
   setCurrentUser: (user: CustomerUser | null) => void
+  allBookings?: BookingRecord[]
   onNavigateHome: () => void
   onNavigateListing: () => void
 }
@@ -28,6 +29,7 @@ export default function MyBookingsView({
   cars,
   currentUser,
   setCurrentUser,
+  allBookings,
   onNavigateHome,
   onNavigateListing,
 }: MyBookingsViewProps) {
@@ -138,36 +140,76 @@ export default function MyBookingsView({
     }
   }
 
-  // Fetch bookings when user changes or on mount
+  // Fetch bookings when user changes, on mount, or when allBookings updates
   useEffect(() => {
     async function loadData() {
       setIsLoading(true)
       setErrorMsg(null)
+
+      const getFallbackBookings = (userEmail: string, userId?: string) => {
+        if (!allBookings || allBookings.length === 0) return []
+        const clean = userEmail.trim().toLowerCase()
+        return allBookings.filter(
+          (b) =>
+            (b.customer?.email &&
+              b.customer.email.trim().toLowerCase() === clean) ||
+            (userId && b.userId === userId),
+        )
+      }
+
       try {
         if (currentUser) {
-          const userBookings = await api.getCustomerBookings(currentUser.email)
-          setBookings(userBookings)
+          const userBookings = await api
+            .getCustomerBookings(currentUser.email)
+            .catch(() => [])
+          if (userBookings && userBookings.length > 0) {
+            setBookings(userBookings)
+          } else {
+            const fallback = getFallbackBookings(
+              currentUser.email,
+              currentUser.id,
+            )
+            setBookings(fallback)
+          }
         } else {
           // If guest, try to read stored user
           const profile = await api.getCustomerProfile()
           if (profile) {
             setCurrentUser(profile)
-            const userBookings = await api.getCustomerBookings(profile.email)
-            setBookings(userBookings)
+            const userBookings = await api
+              .getCustomerBookings(profile.email)
+              .catch(() => [])
+            if (userBookings && userBookings.length > 0) {
+              setBookings(userBookings)
+            } else {
+              const fallback = getFallbackBookings(profile.email, profile.id)
+              setBookings(fallback)
+            }
           } else {
-            // Default demo email lookup or empty
             setBookings([])
           }
         }
       } catch (err: any) {
         console.warn("My Bookings fetch:", err)
-        setErrorMsg(err.message || "Failed to load reservations.")
+        if (currentUser) {
+          const fallback = getFallbackBookings(
+            currentUser.email,
+            currentUser.id,
+          )
+          if (fallback.length > 0) {
+            setBookings(fallback)
+          } else {
+            setErrorMsg(err.message || "Failed to load reservations.")
+          }
+        } else {
+          setErrorMsg(err.message || "Failed to load reservations.")
+        }
       } finally {
         setIsLoading(false)
       }
     }
     loadData()
-  }, [currentUser])
+  }, [currentUser, allBookings])
 
   // Customer Login Handler
   const handleLogin = async (e: React.FormEvent) => {
