@@ -48,9 +48,8 @@ export default function CompareView({
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false)
 
   // Active category filter tab
-  const [activeTab, setActiveTab] = useState<
-    "all" | "pricing" | "specs" | "garage" | "features"
-  >("all")
+  const [activeTab, setActiveTab] =
+    useState<"all" | "pricing" | "specs" | "garage" | "features">("all")
 
   // Modal for swapping / selecting a vehicle cleanly without native select clipping
   const [swapModalState, setSwapModalState] = useState<{
@@ -371,7 +370,9 @@ export default function CompareView({
               >
                 <TagIcon size={14} />
                 <span>
-                  {showOnlyDifferences ? "Showing Differences" : "Show Differences Only"}
+                  {showOnlyDifferences
+                    ? "Showing Differences"
+                    : "Show Differences Only"}
                 </span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
@@ -403,7 +404,8 @@ export default function CompareView({
                   than {priceWinner.highest.name}
                 </h3>
                 <p className="text-xs text-stone-600 mt-0.5">
-                  Save {priceWinner.percent}% per rental day (${priceWinner.lowest.pricePerDay}
+                  Save {priceWinner.percent}% per rental day ($
+                  {priceWinner.lowest.pricePerDay}
                   /day vs ${priceWinner.highest.pricePerDay}/day). Both vehicles
                   include full commercial liability protection.
                 </p>
@@ -444,8 +446,7 @@ export default function CompareView({
                       const idx = activeComparedCars.findIndex(
                         (c) => c.id === e.target.value,
                       )
-                      if (idx !== -1)
-                        setMobilePairIndex(([_, b]) => [idx, b])
+                      if (idx !== -1) setMobilePairIndex(([_, b]) => [idx, b])
                     }}
                     className="w-full text-xs font-bold py-1.5 px-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800"
                   >
@@ -466,8 +467,7 @@ export default function CompareView({
                       const idx = activeComparedCars.findIndex(
                         (c) => c.id === e.target.value,
                       )
-                      if (idx !== -1)
-                        setMobilePairIndex(([a, _]) => [a, idx])
+                      if (idx !== -1) setMobilePairIndex(([a, _]) => [a, idx])
                     }}
                     className="w-full text-xs font-bold py-1.5 px-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800"
                   >
@@ -563,7 +563,8 @@ export default function CompareView({
                 <div className="divide-y divide-stone-100 text-xs">
                   {/* Daily Rate */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].pricePerDay !== mobileCars[1].pricePerDay) && (
+                    mobileCars[0].pricePerDay !==
+                      mobileCars[1].pricePerDay) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Daily Rate (24 Hours)
@@ -621,7 +622,8 @@ export default function CompareView({
 
                   {/* Weekly Rate */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].pricePerDay !== mobileCars[1].pricePerDay) && (
+                    mobileCars[0].pricePerDay !==
+                      mobileCars[1].pricePerDay) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Weekly Rate (7 Days · 10% Off)
@@ -682,7 +684,7 @@ export default function CompareView({
                           className="p-2 rounded-xl bg-stone-50 border border-stone-100 space-y-1"
                         >
                           <div className="font-bold text-stone-900 line-clamp-1">
-                            {c.garageName || "Central Airport Hub"}
+                            {c.garageName || "Main Garage Facility"}
                           </div>
                           <span className="font-mono text-[10px] font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200 inline-block">
                             {c.garageBay || "Bay 14-B"}
@@ -1106,8 +1108,7 @@ export default function CompareView({
                     {(!showOnlyDifferences ||
                       activeComparedCars.some(
                         (c) =>
-                          c.pricePerDay !==
-                          activeComparedCars[0].pricePerDay,
+                          c.pricePerDay !== activeComparedCars[0].pricePerDay,
                       )) && (
                       <tr>
                         <td className="px-6 py-3 font-semibold text-stone-600">
@@ -1142,8 +1143,7 @@ export default function CompareView({
                     {(!showOnlyDifferences ||
                       activeComparedCars.some(
                         (c) =>
-                          c.pricePerHour !==
-                          activeComparedCars[0].pricePerHour,
+                          c.pricePerHour !== activeComparedCars[0].pricePerHour,
                       )) && (
                       <tr>
                         <td className="px-6 py-3 font-semibold text-stone-600">
@@ -1165,8 +1165,7 @@ export default function CompareView({
                     {(!showOnlyDifferences ||
                       activeComparedCars.some(
                         (c) =>
-                          c.pricePerDay !==
-                          activeComparedCars[0].pricePerDay,
+                          c.pricePerDay !== activeComparedCars[0].pricePerDay,
                       )) && (
                       <tr>
                         <td className="px-6 py-3 font-semibold text-stone-600">
@@ -1227,7 +1226,7 @@ export default function CompareView({
                           className="px-5 py-3 border-l border-stone-100"
                         >
                           <div className="font-bold text-stone-900 truncate max-w-[210px]">
-                            {c.garageName || "Central Airport Hub"}
+                            {c.garageName || "Main Garage Facility"}
                           </div>
                           <span className="font-mono font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block mt-0.5 text-[11px]">
                             {c.garageBay || "Bay 14-B"}
@@ -1320,8 +1319,7 @@ export default function CompareView({
                     {(!showOnlyDifferences ||
                       activeComparedCars.some(
                         (c) =>
-                          c.transmission !==
-                          activeComparedCars[0].transmission,
+                          c.transmission !== activeComparedCars[0].transmission,
                       )) && (
                       <tr>
                         <td className="px-6 py-3 font-semibold text-stone-600">
@@ -1443,9 +1441,9 @@ export default function CompareView({
                         Boolean(
                           c.features &&
                             c.features.some((f) =>
-                              f
-                                .toLowerCase()
-                                .includes(feature.key.toLowerCase()),
+                              f.toLowerCase().includes(
+                                feature.key.toLowerCase(),
+                              ),
                             ),
                         ),
                       )
@@ -1464,9 +1462,9 @@ export default function CompareView({
                             const hasFeature =
                               c.features &&
                               c.features.some((f) =>
-                                f
-                                  .toLowerCase()
-                                  .includes(feature.key.toLowerCase()),
+                                f.toLowerCase().includes(
+                                  feature.key.toLowerCase(),
+                                ),
                               )
                             return (
                               <td
@@ -1556,10 +1554,9 @@ export default function CompareView({
                     c.type
                       .toLowerCase()
                       .includes(modalSearchQuery.toLowerCase())
-                  const notAlreadyCompared =
-                    swapModalState.isAdding
-                      ? !compareIds.includes(c.id)
-                      : c.id !== swapModalState.targetCarId
+                  const notAlreadyCompared = swapModalState.isAdding
+                    ? !compareIds.includes(c.id)
+                    : c.id !== swapModalState.targetCarId
                   return matchQuery && notAlreadyCompared
                 })
                 .map((c) => (
@@ -1596,7 +1593,7 @@ export default function CompareView({
                         <span>{c.mileage}</span>
                         <span>·</span>
                         <span className="truncate">
-                          {c.garageName || "Airport Hub"}
+                          {c.garageName || "Main Garage Facility"}
                         </span>
                       </div>
                     </div>

@@ -40,9 +40,7 @@ async function runTest() {
   // 3. Check Fleet Status in Supabase
   console.log("\n[3/6] Inspecting live vehicles in Supabase...")
   const vehiclesCount = await pool.query("SELECT count(*) FROM vehicles")
-  console.log(
-    `  ✓ Total Vehicles in Supabase: ${vehiclesCount.rows[0].count}`,
-  )
+  console.log(`  ✓ Total Vehicles in Supabase: ${vehiclesCount.rows[0].count}`)
 
   const sampleVehicle = await pool.query(
     "SELECT id, name, status, plate_number, garage_name, garage_bay FROM vehicles WHERE status = 'Available' LIMIT 1",

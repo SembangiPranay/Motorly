@@ -61,9 +61,7 @@ export default function App() {
       const saved = localStorage.getItem(
         "motorly_current_view",
       ) as ViewMode | null
-      const hasAdminToken = Boolean(
-        localStorage.getItem("motorly_admin_token"),
-      )
+      const hasAdminToken = Boolean(localStorage.getItem("motorly_admin_token"))
       if (saved === "admin" && !hasAdminToken) return "home"
       const validViews: ViewMode[] = [
         "home",
@@ -102,7 +100,6 @@ export default function App() {
     "toyota-camry",
     "bmw-3-series",
   ])
-  const [showDevNav, setShowDevNav] = useState(false)
 
   // Dynamic Fleet State (synced with Supabase Backend)
   const [cars, setCars] = useState<Car[]>(CARS)
@@ -117,14 +114,14 @@ export default function App() {
   // Booking parameters matching reference design with dynamic upcoming dates
   const [bookingState, setBookingState] = useState<BookingState>({
     carId: "toyota-camry",
-    pickupLocation: "Miami International Airport (MIA)",
+    pickupLocation: "Main Garage Facility",
     pickupDate: getUpcomingFormattedDate(2),
     pickupTime: "10:00 AM",
-    returnLocation: "Miami International Airport (MIA)",
+    returnLocation: "Main Garage Facility",
     returnDate: getUpcomingFormattedDate(5),
     returnTime: "10:00 AM",
     rentalDurationDays: 3,
-    protectionPlan: true,
+    protectionPlan: false,
     rentalPlan: "daily",
   })
 
@@ -278,7 +275,7 @@ export default function App() {
       matchedCarId: activeCar.id,
       status: "Assigned" as const,
       totalAmount: details.totalAmount,
-      createdAt: "Just now",
+      createdAt: new Date().toISOString(),
       userId: currentUser?.id,
     }
 
@@ -290,7 +287,6 @@ export default function App() {
         created,
         ...prev.filter((b) => b.id !== created.id),
       ])
-      await api.updateCarStatus(activeCar.id, "Rented").catch(() => {})
       const freshCars = await api.getCars().catch(() => null)
       if (freshCars) setCars(freshCars)
 
@@ -497,102 +493,6 @@ export default function App() {
           setCurrentView("admin")
         }}
       />
-
-      {/* Collapsible portal switcher on bottom-left (hidden in Admin & Auth view) */}
-      {currentView !== "admin" && currentView !== "auth" && (
-        <aside
-          aria-label="Screen Flow Preview"
-          className="fixed bottom-5 left-5 z-40 transition-all duration-300"
-        >
-          {showDevNav ? (
-            <div className="bg-[#17191C]/95 text-white backdrop-blur-md rounded-2xl shadow-2xl p-2 flex items-center gap-1.5 text-xs border border-white/10 animate-fade-in max-w-[calc(100vw-2.5rem)] overflow-x-auto no-scrollbar">
-              <span className="text-gray-400 font-semibold px-2">Views:</span>
-              <button
-                onClick={() => setCurrentView("home")}
-                className={`px-2.5 py-1.5 rounded-xl transition-colors font-medium ${
-                  currentView === "home"
-                    ? "bg-[#F97316] text-white font-bold"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                1. Home
-              </button>
-              <button
-                onClick={() => setCurrentView("listing")}
-                className={`px-2.5 py-1.5 rounded-xl transition-colors font-medium ${
-                  currentView === "listing"
-                    ? "bg-[#F97316] text-white font-bold"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                2. Fleet
-              </button>
-              <button
-                onClick={() => setCurrentView("detail")}
-                className={`px-2.5 py-1.5 rounded-xl transition-colors font-medium ${
-                  currentView === "detail"
-                    ? "bg-[#F97316] text-white font-bold"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                3. Details
-              </button>
-              <button
-                onClick={() => setCurrentView("checkout")}
-                className={`px-2.5 py-1.5 rounded-xl transition-colors font-medium ${
-                  currentView === "checkout"
-                    ? "bg-[#F97316] text-white font-bold"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                4. Checkout
-              </button>
-              <button
-                onClick={() => setCurrentView("my-bookings")}
-                className={`px-2.5 py-1.5 rounded-xl transition-colors font-medium ${
-                  currentView === "my-bookings"
-                    ? "bg-[#F97316] text-white font-bold"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                5. My Trips
-              </button>
-              <button
-                onClick={() => setCurrentView("compare")}
-                className={`px-2.5 py-1.5 rounded-xl transition-colors font-medium ${
-                  currentView === "compare"
-                    ? "bg-[#F97316] text-white font-bold"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                6. Compare
-              </button>
-              <span className="text-gray-600">|</span>
-              <button
-                onClick={() => handleNavigate("admin")}
-                className="px-3 py-1.5 rounded-xl transition-colors font-bold flex items-center gap-1 bg-orange-500/20 text-[#F97316] hover:bg-orange-500/30"
-              >
-                ⚙️ Admin Panel
-              </button>
-              <button
-                onClick={() => setShowDevNav(false)}
-                className="text-gray-400 hover:text-white p-1 rounded-lg ml-1 hover:bg-white/10"
-                title="Close Preview Drawer"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowDevNav(true)}
-              className="bg-[#17191C]/85 hover:bg-[#17191C] text-gray-300 hover:text-white backdrop-blur-md rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1.5 text-[11px] font-semibold border border-white/10 transition-all opacity-70 hover:opacity-100"
-            >
-              <span>⚡ Portal Switcher</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
-            </button>
-          )}
-        </aside>
-      )}
     </div>
   )
 }

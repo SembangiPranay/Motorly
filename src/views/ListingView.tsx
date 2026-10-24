@@ -476,7 +476,8 @@ export default function ListingView({
           </h1>
 
           <p className="text-xs sm:text-sm text-stone-500 max-w-xl mx-auto font-medium hidden sm:block">
-            Certified premium fleet ready for instant reservation, contactless hub dispatch, and airport terminal handover.
+            Inspected garage fleet ready for reservation, direct manager review,
+            and garage pickup.
           </p>
 
           {/* Sleek, Luxury Trip Summary Strip (Tapping opens DateSchedulingModal immediately) */}
@@ -492,7 +493,10 @@ export default function ListingView({
               <div className="min-w-0 text-left">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <span className="text-xs sm:text-sm font-extrabold text-stone-900 tracking-tight">
-                    {formatDisplayDate(bookingState.pickupDate)} ({bookingState.pickupTime}) – {formatDisplayDate(bookingState.returnDate)} ({bookingState.returnTime})
+                    {formatDisplayDate(bookingState.pickupDate)} (
+                    {bookingState.pickupTime}) –{" "}
+                    {formatDisplayDate(bookingState.returnDate)} (
+                    {bookingState.returnTime})
                   </span>
                   <span className="text-[10px] sm:text-xs font-bold text-[#F97316] bg-orange-100 px-2 py-0.5 rounded-md">
                     {tripDurationDays} {tripDurationDays === 1 ? "day" : "days"}
@@ -502,7 +506,8 @@ export default function ListingView({
                 <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-stone-500 font-medium truncate mt-0.5">
                   <LocationIcon size={12} className="text-[#F97316] shrink-0" />
                   <span className="truncate">
-                    {bookingState.pickupLocation || "Fleet Garage Hub (Set by Owner)"}
+                    {bookingState.pickupLocation ||
+                      "Fleet Garage Hub (Set by Owner)"}
                   </span>
                 </div>
               </div>
@@ -605,7 +610,9 @@ export default function ListingView({
                 title="Open Side-by-Side Comparison Studio"
               >
                 <span>⚖️</span>
-                <span className="font-extrabold hidden min-[400px]:inline">Compare</span>
+                <span className="font-extrabold hidden min-[400px]:inline">
+                  Compare
+                </span>
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
                     compareIds.length > 0
@@ -815,9 +822,8 @@ export default function ListingView({
                   No vehicles match your active criteria
                 </h3>
                 <p className="text-xs text-stone-500 max-w-md mx-auto">
-                  Try adjusting your price ceiling, clearing specific category
-                  filters, or selecting a different airport hub to view
-                  available fleet options.
+                  Try adjusting your price ceiling or clearing specific category
+                  filters to view available garage vehicles.
                 </p>
                 <button
                   onClick={clearAllFilters}

@@ -60,35 +60,35 @@ export default function GarageMapViewer({
     if (garageAddress) setCurrentAddress(garageAddress)
   }, [lat, lng, garageAddress])
 
-  // Pre-configured hub coordinates quick selector
+  // Pre-configured garage bay selector
   const PRESET_HUBS = [
     {
-      name: "Miami Airport Hub (MIA - Garage Bay 4)",
-      address: "4200 NW 21st St, Miami, FL 33142",
-      lat: 25.7959,
-      lng: -80.287,
-      bay: "Bay 14-B",
-    },
-    {
-      name: "Downtown Miami Garage & Valet",
-      address: "100 Chopin Plaza, Miami, FL 33131",
+      name: "Main Garage Facility - Bay 1",
+      address: "100 Industrial Parkway, Bay 1",
       lat: 25.7725,
       lng: -80.1878,
-      bay: "Stall D-02",
+      bay: "Bay 1",
     },
     {
-      name: "Los Angeles Airport Hub (LAX - Terminal 3)",
-      address: "9601 S Sepulveda Blvd, Los Angeles, CA 90045",
-      lat: 33.9452,
-      lng: -118.4063,
-      bay: "Bay 8-A",
+      name: "Main Garage Facility - Bay 2",
+      address: "100 Industrial Parkway, Bay 2",
+      lat: 25.7728,
+      lng: -80.1875,
+      bay: "Bay 2",
     },
     {
-      name: "Orlando International Garage (MCO - Level 2)",
-      address: "1 Jeff Fuqua Blvd, Orlando, FL 32827",
-      lat: 28.4294,
-      lng: -81.3089,
-      bay: "Bay 22",
+      name: "Vehicle Inspection & Prep Bay",
+      address: "100 Industrial Parkway, Bay 3",
+      lat: 25.7722,
+      lng: -80.188,
+      bay: "Prep Bay",
+    },
+    {
+      name: "Customer Handoff Stall",
+      address: "100 Industrial Parkway, Front Lot",
+      lat: 25.772,
+      lng: -80.1882,
+      bay: "Stall A",
     },
   ]
 

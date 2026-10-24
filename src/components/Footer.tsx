@@ -21,18 +21,18 @@ export default function Footer({
               </span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
-              Premium car rental service designed for modern travelers. Clean
-              cars, transparent pricing, and effortless booking.
+              Local garage fleet and vehicle rentals. Clean cars, transparent
+              pricing, and direct manager service.
             </p>
             <div className="text-xs text-gray-400">
-              <p>Miami • Los Angeles • New York • Orlando</p>
+              <p>Garage Service Facility • Bay 1 Handoff</p>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-200 mb-4 font-heading">
-              Fleet &amp; Booking
+              Garage Fleet
             </h4>
             <ul className="space-y-2.5 text-sm text-gray-400">
               <li>
@@ -40,7 +40,7 @@ export default function Footer({
                   onClick={() => onNavigate("listing")}
                   className="hover:text-[#F97316] transition-colors"
                 >
-                  All Vehicles (17)
+                  All Garage Vehicles
                 </button>
               </li>
               <li>
@@ -48,7 +48,7 @@ export default function Footer({
                   onClick={() => onNavigate("listing")}
                   className="hover:text-[#F97316] transition-colors"
                 >
-                  Economy &amp; Compact
+                  Sedans &amp; Hatchbacks
                 </button>
               </li>
               <li>
@@ -56,23 +56,7 @@ export default function Footer({
                   onClick={() => onNavigate("listing")}
                   className="hover:text-[#F97316] transition-colors"
                 >
-                  Sedans &amp; Luxury
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("listing")}
-                  className="hover:text-[#F97316] transition-colors"
-                >
-                  SUVs &amp; 4x4
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate("listing")}
-                  className="hover:text-[#F97316] transition-colors"
-                >
-                  Passenger Vans
+                  SUVs &amp; Crossovers
                 </button>
               </li>
               <li>
@@ -89,23 +73,23 @@ export default function Footer({
           {/* Support */}
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-200 mb-4 font-heading">
-              Support &amp; Policies
+              Rental Info
             </h4>
             <ul className="space-y-2.5 text-sm text-gray-400">
-              <li className="hover:text-[#F97316] transition-colors cursor-pointer">
+              <li
+                onClick={() => onNavigate("home")}
+                className="hover:text-[#F97316] transition-colors cursor-pointer"
+              >
                 How It Works
               </li>
               <li className="hover:text-[#F97316] transition-colors cursor-pointer">
-                Insurance &amp; Coverage
+                Pay Upon Vehicle Pickup
               </li>
               <li className="hover:text-[#F97316] transition-colors cursor-pointer">
-                Free 24h Cancellation
+                Direct Inspection &amp; Keys
               </li>
               <li className="hover:text-[#F97316] transition-colors cursor-pointer">
-                24/7 Roadside Assistance
-              </li>
-              <li className="hover:text-[#F97316] transition-colors cursor-pointer">
-                FAQs
+                Frequently Asked Questions
               </li>
             </ul>
           </div>
@@ -113,40 +97,40 @@ export default function Footer({
           {/* Contact & Hours */}
           <div>
             <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-200 mb-4 font-heading">
-              Contact &amp; Assistance
+              Garage Hours &amp; Contact
             </h4>
             <div className="space-y-3 text-sm text-gray-400">
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Phone:</span>
                 <a
-                  href="tel:+13051234567"
+                  href="tel:+15551234567"
                   className="hover:text-white transition-colors"
                 >
-                  +1 (305) 123-4567
+                  +1 (555) 123-4567
                 </a>
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Email:</span>
-                <span>support@motorly.com</span>
+                <span>garage@motorly.com</span>
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Hours:</span>
-                <span>24/7 Available Worldwide</span>
+                <span>Mon – Sat: 8:00 AM – 6:00 PM</span>
               </p>
             </div>
           </div>
         </div>
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
-          <p>© 2026 MOTORLY Rental Inc. All rights reserved.</p>
+          <p>© 2026 Garage Fleet Management. All rights reserved.</p>
           <div className="flex space-x-6">
             <span className="hover:text-gray-400 cursor-pointer">
               Privacy Policy
             </span>
             <span className="hover:text-gray-400 cursor-pointer">
-              Terms of Service
+              Rental Agreement
             </span>
-            <span className="hover:text-gray-400 cursor-pointer">Security</span>
+            <span className="hover:text-gray-400 cursor-pointer">Garage Policies</span>
           </div>
         </div>
       </div>

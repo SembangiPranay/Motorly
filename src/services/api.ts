@@ -57,7 +57,7 @@ class ApiService {
   ): Promise<Response> {
     const mergedHeaders = {
       ...this.getHeaders(role),
-      ...((options.headers as Record<string, string>) || {}),
+      ...(options.headers as Record<string, string> || {}),
     }
     const config: RequestInit = {
       ...options,
@@ -201,7 +201,9 @@ class ApiService {
   logoutCustomer() {
     localStorage.removeItem("motorly_customer_token")
     localStorage.removeItem("motorly_customer_user")
-    this.request("/auth/customer-logout", { method: "POST" }, "customer").catch(() => {})
+    this.request("/auth/customer-logout", { method: "POST" }, "customer").catch(
+      () => {},
+    )
   }
 
   async getCustomerBookings(email?: string): Promise<BookingRecord[]> {
@@ -221,10 +223,14 @@ class ApiService {
     message?: string
   }> {
     try {
-      const res = await this.request("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ password, email }),
-      }, "admin")
+      const res = await this.request(
+        "/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ password, email }),
+        },
+        "admin",
+      )
       const data = await this.safeJson(res, null)
       if (!res.ok || !data) {
         return {
@@ -422,20 +428,36 @@ class ApiService {
     return res.json()
   }
 
-  // --- Step D: Admin Approval ("Green Signal") ---
+  // --- Step D: Admin Approval ("Accept Request") ---
   async approveBooking(bookingId: string): Promise<{
     success: boolean
     message: string
     booking: BookingRecord
   }> {
     const res = await this.request(
-      `/bookings/${bookingId}/approve`,
+      `/bookings/${bookingId}/accept`,
       {
         method: "POST",
       },
       "admin",
     )
     if (!res.ok) throw new Error("Failed to approve reservation request")
+    return res.json()
+  }
+
+  async declineBooking(bookingId: string): Promise<{
+    success: boolean
+    message: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(
+      `/bookings/${bookingId}/decline`,
+      {
+        method: "POST",
+      },
+      "admin",
+    )
+    if (!res.ok) throw new Error("Failed to decline reservation request")
     return res.json()
   }
 
@@ -582,7 +604,11 @@ class ApiService {
     bookingId: string,
     side: "front" | "back" | "certificate" = "front",
   ): string {
-    return `/api/bookings/${bookingId}/download-license?side=${side}`
+    const adminToken = localStorage.getItem("motorly_admin_token")
+    const customerToken = localStorage.getItem("motorly_customer_token")
+    const token = adminToken || customerToken
+    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : ""
+    return `/api/bookings/${bookingId}/download-license?side=${side}${tokenParam}`
   }
 
   // Check vehicle availability for specific date range

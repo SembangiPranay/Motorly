@@ -97,7 +97,7 @@ export default function DateSchedulingModal({
   pickupTime: initialPickupTime,
   returnDate: initialReturnDate,
   returnTime: initialReturnTime,
-  pickupLocation = "Miami International Airport (MIA)",
+  pickupLocation = "Main Garage Facility",
   onApply,
 }: DateSchedulingModalProps) {
   const [mounted, setMounted] = useState(false)

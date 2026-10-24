@@ -569,7 +569,7 @@ export default function Header({
         </div>
       )}
 
-      {/* About MOTORLY Modal */}
+      {/* About Garage Modal */}
       {showAboutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative space-y-5 border border-gray-100">
@@ -582,29 +582,29 @@ export default function Header({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#F97316]" />
               <span className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
-                ABOUT OUR MISSION
+                ABOUT OUR GARAGE
               </span>
             </div>
             <h3 className="text-2xl font-extrabold text-[#17191C] font-heading">
-              Redefining Mobility for Modern Travelers
+              Local Garage Fleet &amp; Vehicle Rentals
             </h3>
             <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              MOTORLY was founded to eliminate the frustration of airport car
-              rental counters. We maintain an owned, inspected fleet of 17+
-              premium sedans, SUVs, and luxury performance vehicles across
-              Miami, Los Angeles, New York, and Orlando.
+              We maintain an inspected, clean fleet of vehicles directly from our
+              garage. We believe in transparent rates, honest vehicle maintenance,
+              and a simple reservation process without hidden fees or corporate
+              gimmicks.
             </p>
             <div className="grid grid-cols-2 gap-3 text-xs pt-2">
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="font-bold text-[#F97316]">Zero Counter Queues</p>
+                <p className="font-bold text-[#F97316]">Direct Garage Pickup</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  100% digital check-in and automated vehicle mating.
+                  Personal vehicle inspection and key handoff upon arrival.
                 </p>
               </div>
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="font-bold text-[#F97316]">Honest Pricing</p>
+                <p className="font-bold text-[#F97316]">Transparent Rates</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  All fees and taxes included upfront without surprise add-ons.
+                  Clear daily rates and pay-on-pickup with zero online surprise fees.
                 </p>
               </div>
             </div>
@@ -615,13 +615,13 @@ export default function Header({
               }}
               className="w-full py-3 bg-[#17191C] hover:bg-black text-white text-xs font-bold rounded-xl transition-colors shadow"
             >
-              Explore Our Active Fleet
+              Explore Garage Fleet
             </button>
           </div>
         </div>
       )}
 
-      {/* Contact Concierge Modal */}
+      {/* Contact Garage Modal */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative space-y-5 border border-gray-100">
@@ -636,10 +636,10 @@ export default function Header({
             </button>
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
-                24/7 SUPPORT HUB
+                GARAGE CONTACT
               </span>
               <h3 className="text-2xl font-extrabold text-[#17191C] font-heading mt-1">
-                Contact Concierge &amp; Dispatch
+                Contact Garage Manager
               </h3>
             </div>
 
@@ -652,8 +652,7 @@ export default function Header({
                   Message Received
                 </h4>
                 <p className="text-xs text-green-700">
-                  A concierge will contact you via SMS or email within 10
-                  minutes.
+                  The garage manager will respond to your inquiry shortly.
                 </p>
               </div>
             ) : (
@@ -671,7 +670,7 @@ export default function Header({
                   <input
                     type="text"
                     required
-                    placeholder="Alex Mercer"
+                    placeholder="e.g. John Miller"
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
@@ -682,7 +681,7 @@ export default function Header({
                   <input
                     type="text"
                     required
-                    placeholder="(305) 555-0199 or alex@email.com"
+                    placeholder="(555) 123-4567 or email@example.com"
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
@@ -693,7 +692,7 @@ export default function Header({
                   <textarea
                     rows={3}
                     required
-                    placeholder="e.g. Flight delay, terminal delivery change, or child seat request..."
+                    placeholder="e.g. Questions about vehicle availability, specific dates, or pickup times..."
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
@@ -702,7 +701,7 @@ export default function Header({
                     type="submit"
                     className="w-full py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-xl text-xs shadow-md transition-all"
                   >
-                    Send Urgent Concierge Request
+                    Send Message to Manager
                   </button>
                 </div>
               </form>
@@ -710,10 +709,9 @@ export default function Header({
 
             <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
               <span className="flex items-center gap-1 font-semibold text-gray-800">
-                <HeadsetIcon size={14} className="text-[#F97316]" /> +1 (305)
-                123-4567
+                <HeadsetIcon size={14} className="text-[#F97316]" /> Direct Line: (555) 123-4567
               </span>
-              <span>Miami Airport Terminal D</span>
+              <span>Garage Service &amp; Maintenance Bay</span>
             </div>
           </div>
         </div>

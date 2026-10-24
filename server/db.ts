@@ -87,7 +87,9 @@ export const db = {
     if (sqlite) {
       return sqlite.prepare(sql).all(...params) as any[]
     }
-    throw new Error("No database connection available (Supabase offline and SQLite unavailable).")
+    throw new Error(
+      "No database connection available (Supabase offline and SQLite unavailable).",
+    )
   },
 
   async get(sql: string, ...params: any[]): Promise<any> {
@@ -107,13 +109,15 @@ export const db = {
     if (sqlite) {
       return sqlite.prepare(sql).get(...params) as any
     }
-    throw new Error("No database connection available (Supabase offline and SQLite unavailable).")
+    throw new Error(
+      "No database connection available (Supabase offline and SQLite unavailable).",
+    )
   },
 
-  async run(
-    sql: string,
-    ...params: any[]
-  ): Promise<{ changes: number; rowCount: number }> {
+  async run(sql: string, ...params: any[]): Promise<{
+    changes: number
+    rowCount: number
+  }> {
     if (!isSupabaseActive && !sqlite) {
       await ensureDatabase()
     }
@@ -137,7 +141,9 @@ export const db = {
         rowCount: res?.changes || 1,
       }
     }
-    throw new Error("No database connection available (Supabase offline and SQLite unavailable).")
+    throw new Error(
+      "No database connection available (Supabase offline and SQLite unavailable).",
+    )
   },
 
   prepare(sql: string) {
@@ -174,19 +180,21 @@ export async function initDatabase() {
         })
 
         const testRes = await pool.query(
-          "SELECT NOW() as now, current_database() as db"
+          "SELECT NOW() as now, current_database() as db",
         )
         if (testRes.rows && testRes.rows.length > 0) {
           supabasePool = pool
           isSupabaseActive = true
           connected = true
           console.log(
-            `[DB] Connected directly to Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy, db: ${testRes.rows[0].db})`
+            `[DB] Connected directly to Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy, db: ${testRes.rows[0].db})`,
           )
           break
         }
       } catch (e: any) {
-        console.warn(`[DB] Supabase candidate connection failed (${e.message}), trying next...`)
+        console.warn(
+          `[DB] Supabase candidate connection failed (${e.message}), trying next...`,
+        )
       }
     }
 
@@ -196,12 +204,12 @@ export async function initDatabase() {
       console.log("[DB] Supabase PostgreSQL tables verified and active!")
     } else {
       console.warn(
-        `[DB] Could not connect to Supabase. Falling back to local SQLite at ${dbPath}`
+        `[DB] Could not connect to Supabase. Falling back to local SQLite at ${dbPath}`,
       )
     }
   } catch (err: any) {
     console.warn(
-      `[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`
+      `[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`,
     )
   }
 
@@ -386,6 +394,16 @@ async function initSupabaseTables(pool: pg.Pool) {
         ALTER TABLE maintenance_logs ADD CONSTRAINT fk_maintenance_vehicle FOREIGN KEY (car_id) REFERENCES vehicles(id) ON DELETE CASCADE;
       END IF;
     END $$;
+  `)
+
+  // High-performance secondary indexes for high-frequency search and relational filters
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
+    CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+    CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+    CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `)
 }
 
@@ -576,6 +594,13 @@ function initSqliteTables() {
       technician_notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(customer_email);
+    CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+    CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+    CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `)
 
   // Seed Vehicles if empty
@@ -649,7 +674,7 @@ function seedVehicles() {
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       gallery: JSON.stringify([
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1590362891988-f77804703080?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
       ]),
       rating: 4.8,
       reviews_count: 124,

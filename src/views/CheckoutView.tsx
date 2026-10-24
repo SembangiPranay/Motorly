@@ -80,11 +80,11 @@ export default function CheckoutView({
             ctx.drawImage(img, 0, 0, width, height)
             resolve(canvas.toDataURL("image/jpeg", quality))
           } else {
-            resolve((e.target?.result as string) || "")
+            resolve(e.target?.result as string || "")
           }
         }
-        img.onerror = () => resolve((e.target?.result as string) || "")
-        img.src = (e.target?.result as string) || ""
+        img.onerror = () => resolve(e.target?.result as string || "")
+        img.src = e.target?.result as string || ""
       }
       reader.onerror = () => resolve("")
       reader.readAsDataURL(file)
@@ -94,38 +94,33 @@ export default function CheckoutView({
   // Form States - Initialize from authenticated customer
   const [customer, setCustomer] = useState<CustomerInfo>(() => {
     const parts = (currentUser?.name || "").trim().split(" ")
-    const first = parts[0] || "Customer"
-    const last = parts.slice(1).join(" ") || "Renter"
     return {
-      firstName: first,
-      lastName: last,
-      email: currentUser?.email || "customer@example.com",
-      phone: currentUser?.phone || "+1 (305) 555-0199",
+      firstName: parts[0] || "",
+      lastName: parts.slice(1).join(" ") || "",
+      email: currentUser?.email || "",
+      phone: currentUser?.phone || "",
     }
   })
 
   const [driver, setDriver] = useState<DriverInfo>({
-    dateOfBirth: "05/15/1990",
-    licenseNumber: "D12345678",
-    licenseState: "Florida",
-    licenseExpiry: "05/15/2030",
-    licenseFileName: "driver_license_front.jpg",
+    dateOfBirth: "",
+    licenseNumber: "",
+    licenseState: "",
+    licenseExpiry: "",
+    licenseFileName: "",
+    licenseBackFileName: "",
   })
 
   const [payment, setPayment] = useState<PaymentInfo>({
-    method: "card",
-    cardNumber: "1234 5678 9012 3456",
-    expiryDate: "03/28",
-    cvv: "345",
-    cardHolderName: "John Doe",
+    method: "pickup",
+    cardNumber: "",
+    expiryDate: "",
+    cvv: "",
+    cardHolderName: "Pay at Hub",
   })
 
-  const [uploadedFile, setUploadedFile] = useState<string>(
-    "driver_license_front.jpg",
-  )
-  const [uploadedBackFile, setUploadedBackFile] = useState<string>(
-    "driver_license_back.jpg",
-  )
+  const [uploadedFile, setUploadedFile] = useState<string>("")
+  const [uploadedBackFile, setUploadedBackFile] = useState<string>("")
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [uploadedFrontDataUrl, setUploadedFrontDataUrl] =
     useState<string | null>(null)
@@ -149,6 +144,13 @@ export default function CheckoutView({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fileBackInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    ;(window as any).__setIsScheduleModalOpen = setIsScheduleModalOpen
+    return () => {
+      delete (window as any).__setIsScheduleModalOpen
+    }
+  }, [])
 
   // Populate form from authenticated customer user profile
   useEffect(() => {
@@ -242,41 +244,7 @@ export default function CheckoutView({
     }
   }
 
-  const handleAutofillDemo = () => {
-    const demoFront = `data:image/svg+xml;base64,${btoa(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250"><rect width="400" height="250" rx="16" fill="#1e293b"/><rect x="15" y="15" width="370" height="40" rx="8" fill="#f97316"/><text x="30" y="40" fill="#ffffff" font-size="16" font-family="sans-serif" font-weight="bold">FLORIDA DRIVER LICENSE (FRONT)</text><rect x="25" y="75" width="90" height="110" rx="8" fill="#334155"/><circle cx="70" cy="115" r="24" fill="#94a3b8"/><path d="M45 170 C45 140, 95 140, 95 170 Z" fill="#94a3b8"/><text x="135" y="95" fill="#f8fafc" font-size="13" font-family="sans-serif" font-weight="bold">ALEX MERCER</text><text x="135" y="120" fill="#f59e0b" font-size="12" font-family="monospace" font-weight="bold">LIC #FL-9284-91823</text><text x="135" y="145" fill="#cbd5e1" font-size="11" font-family="sans-serif">DOB: 04/12/1992 • EXP: 05/15/2030</text><text x="135" y="170" fill="#cbd5e1" font-size="11" font-family="sans-serif">CLASS E • SAFE DRIVER</text><rect x="25" y="200" width="350" height="25" rx="4" fill="#0f172a"/><text x="35" y="217" fill="#64748b" font-size="10" font-family="monospace">MOTORLY SECURE ID VERIFICATION</text></svg>`,
-    )}`
 
-    const demoBack = `data:image/svg+xml;base64,${btoa(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250"><rect width="400" height="250" rx="16" fill="#0f172a"/><rect x="20" y="20" width="360" height="50" rx="4" fill="#334155"/><line x1="20" y1="45" x2="380" y2="45" stroke="#000000" stroke-width="20"/><rect x="40" y="90" width="320" height="80" rx="6" fill="#1e293b"/><text x="55" y="125" fill="#f8fafc" font-size="12" font-family="monospace">BARCODE / 2D PDF417 STRIP</text><text x="55" y="145" fill="#94a3b8" font-size="10" font-family="monospace">||||| | |||| || ||||| ||| |||| ||||||</text><rect x="20" y="190" width="360" height="40" rx="4" fill="#1e293b"/><text x="35" y="215" fill="#64748b" font-size="9" font-family="sans-serif">RESTRICTIONS: NONE • ENDORSEMENTS: NONE</text></svg>`,
-    )}`
-
-    setCustomer({
-      firstName: "Alex",
-      lastName: "Mercer",
-      email: "alex.mercer@gmail.com",
-      phone: "(305) 555-8392",
-    })
-    setDriver({
-      dateOfBirth: "04/12/1992",
-      licenseNumber: "FL-9284-91823",
-      licenseState: "Florida",
-      licenseExpiry: "05/15/2030",
-      licenseFileName: "driver_license_front.jpg",
-      licenseBackFileName: "driver_license_back.jpg",
-    })
-    setUploadedFile("driver_license_front.jpg")
-    setUploadedBackFile("driver_license_back.jpg")
-    setUploadedFrontDataUrl(demoFront)
-    setUploadedBackDataUrl(demoBack)
-    setPayment({
-      method: "card",
-      cardNumber: "4532 8921 4410 8821",
-      expiryDate: "08/28",
-      cvv: "712",
-      cardHolderName: "Alex Mercer",
-    })
-  }
 
   const handleApplyPromo = async () => {
     const code = promoCode.trim().toUpperCase()
@@ -291,7 +259,9 @@ export default function CheckoutView({
       if (res && res.valid) {
         const discountFraction = (res.discountPercent || 15) / 100
         setPromoDiscount(discountFraction)
-        setPromoStatus(`Success: ${res.discountPercent}% discount applied (${res.code})!`)
+        setPromoStatus(
+          `Success: ${res.discountPercent}% discount applied (${res.code})!`,
+        )
       } else if (code === "DRIVE15") {
         setPromoDiscount(0.15)
         setPromoStatus("Success: 15% discount applied!")
@@ -351,8 +321,14 @@ export default function CheckoutView({
     setIsSubmitting(true)
     const randomId = "MTR-" + Math.floor(100000 + Math.random() * 900000)
 
-    const cleanEmail = (currentUser?.email || customer.email || "").trim().toLowerCase()
-    const nameParts = (currentUser?.name || `${customer.firstName} ${customer.lastName}`).trim().split(" ")
+    const cleanEmail = (currentUser?.email || customer.email || "")
+      .trim()
+      .toLowerCase()
+    const nameParts = (
+      currentUser?.name || `${customer.firstName} ${customer.lastName}`
+    )
+      .trim()
+      .split(" ")
     const finalCustomer: CustomerInfo = {
       firstName: customer.firstName || nameParts[0] || "Customer",
       lastName: customer.lastName || nameParts.slice(1).join(" ") || "Renter",
@@ -401,31 +377,14 @@ export default function CheckoutView({
         </span>
       </nav>
 
-      {/* Page Title & Fast Autofill Demo Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-[#17191C] font-heading">
-            Complete Your Reservation
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Review your rental schedule, verify driver identity, and finalize
-            your booking.
-          </p>
-        </div>
-
-        {/* 1-Click Fast Autofill Button */}
-        <button
-          type="button"
-          onClick={handleAutofillDemo}
-          className="bg-orange-50 hover:bg-orange-100 text-[#F97316] border border-orange-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs group"
-          title="Instantly populate verified test profile"
-        >
-          <ZapIcon
-            size={14}
-            className="text-[#F97316] group-hover:scale-110 transition-transform"
-          />
-          <span>⚡ Express Demo Autofill (1-Click)</span>
-        </button>
+      {/* Page Title */}
+      <div>
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-[#17191C] font-heading">
+          Complete Your Reservation Request
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Review your dates, provide your contact &amp; driver info, and submit your request directly to the Fleet Manager.
+        </p>
       </div>
 
       {/* Customer Account Verification Status Banner */}
@@ -436,7 +395,8 @@ export default function CheckoutView({
               ✓
             </span>
             <span>
-              Signed in as <strong>{currentUser.name}</strong> ({currentUser.email}) · Driver Account Active
+              Signed in as <strong>{currentUser.name}</strong> (
+              {currentUser.email}) · Driver Account Active
             </span>
           </div>
           <span className="text-[10px] font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
@@ -454,7 +414,9 @@ export default function CheckoutView({
                 Customer Account Required to Reserve
               </h4>
               <p className="text-xs text-stone-600 mt-0.5">
-                You must be logged in with a verified customer account to confirm your rental reservation, authorize insurance, and receive garage dispatch signals.
+                You must be logged in with a verified customer account to
+                confirm your rental reservation, authorize insurance, and
+                receive garage dispatch signals.
               </p>
             </div>
           </div>
@@ -754,127 +716,40 @@ export default function CheckoutView({
             </div>
           </div>
 
-          {/* Section 3: Payment Method */}
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-7 shadow-sm space-y-5">
+          {/* Section 3: Simple & Clean Payment Policy - Pay on Pickup */}
+          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-7 shadow-sm space-y-4">
             <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
-              <span className="w-7 h-7 rounded-xl bg-[#17191C] text-white text-xs font-black flex items-center justify-center">
-                3
+              <span className="w-7 h-7 rounded-xl bg-emerald-600 text-white text-xs font-black flex items-center justify-center">
+                ✓
               </span>
               <div>
                 <h2 className="text-base font-bold text-[#17191C] font-heading">
-                  Secure Payment Details
+                  No Online Payment Required — Pay Upon Vehicle Pickup
                 </h2>
-                <p className="text-[11px] text-gray-400">
-                  256-bit encrypted SSL checkout. Zero fees if cancelled 24h
-                  prior.
+                <p className="text-[11px] text-gray-500">
+                  Zero advance charges • Pay directly at the garage when you inspect the vehicle and collect the keys.
                 </p>
               </div>
             </div>
 
-            {/* Payment Method Tabs */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setPayment({ ...payment, method: "card" })}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-xs font-bold transition-all ${
-                  payment.method === "card"
-                    ? "border-[#F97316] bg-orange-50/50 text-[#F97316] shadow-xs"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <CardIcon size={18} />
-                <span>Credit / Debit Card</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPayment({ ...payment, method: "pickup" })}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-xs font-bold transition-all ${
-                  payment.method === "pickup"
-                    ? "border-[#F97316] bg-orange-50/50 text-[#F97316] shadow-xs"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <ClockIcon size={18} />
-                <span>Pay at Terminal Hub</span>
-              </button>
+            <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <CheckIcon size={20} />
+              </div>
+              <div className="space-y-1.5 text-xs">
+                <p className="font-bold text-emerald-950 text-sm">
+                  100% Free Reservation Request
+                </p>
+                <p className="text-emerald-800 text-[11px] leading-relaxed">
+                  Once you submit your details and dates, your request is sent directly to our <strong>Fleet Operations Manager</strong>. When the manager accepts your request, your vehicle is prepped and held at the hub. You will pay <strong>${totalAmount.toFixed(2)}</strong> at vehicle pickup.
+                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] text-emerald-700 font-semibold">
+                  <span>✓ No credit card required</span>
+                  <span>✓ Manager reviews &amp; accepts request</span>
+                  <span>✓ Free cancellation anytime</span>
+                </div>
+              </div>
             </div>
-
-            {payment.method === "card" ? (
-              <div className="space-y-4 pt-1">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Card Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={payment.cardNumber}
-                    onChange={(e) =>
-                      setPayment({ ...payment, cardNumber: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 border border-[#E5E7EB] rounded-xl text-xs sm:text-sm font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-gray-50/40"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Expiry Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={payment.expiryDate}
-                      onChange={(e) =>
-                        setPayment({ ...payment, expiryDate: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 border border-[#E5E7EB] rounded-xl text-xs sm:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-gray-50/40"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Security Code (CVV){" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={payment.cvv}
-                      onChange={(e) =>
-                        setPayment({ ...payment, cvv: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 border border-[#E5E7EB] rounded-xl text-xs sm:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-gray-50/40"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Name on Card <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={payment.cardHolderName}
-                    onChange={(e) =>
-                      setPayment({ ...payment, cardHolderName: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 border border-[#E5E7EB] rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-gray-50/40"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl text-xs text-gray-700 space-y-1">
-                <p className="font-bold text-[#F97316]">
-                  Pay at Terminal Hub Selected
-                </p>
-                <p className="text-[11px] text-gray-600">
-                  You will pay upon vehicle pickup at{" "}
-                  {car.garageName || car.garageAddress || "the garage facility"}. We hold your vehicle
-                  reservation without charging your card today.
-                </p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -926,12 +801,13 @@ export default function CheckoutView({
                   </div>
                 </div>
                 <button
+                  data-testid="edit-dates-btn"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     setIsScheduleModalOpen(true)
                   }}
-                  className="text-[11px] font-bold text-[#F97316] hover:underline shrink-0"
+                  className="text-[11px] font-bold text-[#F97316] hover:underline shrink-0 cursor-pointer"
                 >
                   Edit
                 </button>
@@ -957,7 +833,9 @@ export default function CheckoutView({
                   {car.garageName || "MOTORLY Central Hub & Garage"}
                 </h5>
                 <p className="text-[11px] text-stone-600 leading-snug mt-0.5">
-                  {car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142"}
+                  {car.garageAddress ||
+                    car.location ||
+                    "4200 NW 21st St, Miami, FL 33142"}
                 </p>
               </div>
 
@@ -967,7 +845,10 @@ export default function CheckoutView({
                 </span>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    car.garageAddress || car.garageName || car.location || "4200 NW 21st St, Miami, FL 33142"
+                    car.garageAddress ||
+                      car.garageName ||
+                      car.location ||
+                      "4200 NW 21st St, Miami, FL 33142",
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1079,7 +960,7 @@ export default function CheckoutView({
                 </div>
               )}
               <div className="flex justify-between">
-                <span>State &amp; Airport Taxes (18%)</span>
+                <span>Estimated Taxes &amp; Fees (10%)</span>
                 <span className="font-semibold text-gray-900">
                   ${taxesAndFees.toFixed(2)}
                 </span>
@@ -1093,7 +974,7 @@ export default function CheckoutView({
                 </div>
               )}
               <div className="flex justify-between pt-3 border-t border-gray-200 text-sm font-extrabold text-[#17191C] font-heading">
-                <span>Grand Total Due</span>
+                <span>Total Due on Pickup</span>
                 <span className="text-[#F97316] text-xl font-black">
                   ${totalAmount.toFixed(2)}
                 </span>
@@ -1108,7 +989,9 @@ export default function CheckoutView({
                 className="w-full py-4 text-white font-extrabold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm bg-[#F97316] hover:bg-[#EA580C] cursor-pointer"
               >
                 <LockIcon size={16} />
-                <span>Sign In with Account to Confirm (${totalAmount.toFixed(2)})</span>
+                <span>
+                  Sign In to Request Car (${totalAmount.toFixed(2)} on Pickup)
+                </span>
               </button>
             ) : (
               <button
@@ -1127,9 +1010,9 @@ export default function CheckoutView({
                   <span>🚫 Unavailable for Selected Dates</span>
                 ) : (
                   <>
-                    <LockIcon size={16} />
+                    <ZapIcon size={16} />
                     <span>
-                      Authorize &amp; Confirm (${totalAmount.toFixed(2)})
+                      Submit Request to Manager (${totalAmount.toFixed(2)} on Pickup)
                     </span>
                   </>
                 )}
@@ -1137,9 +1020,8 @@ export default function CheckoutView({
             )}
 
             {/* Reassurance */}
-            <p className="text-[10px] text-gray-400 text-center leading-tight">
-              By confirming, your reservation is instantly mated to an active
-              fleet vehicle in the database.
+            <p className="text-[10px] text-gray-500 text-center leading-tight">
+              🔒 No online payment charged. Fleet Manager will review dates and accept your request. Pay upon pickup.
             </p>
           </div>
         </div>
@@ -1149,7 +1031,7 @@ export default function CheckoutView({
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-3 flex items-center justify-between lg:hidden shadow-2xl">
         <div>
           <span className="text-[10px] text-stone-500 font-bold block uppercase tracking-wider">
-            Total Due
+            Total Due on Pickup
           </span>
           <span className="text-xl font-black text-[#F97316] font-heading">
             ${totalAmount.toFixed(2)}
@@ -1162,7 +1044,7 @@ export default function CheckoutView({
             className="h-11 px-5 rounded-xl text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer bg-[#F97316] hover:bg-[#EA580C] active:scale-95"
           >
             <LockIcon size={14} />
-            <span>Sign In to Book</span>
+            <span>Sign In to Request</span>
           </button>
         ) : (
           <button
@@ -1178,8 +1060,8 @@ export default function CheckoutView({
                 : "bg-[#F97316] hover:bg-[#EA580C] active:scale-95"
             }`}
           >
-            <LockIcon size={14} />
-            <span>{isSubmitting ? "Processing..." : "Confirm & Pay"}</span>
+            <ZapIcon size={14} />
+            <span>{isSubmitting ? "Submitting..." : "Submit Request"}</span>
           </button>
         )}
       </div>

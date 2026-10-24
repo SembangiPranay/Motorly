@@ -1,28 +1,28 @@
-import { DatabaseSync } from 'node:sqlite';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { DatabaseSync } from "node:sqlite"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import pg from "pg"
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, '..', 'server', 'data', 'drive_rent.db');
-const sqlite = new DatabaseSync(dbPath);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const dbPath = path.join(__dirname, "..", "server", "data", "drive_rent.db")
+const sqlite = new DatabaseSync(dbPath)
 
-const { Pool } = pg;
+const { Pool } = pg
 
 // Supabase configuration
 const pool = new Pool({
-  host: 'aws-0-us-east-1.pooler.supabase.com',
+  host: "aws-0-us-east-1.pooler.supabase.com",
   port: 6543,
-  user: 'postgres.mrbymhhcjvebpxcfmnhy',
-  password: 'Koushik.git1',
-  database: 'postgres',
-  ssl: { rejectUnauthorized: false }
-});
+  user: "postgres.mrbymhhcjvebpxcfmnhy",
+  password: "Koushik.git1",
+  database: "postgres",
+  ssl: { rejectUnauthorized: false },
+})
 
 async function migrate() {
-  console.log('[Supabase] Starting schema creation & migration...');
-  const client = await pool.connect();
+  console.log("[Supabase] Starting schema creation & migration...")
+  const client = await pool.connect()
 
   try {
     // 1. Create vehicles table
@@ -65,7 +65,7 @@ async function migrate() {
         garage_bay TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-    `);
+    `)
 
     // 2. Create bookings table
     await client.query(`
@@ -109,7 +109,7 @@ async function migrate() {
         inspection_notes TEXT,
         inspection_passed INTEGER DEFAULT 0
       );
-    `);
+    `)
 
     // 3. Create admin_sessions table
     await client.query(`
@@ -117,7 +117,7 @@ async function migrate() {
         token TEXT PRIMARY KEY,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-    `);
+    `)
 
     // 4. Create users table
     await client.query(`
@@ -134,7 +134,7 @@ async function migrate() {
         vip_tier TEXT DEFAULT 'Standard',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-    `);
+    `)
 
     // 5. Create customer_sessions table
     await client.query(`
@@ -143,7 +143,7 @@ async function migrate() {
         user_id TEXT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-    `);
+    `)
 
     // 6. Create promo_codes table
     await client.query(`
@@ -156,7 +156,7 @@ async function migrate() {
         usage_count INTEGER DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-    `);
+    `)
 
     // 7. Create maintenance_logs table
     await client.query(`
@@ -171,58 +171,64 @@ async function migrate() {
         technician_notes TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-    `);
+    `)
 
-    console.log('[Supabase] All tables created successfully.');
+    console.log("[Supabase] All tables created successfully.")
 
     // Helper to sync table data from SQLite to Supabase
-    async function syncTable(tableName, pkey = 'id') {
-      const rows = sqlite.prepare(`SELECT * FROM ${tableName}`).all();
-      console.log(`[Supabase] Syncing ${rows.length} rows for ${tableName}...`);
-      if (rows.length === 0) return;
+    async function syncTable(tableName, pkey = "id") {
+      const rows = sqlite.prepare(`SELECT * FROM ${tableName}`).all()
+      console.log(`[Supabase] Syncing ${rows.length} rows for ${tableName}...`)
+      if (rows.length === 0) return
 
       for (const row of rows) {
-        const keys = Object.keys(row);
-        const values = Object.values(row);
-        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+        const keys = Object.keys(row)
+        const values = Object.values(row)
+        const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ")
         const updateSets = keys
-          .filter(k => k !== pkey)
-          .map(k => `"${k}" = EXCLUDED."${k}"`)
-          .join(', ');
+          .filter((k) => k !== pkey)
+          .map((k) => `"${k}" = EXCLUDED."${k}"`)
+          .join(", ")
 
         const query = `
-          INSERT INTO "${tableName}" (${keys.map(k => `"${k}"`).join(', ')})
+          INSERT INTO "${tableName}" (${keys.map((k) => `"${k}"`).join(", ")})
           VALUES (${placeholders})
           ON CONFLICT ("${pkey}") DO UPDATE SET ${updateSets};
-        `;
+        `
 
-        await client.query(query, values);
+        await client.query(query, values)
       }
-      console.log(`[Supabase] Finished syncing ${tableName}.`);
+      console.log(`[Supabase] Finished syncing ${tableName}.`)
     }
 
-    await syncTable('vehicles', 'id');
-    await syncTable('bookings', 'id');
-    await syncTable('users', 'id');
-    await syncTable('promo_codes', 'code');
-    await syncTable('maintenance_logs', 'id');
-    await syncTable('admin_sessions', 'token');
-    await syncTable('customer_sessions', 'token');
+    await syncTable("vehicles", "id")
+    await syncTable("bookings", "id")
+    await syncTable("users", "id")
+    await syncTable("promo_codes", "code")
+    await syncTable("maintenance_logs", "id")
+    await syncTable("admin_sessions", "token")
+    await syncTable("customer_sessions", "token")
 
     // Verify row counts in Supabase
-    for (const tbl of ['vehicles', 'bookings', 'users', 'promo_codes', 'maintenance_logs']) {
-      const res = await client.query(`SELECT COUNT(*) as count FROM "${tbl}"`);
-      console.log(`[Supabase] Table "${tbl}" row count:`, res.rows[0].count);
+    for (const tbl of [
+      "vehicles",
+      "bookings",
+      "users",
+      "promo_codes",
+      "maintenance_logs",
+    ]) {
+      const res = await client.query(`SELECT COUNT(*) as count FROM "${tbl}"`)
+      console.log(`[Supabase] Table "${tbl}" row count:`, res.rows[0].count)
     }
 
-    console.log('🎉 Migration to Supabase PostgreSQL completed successfully!');
+    console.log("🎉 Migration to Supabase PostgreSQL completed successfully!")
   } finally {
-    client.release();
-    await pool.end();
+    client.release()
+    await pool.end()
   }
 }
 
-migrate().catch(err => {
-  console.error('[Supabase Migration Error]', err);
-  process.exit(1);
-});
+migrate().catch((err) => {
+  console.error("[Supabase Migration Error]", err)
+  process.exit(1)
+})

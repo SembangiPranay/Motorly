@@ -45,7 +45,6 @@ export default function HomeView({
     useState<"Hourly" | "Daily" | "Weekly" | "Monthly">("Daily")
   const [fleetFilter, setFleetFilter] = useState<string>("All")
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0)
-  const [calculatorDays, setCalculatorDays] = useState(3)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
 
   // Quick category cards
@@ -107,20 +106,20 @@ export default function HomeView({
   // FAQ Items
   const faqItems = [
     {
-      q: "What documents are required to pick up my rental vehicle?",
-      a: "All you need is a valid government-issued driver's license (held for at least 1 year) and a primary debit or credit card for identity verification. International drivers simply present their home country license and passport.",
+      q: "How do I request a vehicle from the garage?",
+      a: "Browse the available fleet, choose your preferred vehicle, and submit your rental dates along with your contact information. The garage manager reviews and confirms your request promptly.",
     },
     {
-      q: "Are there any hidden airport surcharges or cancellation fees?",
-      a: "Zero hidden fees. The price you see on MOTORLY includes all mandatory state taxes, vehicle registration surcharges, and airport concession recovery fees. Free cancellations are honored up to 24 hours prior to pickup.",
+      q: "When and how do I pay?",
+      a: "No online payment or advance deposit is required. You simply pay directly at the garage when you inspect the vehicle and collect the keys.",
     },
     {
-      q: "How does airport terminal pickup and car mating work?",
-      a: "Our automated dispatch engine mates your reservation directly with a clean, inspected vehicle in your selected category. When you arrive at MIA or LAX, your vehicle is pre-parked at the express terminal hub ready for key handoff in under 2 minutes.",
+      q: "What documents do I need to bring?",
+      a: "Please bring a valid driver's license and a government-issued photo ID upon vehicle pickup at the garage.",
     },
     {
-      q: "Can I add an additional driver or child safety seat?",
-      a: "Yes! Spouses and domestic partners can be added at zero extra charge. You can also select child safety seats, ski racks, or GPS accessories directly during checkout.",
+      q: "Where do I pick up and return the car?",
+      a: "All pickups and returns occur directly at our garage facility. The manager inspects the car with you at pickup and drop-off.",
     },
   ]
 
@@ -148,8 +147,8 @@ export default function HomeView({
 
               {/* Refined Subtitle */}
               <p className="text-base sm:text-lg text-gray-500 max-w-lg leading-relaxed font-normal">
-                Clean cars. Flexible rental plans. Simple and secure booking for
-                every journey.
+                Direct garage rentals. Clean vehicles, transparent prices, and
+                fast manager-approved bookings.
               </p>
 
               {/* Segmented Duration Switcher */}
@@ -216,13 +215,13 @@ export default function HomeView({
                 </div>
                 <p className="text-[11px] text-gray-400 mt-2 font-medium">
                   {selectedDuration === "Hourly" &&
-                    "⚡ Pay only for the hours you need. Fuel included."}
+                    "⚡ Short trips and quick errands around town."}
                   {selectedDuration === "Daily" &&
-                    "★ Most popular: Unlimited miles across state lines."}
+                    "★ Standard daily rental for business or personal travel."}
                   {selectedDuration === "Weekly" &&
-                    "🏷️ Save up to 18% automatically on 7+ day journeys."}
+                    "🏷️ Multi-day discount for week-long rentals."}
                   {selectedDuration === "Monthly" &&
-                    "💎 Executive subscription: Free maintenance & monthly swaps."}
+                    "💎 Extended rental for long-term vehicle needs."}
                 </p>
               </div>
             </div>
@@ -412,9 +411,9 @@ export default function HomeView({
             </div>
             <div>
               <h4 className="text-sm font-bold text-[#17191C] font-heading">
-                24/7 Roadside
+                Direct Contact
               </h4>
-              <p className="text-xs text-gray-500">Concierge support</p>
+              <p className="text-xs text-gray-500">Owner &amp; manager support</p>
             </div>
           </div>
         </div>
@@ -431,10 +430,10 @@ export default function HomeView({
               </p>
             </div>
             <h2 className="text-3xl font-extrabold text-[#17191C] font-heading">
-              Ready for Instant Pickup Today
+              Garage Fleet Ready for Pickup
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Top-rated vehicles available at our airport and downtown hubs.
+              Serviced, clean vehicles maintained and ready at our garage.
             </p>
           </div>
 
@@ -658,14 +657,13 @@ export default function HomeView({
       >
         <div className="text-center max-w-2xl mx-auto mb-12">
           <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
-            SEAMLESS EXPERIENCE
+            SIMPLE PROCESS
           </p>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#17191C] font-heading">
-            How MOTORLY Works
+            How It Works
           </h2>
           <p className="text-sm text-gray-500 mt-2">
-            No counter queues, no paper forms. Hit the road in three
-            straightforward steps.
+            Straightforward rental reservation and pickup in three simple steps.
           </p>
         </div>
 
@@ -678,11 +676,10 @@ export default function HomeView({
               <CarIcon size={24} />
             </div>
             <h3 className="text-lg font-bold text-[#17191C] font-heading mb-2">
-              1. Choose Your Vehicle
+              1. Choose a Vehicle
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Select from over 17 verified, low-mileage vehicles. Choose hourly,
-              daily, or monthly flex plans with guaranteed models.
+              Explore available cars in our garage with clear daily and weekly rates.
             </p>
           </div>
 
@@ -694,11 +691,10 @@ export default function HomeView({
               <ShieldIcon size={24} />
             </div>
             <h3 className="text-lg font-bold text-[#17191C] font-heading mb-2">
-              2. 60-Second Digital Verification
+              2. Submit Request
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Upload your driver's license online. Our automated system approves
-              your reservation instantly without airport counter lines.
+              Pick your rental dates and fill in your contact details. No online payment required upfront.
             </p>
           </div>
 
@@ -710,198 +706,11 @@ export default function HomeView({
               <ZapIcon size={24} />
             </div>
             <h3 className="text-lg font-bold text-[#17191C] font-heading mb-2">
-              3. Express Terminal Pickup
+              3. Manager Approval &amp; Pickup
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Your car is mated, sanitized, and parked at the terminal hub. Grab
-              the keys from your dedicated concierge and drive away.
+              The garage manager approves your request. Inspect your car, pay on arrival, and pick up the keys.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Rental Savings Calculator */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-[#17191C] to-[#25282D] text-white rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">
-          <div className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-[#F97316]/10 blur-3xl pointer-events-none" />
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-            <div className="lg:col-span-7 space-y-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
-                TRANSPARENT VALUE
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold font-heading">
-                Calculate Your Rental Cost &amp; Savings
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-300 max-w-lg leading-relaxed">
-                Slide to select your rental duration. Notice how longer stays
-                unlock progressive discounts automatically.
-              </p>
-
-              {/* Interactive Duration Slider */}
-              <div className="pt-4 space-y-2 max-w-md">
-                <div className="flex justify-between text-xs font-bold">
-                  <span>
-                    Duration:{" "}
-                    <span className="text-[#F97316]">
-                      {calculatorDays} Days
-                    </span>
-                  </span>
-                  <span className="text-green-400">
-                    {calculatorDays >= 7
-                      ? "18% Multi-Day Discount Applied"
-                      : "Standard Daily Rate"}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="30"
-                  value={calculatorDays}
-                  onChange={(e) => setCalculatorDays(Number(e.target.value))}
-                  className="w-full accent-[#F97316] cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400 font-mono">
-                  <span>1 Day</span>
-                  <span>7 Days (Weekly)</span>
-                  <span>14 Days</span>
-                  <span>30 Days (Monthly)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Calculated Rate Card */}
-            <div className="lg:col-span-5 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 space-y-4">
-              <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                <span className="text-xs text-gray-300">
-                  Base Rate (avg Sedan)
-                </span>
-                <span className="text-xs font-bold font-mono">
-                  $45.00 / day
-                </span>
-              </div>
-              <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                <span className="text-xs text-gray-300">Rental Duration</span>
-                <span className="text-xs font-bold font-mono">
-                  {calculatorDays} days
-                </span>
-              </div>
-              {calculatorDays >= 7 && (
-                <div className="flex justify-between items-center text-green-400 border-b border-white/10 pb-3 text-xs">
-                  <span>Multi-Day Discount</span>
-                  <span className="font-bold font-mono">
-                    -${(45 * calculatorDays * 0.18).toFixed(2)}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between items-center pt-2">
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-bold">
-                    Estimated Total
-                  </p>
-                  <p className="text-3xl font-black text-[#F97316] font-heading">
-                    $
-                    {(calculatorDays >= 7
-                      ? 45 * calculatorDays * 0.82 * 1.18
-                      : 45 * calculatorDays * 1.18
-                    ).toFixed(2)}
-                  </p>
-                </div>
-                <button
-                  onClick={onSearch}
-                  className="px-5 py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
-                >
-                  <span>Lock Rate</span>
-                  <ArrowRightIcon size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Customer Reviews & Testimonials */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
-            CLIENT REVIEWS
-          </p>
-          <h2 className="text-3xl font-extrabold text-[#17191C] font-heading">
-            Trusted by Travelers Worldwide
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-3">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[...Array(5)].map((_, i) => (
-                <StarIcon key={i} size={15} filled />
-              ))}
-            </div>
-            <p className="text-xs text-gray-600 leading-relaxed italic">
-              "Picked up the BMW 3-Series at Miami International Airport. The
-              contactless handoff took literally 90 seconds. Cleanest rental car
-              I've ever driven."
-            </p>
-            <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] font-bold flex items-center justify-center text-xs">
-                MC
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-900">Marcus Chen</p>
-                <p className="text-[10px] text-gray-400">
-                  Rented at MIA Terminal • Business Trip
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-3">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[...Array(5)].map((_, i) => (
-                <StarIcon key={i} size={15} filled />
-              ))}
-            </div>
-            <p className="text-xs text-gray-600 leading-relaxed italic">
-              "No surprise fees at checkout! What you see is what you pay. We
-              rented the Honda CR-V for a 10-day family trip across Florida and
-              it was flawless."
-            </p>
-            <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] font-bold flex items-center justify-center text-xs">
-                ER
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-900">Elena Rostova</p>
-                <p className="text-[10px] text-gray-400">
-                  Rented SUV • Vacation Travel
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl border border-gray-200/80 shadow-sm space-y-3">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[...Array(5)].map((_, i) => (
-                <StarIcon key={i} size={15} filled />
-              ))}
-            </div>
-            <p className="text-xs text-gray-600 leading-relaxed italic">
-              "Needed an economy car for 3 weeks while mine was in the shop. The
-              monthly flex pricing saved me hundreds compared to traditional
-              rental companies."
-            </p>
-            <div className="pt-3 border-t border-gray-100 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] font-bold flex items-center justify-center text-xs">
-                DW
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-900">David Wallace</p>
-                <p className="text-[10px] text-gray-400">
-                  Monthly Renter • Local Commute
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -947,80 +756,6 @@ export default function HomeView({
               </div>
             )
           })}
-        </div>
-      </section>
-
-      {/* Freedom to Explore Banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl overflow-hidden bg-[#17191C] text-white p-8 sm:p-12 shadow-2xl">
-          <div className="absolute inset-0 opacity-20">
-            <img
-              src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80"
-              alt="Scenic coastal highway"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-7 space-y-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#F97316]">
-                MORE THAN A RENTAL
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight font-heading leading-tight">
-                Freedom to Explore Further
-              </h2>
-              <p className="text-gray-300 text-sm sm:text-base max-w-xl leading-relaxed">
-                Whether it's a weekend getaway, a business trip, or a long-term
-                stay, MOTORLY gets you there with ease, transparent pricing, and
-                24/7 care.
-              </p>
-              <div className="pt-2">
-                <button
-                  onClick={onSearch}
-                  className="px-6 py-3.5 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 group"
-                >
-                  <span>Explore Cars</span>
-                  <ArrowRightIcon
-                    size={16}
-                    className="group-hover:translate-x-1 transition-transform"
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Statistics */}
-            <div className="lg:col-span-5 grid grid-cols-2 gap-4">
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
-                  17+
-                </p>
-                <p className="text-xs text-gray-300 mt-1">
-                  Active Fleet Vehicles
-                </p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
-                  100%
-                </p>
-                <p className="text-xs text-gray-300 mt-1">
-                  Transparent Pricing
-                </p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
-                  24/7
-                </p>
-                <p className="text-xs text-gray-300 mt-1">Customer Support</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                <p className="text-3xl font-extrabold text-[#F97316] font-heading">
-                  4.9/5
-                </p>
-                <p className="text-xs text-gray-300 mt-1">
-                  Customer Satisfaction
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 

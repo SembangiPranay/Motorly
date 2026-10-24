@@ -187,6 +187,9 @@ export default function CarDetailView({
                 src={galleryImages[selectedPhotoIndex] || car.image}
                 alt={`${car.name} view ${selectedPhotoIndex + 1}`}
                 className="w-full h-full object-cover transition-all duration-300"
+                onError={(e) => {
+                  ;(e.currentTarget as HTMLImageElement).src = car.image
+                }}
               />
 
               {/* Prev / Next Arrows */}
@@ -238,6 +241,9 @@ export default function CarDetailView({
                     src={img}
                     alt={`Thumb ${idx + 1}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      ;(e.currentTarget as HTMLImageElement).src = car.image
+                    }}
                   />
                 </button>
               ))}
@@ -264,7 +270,7 @@ export default function CarDetailView({
                   <span>({car.reviewsCount}+ verified renter reviews)</span>
                   <span>•</span>
                   <span className="text-green-600 font-semibold">
-                    Terminal Dispatch Guaranteed
+                    Garage Inspected &amp; Ready
                   </span>
                 </div>
               </div>
@@ -394,10 +400,10 @@ export default function CarDetailView({
                   </div>
                   <div>
                     <span className="text-[11px] text-gray-400 font-semibold block">
-                      Hub Station
+                      Garage Location
                     </span>
                     <span className="text-sm font-bold text-gray-900">
-                      {car.location || "MIA Airport"}
+                      {car.garageName || car.location || "Main Garage Facility"}
                     </span>
                   </div>
                 </div>
@@ -465,12 +471,12 @@ export default function CarDetailView({
                 <GarageMapViewer
                   garageName={
                     car.garageName ||
-                    `${car.location || "Miami International Airport"} Staging Garage`
+                    "Main Garage Facility"
                   }
                   garageAddress={
                     car.garageAddress ||
                     car.location ||
-                    "4200 NW 21st St, Miami, FL 33142"
+                    "Main Garage Bay"
                   }
                   garageBay={car.garageBay || "Bay 14-B"}
                   lat={car.garageLat || 25.7959}
@@ -566,8 +572,8 @@ export default function CarDetailView({
                     </span>
                   </div>
                   <p className="text-xs text-gray-600">
-                    "Vehicle was spotless, smelling fresh, and waiting right at
-                    the airport gate. Smooth ride and exceptional fuel economy."
+                    "Vehicle was spotless, well-maintained, and ready right at
+                    the garage bay. Smooth ride and exceptional fuel economy."
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
@@ -675,7 +681,9 @@ export default function CarDetailView({
                       {car.garageName || "MOTORLY Central Hub & Garage"}
                     </p>
                     <p className="text-[11px] text-stone-600 truncate mt-0.5">
-                      {car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142"}
+                      {car.garageAddress ||
+                        car.location ||
+                        "4200 NW 21st St, Miami, FL 33142"}
                     </p>
                     {car.garageBay && (
                       <span className="inline-block mt-1 text-[10px] font-mono font-bold text-amber-800 bg-white border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs">
@@ -813,7 +821,7 @@ export default function CarDetailView({
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Taxes &amp; Airport Surcharges (18%)</span>
+                <span>Estimated Taxes &amp; Fees (10%)</span>
                 <span className="font-semibold text-gray-900">
                   ${taxes.toFixed(2)}
                 </span>
@@ -859,7 +867,7 @@ export default function CarDetailView({
                 ) : (
                   <>
                     <ZapIcon size={16} />
-                    <span>Proceed to Instant Checkout</span>
+                    <span>Request This Car (Pay on Pickup)</span>
                     <ArrowRightIcon
                       size={16}
                       className="group-hover:translate-x-1 transition-transform"
@@ -873,15 +881,15 @@ export default function CarDetailView({
             <div className="pt-3 border-t border-gray-100 space-y-2 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>Free cancellation up to 24h before pickup</span>
+                <span>Zero online payment • 100% free reservation request</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>No security deposit on credit cards at MIA</span>
+                <span>Pay at garage when manager accepts your request</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>Instant dispatch &amp; vehicle mating</span>
+                <span>Free cancellation anytime before vehicle key handover</span>
               </div>
             </div>
           </div>

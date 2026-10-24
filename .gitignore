@@ -26,3 +26,10 @@ logs/
 # SQLite database
 server/data/*.db
 server/data/*.db-journal
+
+# Temporary test artifacts
+test-results/
+scratch/
+api/data/
+.agents/
+screenshots/

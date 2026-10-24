@@ -30,7 +30,9 @@ export default function AuthView({
   const [activeTab, setActiveTab] = useState<"customer" | "admin">(initialTab)
 
   // Customer mode: "signin" vs "register"
-  const [customerMode, setCustomerMode] = useState<"signin" | "register">(initialMode)
+  const [customerMode, setCustomerMode] = useState<"signin" | "register">(
+    initialMode,
+  )
 
   // Form Fields - Customer
   const [email, setEmail] = useState("")
@@ -45,7 +47,8 @@ export default function AuthView({
   const [agreeTerms, setAgreeTerms] = useState(true)
 
   // Form Fields - Admin
-  const [adminAuthType, setAdminAuthType] = useState<"passcode" | "credentials">("passcode")
+  const [adminAuthType, setAdminAuthType] =
+    useState<"passcode" | "credentials">("passcode")
   const [adminPassword, setAdminPassword] = useState("")
   const [adminEmail, setAdminEmail] = useState("admin@motorly.com")
 
@@ -82,7 +85,9 @@ export default function AuthView({
         password: "pass123",
       })
       if (res.success && res.user) {
-        setSuccessMessage(`Welcome back, ${res.user.name}! Authenticating JWT...`)
+        setSuccessMessage(
+          `Welcome back, ${res.user.name}! Authenticating JWT...`,
+        )
         setTimeout(() => onSuccess("customer", res.user), 600)
       } else {
         setErrorMessage(res.message || "Failed to log in with demo account.")
@@ -158,10 +163,13 @@ export default function AuthView({
     setIsLoading(true)
 
     try {
-      const emailToPass = adminAuthType === "credentials" ? adminEmail : undefined
+      const emailToPass =
+        adminAuthType === "credentials" ? adminEmail : undefined
       const res = await api.adminLogin(adminPassword, emailToPass)
       if (res.success) {
-        setSuccessMessage("Administrator privileges verified! Loading fleet console...")
+        setSuccessMessage(
+          "Administrator privileges verified! Loading fleet console...",
+        )
         setTimeout(() => onSuccess("admin"), 500)
       } else {
         setErrorMessage(res.message || "Invalid administrator credentials.")
@@ -217,14 +225,14 @@ export default function AuthView({
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/80 text-orange-700 text-xs font-extrabold uppercase tracking-wider">
                 <SparklesIcon size={14} className="text-orange-600" />
-                <span>The Premier Drive Experience</span>
+                <span>Garage Fleet Portal</span>
               </div>
               <h1 className="text-4xl xl:text-5xl font-black text-stone-900 tracking-tight font-heading leading-tight">
-                Unlock the World’s Finest Fleet.
+                Simple, Honest Vehicle Rentals.
               </h1>
               <p className="text-stone-600 text-base leading-relaxed">
-                Sign in to manage your high-performance rentals, request instant extensions,
-                and enjoy seamless terminal dispatch across Miami.
+                Sign in to manage your bookings, track request status, and
+                arrange direct vehicle pickups with the garage manager.
               </p>
             </div>
 
@@ -235,9 +243,12 @@ export default function AuthView({
                   <CarIcon size={20} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-stone-900">Guaranteed Exact Models</h4>
+                  <h4 className="text-sm font-bold text-stone-900">
+                    Guaranteed Exact Models
+                  </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Drive the exact vehicle you reserved. No downgrade substitutions.
+                    Drive the exact vehicle you reserved. No downgrade
+                    substitutions.
                   </p>
                 </div>
               </div>
@@ -247,9 +258,12 @@ export default function AuthView({
                   <ShieldIcon size={20} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-stone-900">High-Security Cryptographic JWT</h4>
+                  <h4 className="text-sm font-bold text-stone-900">
+                    High-Security Cryptographic JWT
+                  </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    State-of-the-art bcrypt password encryption & role separation for customers and admins.
+                    State-of-the-art bcrypt password encryption & role
+                    separation for customers and admins.
                   </p>
                 </div>
               </div>
@@ -259,9 +273,11 @@ export default function AuthView({
                   <CheckIcon size={20} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-stone-900">Express Keyless Pickup</h4>
+                  <h4 className="text-sm font-bold text-stone-900">
+                    Direct Garage Pickup
+                  </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Terminal bay allocation & live digital inspection sign-off directly on your phone.
+                    Vehicle inspection and personal key handoff directly at the garage bay.
                   </p>
                 </div>
               </div>
@@ -273,7 +289,9 @@ export default function AuthView({
                 {"★".repeat(5)}
               </div>
               <p className="text-xs text-stone-200 italic leading-relaxed">
-                "MOTORLY makes luxury car rental effortless. I stepped off my flight at MIA, walked to Bay 14, and drove off in my Porsche in 3 minutes."
+                "MOTORLY makes luxury car rental effortless. I stepped off my
+                flight at MIA, walked to Bay 14, and drove off in my Porsche in
+                3 minutes."
               </p>
               <div className="text-[11px] font-semibold text-stone-400">
                 &mdash; Marcus Vance, Executive Member
@@ -299,7 +317,12 @@ export default function AuthView({
                       : "text-stone-500 hover:text-stone-900"
                   }`}
                 >
-                  <UserIcon size={16} className={activeTab === "customer" ? "text-orange-500" : ""} />
+                  <UserIcon
+                    size={16}
+                    className={
+                      activeTab === "customer" ? "text-orange-500" : ""
+                    }
+                  />
                   <span>Customer Access</span>
                 </button>
 
@@ -316,7 +339,10 @@ export default function AuthView({
                       : "text-stone-500 hover:text-stone-900"
                   }`}
                 >
-                  <ShieldIcon size={16} className={activeTab === "admin" ? "text-orange-400" : ""} />
+                  <ShieldIcon
+                    size={16}
+                    className={activeTab === "admin" ? "text-orange-400" : ""}
+                  />
                   <span>Fleet Operations</span>
                 </button>
               </div>
@@ -335,7 +361,10 @@ export default function AuthView({
 
                 {successMessage && (
                   <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold flex items-center gap-2.5">
-                    <CheckIcon size={18} className="text-emerald-600 shrink-0" />
+                    <CheckIcon
+                      size={18}
+                      className="text-emerald-600 shrink-0"
+                    />
                     <span>{successMessage}</span>
                   </div>
                 )}
@@ -349,7 +378,9 @@ export default function AuthView({
                     <div className="flex items-center justify-between border-b border-stone-200 pb-4">
                       <div>
                         <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight font-heading">
-                          {customerMode === "signin" ? "Welcome Back" : "Create Customer Account"}
+                          {customerMode === "signin"
+                            ? "Welcome Back"
+                            : "Create Customer Account"}
                         </h2>
                         <p className="text-xs text-stone-500 mt-0.5">
                           {customerMode === "signin"
@@ -462,7 +493,11 @@ export default function AuthView({
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder={customerMode === "signin" ? "••••••••" : "At least 6 characters"}
+                            placeholder={
+                              customerMode === "signin"
+                                ? "••••••••"
+                                : "At least 6 characters"
+                            }
                             className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                           />
                           <button
@@ -480,22 +515,30 @@ export default function AuthView({
                             <div className="flex items-center gap-1.5 h-1.5">
                               <div
                                 className={`flex-1 h-full rounded-full transition-all ${
-                                  passStrength >= 1 ? "bg-red-500" : "bg-stone-200"
+                                  passStrength >= 1
+                                    ? "bg-red-500"
+                                    : "bg-stone-200"
                                 }`}
                               />
                               <div
                                 className={`flex-1 h-full rounded-full transition-all ${
-                                  passStrength >= 2 ? "bg-amber-500" : "bg-stone-200"
+                                  passStrength >= 2
+                                    ? "bg-amber-500"
+                                    : "bg-stone-200"
                                 }`}
                               />
                               <div
                                 className={`flex-1 h-full rounded-full transition-all ${
-                                  passStrength >= 3 ? "bg-emerald-500" : "bg-stone-200"
+                                  passStrength >= 3
+                                    ? "bg-emerald-500"
+                                    : "bg-stone-200"
                                 }`}
                               />
                               <div
                                 className={`flex-1 h-full rounded-full transition-all ${
-                                  passStrength >= 4 ? "bg-emerald-600" : "bg-stone-200"
+                                  passStrength >= 4
+                                    ? "bg-emerald-600"
+                                    : "bg-stone-200"
                                 }`}
                               />
                             </div>
@@ -503,10 +546,10 @@ export default function AuthView({
                               {passStrength <= 1
                                 ? "Too short or simple"
                                 : passStrength === 2
-                                ? "Fair strength"
-                                : passStrength === 3
-                                ? "Good security"
-                                : "Strong password"}
+                                  ? "Fair strength"
+                                  : passStrength === 3
+                                    ? "Good security"
+                                    : "Strong password"}
                             </span>
                           </div>
                         )}
@@ -583,7 +626,9 @@ export default function AuthView({
                         ) : (
                           <>
                             <span>
-                              {customerMode === "signin" ? "Sign In with JWT" : "Create Account & Sign In"}
+                              {customerMode === "signin"
+                                ? "Sign In with JWT"
+                                : "Create Account & Sign In"}
                             </span>
                             <ArrowRightIcon size={16} />
                           </>
@@ -596,34 +641,54 @@ export default function AuthView({
                       <div className="pt-4 border-t border-stone-200/80 space-y-2.5">
                         <div className="flex items-center justify-between text-xs text-stone-500 font-bold uppercase tracking-wider">
                           <span>⚡ 1-Click Demo Logins</span>
-                          <span className="text-[10px] text-stone-400 font-normal">Preloaded Profiles</span>
+                          <span className="text-[10px] text-stone-400 font-normal">
+                            Preloaded Profiles
+                          </span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <button
                             type="button"
-                            onClick={() => handleQuickDemoLogin("john.doe@email.com")}
+                            onClick={() =>
+                              handleQuickDemoLogin("john.doe@email.com")
+                            }
                             className="p-2.5 rounded-xl border border-stone-200 hover:border-orange-500 bg-stone-50 hover:bg-orange-50/50 text-left transition flex flex-col justify-center"
                           >
-                            <span className="text-xs font-bold text-stone-900">John Doe</span>
-                            <span className="text-[10px] text-amber-600 font-mono">Gold Member</span>
+                            <span className="text-xs font-bold text-stone-900">
+                              John Doe
+                            </span>
+                            <span className="text-[10px] text-amber-600 font-mono">
+                              Gold Member
+                            </span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => handleQuickDemoLogin("david.c@techventure.io")}
+                            onClick={() =>
+                              handleQuickDemoLogin("david.c@techventure.io")
+                            }
                             className="p-2.5 rounded-xl border border-stone-200 hover:border-orange-500 bg-stone-50 hover:bg-orange-50/50 text-left transition flex flex-col justify-center"
                           >
-                            <span className="text-xs font-bold text-stone-900">David Chen</span>
-                            <span className="text-[10px] text-purple-600 font-mono">VIP Executive</span>
+                            <span className="text-xs font-bold text-stone-900">
+                              David Chen
+                            </span>
+                            <span className="text-[10px] text-purple-600 font-mono">
+                              VIP Executive
+                            </span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => handleQuickDemoLogin("sarah.m@vipclient.com")}
+                            onClick={() =>
+                              handleQuickDemoLogin("sarah.m@vipclient.com")
+                            }
                             className="p-2.5 rounded-xl border border-stone-200 hover:border-orange-500 bg-stone-50 hover:bg-orange-50/50 text-left transition flex flex-col justify-center"
                           >
-                            <span className="text-xs font-bold text-stone-900">Sarah Miller</span>
-                            <span className="text-[10px] text-blue-600 font-mono">VIP Client</span>
+                            <span className="text-xs font-bold text-stone-900">
+                              Sarah Miller
+                            </span>
+                            <span className="text-[10px] text-blue-600 font-mono">
+                              VIP Client
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -649,11 +714,12 @@ export default function AuthView({
                         </span>
                       </div>
                       <h3 className="text-base sm:text-lg font-black tracking-tight font-heading">
-                        Fleet Dispatch &amp; Telemetry Gateway
+                        Garage Manager Command Center
                       </h3>
                       <p className="text-xs text-stone-400 leading-relaxed">
-                        Access is restricted to authorized fleet directors, terminal dispatchers, and vehicle technicians.
-                        Cryptographic JWT token will be generated for 24-hour administrative session.
+                        Access is restricted to authorized garage managers.
+                        Cryptographic JWT token will be generated for your
+                        authenticated administrative session.
                       </p>
                     </div>
 
@@ -703,7 +769,9 @@ export default function AuthView({
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <label className="block text-xs font-bold text-stone-700">
-                            {adminAuthType === "passcode" ? "Master Security Passcode *" : "Admin Password *"}
+                            {adminAuthType === "passcode"
+                              ? "Master Security Passcode *"
+                              : "Admin Password *"}
                           </label>
                           <span className="text-[11px] font-mono text-orange-600 bg-orange-50 px-2 py-0.5 rounded font-bold">
                             Default: 0709
@@ -778,15 +846,20 @@ export default function AuthView({
                 Reset Account Password
               </h3>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                Enter your account email to receive a secure password reset link and verification code.
+                Enter your account email to receive a secure password reset link
+                and verification code.
               </p>
             </div>
 
             {forgotSent ? (
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold space-y-1">
-                <div>✓ Password reset instructions sent to <strong>{forgotEmail}</strong>.</div>
+                <div>
+                  ✓ Password reset instructions sent to{" "}
+                  <strong>{forgotEmail}</strong>.
+                </div>
                 <div className="text-[11px] text-emerald-600 font-normal">
-                  For portfolio demo accounts, default password is <code>pass123</code>.
+                  For portfolio demo accounts, default password is{" "}
+                  <code>pass123</code>.
                 </div>
               </div>
             ) : (
@@ -819,7 +892,8 @@ export default function AuthView({
 
       {/* Footer minimal info */}
       <footer className="w-full border-t border-stone-200/60 py-6 px-4 text-center text-xs text-stone-400">
-        &copy; 2026 MOTORLY Car Rental Systems. All rights reserved. Encrypted with HMAC-SHA256 &amp; Supabase PostgreSQL.
+        &copy; 2026 MOTORLY Car Rental Systems. All rights reserved. Encrypted
+        with HMAC-SHA256 &amp; Supabase PostgreSQL.
       </footer>
     </div>
   )

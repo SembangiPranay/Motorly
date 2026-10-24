@@ -39713,6 +39713,14 @@ async function initSupabaseTables(pool) {
       END IF;
     END $$;
   `);
+	await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
+    CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+    CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+    CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
+  `);
 }
 function initSqliteTables() {
 	if (!sqlite) return;
@@ -39956,6 +39964,13 @@ function initSqliteTables() {
       technician_notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(customer_email);
+    CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
+    CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+    CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+    CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `);
 	if (sqlite.prepare("SELECT COUNT(*) as count FROM vehicles").get().count === 0) seedVehicles();
 	if (sqlite.prepare("SELECT COUNT(*) as count FROM bookings").get().count === 0) seedBookings();
@@ -39988,7 +40003,7 @@ function seedVehicles() {
 			price_per_day: 45,
 			price_per_hour: 6,
 			image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
-			gallery: JSON.stringify(["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1590362891988-f77804703080?auto=format&fit=crop&w=1200&q=80"]),
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
 			rating: 4.8,
 			reviews_count: 124,
 			seats: 5,
@@ -40805,6 +40820,58 @@ try {
 } catch (err) {
 	console.warn("[DB Init Warning]", err?.message);
 }
+async function reconcileDatabaseInvariants() {
+	try {
+		await db.prepare("UPDATE bookings SET status = 'Completed' WHERE status = 'Returned'").run().catch(() => {});
+		if (db.isSupabase && db.pool) {
+			const res = await db.pool.query(`
+        UPDATE vehicles
+        SET status = 'Available'
+        WHERE status = 'Rented'
+          AND id NOT IN (
+            SELECT matched_car_id
+            FROM bookings
+            WHERE status = 'Checked Out' AND matched_car_id IS NOT NULL
+          )
+      `);
+			if (res.rowCount && res.rowCount > 0) console.log(`[DB Reconciliation] Reset ${res.rowCount} orphan rented vehicles to Available`);
+		} else await db.prepare(`
+        UPDATE vehicles
+        SET status = 'Available'
+        WHERE status = 'Rented'
+          AND id NOT IN (
+            SELECT matched_car_id
+            FROM bookings
+            WHERE status = 'Checked Out' AND matched_car_id IS NOT NULL
+          )
+      `).run().catch(() => {});
+		if (db.isSupabase && db.pool) {
+			const res32 = await db.pool.query(`
+        UPDATE bookings
+        SET status = 'Completed'
+        WHERE status = 'Checked Out'
+          AND matched_car_id IN (
+            SELECT id FROM vehicles WHERE status = 'Available'
+          )
+      `);
+			if (res32.rowCount && res32.rowCount > 0) console.log(`[DB Reconciliation] Completed ${res32.rowCount} historical bookings for available vehicles`);
+		} else await db.prepare(`
+        UPDATE bookings
+        SET status = 'Completed'
+        WHERE status = 'Checked Out'
+          AND matched_car_id IN (
+            SELECT id FROM vehicles WHERE status = 'Available'
+          )
+      `).run().catch(() => {});
+	} catch (err) {
+		console.warn("[DB Reconciliation Warning]", err?.message);
+	}
+}
+try {
+	await reconcileDatabaseInvariants();
+} catch (err) {
+	console.warn("[DB Reconciliation Init Error]", err?.message);
+}
 const app = (0, import_express.default)();
 const PORT = process.env.PORT_BACKEND || 3001;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0709";
@@ -41020,6 +41087,7 @@ function generateJwtToken(payload, expiresIn = "7d") {
 function parseAuthHeader(req) {
 	const authHeader = req.headers.authorization;
 	if (authHeader && authHeader.startsWith("Bearer ")) return authHeader.substring(7);
+	if (req.query && typeof req.query.token === "string") return req.query.token;
 	return null;
 }
 function verifyJwtToken(token) {
@@ -41029,13 +41097,120 @@ function verifyJwtToken(token) {
 		return null;
 	}
 }
+async function requireAuth(req, res, next) {
+	const token = parseAuthHeader(req) || req.body && req.body.token;
+	if (!token) return res.status(401).json({
+		authenticated: false,
+		message: "Authorization token required."
+	});
+	const decoded = verifyJwtToken(token);
+	if (decoded) {
+		req.user = decoded;
+		return next();
+	}
+	try {
+		if (await db.prepare("SELECT token FROM admin_sessions WHERE token = ?").get(token)) {
+			req.user = {
+				userId: "usr_admin",
+				email: "admin@motorly.com",
+				name: "Fleet Operations Admin",
+				role: "admin"
+			};
+			return next();
+		}
+		const customerSess = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?").get(token);
+		if (customerSess) {
+			const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(customerSess.user_id);
+			if (u) {
+				req.user = {
+					userId: u.id,
+					email: u.email,
+					name: u.name,
+					role: u.role || "customer",
+					vipTier: u.vip_tier || "Standard"
+				};
+				return next();
+			}
+		}
+	} catch {}
+	return res.status(401).json({
+		authenticated: false,
+		message: "Invalid or expired authorization token."
+	});
+}
+async function requireAdmin(req, res, next) {
+	const token = parseAuthHeader(req) || req.body && req.body.token;
+	if (!token) return res.status(401).json({
+		authenticated: false,
+		message: "Authorization token required for fleet manager operations."
+	});
+	const decoded = verifyJwtToken(token);
+	if (decoded) {
+		if (decoded.role !== "admin") return res.status(403).json({
+			authenticated: true,
+			error: "Access denied. Fleet Manager (admin) privileges required."
+		});
+		req.user = decoded;
+		return next();
+	}
+	try {
+		if (await db.prepare("SELECT token FROM admin_sessions WHERE token = ?").get(token)) {
+			req.user = {
+				userId: "usr_admin",
+				email: "admin@motorly.com",
+				name: "Fleet Operations Admin",
+				role: "admin"
+			};
+			return next();
+		}
+	} catch {}
+	return res.status(403).json({
+		authenticated: false,
+		error: "Access denied. Valid Fleet Manager authorization required."
+	});
+}
+async function optionalAuth(req, _res, next) {
+	const token = parseAuthHeader(req) || req.body && req.body.token;
+	if (token) {
+		const decoded = verifyJwtToken(token);
+		if (decoded) {
+			req.user = decoded;
+			return next();
+		}
+		try {
+			const customerSess = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?").get(token);
+			if (customerSess) {
+				const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(customerSess.user_id);
+				if (u) req.user = {
+					userId: u.id,
+					email: u.email,
+					name: u.name,
+					role: u.role || "customer",
+					vipTier: u.vip_tier || "Standard"
+				};
+			}
+		} catch {}
+	}
+	next();
+}
+function safeJsonStringify(val, fallback = "[]") {
+	if (!val) return fallback;
+	if (typeof val === "string") try {
+		const parsed = JSON.parse(val);
+		return JSON.stringify(parsed);
+	} catch {
+		return JSON.stringify([val]);
+	}
+	if (Array.isArray(val) || typeof val === "object" && val !== null) return JSON.stringify(val);
+	return fallback;
+}
 app.post("/api/auth/login", async (req, res) => {
 	const { password, email } = req.body;
 	if (!password) return res.status(400).json({
 		success: false,
 		message: "Password is required."
 	});
-	const isMasterPass = password === ADMIN_PASSWORD || password === "0709";
+	const isMasterPass = password === ADMIN_PASSWORD;
 	let dbAdminUser = null;
 	if (email) dbAdminUser = await db.prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'").get(email.trim().toLowerCase());
 	let isDbPassValid = false;
@@ -41212,31 +41387,26 @@ app.post("/api/auth/customer-logout", async (req, res) => {
 		message: "Logged out."
 	});
 });
-app.get("/api/users/bookings", async (req, res) => {
-	const authHeader = req.headers.authorization;
-	const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
-	let userEmail = req.query.email;
+app.get("/api/users/bookings", requireAuth, async (req, res) => {
+	const user = req.user;
+	let cleanEmail = "";
 	let targetUserId = "";
-	if (token) {
-		const decoded = verifyJwtToken(token);
-		if (decoded && decoded.role === "customer") {
-			targetUserId = decoded.userId;
-			userEmail = decoded.email || userEmail;
-		} else {
-			const session = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?").get(token);
-			if (session) {
-				targetUserId = session.user_id;
-				const user = await db.prepare("SELECT email FROM users WHERE id = ?").get(session.user_id);
-				if (user) userEmail = user.email;
-			}
+	if (user.role === "admin") {
+		const requestedEmail = req.query.email;
+		if (requestedEmail) cleanEmail = requestedEmail.trim().toLowerCase();
+		else {
+			const allRows = await db.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all();
+			allRows.sort((a, b) => parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at));
+			return res.json(allRows.map(formatBookingRow));
 		}
+	} else {
+		cleanEmail = user.email.toLowerCase();
+		targetUserId = user.userId;
 	}
-	const cleanEmail = (userEmail || "").trim().toLowerCase();
-	if (!cleanEmail && !targetUserId) return res.status(400).json({ error: "Authentication or email required to view reservations." });
 	let rows = [];
 	if (cleanEmail && targetUserId) rows = await db.prepare(`SELECT * FROM bookings WHERE LOWER(customer_email) = ? OR user_id = ? ORDER BY created_at DESC`).all(cleanEmail, targetUserId);
 	else if (cleanEmail) rows = await db.prepare(`SELECT * FROM bookings WHERE LOWER(customer_email) = ? ORDER BY created_at DESC`).all(cleanEmail);
-	else rows = await db.prepare(`SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC`).all(targetUserId);
+	else if (targetUserId) rows = await db.prepare(`SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC`).all(targetUserId);
 	rows.sort((a, b) => parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at));
 	return res.json(rows.map(formatBookingRow));
 });
@@ -41252,13 +41422,13 @@ app.get("/api/cars", async (req, res) => {
 		query += " AND type = ?";
 		params.push(type);
 	}
-	if (maxPrice) {
+	if (maxPrice && !isNaN(Number(maxPrice))) {
 		query += " AND price_per_day <= ?";
 		params.push(Number(maxPrice));
 	}
 	if (search) {
-		query += " AND (name LIKE ? OR brand LIKE ? OR plate_number LIKE ?)";
-		const wildcard = `%${search}%`;
+		query += " AND (LOWER(name) LIKE ? OR LOWER(brand) LIKE ? OR LOWER(plate_number) LIKE ?)";
+		const wildcard = `%${String(search).trim().toLowerCase()}%`;
 		params.push(wildcard, wildcard, wildcard);
 	}
 	query += " ORDER BY is_popular DESC, price_per_day ASC";
@@ -41277,11 +41447,11 @@ app.get("/api/cars/:id", async (req, res) => {
 	if (!row) return res.status(404).json({ error: "Vehicle not found." });
 	return res.json(formatCarRow(row));
 });
-app.post("/api/cars", async (req, res) => {
+app.post("/api/cars", requireAdmin, async (req, res) => {
 	const car = req.body;
 	const newId = car.id || (car.name || "vehicle").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + `-${Date.now().toString().slice(-4)}`;
-	const galleryJson = JSON.stringify(car.gallery && car.gallery.length ? car.gallery : [car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"]);
-	const featuresJson = JSON.stringify(car.features || ["Bluetooth", "Apple CarPlay"]);
+	const galleryJson = safeJsonStringify(car.gallery && car.gallery.length ? car.gallery : [car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"]);
+	const featuresJson = safeJsonStringify(car.features || ["Bluetooth", "Apple CarPlay"]);
 	await db.prepare(`
     INSERT INTO vehicles (
       id, name, brand, model, year, type, price_per_day, price_per_hour,
@@ -41300,12 +41470,12 @@ app.post("/api/cars", async (req, res) => {
 	const created = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(newId);
 	return res.status(201).json(formatCarRow(created));
 });
-app.put("/api/cars/:id", async (req, res) => {
+app.put("/api/cars/:id", requireAdmin, async (req, res) => {
 	const car = req.body;
 	const carId = req.params.id;
 	if (!await db.prepare("SELECT id FROM vehicles WHERE id = ?").get(carId)) return res.status(404).json({ error: "Vehicle not found." });
-	const galleryJson = JSON.stringify(car.gallery || [car.image]);
-	const featuresJson = JSON.stringify(car.features || []);
+	const galleryJson = safeJsonStringify(car.gallery || [car.image]);
+	const featuresJson = safeJsonStringify(car.features || []);
 	await db.prepare(`
     UPDATE vehicles SET
       name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?,
@@ -41320,7 +41490,7 @@ app.put("/api/cars/:id", async (req, res) => {
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json(formatCarRow(updated));
 });
-app.patch("/api/cars/:id/status", async (req, res) => {
+app.patch("/api/cars/:id/status", requireAdmin, async (req, res) => {
 	const { status } = req.body;
 	const carId = req.params.id;
 	if (!status) return res.status(400).json({ error: "Status is required." });
@@ -41328,7 +41498,7 @@ app.patch("/api/cars/:id/status", async (req, res) => {
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json(formatCarRow(updated));
 });
-app.delete("/api/cars/:id", async (req, res) => {
+app.delete("/api/cars/:id", requireAdmin, async (req, res) => {
 	await db.prepare("DELETE FROM vehicles WHERE id = ?").run(req.params.id);
 	return res.json({
 		success: true,
@@ -41390,62 +41560,109 @@ app.get("/api/cars/:id/availability", async (req, res) => {
 		conflict: conflict || null
 	});
 });
-app.get("/api/bookings", async (req, res) => {
+app.get("/api/bookings", requireAdmin, async (req, res) => {
 	const rows = await db.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all();
 	rows.sort((a, b) => parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at));
 	return res.json(rows.map(formatBookingRow));
 });
-app.post("/api/bookings", async (req, res) => {
-	const b = req.body;
-	const id = b.id || `MTR-${Math.floor(1e5 + Math.random() * 9e5)}`;
-	const nowText = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit"
+const vehicleBookingLocks = {};
+function withVehicleBookingLock(carId, task) {
+	if (!carId) return task();
+	const prevPromise = vehicleBookingLocks[carId] || Promise.resolve();
+	let release = () => {};
+	const currentPromise = new Promise((resolve) => {
+		release = resolve;
 	});
+	vehicleBookingLocks[carId] = currentPromise;
+	return prevPromise.catch(() => {}).then(async () => {
+		try {
+			return await task();
+		} finally {
+			if (vehicleBookingLocks[carId] === currentPromise) delete vehicleBookingLocks[carId];
+			release();
+		}
+	});
+}
+app.post("/api/bookings", optionalAuth, async (req, res) => {
+	const b = req.body;
 	const matchedCarId = b.matchedCarId || b.carId || null;
-	const pickupDate = b.pickupDate || "Mar 15, 2026";
-	const returnDate = b.returnDate || "Mar 18, 2026";
-	if (matchedCarId) {
-		if (!await db.prepare("SELECT id FROM vehicles WHERE id = ?").get(matchedCarId)) return res.status(400).json({
-			success: false,
-			error: `Selected vehicle "${matchedCarId}" does not exist in fleet inventory.`
+	return await withVehicleBookingLock(matchedCarId, async () => {
+		const id = b.id || `MTR-${Math.floor(1e5 + Math.random() * 9e5)}`;
+		const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+		(/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit"
 		});
-		const conflict = await findVehicleBookingConflict(matchedCarId, pickupDate, returnDate);
-		if (conflict) return res.status(409).json({
-			success: false,
-			error: `Double Booking Conflict: This vehicle is already reserved for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}) under reservation ${conflict.conflictingBookingId}. Please select another car or change your rental dates.`
-		});
-	}
-	const status = matchedCarId ? "Assigned" : "Pending Assignment";
-	await db.prepare(`
-    INSERT INTO bookings (
-      id, customer_first_name, customer_last_name, customer_email, customer_phone,
-      driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
-      driver_license_file, driver_license_back_file, driver_selfie_file,
-      pickup_location, return_location, pickup_date, return_date,
-      requested_category, matched_car_id, status, total_amount, created_at,
-      user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed
-    ) VALUES (
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, 0, 'None', 0
-    )
-  `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation || "Miami International Airport (MIA)", b.returnLocation || "Miami International Airport (MIA)", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, b.createdAt || nowText, b.userId || null, b.notes || null, b.promoCode || null);
-	if (matchedCarId) await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(matchedCarId);
-	const created = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
-	return res.status(201).json(formatBookingRow(created));
+		const pickupDate = b.pickupDate || "Mar 15, 2026";
+		const returnDate = b.returnDate || "Mar 18, 2026";
+		if (matchedCarId) {
+			if (!await db.prepare("SELECT id FROM vehicles WHERE id = ?").get(matchedCarId)) return res.status(400).json({
+				success: false,
+				error: `Selected vehicle "${matchedCarId}" does not exist in fleet inventory.`
+			});
+			const conflict = await findVehicleBookingConflict(matchedCarId, pickupDate, returnDate);
+			if (conflict) return res.status(409).json({
+				success: false,
+				error: `Double Booking Conflict: This vehicle is already reserved for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}) under reservation ${conflict.conflictingBookingId}. Please select another car or change your rental dates.`
+			});
+		}
+		let validPromoCode = null;
+		if (b.promoCode) {
+			const candidateCode = String(b.promoCode).trim().toUpperCase();
+			const promoRow = await db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(candidateCode);
+			if (promoRow && promoRow.is_active) {
+				validPromoCode = candidateCode;
+				await db.prepare("UPDATE promo_codes SET usage_count = usage_count + 1 WHERE code = ?").run(candidateCode).catch(() => {});
+			}
+		}
+		let validUserId = null;
+		const candidateUserId = b.userId || req.user?.userId || null;
+		if (candidateUserId) {
+			if (await db.prepare("SELECT id FROM users WHERE id = ?").get(candidateUserId)) validUserId = candidateUserId;
+		}
+		const status = matchedCarId ? "Assigned" : "Pending Assignment";
+		const createdAtValue = b.createdAt && b.createdAt.includes("T") ? b.createdAt : nowIso;
+		try {
+			await db.prepare(`
+        INSERT INTO bookings (
+          id, customer_first_name, customer_last_name, customer_email, customer_phone,
+          driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
+          driver_license_file, driver_license_back_file, driver_selfie_file,
+          pickup_location, return_location, pickup_date, return_date,
+          requested_category, matched_car_id, status, total_amount, created_at,
+          user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed
+        ) VALUES (
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?,
+          ?, ?, ?,
+          ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, 0, 'None', 0
+        )
+      `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation || "Miami International Airport (MIA)", b.returnLocation || "Miami International Airport (MIA)", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || null, validPromoCode);
+			const created = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
+			return res.status(201).json(formatBookingRow(created));
+		} catch (err) {
+			console.error("[Booking Creation Error]", err?.message);
+			return res.status(500).json({
+				success: false,
+				error: err?.message || "Failed to create booking."
+			});
+		}
+	});
 });
-app.get("/api/bookings/:id/download-license", async (req, res) => {
+app.get("/api/bookings/:id/download-license", requireAuth, async (req, res) => {
 	const bookingId = req.params.id;
 	const side = req.query.side || "front";
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	const user = req.user;
+	if (user?.role !== "admin") {
+		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase())) return res.status(403).json({ error: "Access denied. You do not have permission to view this identification record." });
+	}
 	const fullName = `${booking.customer_first_name} ${booking.customer_last_name}`.trim();
 	const cleanName = fullName.replace(/[^a-zA-Z0-9]+/g, "_");
 	const targetPhoto = side === "back" ? booking.driver_license_back_file : booking.driver_license_file;
@@ -41504,7 +41721,7 @@ app.get("/api/bookings/:id/download-license", async (req, res) => {
 	res.setHeader("Content-Disposition", `${isDownload ? "attachment" : "inline"}; filename="${fileName}"`);
 	return res.send(svgContent);
 });
-app.post("/api/bookings/:id/approve", async (req, res) => {
+const handleManagerApproval = async (req, res) => {
 	const bookingId = req.params.id;
 	if (!await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) return res.status(404).json({ error: "Booking not found." });
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
@@ -41517,15 +41734,38 @@ app.post("/api/bookings/:id/approve", async (req, res) => {
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	return res.json({
 		success: true,
-		message: `Reservation ${bookingId} approved. Green signal given to customer for garage pickup!`,
+		message: `Reservation ${bookingId} accepted by fleet manager. Customer can now proceed to pickup!`,
+		booking: formatBookingRow(updatedBooking)
+	});
+};
+app.post("/api/bookings/:id/approve", requireAdmin, handleManagerApproval);
+app.post("/api/bookings/:id/accept", requireAdmin, handleManagerApproval);
+app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
+	const bookingId = req.params.id;
+	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	await db.prepare(`
+    UPDATE bookings SET
+      status = 'Cancelled',
+      approved_by_admin = 0,
+      notes = COALESCE(notes || ' ', '') || ' [Request Declined by Manager]'
+    WHERE id = ?
+  `).run(bookingId);
+	if (booking.matched_car_id) await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(booking.matched_car_id).catch(() => {});
+	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	return res.json({
+		success: true,
+		message: `Reservation request ${bookingId} was declined by manager.`,
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/handover-keys", async (req, res) => {
+app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { odometerOut, fuelOut, exteriorClean, tiresInspected, staffSign } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	if (booking.status === "Completed" || booking.status === "Cancelled") return res.status(400).json({ error: `Illegal transition: Cannot hand over keys for booking ${bookingId} with terminal status "${booking.status}".` });
+	if (booking.status === "Checked Out") return res.status(409).json({ error: `Booking ${bookingId} has already been checked out.` });
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
 	const checklistObj = {
 		odometerOut: Number(odometerOut) || 14250,
@@ -41553,7 +41793,7 @@ app.post("/api/bookings/:id/handover-keys", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/request-extension", async (req, res) => {
+app.post("/api/bookings/:id/request-extension", requireAuth, async (req, res) => {
 	const bookingId = req.params.id;
 	const { extraDuration, unit, customerNotes } = req.body;
 	if (!await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) return res.status(404).json({ error: "Booking not found." });
@@ -41579,7 +41819,7 @@ app.post("/api/bookings/:id/request-extension", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/quote-extension", async (req, res) => {
+app.post("/api/bookings/:id/quote-extension", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { rateType, rateAmount, totalQuotedAmount, adminNotes } = req.body;
 	if (!await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) return res.status(404).json({ error: "Booking not found." });
@@ -41603,7 +41843,7 @@ app.post("/api/bookings/:id/quote-extension", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/approve-extension", async (req, res) => {
+app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) => {
 	const bookingId = req.params.id;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
@@ -41611,24 +41851,42 @@ app.post("/api/bookings/:id/approve-extension", async (req, res) => {
 	try {
 		if (booking.extension_quote) quote = JSON.parse(booking.extension_quote);
 	} catch {}
+	let extReq = {};
+	try {
+		if (booking.extension_request) extReq = JSON.parse(booking.extension_request);
+	} catch {}
 	const additionalCost = Number(quote.totalQuotedAmount) || 0;
 	const newTotal = Number(booking.total_amount) + additionalCost;
+	const extraDuration = Number(extReq.extraDuration ?? extReq.durationValue) || 1;
+	const unit = extReq.unit ?? extReq.durationUnit ?? "days";
+	let currentReturnTimestamp = Date.parse(booking.return_date);
+	if (isNaN(currentReturnTimestamp)) currentReturnTimestamp = Date.now() + 2592e5;
+	let newReturnTimestamp = currentReturnTimestamp;
+	if (unit === "hours") newReturnTimestamp += extraDuration * 3600 * 1e3;
+	else if (unit === "months") newReturnTimestamp += extraDuration * 30 * 86400 * 1e3;
+	else newReturnTimestamp += extraDuration * 86400 * 1e3;
+	const newReturnDateStr = new Date(newReturnTimestamp).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric"
+	});
 	const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}Extended (+${quote.rateType || "period"}: +$${additionalCost})`;
 	await db.prepare(`
     UPDATE bookings SET
       extension_status = 'Approved',
+      return_date = ?,
       total_amount = ?,
       notes = ?
     WHERE id = ?
-  `).run(newTotal, updatedNotes, bookingId);
+  `).run(newReturnDateStr, newTotal, updatedNotes, bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	return res.json({
 		success: true,
-		message: `Extension approved! $${additionalCost.toFixed(2)} added to rental bill. New total: $${newTotal.toFixed(2)}.`,
+		message: `Extension approved! $${additionalCost.toFixed(2)} added to rental bill. New return date: ${newReturnDateStr}. New total: $${newTotal.toFixed(2)}.`,
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/decline-extension", async (req, res) => {
+app.post("/api/bookings/:id/decline-extension", requireAuth, async (req, res) => {
 	const bookingId = req.params.id;
 	await db.prepare(`
     UPDATE bookings SET
@@ -41642,11 +41900,13 @@ app.post("/api/bookings/:id/decline-extension", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/return-inspection", async (req, res) => {
+app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { odometerIn, fuelIn, damageFound, cleanlinessPass, inspectionPassed, staffSign, inspectionNotes } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	if (booking.status === "Completed") return res.status(409).json({ error: `Booking ${bookingId} has already been completed and finalized.` });
+	if (booking.status !== "Checked Out") return res.status(400).json({ error: `Illegal state transition: Cannot perform return inspection on booking ${bookingId} with status "${booking.status}". Booking must be in "Checked Out" status.` });
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
 	const checklistInObj = {
 		odometerIn: Number(odometerIn) || 14380,
@@ -41678,7 +41938,7 @@ app.post("/api/bookings/:id/return-inspection", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/mate", async (req, res) => {
+app.post("/api/bookings/:id/mate", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { carId } = req.body;
 	if (!carId) return res.status(400).json({ error: "carId is required to mate vehicle." });
@@ -41688,8 +41948,9 @@ app.post("/api/bookings/:id/mate", async (req, res) => {
 	if (!car) return res.status(404).json({ error: "Vehicle not found." });
 	const conflict = await findVehicleBookingConflict(carId, booking.pickup_date, booking.return_date, bookingId);
 	if (conflict) return res.status(409).json({ error: `Conflict: Vehicle is already mated to reservation ${conflict.conflictingBookingId} (${conflict.customerName}) for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}).` });
+	if (booking.matched_car_id && booking.matched_car_id !== carId) await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(booking.matched_car_id);
 	await db.prepare("UPDATE bookings SET matched_car_id = ?, status = 'Assigned' WHERE id = ?").run(carId, bookingId);
-	await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
+	if (booking.status === "Checked Out") await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	const updatedCar = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json({
@@ -41699,7 +41960,7 @@ app.post("/api/bookings/:id/mate", async (req, res) => {
 		car: formatCarRow(updatedCar)
 	});
 });
-app.post("/api/bookings/:id/unmate", async (req, res) => {
+app.post("/api/bookings/:id/unmate", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
@@ -41713,7 +41974,7 @@ app.post("/api/bookings/:id/unmate", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.patch("/api/bookings/:id/status", async (req, res) => {
+app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { status, odometerOut, odometerIn, fuelLevelOut, fuelLevelIn, notes } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
@@ -41752,7 +42013,7 @@ app.patch("/api/bookings/:id/status", async (req, res) => {
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/admin/counter-booking", async (req, res) => {
+app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
 	const b = req.body;
 	const id = b.id || `CWK-${Math.floor(1e5 + Math.random() * 9e5)}`;
 	const nowText = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
@@ -41791,7 +42052,7 @@ app.post("/api/admin/counter-booking", async (req, res) => {
 		booking: formatBookingRow(created)
 	});
 });
-app.get("/api/admin/customers", async (req, res) => {
+app.get("/api/admin/customers", requireAdmin, async (req, res) => {
 	const users = await db.prepare("SELECT * FROM users WHERE role != 'admin' ORDER BY created_at DESC").all();
 	const allBookings = await db.prepare("SELECT * FROM bookings").all();
 	const customerMap = /* @__PURE__ */ new Map();
@@ -41842,7 +42103,7 @@ app.get("/api/promos", async (req, res) => {
 	const rows = await db.prepare("SELECT * FROM promo_codes ORDER BY created_at DESC").all();
 	return res.json(rows.map(formatPromoRow));
 });
-app.post("/api/promos", async (req, res) => {
+app.post("/api/promos", requireAdmin, async (req, res) => {
 	const { code, discountPercent, description, expiryDate } = req.body;
 	if (!code || !discountPercent) return res.status(400).json({ error: "Promo code and discount percent are required." });
 	const normalizedCode = code.trim().toUpperCase();
@@ -41854,7 +42115,7 @@ app.post("/api/promos", async (req, res) => {
 	const created = await db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(normalizedCode);
 	return res.status(201).json(formatPromoRow(created));
 });
-app.patch("/api/promos/:code/toggle", async (req, res) => {
+app.patch("/api/promos/:code/toggle", requireAdmin, async (req, res) => {
 	const promoCode = req.params.code.toUpperCase();
 	const promo = await db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(promoCode);
 	if (!promo) return res.status(404).json({ error: "Promo code not found." });
@@ -41863,7 +42124,7 @@ app.patch("/api/promos/:code/toggle", async (req, res) => {
 	const updated = await db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(promoCode);
 	return res.json(formatPromoRow(updated));
 });
-app.delete("/api/promos/:code", async (req, res) => {
+app.delete("/api/promos/:code", requireAdmin, async (req, res) => {
 	const promoCode = req.params.code.toUpperCase();
 	await db.prepare("DELETE FROM promo_codes WHERE code = ?").run(promoCode);
 	return res.json({
@@ -41887,7 +42148,13 @@ app.post("/api/promos/validate", async (req, res) => {
 		valid: false,
 		message: "This coupon is no longer active."
 	});
-	await db.prepare("UPDATE promo_codes SET usage_count = usage_count + 1 WHERE code = ?").run(promoCode);
+	if (promo.expiry_date) {
+		const expiryTime = Date.parse(promo.expiry_date);
+		if (!isNaN(expiryTime) && expiryTime < Date.now()) return res.status(400).json({
+			valid: false,
+			message: "This coupon code has expired."
+		});
+	}
 	return res.json({
 		valid: true,
 		code: promo.code,
@@ -41905,7 +42172,7 @@ app.get("/api/maintenance", async (req, res) => {
   `).all();
 	return res.json(rows.map(formatMaintenanceRow));
 });
-app.post("/api/maintenance", async (req, res) => {
+app.post("/api/maintenance", requireAdmin, async (req, res) => {
 	const { carId, serviceType, cost, odometer, date, status, technicianNotes, setVehicleStatus } = req.body;
 	if (!carId || !serviceType) return res.status(400).json({ error: "carId and serviceType are required." });
 	const logId = `MNT-${Math.floor(1e3 + Math.random() * 9e3)}`;
@@ -41922,7 +42189,7 @@ app.post("/api/maintenance", async (req, res) => {
   `).get(logId);
 	return res.status(201).json(formatMaintenanceRow(created));
 });
-app.patch("/api/maintenance/:id/status", async (req, res) => {
+app.patch("/api/maintenance/:id/status", requireAdmin, async (req, res) => {
 	const logId = req.params.id;
 	const { status } = req.body;
 	if (!status) return res.status(400).json({ error: "Status is required." });
@@ -41935,7 +42202,7 @@ app.patch("/api/maintenance/:id/status", async (req, res) => {
   `).get(logId);
 	return res.json(formatMaintenanceRow(updated));
 });
-app.get("/api/admin/stats", async (req, res) => {
+app.get("/api/admin/stats", requireAdmin, async (req, res) => {
 	const allCars = await db.prepare("SELECT * FROM vehicles").all();
 	const allBookings = await db.prepare("SELECT * FROM bookings").all();
 	const total = allCars.length;

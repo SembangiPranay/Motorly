@@ -14,7 +14,7 @@ export const CARS: Car[] = [
       "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     gallery: [
       "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1590362891988-f77804703080?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
     ],
@@ -39,7 +39,7 @@ export const CARS: Car[] = [
     isPopular: true,
     status: "Rented",
     plateNumber: "FL-882-MTR",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 98,
   },
   {
@@ -78,7 +78,7 @@ export const CARS: Car[] = [
     isPopular: true,
     status: "Available",
     plateNumber: "FL-319-MTR",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 95,
   },
   {
@@ -155,7 +155,7 @@ export const CARS: Car[] = [
     isPopular: true,
     status: "Available",
     plateNumber: "FL-511-MTR",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 91,
   },
   {
@@ -222,7 +222,7 @@ export const CARS: Car[] = [
       "Sleek fastback styling with class-leading legroom, refined interior appointments, and responsive turbo performance.",
     status: "Available",
     plateNumber: "FL-403-MTR",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 96,
   },
   {
@@ -251,7 +251,7 @@ export const CARS: Car[] = [
       "Comfort-first commuter with Nissan zero gravity seats, intelligent all-wheel drive option, and easy city maneuvering.",
     status: "Cleaning",
     plateNumber: "FL-772-MTR",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 89,
   },
   {
@@ -315,7 +315,7 @@ export const CARS: Car[] = [
       "America's favorite compact SUV. Robust reliability, expansive cargo floor, and confident grip in any weather conditions.",
     status: "Available",
     plateNumber: "NY-102-MTR",
-    location: "New York JFK Airport",
+    location: "Main Garage Facility",
     healthScore: 93,
   },
   {
@@ -349,7 +349,7 @@ export const CARS: Car[] = [
       "A mini S-Class experience with sweeping portrait touchscreen, 64-color ambient lighting, and silky mild-hybrid power.",
     status: "Available",
     plateNumber: "FL-991-LUX",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 98,
   },
   {
@@ -418,7 +418,7 @@ export const CARS: Car[] = [
       "Full-sized luxury transport with three full rows of seating and cavernous cargo room for larger groups and luggage.",
     status: "Rented",
     plateNumber: "FL-228-MTR",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 92,
   },
   {
@@ -520,7 +520,7 @@ export const CARS: Car[] = [
       "Geometric styling with astounding 50 MPG fuel efficiency. Perfect for long stretches of coastal highway.",
     status: "Available",
     plateNumber: "FL-908-HYB",
-    location: "Miami International Airport (MIA)",
+    location: "Main Garage Facility",
     healthScore: 94,
   },
   {

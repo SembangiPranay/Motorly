@@ -60,6 +60,13 @@ export default function MyBookingsView({
   const [authError, setAuthError] = useState<string | null>(null)
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
 
+  useEffect(() => {
+    ;(window as any).__setSelectedVoucher = setSelectedVoucher
+    return () => {
+      delete (window as any).__setSelectedVoucher
+    }
+  }, [])
+
   // Extension notification
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
@@ -283,7 +290,7 @@ export default function MyBookingsView({
     try {
       await api.updateBookingStatus(bookingId, {
         status: "Checked Out",
-        notes: "Customer requested 24-hour extension. Approved by concierge.",
+        notes: "Customer requested 24-hour extension. Approved by manager.",
       })
       showActionSuccess("Your 24-hour extension request was approved!")
       if (currentUser) {
@@ -627,7 +634,7 @@ export default function MyBookingsView({
                             {b.status === "Pending Assignment" && (
                               <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                Allocating Vehicle at Terminal
+                                Preparing Vehicle at Garage
                               </span>
                             )}
                             {b.status === "Assigned" && (
@@ -652,17 +659,15 @@ export default function MyBookingsView({
                               <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse" />
                                 <h4 className="font-black text-xs sm:text-sm text-emerald-900 tracking-tight">
-                                  GREEN SIGNAL: APPROVED BY GARAGE MANAGER!
+                                  REQUEST ACCEPTED BY FLEET MANAGER!
                                 </h4>
                               </div>
                               <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-0.5 rounded border border-emerald-300">
-                                Clearance Granted
+                                Accepted • Ready for Pickup
                               </span>
                             </div>
                             <p className="text-xs text-stone-600 mb-3">
-                              Your driver credentials have passed verification.
-                              Please proceed to the garage facility and assigned
-                              bay below to collect your keys:
+                              Your reservation request was reviewed and accepted by the manager. Please proceed to the garage bay below to pay and collect your keys:
                             </p>
 
                             {/* Exact Garage Hub & Bay Location with Interactive Map Engine */}
@@ -707,12 +712,10 @@ export default function MyBookingsView({
                               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
                               <div>
                                 <span className="font-bold text-amber-900 block">
-                                  Awaiting Garage Manager Green Signal
+                                  Awaiting Fleet Manager Acceptance
                                 </span>
                                 <span className="text-stone-600 text-[11px]">
-                                  Your driver identification photos (front &
-                                  back) are under security clearance. Exact
-                                  garage bay will unlock once approved.
+                                  Your reservation request has been sent to our fleet manager. Zero advance payment charged — you will pay at the garage upon key pickup once accepted.
                                 </span>
                               </div>
                             </div>
@@ -800,8 +803,11 @@ export default function MyBookingsView({
                               <div className="flex justify-between text-stone-600">
                                 <span>Quoted Rate:</span>
                                 <span className="font-bold text-stone-900">
-                                  ${(b.extensionQuote.rateAmount ?? 0).toFixed(2)} /{" "}
-                                  {b.extensionQuote.rateType}
+                                  $
+                                  {(b.extensionQuote.rateAmount ?? 0).toFixed(
+                                    2,
+                                  )}{" "}
+                                  / {b.extensionQuote.rateType}
                                 </span>
                               </div>
                               <div className="flex justify-between text-stone-900 font-bold pt-1 border-t border-stone-100">
@@ -1096,8 +1102,9 @@ export default function MyBookingsView({
                     </h3>
                   </div>
                   <button
+                    data-testid="close-voucher-modal"
                     onClick={() => setSelectedVoucher(null)}
-                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold transition"
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold transition cursor-pointer"
                   >
                     ✕
                   </button>
@@ -1154,7 +1161,7 @@ export default function MyBookingsView({
                         </span>
                       )}
                       <span className="text-xs text-stone-500">
-                        Bay 14-B (Terminal Level 2)
+                        Garage Bay 1
                       </span>
                     </div>
                   </div>
@@ -1186,17 +1193,16 @@ export default function MyBookingsView({
                   </div>
                 </div>
 
-                {/* QR Code Airport Gate Pass */}
-                <div className="border border-dashed border-stone-300 rounded-2xl p-4 text-center bg-stone-50/50">
-                  <div className="w-28 h-28 mx-auto bg-white p-2 rounded-xl border border-stone-200 shadow-sm flex items-center justify-center">
+                {/* QR Code Garage Pass */}
+                <div className="border border-dashed border-stone-300 rounded-2xl p-4 text-center bg-stone-50 relative z-10">
+                  <div className="w-28 h-28 mx-auto bg-white p-2 rounded-xl border border-stone-200 shadow-sm flex items-center justify-center relative z-20">
                     <QrCodeIcon size={88} className="text-stone-800" />
                   </div>
-                  <p className="text-[11px] font-mono text-stone-500 mt-2">
-                    SCAN AT MOTORLY EXPRESS KIOSK OR GATE BOOTH
+                  <p className="text-[11px] font-mono text-stone-500 mt-2 relative z-20">
+                    SHOW UPON ARRIVAL AT GARAGE
                   </p>
-                  <p className="text-[10px] text-stone-400 mt-0.5">
-                    Pre-verified driver identification on file with automated
-                    key release.
+                  <p className="text-[10px] text-stone-400 mt-0.5 relative z-20">
+                    Present this voucher to the manager to inspect the vehicle and collect the keys.
                   </p>
                 </div>
 

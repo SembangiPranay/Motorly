@@ -44,29 +44,26 @@ export default function ConfirmationModal({
       >
         {/* Close cross */}
         <button
+          data-testid="close-confirmation-modal"
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
         >
           ✕
         </button>
 
         {/* Success Icon */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mx-auto shadow-inner border border-green-200">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-inner border border-emerald-200">
             <CheckIcon size={32} />
           </div>
-          <span className="inline-block px-3 py-1 rounded-full bg-orange-50 text-[#F97316] text-[11px] font-bold uppercase tracking-wider">
-            Booking Confirmed &amp; Dispatched
+          <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold uppercase tracking-wider border border-emerald-200">
+            Request Submitted • Awaiting Manager Acceptance
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-[#17191C] font-heading">
-            You're ready to drive!
+            Booking Request Sent!
           </h2>
           <p className="text-xs text-gray-500">
-            A confirmation voucher has been stored in the database and sent to{" "}
-            <span className="font-semibold text-gray-800">
-              {customer.email}
-            </span>
-            .
+            Zero online payment charged. Our fleet manager will review your dates and accept your request. You will pay at the garage hub when collecting your keys!
           </p>
         </div>
 
@@ -110,8 +107,8 @@ export default function ConfirmationModal({
               </p>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-[10px] text-gray-400 font-bold uppercase">
-                Paid Total
+              <p className="text-[10px] text-emerald-700 font-bold uppercase">
+                Due on Pickup
               </p>
               <p className="font-extrabold text-base text-gray-900 font-mono">
                 ${totalAmount.toFixed(2)}
@@ -127,7 +124,10 @@ export default function ConfirmationModal({
                 <span>Garage Location</span>
               </div>
               <p className="font-bold text-gray-800 text-[11px] leading-tight">
-                {car.garageName || car.garageAddress || car.location || bookingState.pickupLocation}
+                {car.garageName ||
+                  car.garageAddress ||
+                  car.location ||
+                  bookingState.pickupLocation}
               </p>
               {car.garageBay && (
                 <span className="inline-block mt-0.5 text-[9px] font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1 rounded">
@@ -150,21 +150,21 @@ export default function ConfirmationModal({
           </div>
 
           {/* Contactless QR Code section */}
-          <div className="pt-3 border-t border-dashed border-gray-200 flex items-center justify-between bg-white/60 -mx-5 -mb-5 p-4 rounded-b-2xl">
+          <div className="pt-3 border-t border-dashed border-gray-200 flex items-center justify-between bg-white relative z-10 -mx-5 -mb-5 p-4 rounded-b-2xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-gray-900 text-white flex items-center justify-center shrink-0">
                 <QrCodeIcon size={22} />
               </div>
               <div>
                 <p className="font-bold text-gray-800 text-xs">
-                  Express Terminal Check-in
+                  Direct Garage Handoff
                 </p>
                 <p className="text-[10px] text-gray-400">
-                  Scan at kiosk for 60-second key handoff
+                  Show confirmation upon arrival at the garage
                 </p>
               </div>
             </div>
-            <span className="text-[10px] font-mono text-[#F97316] font-bold bg-orange-50 px-2 py-1 rounded">
+            <span className="text-[10px] font-mono text-[#F97316] font-bold bg-orange-50 px-2 py-1 rounded shrink-0">
               VERIFIED
             </span>
           </div>
