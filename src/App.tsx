@@ -162,9 +162,10 @@ export default function App() {
           setCurrentUser(customerProfile)
         }
 
+        const hasAdmin = api.hasAdminToken()
         const [remoteCars, remoteBookings] = await Promise.all([
           api.getCars().catch(() => null),
-          api.getBookings().catch(() => null),
+          hasAdmin ? api.getBookings().catch(() => null) : Promise.resolve(null),
         ])
 
         if (remoteCars && remoteCars.length > 0) {

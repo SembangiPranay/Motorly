@@ -258,6 +258,17 @@ class ApiService {
     }
   }
 
+  hasAdminToken(): boolean {
+    try {
+      return Boolean(
+        typeof localStorage !== "undefined" &&
+          localStorage.getItem("motorly_admin_token"),
+      )
+    } catch {
+      return false
+    }
+  }
+
   logoutAdmin() {
     localStorage.removeItem("motorly_admin_token")
     localStorage.removeItem("motorly_admin_user")
@@ -351,6 +362,7 @@ class ApiService {
 
   // --- Bookings & Vehicle Mating ---
   async getBookings(): Promise<BookingRecord[]> {
+    if (!this.hasAdminToken()) return []
     const res = await this.request("/bookings", {}, "admin")
     if (!res.ok) throw new Error("Failed to fetch bookings")
     return res.json()
