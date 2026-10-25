@@ -266,6 +266,9 @@ export default function AdminView({
   } | null>(null)
   const [editingCar, setEditingCar] = useState<Car | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false)
+  const [newPhotoUrlInput, setNewPhotoUrlInput] = useState("")
+  const [previewPhotoIndex, setPreviewPhotoIndex] = useState(0)
 
   const compressVehiclePhoto = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -293,35 +296,165 @@ export default function AdminView({
             ctx.drawImage(img, 0, 0, width, height)
             resolve(canvas.toDataURL("image/jpeg", 0.8))
           } else {
-            resolve(e.target?.result as string || "")
+            resolve((e.target?.result as string) || "")
           }
         }
-        img.onerror = () => resolve(e.target?.result as string || "")
-        img.src = e.target?.result as string || ""
+        img.onerror = () => resolve((e.target?.result as string) || "")
+        img.src = (e.target?.result as string) || ""
       }
       reader.onerror = () => resolve("")
       reader.readAsDataURL(file)
     })
   }
 
+  // Multi-Photo Upload Handler supporting multiple files at once
   const handleDevicePhotoUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
 
+    setIsUploadingPhotos(true)
     try {
-      const compressed = await compressVehiclePhoto(file)
-      if (compressed) {
-        setCarFormData((prev) => ({
-          ...prev,
-          image: compressed,
-        }))
-        notify("Vehicle photo uploaded & optimized successfully!")
+      const compressedList = await Promise.all(
+        files.map((file) => compressVehiclePhoto(file)),
+      )
+      const validNewPhotos = compressedList.filter(Boolean)
+      if (validNewPhotos.length > 0) {
+        setCarFormData((prev) => {
+          const existingGallery =
+            prev.gallery && prev.gallery.length > 0
+              ? prev.gallery
+              : prev.image
+                ? [prev.image]
+                : []
+          const updatedGallery = [...existingGallery, ...validNewPhotos]
+          return {
+            ...prev,
+            gallery: updatedGallery,
+            image: prev.image || updatedGallery[0],
+          }
+        })
+        notify(
+          `Added ${validNewPhotos.length} vehicle photo(s) to gallery successfully!`,
+        )
       }
     } catch {
-      notify("Failed to process photo.")
+      notify("Failed to process photo(s).")
+    } finally {
+      setIsUploadingPhotos(false)
+      if (e.target) e.target.value = ""
     }
+  }
+
+  // Add individual photo by URL link
+  const handleAddPhotoUrl = () => {
+    const trimmed = newPhotoUrlInput.trim()
+    if (!trimmed) return
+    setCarFormData((prev) => {
+      const existingGallery =
+        prev.gallery && prev.gallery.length > 0
+          ? prev.gallery
+          : prev.image
+            ? [prev.image]
+            : []
+      const updatedGallery = [...existingGallery, trimmed]
+      return {
+        ...prev,
+        gallery: updatedGallery,
+        image: prev.image || updatedGallery[0],
+      }
+    })
+    setNewPhotoUrlInput("")
+    notify("Photo URL added to gallery.")
+  }
+
+  // Set selected photo as the Primary Cover photo (index 0)
+  const handleSetCoverPhoto = (index: number) => {
+    setCarFormData((prev) => {
+      const currentGallery =
+        prev.gallery && prev.gallery.length > 0
+          ? [...prev.gallery]
+          : prev.image
+            ? [prev.image]
+            : []
+      if (index < 0 || index >= currentGallery.length) return prev
+      const selected = currentGallery[index]
+      currentGallery.splice(index, 1)
+      currentGallery.unshift(selected)
+      return {
+        ...prev,
+        gallery: currentGallery,
+        image: selected,
+      }
+    })
+    setPreviewPhotoIndex(0)
+    notify("Primary cover photo updated.")
+  }
+
+  // Remove a photo from gallery
+  const handleRemoveGalleryPhoto = (index: number) => {
+    setCarFormData((prev) => {
+      const currentGallery =
+        prev.gallery && prev.gallery.length > 0
+          ? [...prev.gallery]
+          : prev.image
+            ? [prev.image]
+            : []
+      const updatedGallery = currentGallery.filter((_, i) => i !== index)
+      const nextCover = updatedGallery[0] || ""
+      return {
+        ...prev,
+        gallery: updatedGallery,
+        image: nextCover,
+      }
+    })
+    setPreviewPhotoIndex(0)
+  }
+
+  // Reorder gallery photos left or right
+  const handleMoveGalleryPhoto = (index: number, direction: "left" | "right") => {
+    setCarFormData((prev) => {
+      const currentGallery =
+        prev.gallery && prev.gallery.length > 0
+          ? [...prev.gallery]
+          : prev.image
+            ? [prev.image]
+            : []
+      const targetIndex = direction === "left" ? index - 1 : index + 1
+      if (targetIndex < 0 || targetIndex >= currentGallery.length) return prev
+      const temp = currentGallery[index]
+      currentGallery[index] = currentGallery[targetIndex]
+      currentGallery[targetIndex] = temp
+      return {
+        ...prev,
+        gallery: currentGallery,
+        image: currentGallery[0] || "",
+      }
+    })
+  }
+
+  // 1-Click Preset Multi-Angle Photo addition
+  const handleAddPresetPhoto = (url: string) => {
+    setCarFormData((prev) => {
+      const existingGallery =
+        prev.gallery && prev.gallery.length > 0
+          ? prev.gallery
+          : prev.image
+            ? [prev.image]
+            : []
+      if (existingGallery.includes(url)) {
+        notify("Photo is already in gallery.")
+        return prev
+      }
+      const updatedGallery = [...existingGallery, url]
+      return {
+        ...prev,
+        gallery: updatedGallery,
+        image: prev.image || updatedGallery[0],
+      }
+    })
+    notify("Sample photo added to gallery.")
   }
 
   const [carFormData, setCarFormData] = useState<Partial<Car>>({
@@ -335,6 +468,11 @@ export default function AdminView({
     pricePerMonth: 1210,
     image:
       "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
+    gallery: [
+      "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+    ],
     seats: 5,
     transmission: "Automatic",
     fuelType: "Gasoline",
@@ -1106,6 +1244,10 @@ export default function AdminView({
   // --- FLEET ADD / EDIT / DELETE ---
   const handleOpenAddCar = () => {
     setEditingCar(null)
+    setPreviewPhotoIndex(0)
+    setNewPhotoUrlInput("")
+    const defaultCover =
+      "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
     setCarFormData({
       name: "Toyota Camry SE",
       brand: "Toyota",
@@ -1115,8 +1257,12 @@ export default function AdminView({
       pricePerDay: 55,
       pricePerHour: 8,
       pricePerMonth: 1210,
-      image:
-        "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
+      image: defaultCover,
+      gallery: [
+        defaultCover,
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+      ],
       seats: 5,
       transmission: "Automatic",
       fuelType: "Gasoline",
@@ -1146,9 +1292,20 @@ export default function AdminView({
 
   const handleOpenEditCar = (car: Car) => {
     setEditingCar(car)
+    setPreviewPhotoIndex(0)
+    setNewPhotoUrlInput("")
+    const initialGallery =
+      car.gallery && car.gallery.length > 0
+        ? car.gallery
+        : car.image
+          ? [car.image]
+          : []
     setCarFormData({
       ...car,
-      pricePerMonth: car.pricePerMonth || Math.round((car.pricePerDay || 55) * 22),
+      image: car.image || initialGallery[0] || "",
+      gallery: initialGallery,
+      pricePerMonth:
+        car.pricePerMonth || Math.round((car.pricePerDay || 55) * 22),
       insurancePolicy: car.insurancePolicy || "POL-FL-883201",
       insuranceProvider: car.insuranceProvider || "Geico Commercial Fleet",
       insuranceExpiry: car.insuranceExpiry || "2027-12-31",
@@ -1167,16 +1324,44 @@ export default function AdminView({
   const handleSaveCar = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const rawGallery = (carFormData.gallery || []).filter(Boolean)
+      const primaryImage =
+        carFormData.image ||
+        rawGallery[0] ||
+        "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
+      const finalGallery = rawGallery.length > 0 ? [...rawGallery] : [primaryImage]
+
+      // Ensure primary cover image is positioned at index 0 of gallery
+      if (!finalGallery.includes(primaryImage)) {
+        finalGallery.unshift(primaryImage)
+      } else if (finalGallery[0] !== primaryImage) {
+        const idx = finalGallery.indexOf(primaryImage)
+        if (idx > -1) {
+          finalGallery.splice(idx, 1)
+          finalGallery.unshift(primaryImage)
+        }
+      }
+
+      const payload: Partial<Car> = {
+        ...carFormData,
+        image: primaryImage,
+        gallery: finalGallery,
+      }
+
       if (editingCar) {
-        const updated = await api.updateCar(editingCar.id, carFormData)
+        const updated = await api.updateCar(editingCar.id, payload)
         setCars((prev) =>
           prev.map((c) => (c.id === editingCar.id ? updated : c)),
         )
-        notify(`Vehicle ${updated.name} updated.`)
+        notify(
+          `Vehicle ${updated.name} updated with ${updated.gallery?.length || 1} photo(s).`,
+        )
       } else {
-        const created = await api.createCar(carFormData)
+        const created = await api.createCar(payload)
         setCars((prev) => [created, ...prev])
-        notify(`Vehicle ${created.name} registered into fleet.`)
+        notify(
+          `Vehicle ${created.name} registered into fleet with ${created.gallery?.length || 1} photo(s).`,
+        )
       }
       setIsCarModalOpen(false)
     } catch (err: any) {
@@ -3478,7 +3663,7 @@ export default function AdminView({
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-12 h-9 rounded-lg overflow-hidden shrink-0 border ${
+                              className={`w-12 h-9 rounded-lg overflow-hidden shrink-0 border relative ${
                                 isDark
                                   ? "bg-stone-800 border-stone-700"
                                   : "bg-stone-100 border-stone-200"
@@ -3489,6 +3674,11 @@ export default function AdminView({
                                 alt={c.name}
                                 className="w-full h-full object-cover"
                               />
+                              {c.gallery && c.gallery.length > 1 && (
+                                <span className="absolute bottom-0 right-0 px-1 py-0.2 rounded-tl bg-black/80 text-white text-[8px] font-bold font-mono">
+                                  {c.gallery.length}
+                                </span>
+                              )}
                             </div>
                             <div>
                               <div
@@ -3663,7 +3853,7 @@ export default function AdminView({
                   >
                     <div>
                       <div
-                        className={`aspect-video rounded-xl overflow-hidden mb-3 border ${
+                        className={`aspect-video rounded-xl overflow-hidden mb-3 border relative ${
                           isDark
                             ? "bg-stone-800 border-stone-800"
                             : "bg-stone-100 border-stone-200"
@@ -3674,6 +3864,11 @@ export default function AdminView({
                           alt={c.name}
                           className="w-full h-full object-cover"
                         />
+                        {c.gallery && c.gallery.length > 1 && (
+                          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm">
+                            📷 {c.gallery.length}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -6258,174 +6453,280 @@ export default function AdminView({
                       </div>
                     </div>
 
-                    {/* Vehicle Photo Upload (From Device + URL + Presets) */}
-                    <div className="space-y-2.5 pt-1">
-                      <div className="flex items-center justify-between">
-                        <label
-                          className={`block text-xs font-bold ${
-                            isDark ? "text-stone-300" : "text-stone-800"
-                          }`}
-                        >
-                          Vehicle Photo
-                        </label>
-                        {carFormData.image && (
-                          <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                            ✓ Photo Loaded
-                          </span>
-                        )}
+                    {/* Vehicle Photos & Multi-Angle Gallery Studio */}
+                    <div className="space-y-3 pt-1">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <label
+                            className={`block text-xs font-bold ${
+                              isDark ? "text-stone-300" : "text-stone-800"
+                            }`}
+                          >
+                            Vehicle Photos & Multi-Angle Gallery
+                          </label>
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            Upload multiple exterior, interior, cockpit, and angle photos. First photo serves as primary listing cover.
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-orange-500/10 text-[#F97316] border border-orange-500/20">
+                          {(carFormData.gallery || []).length} Photo{(carFormData.gallery || []).length !== 1 ? "s" : ""} in Gallery
+                        </span>
                       </div>
 
-                      {/* Hidden File Input for Device Photo */}
+                      {/* Hidden Multi-File Input */}
                       <input
                         ref={fileInputRef}
                         type="file"
+                        multiple
                         accept="image/*"
                         className="hidden"
                         onChange={handleDevicePhotoUpload}
                       />
 
-                      {/* Add Photo from Device Button */}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-2.5 px-4 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F97316] border-2 border-dashed border-orange-300 hover:border-orange-500 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-2xs group"
-                      >
-                        <span className="text-base group-hover:scale-110 transition-transform">
-                          📷
-                        </span>
-                        <span>Add Photo from Device (Gallery / Camera)</span>
-                      </button>
-
-                      {/* Active Loaded Image Preview */}
-                      {carFormData.image && (
-                        <div
-                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
-                            isDark
-                              ? "bg-stone-900 border-stone-800"
-                              : "bg-stone-50 border-stone-200"
-                          }`}
+                      {/* Photo Upload Controls Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {/* Device Multi-Upload Button */}
+                        <button
+                          type="button"
+                          disabled={isUploadingPhotos}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="py-3 px-4 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 dark:hover:bg-orange-950/40 text-[#F97316] border-2 border-dashed border-orange-300 dark:border-orange-500/40 hover:border-orange-500 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-2xs group disabled:opacity-50"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <img
-                              src={carFormData.image}
-                              alt="Loaded Preview"
-                              className="w-14 h-10 rounded-lg object-cover bg-stone-200 border border-stone-300 shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <p
-                                className={`text-xs font-bold truncate ${
-                                  isDark ? "text-stone-200" : "text-stone-800"
-                                }`}
-                              >
-                                Active Vehicle Photo
-                              </p>
-                              <p className="text-[10px] text-stone-400 truncate font-mono max-w-[200px] sm:max-w-xs">
-                                {carFormData.image.startsWith("data:")
-                                  ? "Uploaded from device"
-                                  : carFormData.image}
-                              </p>
-                            </div>
-                          </div>
+                          <span className="text-base group-hover:scale-110 transition-transform">
+                            {isUploadingPhotos ? "⏳" : "📷"}
+                          </span>
+                          <span>
+                            {isUploadingPhotos
+                              ? "Processing & Optimizing Photos..."
+                              : "Upload Multiple Photos (Device / Camera)"}
+                          </span>
+                        </button>
+
+                        {/* Web URL Input Box */}
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="Paste image web link (https://...)"
+                            value={newPhotoUrlInput}
+                            onChange={(e) => setNewPhotoUrlInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleAddPhotoUrl()
+                              }
+                            }}
+                            className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                              isDark
+                                ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                                : "bg-white border border-stone-300 text-stone-900 placeholder-stone-400"
+                            }`}
+                          />
                           <button
                             type="button"
-                            onClick={() =>
-                              setCarFormData({ ...carFormData, image: "" })
-                            }
-                            className="px-2.5 py-1 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                            onClick={handleAddPhotoUrl}
+                            className="px-3.5 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shrink-0 cursor-pointer shadow-xs"
                           >
-                            Remove
+                            + Add URL
                           </button>
                         </div>
-                      )}
-
-                      {/* Optional Direct URL Link Input */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={`text-[11px] font-semibold ${
-                              isDark ? "text-stone-400" : "text-stone-600"
-                            }`}
-                          >
-                            Or paste web image link:
-                          </span>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="https://images.unsplash.com/... or direct web link"
-                          value={
-                            carFormData.image?.startsWith("data:")
-                              ? ""
-                              : carFormData.image || ""
-                          }
-                          onChange={(e) =>
-                            setCarFormData({
-                              ...carFormData,
-                              image: e.target.value,
-                            })
-                          }
-                          className={`w-full px-3.5 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
-                            isDark
-                              ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
-                          }`}
-                        />
                       </div>
 
-                      {/* 1-Click Sample Photos */}
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {/* 1-Click Multi-Angle Sample Photos */}
+                      <div className="space-y-1 pt-0.5">
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider ${
+                          className={`text-[10px] font-bold uppercase tracking-wider block ${
                             isDark ? "text-stone-400" : "text-stone-500"
                           }`}
                         >
-                          Sample Photos:
+                          Quick Add Preset Multi-Angle Photos:
                         </span>
-                        {[
-                          {
-                            label: "White Sedan",
-                            url: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
-                          },
-                          {
-                            label: "Black SUV",
-                            url: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
-                          },
-                          {
-                            label: "Red Coupe",
-                            url: "https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80",
-                          },
-                          {
-                            label: "Silver Luxury",
-                            url: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
-                          },
-                          {
-                            label: "Tesla EV",
-                            url: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=800&q=80",
-                          },
-                          {
-                            label: "Range Rover",
-                            url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
-                          },
-                        ].map((preset) => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() =>
-                              setCarFormData({
-                                ...carFormData,
-                                image: preset.url,
-                              })
-                            }
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition border cursor-pointer ${
-                              carFormData.image === preset.url
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : isDark
-                                  ? "bg-stone-800 text-stone-300 border-stone-700 hover:bg-stone-700"
-                                  : "bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200"
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {[
+                            {
+                              label: "+ Front Angle (Sedan)",
+                              url: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
+                            },
+                            {
+                              label: "+ Rear & Side Profile",
+                              url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
+                            },
+                            {
+                              label: "+ Luxury Cockpit / Interior",
+                              url: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
+                            },
+                            {
+                              label: "+ Black SUV Angle",
+                              url: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+                            },
+                            {
+                              label: "+ Red Coupe View",
+                              url: "https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=800&q=80",
+                            },
+                            {
+                              label: "+ Tesla EV Front",
+                              url: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=800&q=80",
+                            },
+                          ].map((preset) => {
+                            const isAlreadyAdded = (
+                              carFormData.gallery || []
+                            ).includes(preset.url)
+                            return (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                disabled={isAlreadyAdded}
+                                onClick={() => handleAddPresetPhoto(preset.url)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition border cursor-pointer ${
+                                  isAlreadyAdded
+                                    ? "opacity-40 cursor-not-allowed bg-stone-200 dark:bg-stone-800 text-stone-500 border-transparent"
+                                    : isDark
+                                      ? "bg-stone-800 text-stone-300 border-stone-700 hover:bg-stone-700"
+                                      : "bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200"
+                                }`}
+                              >
+                                {isAlreadyAdded ? "✓ Added" : preset.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Interactive Gallery Thumbnails & Reordering Grid */}
+                      <div className="pt-2">
+                        {(carFormData.gallery || []).length === 0 ? (
+                          <div
+                            className={`p-6 rounded-2xl border-2 border-dashed text-center ${
+                              isDark
+                                ? "border-stone-800 bg-stone-900/30 text-stone-400"
+                                : "border-stone-200 bg-stone-50 text-stone-500"
                             }`}
                           >
-                            📷 {preset.label}
-                          </button>
-                        ))}
+                            <p className="text-sm font-bold">No photos in gallery</p>
+                            <p className="text-xs mt-1">
+                              Upload multiple photos from your device or use the sample angles above.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {(carFormData.gallery || []).map((imgUrl, idx) => {
+                              const isCover =
+                                idx === 0 || imgUrl === carFormData.image
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`group relative rounded-2xl overflow-hidden border transition flex flex-col justify-between ${
+                                    isCover
+                                      ? "border-[#F97316] ring-2 ring-orange-500/30 shadow-md " +
+                                        (isDark
+                                          ? "bg-stone-900"
+                                          : "bg-orange-50/20")
+                                      : isDark
+                                        ? "border-stone-800 bg-stone-900/60 hover:border-stone-700"
+                                        : "border-stone-200 bg-white hover:border-stone-300 shadow-2xs"
+                                  }`}
+                                >
+                                  {/* Thumbnail Image */}
+                                  <div className="relative aspect-video w-full bg-stone-100 dark:bg-stone-800 overflow-hidden">
+                                    <img
+                                      src={imgUrl}
+                                      alt={`Gallery photo ${idx + 1}`}
+                                      className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                                      onError={(e) => {
+                                        ;(e.target as any).src =
+                                          "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80"
+                                      }}
+                                    />
+
+                                    {/* Cover / Position Badge */}
+                                    {isCover ? (
+                                      <span className="absolute top-2 left-2 bg-[#F97316] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-sm">
+                                        ★ Primary Cover
+                                      </span>
+                                    ) : (
+                                      <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md">
+                                        Photo #{idx + 1}
+                                      </span>
+                                    )}
+
+                                    {/* Lightbox Zoom Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setZoomedPhoto({
+                                          url: imgUrl,
+                                          title: `${carFormData.name || "Vehicle"} - Photo ${idx + 1}${isCover ? " (Cover)" : ""}`,
+                                        })
+                                      }
+                                      className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white text-xs flex items-center justify-center transition cursor-pointer"
+                                      title="Inspect photo full size"
+                                    >
+                                      🔍
+                                    </button>
+                                  </div>
+
+                                  {/* Card Action Controls */}
+                                  <div className="p-2 flex items-center justify-between gap-1 text-[11px]">
+                                    {/* Set as Cover / Cover Label */}
+                                    {isCover ? (
+                                      <span className="text-[10px] font-bold text-[#F97316] flex items-center gap-1">
+                                        ✓ Main Display
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetCoverPhoto(idx)}
+                                        className="text-[10px] font-bold text-[#F97316] hover:underline cursor-pointer"
+                                        title="Make this photo the primary cover image"
+                                      >
+                                        ★ Set as Cover
+                                      </button>
+                                    )}
+
+                                    {/* Reorder and Delete Buttons */}
+                                    <div className="flex items-center gap-1">
+                                      {idx > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleMoveGalleryPhoto(idx, "left")
+                                          }
+                                          className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 font-bold flex items-center justify-center cursor-pointer text-[10px]"
+                                          title="Move left"
+                                        >
+                                          ←
+                                        </button>
+                                      )}
+                                      {idx <
+                                        (carFormData.gallery || []).length -
+                                          1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleMoveGalleryPhoto(idx, "right")
+                                          }
+                                          className="w-5 h-5 rounded bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 font-bold flex items-center justify-center cursor-pointer text-[10px]"
+                                          title="Move right"
+                                        >
+                                          →
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRemoveGalleryPhoto(idx)
+                                        }
+                                        className="w-5 h-5 rounded bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 font-bold flex items-center justify-center cursor-pointer text-[10px]"
+                                        title="Remove photo from gallery"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* Operational Status & Capacity */}
@@ -7140,15 +7441,17 @@ export default function AdminView({
                         : "bg-white border-stone-200"
                     }`}
                   >
-                    {/* Image Preview */}
-                    <div className="relative h-44 bg-stone-100 overflow-hidden">
+                    {/* Image Preview with Multi-Photo Gallery Selector */}
+                    <div className="relative h-48 bg-stone-100 overflow-hidden">
                       <img
                         src={
+                          (carFormData.gallery &&
+                            carFormData.gallery[previewPhotoIndex]) ||
                           carFormData.image ||
                           "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
                         }
                         alt={carFormData.name || "Vehicle Preview"}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-all duration-300"
                         onError={(e) => {
                           ;(e.target as any).src =
                             "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
@@ -7168,7 +7471,41 @@ export default function AdminView({
                           {carFormData.plateNumber || "FL-882-MTR"}
                         </span>
                       </div>
+                      {(carFormData.gallery || []).length > 1 && (
+                        <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-white text-[10px] font-mono font-bold shadow-xs">
+                          {previewPhotoIndex + 1} / {(carFormData.gallery || []).length} Photos
+                        </div>
+                      )}
                     </div>
+
+                    {/* Interactive Customer Thumbnail Strip */}
+                    {(carFormData.gallery || []).length > 1 && (
+                      <div className="p-2 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50 flex gap-1.5 overflow-x-auto no-scrollbar">
+                        {(carFormData.gallery || []).map((thumb, tIdx) => (
+                          <button
+                            key={tIdx}
+                            type="button"
+                            onClick={() => setPreviewPhotoIndex(tIdx)}
+                            className={`relative w-12 h-9 rounded-lg overflow-hidden shrink-0 border-2 transition cursor-pointer ${
+                              previewPhotoIndex === tIdx
+                                ? "border-[#F97316] ring-1 ring-orange-400"
+                                : "border-transparent opacity-60 hover:opacity-100"
+                            }`}
+                          >
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                            {tIdx === 0 && (
+                              <span className="absolute top-0 left-0 bg-[#F97316] text-[7px] text-white font-bold px-0.5">
+                                ★
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Card Content */}
                     <div className="p-4 space-y-3">
