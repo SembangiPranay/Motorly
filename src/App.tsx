@@ -121,7 +121,21 @@ export default function App() {
       const saved = localStorage.getItem("motorly_cached_bookings")
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Exclude any obsolete test or mock seed records from older sessions
+          const clean = parsed.filter(
+            (b) =>
+              b &&
+              !b.id?.startsWith("BK-2026") &&
+              !b.id?.startsWith("TEST-") &&
+              !b.id?.startsWith("FSM-") &&
+              !b.id?.startsWith("E2E-") &&
+              !b.id?.startsWith("ADV-") &&
+              !b.id?.startsWith("LEGIT-") &&
+              !b.id?.startsWith("CWK-"),
+          )
+          if (clean.length > 0) return clean
+        }
       }
     } catch {}
     return INITIAL_BOOKINGS
@@ -513,6 +527,7 @@ export default function App() {
               if (role === "admin") {
                 setIsAdminAuthenticated(true)
                 setCurrentView("admin")
+                api.getBookings().then((b) => b && setBookings(b)).catch(() => {})
               } else {
                 if (user) setCurrentUser(user)
                 setCurrentView(
@@ -552,6 +567,7 @@ export default function App() {
               if (role === "admin") {
                 setIsAdminAuthenticated(true)
                 setCurrentView("admin")
+                api.getBookings().then((b) => b && setBookings(b)).catch(() => {})
               }
             }}
             onNavigateHome={() => setCurrentView("home")}

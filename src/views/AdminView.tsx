@@ -373,6 +373,7 @@ export default function AdminView({
 
   useEffect(() => {
     loadAuxiliaryData()
+    handleRefreshData()
     ;(window as any).__setAdminCarModalOpen = setIsCarModalOpen
     ;(window as any).__refreshAdminData = handleRefreshData
     return () => {
@@ -1156,35 +1157,41 @@ export default function AdminView({
     })
 
     // Action priority:
-    // 0: High-priority customer pending reservations (BK-2026-*)
-    // 1: Pending review / unassigned / needs car
-    // 2: Confirmed (Assigned - ready for customer pickup)
-    // 3: Active trips (Checked Out - on the road)
-    // 4: Returned (Awaiting check-in inspection)
-    // 5: Completed & Cancelled (Archived history)
+    // 0: Pending review / unassigned / needs car (highest priority actions)
+    // 1: Confirmed (Assigned - ready for customer pickup)
+    // 2: Active trips (Checked Out - on the road)
+    // 3: Returned (Awaiting check-in inspection)
+    // 4: Completed & Cancelled (Archived history)
+    const parseBookingTime = (t?: string): number => {
+      if (!t) return 0
+      if (t === "Just now") return Date.now()
+      const parsed = Date.parse(t)
+      if (!isNaN(parsed)) return parsed
+      if (t.startsWith("Today")) return Date.now() - 3600000
+      if (t.startsWith("Yesterday")) return Date.now() - 86400000
+      return 0
+    }
+
     const getPriority = (b: BookingRecord): number => {
       const isPending =
         !b.approvedByAdmin &&
         b.status !== "Cancelled" &&
         b.status !== "Completed" &&
         b.status !== "Checked Out"
-      if (
-        b.id?.startsWith("BK-2026") &&
-        (isPending || b.status === "Pending Assignment")
-      ) {
-        return 0
-      }
-      if (isPending || b.status === "Pending Assignment") return 1
-      if (b.status === "Assigned") return 2
-      if (b.status === "Checked Out") return 3
-      if (b.status === "Returned") return 4
-      return 5
+      if (isPending || b.status === "Pending Assignment") return 0
+      if (b.status === "Assigned") return 1
+      if (b.status === "Checked Out") return 2
+      if (b.status === "Returned") return 3
+      return 4
     }
 
     return [...list].sort((a, b) => {
       const pA = getPriority(a)
       const pB = getPriority(b)
       if (pA !== pB) return pA - pB
+      const tA = parseBookingTime(a.createdAt)
+      const tB = parseBookingTime(b.createdAt)
+      if (tB !== tA) return tB - tA
       return (b.id || "").localeCompare(a.id || "")
     })
   }, [bookings, manifestStatusFilter, manifestSearch])

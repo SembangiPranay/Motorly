@@ -7,6 +7,14 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { db, initDatabase, DbExecutor } from "./db.ts"
 
+// Load local environment files if present
+try {
+  if (typeof (process as any).loadEnvFile === "function") {
+    if (fs.existsSync(".env.local")) (process as any).loadEnvFile(".env.local")
+    if (fs.existsSync(".env")) (process as any).loadEnvFile(".env")
+  }
+} catch {}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
