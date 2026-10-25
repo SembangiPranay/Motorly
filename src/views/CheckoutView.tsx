@@ -299,12 +299,7 @@ export default function CheckoutView({
   const rawRentalTotal = car.pricePerDay * days
   const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
   const taxesAndFees = Number((discountedRentalTotal * 0.18).toFixed(2))
-  const protectionFee = bookingState.protectionPlan
-    ? Number((12.0 * days).toFixed(2))
-    : 0.0
-  const totalAmount = Number(
-    (discountedRentalTotal + taxesAndFees + protectionFee).toFixed(2),
-  )
+  const totalAmount = Number((discountedRentalTotal + taxesAndFees).toFixed(2))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -859,59 +854,74 @@ export default function CheckoutView({
               </div>
             </div>
 
-            {/* Conflict Alert Banner if Double Booking Detected */}
+            {/* Schedule Conflict Alert Banner if Double Booking Detected */}
             {!availabilityCheck.isAvailable && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-800 text-xs space-y-1.5 animate-fade-in">
-                <div className="flex items-center gap-1.5 font-bold text-rose-900">
-                  <span className="text-sm">⚠️</span>
-                  <span>Double Booking Conflict</span>
-                </div>
-                <p className="leading-tight">
-                  <strong>{car.name}</strong> is already booked for overlapping
-                  dates (
-                  <span className="font-mono font-bold">
-                    {availabilityCheck.conflict?.pickupDate} →{" "}
-                    {availabilityCheck.conflict?.returnDate}
+              <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-stone-900 text-xs space-y-3 shadow-xs animate-fade-in">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-2xs">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                        <line x1="10" y1="14" x2="14" y2="18"/>
+                        <line x1="14" y1="14" x2="10" y2="18"/>
+                      </svg>
+                    </span>
+                    <div>
+                      <h4 className="font-extrabold text-stone-900 text-sm tracking-tight">
+                        Schedule Conflict
+                      </h4>
+                      <p className="text-[11px] text-amber-800 font-medium">
+                        Vehicle already reserved for requested dates
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200/70 text-amber-900 px-2.5 py-0.5 rounded-full shrink-0">
+                    Booked Slot
                   </span>
-                  ).
-                </p>
-                <p className="text-[10px] text-rose-600">
-                  Please pick another available car or adjust your reservation
-                  dates.
-                </p>
-                <button
-                  type="button"
-                  onClick={onNavigateListing}
-                  className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs transition"
-                >
-                  ← Select Available Vehicle
-                </button>
+                </div>
+
+                {/* Overlapping Range Visual Block */}
+                <div className="p-3 bg-white/95 rounded-xl border border-amber-200/80 space-y-2 shadow-2xs">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-stone-600 font-semibold">{car.name} is reserved:</span>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-md">Existing Booking</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-stone-900 font-mono text-xs font-bold bg-amber-50/50 px-3 py-2 rounded-lg border border-amber-100">
+                    <CalendarIcon size={14} className="text-amber-700 shrink-0" />
+                    <span>{availabilityCheck.conflict?.pickupDate || bookingState.pickupDate}</span>
+                    <span className="text-stone-400">→</span>
+                    <span>{availabilityCheck.conflict?.returnDate || bookingState.returnDate}</span>
+                  </div>
+                  <p className="text-[11px] text-stone-600 leading-relaxed">
+                    Another customer has an approved reservation during these dates. You can modify your rental dates or select another car from our available fleet.
+                  </p>
+                </div>
+
+                {/* Smart Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="w-full py-2.5 px-3 bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 rounded-xl font-bold text-xs transition shadow-2xs flex items-center justify-center gap-1.5 hover:border-stone-400 cursor-pointer"
+                  >
+                    <CalendarIcon size={14} className="text-[#F97316]" />
+                    <span>Change Dates</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onNavigateListing}
+                    className="w-full py-2.5 px-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold text-xs transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span>←</span>
+                    <span>Choose Another Car</span>
+                  </button>
+                </div>
               </div>
             )}
-
-            {/* Protection Plan Toggle */}
-            <label className="flex items-center justify-between p-3 bg-gray-50 hover:bg-orange-50/30 border border-gray-200 rounded-2xl cursor-pointer text-xs">
-              <div className="flex items-center gap-2">
-                <ShieldIcon size={16} className="text-[#F97316]" />
-                <div>
-                  <span className="font-bold text-gray-800 block">
-                    Collision Protection
-                  </span>
-                  <span className="text-[10px] text-gray-400">$12/day</span>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={bookingState.protectionPlan}
-                onChange={(e) =>
-                  setBookingState((prev) => ({
-                    ...prev,
-                    protectionPlan: e.target.checked,
-                  }))
-                }
-                className="w-4 h-4 rounded text-[#F97316] accent-[#F97316]"
-              />
-            </label>
 
             {/* Promo Code Box */}
             <div className="flex gap-2">
@@ -965,14 +975,7 @@ export default function CheckoutView({
                   ${taxesAndFees.toFixed(2)}
                 </span>
               </div>
-              {bookingState.protectionPlan && (
-                <div className="flex justify-between">
-                  <span>Collision Damage Coverage</span>
-                  <span className="font-semibold text-gray-900">
-                    ${protectionFee.toFixed(2)}
-                  </span>
-                </div>
-              )}
+
               <div className="flex justify-between pt-3 border-t border-gray-200 text-sm font-extrabold text-[#17191C] font-heading">
                 <span>Total Due on Pickup</span>
                 <span className="text-[#F97316] text-xl font-black">

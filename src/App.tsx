@@ -91,7 +91,9 @@ export default function App() {
     "customer",
   )
   const [authReturnView, setAuthReturnView] = useState<ViewMode>("home")
-  const [selectedCarId, setSelectedCarId] = useState<string>("toyota-camry")
+  const [selectedCarId, setSelectedCarId] = useState<string>(() => {
+    return localStorage.getItem("motorly_selected_car_id") || "toyota-camry"
+  })
   const [favorites, setFavorites] = useState<string[]>([
     "toyota-camry",
     "bmw-3-series",
@@ -196,6 +198,7 @@ export default function App() {
   }
 
   const handleSelectCar = (carId: string) => {
+    localStorage.setItem("motorly_selected_car_id", carId)
     setSelectedCarId(carId)
     setBookingState((prev) => ({ ...prev, carId }))
     setCurrentView("detail")

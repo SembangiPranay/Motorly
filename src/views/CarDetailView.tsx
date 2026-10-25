@@ -139,10 +139,7 @@ export default function CarDetailView({
   const discountMultiplier = promoApplied ? 0.85 : 1.0 // 15% off with promo code
   const discountedBase = baseRental * discountMultiplier
   const taxes = Number((discountedBase * 0.18).toFixed(2))
-  const protectionFee = bookingState.protectionPlan
-    ? Number((12.0 * days).toFixed(2))
-    : 0.0
-  const grandTotal = Number((discountedBase + taxes + protectionFee).toFixed(2))
+  const grandTotal = Number((discountedBase + taxes).toFixed(2))
 
   const handleApplyPromo = () => {
     if (promoCode.trim().toUpperCase() === "DRIVE15") {
@@ -731,33 +728,7 @@ export default function CarDetailView({
                 </div>
               </div>
 
-              {/* Full Collision Protection Toggle */}
-              <div className="pt-2">
-                <label className="flex items-center justify-between p-3 bg-gray-50 hover:bg-orange-50/30 border border-gray-200 rounded-2xl cursor-pointer transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <ShieldIcon size={18} className="text-[#F97316]" />
-                    <div>
-                      <p className="text-xs font-bold text-gray-800">
-                        Collision Protection
-                      </p>
-                      <p className="text-[10px] text-gray-400">
-                        $12/day • $0 Deductible
-                      </p>
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={bookingState.protectionPlan}
-                    onChange={(e) =>
-                      setBookingState((prev) => ({
-                        ...prev,
-                        protectionPlan: e.target.checked,
-                      }))
-                    }
-                    className="w-4 h-4 rounded text-[#F97316] accent-[#F97316]"
-                  />
-                </label>
-              </div>
+
 
               {/* Promo Code Box */}
               <div className="pt-1 flex gap-2">
@@ -812,14 +783,6 @@ export default function CarDetailView({
                   <span>-${(baseRental * 0.15).toFixed(2)}</span>
                 </div>
               )}
-              {bookingState.protectionPlan && (
-                <div className="flex justify-between">
-                  <span>Collision Protection ($12 × {days} days)</span>
-                  <span className="font-semibold text-gray-900">
-                    ${protectionFee.toFixed(2)}
-                  </span>
-                </div>
-              )}
               <div className="flex justify-between">
                 <span>Estimated Taxes &amp; Fees (10%)</span>
                 <span className="font-semibold text-gray-900">
@@ -837,18 +800,37 @@ export default function CarDetailView({
             {/* Book Now Primary Button */}
             <div className="space-y-2.5 pt-2">
               {!availabilityCheck.isAvailable && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs space-y-1">
-                  <p className="font-bold flex items-center gap-1">
-                    <span>⚠️</span>
-                    <span>Reserved for these dates:</span>
-                  </p>
-                  <p className="font-mono text-[11px]">
-                    {availabilityCheck.conflict?.pickupDate} →{" "}
-                    {availabilityCheck.conflict?.returnDate}
-                  </p>
-                  <p className="text-[10px] text-rose-600">
-                    Please pick different rental dates above to book this car.
-                  </p>
+                <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-stone-900 text-xs space-y-2.5 shadow-2xs animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-extrabold text-stone-900">
+                      <span className="w-5 h-5 rounded-md bg-amber-200/60 text-amber-800 flex items-center justify-center text-xs">
+                        ⚠️
+                      </span>
+                      <span>Schedule Conflict</span>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                      Reserved
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white/95 rounded-xl border border-amber-200/70 space-y-1 shadow-2xs">
+                    <div className="flex items-center gap-1.5 text-stone-800 font-mono text-xs font-bold">
+                      <CalendarIcon size={13} className="text-amber-700 shrink-0" />
+                      <span>{availabilityCheck.conflict?.pickupDate || bookingState.pickupDate}</span>
+                      <span className="text-stone-400">→</span>
+                      <span>{availabilityCheck.conflict?.returnDate || bookingState.returnDate}</span>
+                    </div>
+                    <p className="text-[11px] text-stone-600 leading-tight">
+                      This car already has an approved reservation during this period.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="w-full py-2 px-3 bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 rounded-xl font-bold text-xs transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <CalendarIcon size={13} className="text-[#F97316]" />
+                    <span>Adjust Rental Dates</span>
+                  </button>
                 </div>
               )}
 
