@@ -265,6 +265,8 @@ export default function AdminView({
     title: string
   } | null>(null)
   const [editingCar, setEditingCar] = useState<Car | null>(null)
+  const [deletingCar, setDeletingCar] = useState<Car | null>(null)
+  const [isDeletingCar, setIsDeletingCar] = useState(false)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false)
   const [newPhotoUrlInput, setNewPhotoUrlInput] = useState("")
@@ -582,6 +584,7 @@ export default function AdminView({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (zoomedPhoto) setZoomedPhoto(null)
+        else if (deletingCar) setDeletingCar(null)
         else if (isNotificationOpen) setIsNotificationOpen(false)
         else if (isAdminProfileOpen) setIsAdminProfileOpen(false)
         else if (inspectedLicense) setInspectedLicense(null)
@@ -596,6 +599,7 @@ export default function AdminView({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [
     zoomedPhoto,
+    deletingCar,
     isNotificationOpen,
     isAdminProfileOpen,
     inspectedLicense,
@@ -1369,19 +1373,20 @@ export default function AdminView({
     }
   }
 
-  const handleDeleteCar = async (carId: string, carName: string) => {
-    if (
-      !window.confirm(
-        `Decommission and remove ${carName} from fleet inventory?`,
-      )
-    )
-      return
+  const handleConfirmDeleteCar = async () => {
+    if (!deletingCar) return
+    setIsDeletingCar(true)
     try {
-      await api.deleteCar(carId)
-      setCars((prev) => prev.filter((c) => c.id !== carId))
-      notify(`Vehicle ${carName} removed from fleet.`)
+      await api.deleteCar(deletingCar.id)
+      setCars((prev) => prev.filter((c) => c.id !== deletingCar.id))
+      notify(
+        `Vehicle ${deletingCar.name} (${deletingCar.plateNumber || deletingCar.id}) decommissioned and removed from fleet.`,
+      )
+      setDeletingCar(null)
     } catch (err: any) {
-      alert("Failed to delete car: " + err.message)
+      alert("Failed to delete car: " + (err?.message || "Unknown error"))
+    } finally {
+      setIsDeletingCar(false)
     }
   }
 
@@ -3822,7 +3827,7 @@ export default function AdminView({
                               <EditIcon size={14} />
                             </button>
                             <button
-                              onClick={() => handleDeleteCar(c.id, c.name)}
+                              onClick={() => setDeletingCar(c)}
                               className={`p-1.5 rounded-lg border transition cursor-pointer ${
                                 isDark
                                   ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
@@ -3917,7 +3922,7 @@ export default function AdminView({
                           {c.pricePerMonth || Math.round(c.pricePerDay * 22)}/mo
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleOpenEditCar(c)}
                           className={`px-3 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
@@ -3927,6 +3932,17 @@ export default function AdminView({
                           }`}
                         >
                           Edit
+                        </button>
+                        <button
+                          onClick={() => setDeletingCar(c)}
+                          className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                            isDark
+                              ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
+                              : "hover:bg-rose-50 text-stone-500 hover:text-rose-600 border-stone-200"
+                          }`}
+                          title="Decommission vehicle"
+                        >
+                          <TrashIcon size={13} />
                         </button>
                       </div>
                     </div>
@@ -6147,6 +6163,7 @@ export default function AdminView({
           </div>
         </div>
       )}
+
 
       {/* ========================================================
           MODAL: ADD / EDIT VEHICLE (Flow A: Fleet, Insurance & Garage Map)
@@ -8964,6 +8981,7 @@ export default function AdminView({
         </div>
       )}
 
+
       {/* ========================================================================= */}
       {/* ADMIN PROFILE & SYSTEM DETAILS MODAL                                      */}
       {/* ========================================================================= */}
@@ -9238,6 +9256,194 @@ export default function AdminView({
               >
                 <span>🚪</span>
                 <span>Sign Out of Admin Console</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: DECOMMISSION & DELETE VEHICLE CONFIRMATION INFO CARD
+          ======================================================== */}
+      {deletingCar && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-car-title"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeletingCar)
+              setDeletingCar(null)
+          }}
+        >
+          <div
+            className={`w-full max-w-lg rounded-3xl border shadow-2xl p-6 sm:p-7 relative overflow-hidden transition ${
+              isDark
+                ? "bg-[#16181C] border-stone-800 text-stone-100"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-rose-500/15 text-rose-500 border border-rose-500/20 flex items-center justify-center font-black text-lg shrink-0">
+                  <TrashIcon size={20} />
+                </div>
+                <div>
+                  <h3
+                    id="delete-car-title"
+                    className="font-black text-base sm:text-lg tracking-tight text-stone-900 dark:text-white"
+                  >
+                    Decommission Vehicle
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    Review the vehicle info card below before confirming deletion
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isDeletingCar}
+                onClick={() => setDeletingCar(null)}
+                className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 flex items-center justify-center text-sm font-bold transition cursor-pointer disabled:opacity-50"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Vehicle Info Card */}
+            <div className="mt-5 space-y-4">
+              <div
+                className={`p-4 rounded-2xl border ${
+                  isDark
+                    ? "bg-stone-900/80 border-stone-800"
+                    : "bg-stone-50 border-stone-200/90 shadow-2xs"
+                }`}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="relative w-24 h-20 sm:w-28 sm:h-22 rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 bg-stone-200 dark:bg-stone-800 shrink-0">
+                    <img
+                      src={deletingCar.image}
+                      alt={deletingCar.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        ;(e.target as any).src =
+                          "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80"
+                      }}
+                    />
+                    <span className="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono font-bold">
+                      {(deletingCar.gallery || [deletingCar.image]).length} photo
+                      {(deletingCar.gallery || [deletingCar.image]).length !== 1
+                        ? "s"
+                        : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-400 text-stone-950 shadow-2xs">
+                        {deletingCar.plateNumber || "NO-PLATE"}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
+                        {deletingCar.type}
+                      </span>
+                    </div>
+
+                    <h4 className="font-extrabold text-sm sm:text-base mt-1 text-stone-900 dark:text-white truncate">
+                      {deletingCar.name}
+                    </h4>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      {deletingCar.brand} {deletingCar.model} • {deletingCar.year}
+                    </p>
+
+                    <div className="mt-2 text-xs font-mono font-bold text-[#F97316]">
+                      ${deletingCar.pricePerDay}/day • $
+                      {deletingCar.pricePerHour || 8}/hr
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Spec Matrix */}
+                <div className="mt-3.5 pt-3 border-t border-stone-200/80 dark:border-stone-800 grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-stone-400 font-mono text-[10px] uppercase block">
+                      Location Hub
+                    </span>
+                    <span className="font-medium text-stone-700 dark:text-stone-300 truncate block">
+                      📍 {deletingCar.location || deletingCar.garageName || "MIA Hub"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-stone-400 font-mono text-[10px] uppercase block">
+                      Assigned Bay
+                    </span>
+                    <span className="font-medium text-stone-700 dark:text-stone-300 block">
+                      🅿️ {deletingCar.garageBay || "Bay 14-B"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-stone-400 font-mono text-[10px] uppercase block">
+                      Current Status
+                    </span>
+                    <span
+                      className={`font-bold inline-block ${
+                        deletingCar.status === "Available"
+                          ? "text-emerald-500"
+                          : deletingCar.status === "Rented"
+                            ? "text-sky-500"
+                            : "text-amber-500"
+                      }`}
+                    >
+                      ● {deletingCar.status || "Available"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-stone-400 font-mono text-[10px] uppercase block">
+                      Health Score
+                    </span>
+                    <span className="font-mono font-bold text-stone-700 dark:text-stone-300 block">
+                      {deletingCar.healthScore || 98}% Operational
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning Notice Box */}
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <span>🚨</span>
+                  <span>Irreversible Deletion</span>
+                </div>
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 leading-relaxed">
+                  Removing <strong>{deletingCar.name}</strong> will permanently drop its record from Supabase PostgreSQL and remove it from all storefront catalog searches. Historical completed trip receipts will remain preserved.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="mt-6 pt-4 border-t border-stone-200 dark:border-stone-800 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={isDeletingCar}
+                onClick={() => setDeletingCar(null)}
+                className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel & Keep
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeletingCar}
+                onClick={handleConfirmDeleteCar}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>{isDeletingCar ? "⏳" : "🗑️"}</span>
+                <span>
+                  {isDeletingCar
+                    ? "Deleting Vehicle..."
+                    : "Permanently Delete Vehicle"}
+                </span>
               </button>
             </div>
           </div>
