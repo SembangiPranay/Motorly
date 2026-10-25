@@ -103,11 +103,46 @@ export default function App() {
     "bmw-3-series",
   ])
 
-  // Dynamic Fleet State (synced with Supabase Backend)
-  const [cars, setCars] = useState<Car[]>(CARS)
+  // Dynamic Fleet State (synced with Supabase Backend with instant localStorage cache)
+  const [cars, setCars] = useState<Car[]>(() => {
+    try {
+      const saved = localStorage.getItem("motorly_cached_cars")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    return CARS
+  })
 
-  // Dynamic Bookings State (for car mating / allocation)
-  const [bookings, setBookings] = useState<BookingRecord[]>(INITIAL_BOOKINGS)
+  // Dynamic Bookings State (for car mating / allocation with instant localStorage cache)
+  const [bookings, setBookings] = useState<BookingRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem("motorly_cached_bookings")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    return INITIAL_BOOKINGS
+  })
+
+  // Keep localStorage cache in sync for instant, flicker-free reloads
+  useEffect(() => {
+    try {
+      if (cars && cars.length > 0) {
+        localStorage.setItem("motorly_cached_cars", JSON.stringify(cars))
+      }
+    } catch {}
+  }, [cars])
+
+  useEffect(() => {
+    try {
+      if (bookings && bookings.length > 0) {
+        localStorage.setItem("motorly_cached_bookings", JSON.stringify(bookings))
+      }
+    } catch {}
+  }, [bookings])
 
   // Admin Authentication Modal State
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)

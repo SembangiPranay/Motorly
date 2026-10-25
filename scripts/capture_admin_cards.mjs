@@ -13,27 +13,13 @@ async function capture() {
   const mobilePage = await mobileContext.newPage();
   await mobilePage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 
-  // Open mobile menu
-  const hamburger = await mobilePage.$('div.flex.md\\:hidden button');
-  if (hamburger) {
-    await hamburger.click();
-    await mobilePage.waitForTimeout(400);
-  }
-
-  // Click Fleet Admin Portal in mobile menu
-  const mobileAdminBtn = await mobilePage.$('button:has-text("Fleet Admin Portal")');
-  if (mobileAdminBtn) {
-    await mobileAdminBtn.click();
-    await mobilePage.waitForTimeout(500);
-
-    const passInput = await mobilePage.$('input[type="password"]');
-    if (passInput) {
-      await passInput.fill('0709');
-      const submit = await mobilePage.$('button[type="submit"], button:has-text("Authorize")');
-      if (submit) await submit.click();
-      await mobilePage.waitForTimeout(1000);
-    }
-  }
+  // Set admin token directly in localStorage for instant access
+  await mobilePage.evaluate(() => {
+    localStorage.setItem("motorly_admin_token", "admin_session_active_0709");
+    localStorage.setItem("motorly_current_view", "admin");
+  });
+  await mobilePage.reload({ waitUntil: 'domcontentloaded' });
+  await mobilePage.waitForTimeout(2000);
 
   await mobilePage.waitForTimeout(1200);
   await mobilePage.screenshot({ path: 'screenshots/17_mobile_request_cards_new.png' });
@@ -54,17 +40,12 @@ async function capture() {
   await desktopPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 
   const desktopAdminBtn = await desktopPage.$('button:has-text("Fleet Admin")');
-  if (desktopAdminBtn) {
-    await desktopAdminBtn.click();
-    await desktopPage.waitForTimeout(500);
-    const passInput = await desktopPage.$('input[type="password"]');
-    if (passInput) {
-      await passInput.fill('0709');
-      const submit = await desktopPage.$('button[type="submit"], button:has-text("Authorize")');
-      if (submit) await submit.click();
-      await desktopPage.waitForTimeout(1000);
-    }
-  }
+  await desktopPage.evaluate(() => {
+    localStorage.setItem("motorly_admin_token", "admin_session_active_0709");
+    localStorage.setItem("motorly_current_view", "admin");
+  });
+  await desktopPage.reload({ waitUntil: 'domcontentloaded' });
+  await desktopPage.waitForTimeout(2000);
 
   await desktopPage.waitForTimeout(1200);
   await desktopPage.screenshot({ path: 'screenshots/18_desktop_request_cards_grid.png' });

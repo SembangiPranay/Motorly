@@ -1053,12 +1053,12 @@ export default function AdminView({
     }
   }
 
-  // Filtered reservations
+  // Filtered reservations with priority ordering (Pending requests first)
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b) => {
+    const list = bookings.filter((b) => {
       const matchStatus =
         manifestStatusFilter === "all" || b.status === manifestStatusFilter
-      const query = manifestSearch.toLowerCase()
+      const query = manifestSearch.toLowerCase().trim()
       const matchSearch =
         !query ||
         b.id.toLowerCase().includes(query) ||
@@ -1068,6 +1068,36 @@ export default function AdminView({
         (b.driver?.licenseNumber &&
           b.driver.licenseNumber.toLowerCase().includes(query))
       return matchStatus && matchSearch
+    })
+
+    // Action priority:
+    // 0: High-priority customer pending reservations (BK-2026-*)
+    // 1: Pending review / unassigned / needs car
+    // 2: Confirmed (Assigned - ready for customer pickup)
+    // 3: Active trips (Checked Out - on the road)
+    // 4: Returned (Awaiting check-in inspection)
+    // 5: Completed & Cancelled (Archived history)
+    const getPriority = (b: BookingRecord): number => {
+      const isPending =
+        !b.approvedByAdmin &&
+        b.status !== "Cancelled" &&
+        b.status !== "Completed" &&
+        b.status !== "Checked Out"
+      if (b.id?.startsWith("BK-2026") && (isPending || b.status === "Pending Assignment")) {
+        return 0
+      }
+      if (isPending || b.status === "Pending Assignment") return 1
+      if (b.status === "Assigned") return 2
+      if (b.status === "Checked Out") return 3
+      if (b.status === "Returned") return 4
+      return 5
+    }
+
+    return [...list].sort((a, b) => {
+      const pA = getPriority(a)
+      const pB = getPriority(b)
+      if (pA !== pB) return pA - pB
+      return (b.id || "").localeCompare(a.id || "")
     })
   }, [bookings, manifestStatusFilter, manifestSearch])
 
