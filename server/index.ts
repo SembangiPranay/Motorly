@@ -1391,6 +1391,14 @@ function parseDateWithTime(
 ): number {
   if (!dateStr || typeof dateStr !== "string") return NaN
   const trimmed = dateStr.trim()
+  if (/today/i.test(trimmed) || /right now/i.test(trimmed)) {
+    return Date.now()
+  }
+  const matchInDays = trimmed.match(/in\s+(\d+)\s+days?/i)
+  if (matchInDays) {
+    const days = parseInt(matchInDays[1], 10) || 3
+    return Date.now() + days * 86400000
+  }
   const hasTime = /\b(\d{1,2}:\d{2}(\s*(AM|PM))?|T\d{2}:\d{2})/i.test(trimmed)
   if (!hasTime) {
     const withTime = `${trimmed} ${defaultTime}`
@@ -2879,11 +2887,36 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
       })
     }
 
+    const now = new Date()
+    let pickupDateStr = b.pickupDate
+    let returnDateStr = b.returnDate
+    if (!pickupDateStr || /today|now/i.test(pickupDateStr)) {
+      pickupDateStr =
+        now.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }) + " 10:00 AM"
+    }
+    if (!returnDateStr || /in\s+\d+\s+days?/i.test(returnDateStr)) {
+      const days = parseInt(
+        returnDateStr?.match(/\d+/)?.[0] || String(b.totalDays || "3"),
+        10,
+      )
+      const ret = new Date(now.getTime() + days * 86400000)
+      returnDateStr =
+        ret.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }) + " 06:00 PM"
+    }
+
     // Prevent counter dispatch of an already booked or rented vehicle
     const conflict = await findVehicleBookingConflict(
       carId,
-      b.pickupDate || "Today, Right Now",
-      b.returnDate || "In 3 Days",
+      pickupDateStr,
+      returnDateStr,
       undefined,
       tx,
     )
@@ -2931,8 +2964,8 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         b.licenseFileName || "counter_scanned_id.jpg",
         b.pickupLocation || car.location || "Miami International Airport (MIA)",
         b.returnLocation || car.location || "Miami International Airport (MIA)",
-        b.pickupDate || "Today, Right Now",
-        b.returnDate || "In 3 Days",
+        pickupDateStr,
+        returnDateStr,
         car.type,
         carId,
         initialStatus,
@@ -3409,6 +3442,160 @@ app.post("/api/upload", async (req, res) => {
     fileName: cleanName,
     url: `/uploads/${cleanName}`,
   })
+})
+
+/* ==========================================
+   SYSTEM SETTINGS (Global Configuration & Feature Toggles)
+   ========================================== */
+
+app.get("/api/settings", async (_req, res) => {
+  try {
+    const rows = ((await db.prepare("SELECT key, value FROM system_settings").all()) as any[]) || []
+    const settings: Record<string, any> = {
+      reviews_enabled: true,
+    }
+    for (const r of rows) {
+      if (r.key === "reviews_enabled") {
+        settings.reviews_enabled = r.value === "true" || r.value === true || r.value === "1"
+      } else {
+        settings[r.key] = r.value
+      }
+    }
+    return res.json({ success: true, settings })
+  } catch (err: any) {
+    console.error("[Settings Fetch Error]", err?.message)
+    return res.json({ success: true, settings: { reviews_enabled: true } })
+  }
+})
+
+app.patch("/api/settings", requireAdmin, async (req, res) => {
+  try {
+    const { key, value } = req.body
+    if (!key) {
+      return res.status(400).json({ success: false, error: "Setting key is required." })
+    }
+    const strVal = String(value)
+    if (db.isSupabase && db.pool) {
+      await db.pool.query(
+        "INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()",
+        [key, strVal]
+      )
+    } else {
+      await db.prepare(
+        "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP"
+      ).run(key, strVal)
+    }
+    return res.json({ success: true, message: `Setting '${key}' updated successfully.`, key, value: strVal === "true" ? true : strVal === "false" ? false : strVal })
+  } catch (err: any) {
+    console.error("[Settings Update Error]", err?.message)
+    return res.status(500).json({ success: false, error: err?.message || "Failed to update system setting." })
+  }
+})
+
+/* ==========================================
+   CUSTOMER REVIEWS & VEHICLE RATINGS
+   ========================================== */
+
+app.get("/api/reviews", async (req, res) => {
+  try {
+    const carId = req.query.carId as string | undefined
+    const bookingId = req.query.bookingId as string | undefined
+    let rows: any[] = []
+
+    if (carId) {
+      rows = (await db.prepare("SELECT * FROM reviews WHERE car_id = ? ORDER BY created_at DESC").all(carId)) as any[]
+    } else if (bookingId) {
+      rows = (await db.prepare("SELECT * FROM reviews WHERE booking_id = ? ORDER BY created_at DESC").all(bookingId)) as any[]
+    } else {
+      rows = (await db.prepare("SELECT * FROM reviews ORDER BY created_at DESC LIMIT 50").all()) as any[]
+    }
+
+    const reviews = (rows || []).map((r) => ({
+      id: r.id,
+      carId: r.car_id,
+      bookingId: r.booking_id,
+      customerName: r.customer_name,
+      customerEmail: r.customer_email,
+      rating: Number(r.rating) || 5,
+      comment: r.comment || "",
+      createdAt: r.created_at,
+    }))
+
+    return res.json({ success: true, reviews })
+  } catch (err: any) {
+    console.error("[Reviews Fetch Error]", err?.message)
+    return res.json({ success: true, reviews: [] })
+  }
+})
+
+app.post("/api/reviews", async (req, res) => {
+  try {
+    // Check if review system is globally enabled
+    const settingRow = ((await db.prepare("SELECT value FROM system_settings WHERE key = 'reviews_enabled'").get()) as any)
+    const isEnabled = settingRow ? settingRow.value === "true" || settingRow.value === "1" : true
+    if (!isEnabled) {
+      return res.status(403).json({
+        success: false,
+        error: "Customer reviews are currently disabled by administration.",
+      })
+    }
+
+    const { carId, bookingId, customerName, customerEmail, rating, comment } = req.body
+    if (!carId) {
+      return res.status(400).json({ success: false, error: "carId is required to submit a review." })
+    }
+    const numRating = parseInt(String(rating), 10)
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+      return res.status(400).json({ success: false, error: "Rating must be an integer between 1 and 5 stars." })
+    }
+
+    const reviewId = `REV-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`
+    const reviewerName = String(customerName || "Verified Driver").trim()
+    const reviewerEmail = String(customerEmail || "").trim()
+    const reviewComment = String(comment || "").trim()
+
+    await db.prepare(`
+      INSERT INTO reviews (id, car_id, booking_id, customer_name, customer_email, rating, comment, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      reviewId,
+      carId,
+      bookingId || null,
+      reviewerName,
+      reviewerEmail || null,
+      numRating,
+      reviewComment || null,
+    )
+
+    // Recalculate average rating & review count for car
+    const statsRow = ((await db.prepare("SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE car_id = ?").get(carId)) as any)
+    const avgRating = statsRow?.avg_rating ? Math.round(Number(statsRow.avg_rating) * 10) / 10 : numRating
+    const count = Number(statsRow?.count) || 1
+
+    await db.prepare("UPDATE vehicles SET rating = ?, reviews_count = ? WHERE id = ?").run(avgRating, count, carId).catch(() => {})
+
+    return res.json({
+      success: true,
+      message: "Review submitted successfully! Thank you for your feedback.",
+      review: {
+        id: reviewId,
+        carId,
+        bookingId,
+        customerName: reviewerName,
+        rating: numRating,
+        comment: reviewComment,
+        createdAt: new Date().toISOString(),
+      },
+      car: {
+        id: carId,
+        rating: avgRating,
+        reviewsCount: count,
+      },
+    })
+  } catch (err: any) {
+    console.error("[Review Submission Error]", err?.message)
+    return res.status(500).json({ success: false, error: err?.message || "Failed to submit review." })
+  }
 })
 
 // Global JSON Error Handler (Guarantees all backend errors return JSON, not HTML)

@@ -775,18 +775,82 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const res = await this.request("/admin/counter-booking", {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
-    if (!res.ok) throw new Error("Failed to dispatch counter reservation")
+    const res = await this.request(
+      "/admin/counter-booking",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
+    if (!res.ok) {
+      const errData = await this.safeJson(res, {})
+      throw new Error(errData?.error || errData?.message || "Failed to dispatch counter reservation")
+    }
     return res.json()
   }
 
   // --- CRM & Customers Directory ---
   async getAdminCustomers(): Promise<AdminCustomerRecord[]> {
-    const res = await this.request("/admin/customers")
+    const res = await this.request("/admin/customers", {}, "admin")
     if (!res.ok) throw new Error("Failed to fetch customer directory")
+    return res.json()
+  }
+
+  // --- Reviews & System Settings ---
+  async getSettings(): Promise<{ reviews_enabled: boolean }> {
+    try {
+      const res = await this.request("/settings")
+      const data = await this.safeJson(res, { success: true, settings: { reviews_enabled: true } })
+      return data.settings || { reviews_enabled: true }
+    } catch {
+      return { reviews_enabled: true }
+    }
+  }
+
+  async updateSetting(key: string, value: any): Promise<boolean> {
+    try {
+      const res = await this.request(
+        "/settings",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ key, value }),
+        },
+        "admin",
+      )
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
+  async getReviews(carId?: string): Promise<any[]> {
+    try {
+      const query = carId ? `?carId=${encodeURIComponent(carId)}` : ""
+      const res = await this.request(`/reviews${query}`)
+      const data = await this.safeJson(res, { reviews: [] })
+      return data.reviews || []
+    } catch {
+      return []
+    }
+  }
+
+  async submitReview(reviewData: {
+    carId: string
+    bookingId?: string
+    customerName: string
+    customerEmail?: string
+    rating: number
+    comment: string
+  }): Promise<{ success: boolean; message?: string; review?: any; car?: any }> {
+    const res = await this.request(
+      "/reviews",
+      {
+        method: "POST",
+        body: JSON.stringify(reviewData),
+      },
+      "customer",
+    )
     return res.json()
   }
 

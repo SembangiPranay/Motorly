@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { BookingRecord, Car, CustomerUser } from "../types"
 import { api } from "../services/api"
-import GarageMapViewer from "../components/GarageMapViewer"
 import {
+  HomeIcon,
   CarIcon,
   CalendarIcon,
   LocationIcon,
@@ -59,6 +59,79 @@ export default function MyBookingsView({
   const [phoneInput, setPhoneInput] = useState("")
   const [authError, setAuthError] = useState<string | null>(null)
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
+
+  // Reviews & Feedback System State
+  const [reviewsEnabled, setReviewsEnabled] = useState(true)
+  const [myReviews, setMyReviews] = useState<any[]>([])
+  const [reviewModalBooking, setReviewModalBooking] = useState<{
+    booking: BookingRecord
+    car?: Car
+  } | null>(null)
+  const [ratingScore, setRatingScore] = useState(5)
+  const [reviewComment, setReviewComment] = useState("")
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => {
+        if (typeof s?.reviews_enabled === "boolean") {
+          setReviewsEnabled(s.reviews_enabled)
+        }
+      })
+      .catch(() => {})
+
+    api
+      .getReviews()
+      .then((revs) => {
+        setMyReviews(revs || [])
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reviewModalBooking) return
+    const carId =
+      reviewModalBooking.booking.matchedCarId ||
+      reviewModalBooking.car?.id ||
+      ""
+    if (!carId) {
+      alert("No vehicle paired with this booking to rate.")
+      return
+    }
+    setIsSubmittingReview(true)
+    try {
+      const res = await api.submitReview({
+        carId,
+        bookingId: reviewModalBooking.booking.id,
+        customerName:
+          currentUser?.name ||
+          `${reviewModalBooking.booking.customer.firstName} ${reviewModalBooking.booking.customer.lastName}`,
+        customerEmail:
+          currentUser?.email || reviewModalBooking.booking.customer.email,
+        rating: ratingScore,
+        comment: reviewComment,
+      })
+      if (res.success) {
+        showActionSuccess(
+          "Thank you! Your verified rating and review has been submitted.",
+        )
+        if (res.review) {
+          setMyReviews((prev) => [res.review, ...prev])
+        }
+        setReviewModalBooking(null)
+        setReviewComment("")
+        setRatingScore(5)
+      } else {
+        alert(res.message || "Failed to submit review.")
+      }
+    } catch (err: any) {
+      alert(err.message || "Error submitting review.")
+    } finally {
+      setIsSubmittingReview(false)
+    }
+  }
 
   useEffect(() => {
     ;(window as any).__setSelectedVoucher = setSelectedVoucher
@@ -336,8 +409,30 @@ export default function MyBookingsView({
   )
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-28 pb-20">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Top Navigation Bar with Back to Home */}
+        <div className="flex items-center justify-between mb-6 pb-3 border-b border-stone-200/80">
+          <button
+            onClick={onNavigateHome}
+            type="button"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200 text-stone-800 text-xs sm:text-sm font-bold transition shadow-2xs cursor-pointer group"
+          >
+            <HomeIcon size={16} className="text-orange-500 group-hover:scale-110 transition-transform" />
+            <span>Home</span>
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onNavigateListing}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 text-xs font-bold transition cursor-pointer"
+            >
+              <CarIcon size={14} />
+              <span>Explore Fleet</span>
+            </button>
+          </div>
+        </div>
+
         {/* Toast Alert */}
         {actionSuccess && (
           <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center justify-between shadow-sm animate-fade-in">
@@ -384,17 +479,25 @@ export default function MyBookingsView({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                onClick={onNavigateHome}
+                type="button"
+                className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-stone-100 text-stone-700 text-sm font-semibold border border-stone-200 transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <HomeIcon size={16} className="text-orange-500" />
+                Home
+              </button>
               <button
                 onClick={onNavigateListing}
-                className="px-4 py-2.5 rounded-xl bg-[#F97316] text-white text-sm font-semibold hover:bg-orange-600 transition shadow-sm flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl bg-[#F97316] text-white text-sm font-semibold hover:bg-orange-600 transition shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
                 <CarIcon size={16} />
                 Reserve Another Vehicle
               </button>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium transition"
+                className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium transition cursor-pointer"
               >
                 Sign Out
               </button>
@@ -652,28 +755,32 @@ export default function MyBookingsView({
                           </div>
                         </div>
 
-                        {/* Flow D: Green Signal Confirmation Card & Garage Hub Map */}
+                        {/* Flow D: Green Signal Confirmation & Active Trip Status Card */}
                         {b.approvedByAdmin ? (
                           <div className="mx-6 mt-5 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/30">
                             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                               <div className="flex items-center gap-2">
                                 <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse" />
                                 <h4 className="font-black text-xs sm:text-sm text-emerald-900 tracking-tight">
-                                  REQUEST ACCEPTED BY FLEET MANAGER!
+                                  {b.status === "Checked Out" || b.keysHandedAt
+                                    ? "TRIP IS ACTIVE & IN PROGRESS"
+                                    : "REQUEST ACCEPTED BY FLEET MANAGER!"}
                                 </h4>
                               </div>
                               <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-0.5 rounded border border-emerald-300">
-                                Accepted • Ready for Pickup
+                                {b.status === "Checked Out" || b.keysHandedAt
+                                  ? "Active Rental"
+                                  : "Accepted • Ready for Pickup"}
                               </span>
                             </div>
                             <p className="text-xs text-stone-600 mb-3">
-                              Your reservation request was reviewed and accepted
-                              by the manager. Please proceed to the garage bay
-                              below to pay and collect your keys:
+                              {b.status === "Checked Out" || b.keysHandedAt
+                                ? "Your rental trip is currently active. Drive safely! When ready to conclude your trip, return the vehicle to the assigned garage bay below."
+                                : "Your reservation request was reviewed and accepted by the manager. Please proceed to the garage bay below to pay and collect your keys:"}
                             </p>
 
-                            {/* Exact Garage Hub & Bay Location with Interactive Map Engine */}
-                            <div className="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm space-y-3">
+                            {/* Clean Garage Hub & Bay Location Card */}
+                            <div className="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div>
                                   <span className="text-[10px] font-mono font-bold uppercase text-stone-400 block">
@@ -697,15 +804,17 @@ export default function MyBookingsView({
                                   </span>
                                 </div>
                               </div>
-
-                              <GarageMapViewer
-                                garageName={matedCar?.garageName}
-                                garageAddress={matedCar?.garageAddress}
-                                garageBay={matedCar?.garageBay}
-                                lat={matedCar?.garageLat}
-                                lng={matedCar?.garageLng}
-                                height="200px"
-                              />
+                              {(b.status === "Checked Out" || b.keysHandedAt) && (
+                                <div className="mt-3 pt-3 border-t border-emerald-100 flex items-center justify-between text-xs font-medium text-emerald-800">
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                    Vehicle is in your possession
+                                  </span>
+                                  <span className="font-mono text-[11px] text-stone-500">
+                                    Scheduled Return: {b.returnDate}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -1028,11 +1137,17 @@ export default function MyBookingsView({
                           <th className="px-5 py-3">Status</th>
                           <th className="px-5 py-3 text-right">Total</th>
                           <th className="px-5 py-3 text-center">Receipt</th>
+                          {reviewsEnabled && (
+                            <th className="px-5 py-3 text-center">Feedback</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
                         {pastBookings.map((b) => {
                           const car = cars.find((c) => c.id === b.matchedCarId)
+                          const existingReview = myReviews.find(
+                            (r) => r.bookingId === b.id,
+                          )
                           return (
                             <tr
                               key={b.id}
@@ -1085,6 +1200,32 @@ export default function MyBookingsView({
                                   View
                                 </button>
                               </td>
+                              {reviewsEnabled && (
+                                <td className="px-5 py-3 text-center">
+                                  {existingReview ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                      ★ {existingReview.rating}.0
+                                    </span>
+                                  ) : b.status === "Completed" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setReviewModalBooking({
+                                          booking: b,
+                                          car,
+                                        })
+                                      }
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                                    >
+                                      <span>★</span> Rate Car
+                                    </button>
+                                  ) : (
+                                    <span className="text-stone-400 text-[10px]">
+                                      —
+                                    </span>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           )
                         })}
@@ -1358,6 +1499,98 @@ export default function MyBookingsView({
                     {isSubmittingExtension
                       ? "Submitting..."
                       : "Send Request to Manager"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Flow F: Rating & Review Modal */}
+      {reviewModalBooking &&
+        createPortal(
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 animate-fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-base">
+                    ★
+                  </span>
+                  <div>
+                    <h3 className="text-base font-black text-stone-900">
+                      Rate Your Rental Experience
+                    </h3>
+                    <p className="text-xs text-stone-500">
+                      {reviewModalBooking.car?.name ||
+                        reviewModalBooking.booking.requestedCategory}{" "}
+                      • {reviewModalBooking.booking.id}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setReviewModalBooking(null)}
+                  type="button"
+                  className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center text-sm font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitFeedback} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-2">
+                    Overall Experience Rating
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRatingScore(star)}
+                        className={`text-2xl transition cursor-pointer ${
+                          star <= ratingScore
+                            ? "text-amber-400 hover:scale-110"
+                            : "text-stone-300 hover:text-amber-200"
+                        }`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                    <span className="text-xs font-mono font-bold text-stone-700 ml-2">
+                      {ratingScore}.0 / 5.0
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    Your Feedback / Vehicle Review
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Share your driving experience, vehicle condition, cleanliness, or satisfaction..."
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewModalBooking(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="flex-1 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-sm disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {isSubmittingReview ? "Submitting..." : "Submit Review"}
                   </button>
                 </div>
               </form>

@@ -61,6 +61,37 @@ export default function CarDetailView({
     loading: false,
   })
 
+  // Dynamic Feedback & Reviews System
+  const [reviewsEnabled, setReviewsEnabled] = useState(true)
+  const [realReviews, setRealReviews] = useState<any[]>([])
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false)
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => {
+        if (typeof s?.reviews_enabled === "boolean") {
+          setReviewsEnabled(s.reviews_enabled)
+        }
+      })
+      .catch(() => {})
+
+    if (car?.id) {
+      setIsLoadingReviews(true)
+      api
+        .getReviews(car.id)
+        .then((revs) => {
+          setRealReviews(revs || [])
+        })
+        .catch(() => {
+          setRealReviews([])
+        })
+        .finally(() => {
+          setIsLoadingReviews(false)
+        })
+    }
+  }, [car?.id])
+
   // Live Double Booking Prevention: Check vehicle reservation availability
   useEffect(() => {
     let isCancelled = false
@@ -394,7 +425,14 @@ export default function CarDetailView({
                   { id: "garage", label: "📍 Garage & Map Location" },
                   { id: "features", label: "Features & Tech" },
                   { id: "rates", label: "Rental Rates" },
-                  { id: "reviews", label: "Reviews" },
+                  ...(reviewsEnabled
+                    ? [
+                        {
+                          id: "reviews",
+                          label: `Reviews (${realReviews.length})`,
+                        },
+                      ]
+                    : []),
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -604,36 +642,51 @@ export default function CarDetailView({
             )}
 
             {/* Tab 4: Reviews */}
-            {activeTab === "reviews" && (
+            {activeTab === "reviews" && reviewsEnabled && (
               <div className="pt-2 animate-fade-in space-y-3">
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-gray-900">
-                      James T. • Verified Renter
-                    </span>
-                    <span className="text-amber-500 font-bold text-xs">
-                      ★★★★★ 5.0
-                    </span>
+                {isLoadingReviews ? (
+                  <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-gray-500">
+                    Loading verified renter reviews...
                   </div>
-                  <p className="text-xs text-gray-600">
-                    "Vehicle was spotless, well-maintained, and ready right at
-                    the garage bay. Smooth ride and exceptional fuel economy."
-                  </p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-gray-900">
-                      Sophia K. • Verified Renter
-                    </span>
-                    <span className="text-amber-500 font-bold text-xs">
-                      ★★★★★ 5.0
-                    </span>
+                ) : realReviews.length > 0 ? (
+                  realReviews.map((r) => (
+                    <div
+                      key={r.id}
+                      className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-gray-900">
+                          {r.customerName || "Verified Renter"} • Verified
+                          Customer
+                        </span>
+                        <span className="text-amber-500 font-bold text-xs flex items-center gap-1">
+                          {"★".repeat(Math.min(5, Math.max(1, r.rating || 5)))}{" "}
+                          {(r.rating || 5).toFixed(1)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600">"{r.comment}"</p>
+                      <span className="text-[10px] text-gray-400 block font-mono">
+                        {r.createdAt
+                          ? new Date(r.createdAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "Recent rental"}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-500 space-y-1">
+                    <p className="font-semibold text-gray-700">
+                      No customer reviews yet for this vehicle.
+                    </p>
+                    <p>
+                      Completed your rental trip? Leave your verified review in
+                      the My Bookings portal!
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-600">
-                    "Fastest rental experience I have had in Florida. Zero sales
-                    pressure for add-ons."
-                  </p>
-                </div>
+                )}
               </div>
             )}
           </div>

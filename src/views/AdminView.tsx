@@ -93,12 +93,17 @@ export default function AdminView({
   const [customers, setCustomers] = useState<AdminCustomerRecord[]>([])
   const [customerSearch, setCustomerSearch] = useState("")
   const [inspectedLicense, setInspectedLicense] = useState<{
+    id?: string
     name: string
     licenseNum: string
     state: string
     expiry: string
     file?: string
   } | null>(null)
+
+  // --- Reviews & Global System Settings State ---
+  const [reviewsEnabled, setReviewsEnabled] = useState(true)
+  const [isUpdatingReviewsSetting, setIsUpdatingReviewsSetting] = useState(false)
 
   // --- Maintenance State ---
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([])
@@ -158,7 +163,28 @@ export default function AdminView({
     setVehicleStatus: "",
   })
 
-  // --- Walk-in Counter Dispatch State ---
+  // --- Walk-in Counter Dispatch State & Form Helpers ---
+  const getWalkinPickupDefault = () => {
+    const d = new Date()
+    return (
+      d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }) + " 10:00 AM"
+    )
+  }
+  const getWalkinReturnDefault = (days = 3) => {
+    const d = new Date(Date.now() + days * 86400000)
+    return (
+      d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }) + " 06:00 PM"
+    )
+  }
+
   const [walkinForm, setWalkinForm] = useState({
     firstName: "",
     lastName: "",
@@ -167,8 +193,8 @@ export default function AdminView({
     licenseNumber: "",
     licenseState: "Florida",
     carId: cars.find((c) => c.status === "Available")?.id || cars[0]?.id || "",
-    pickupDate: "Today, Right Now",
-    returnDate: "In 3 Days",
+    pickupDate: getWalkinPickupDefault(),
+    returnDate: getWalkinReturnDefault(3),
     totalDays: 3,
     immediateCheckout: true,
     notes: "Counter express walk-in reservation.",
@@ -366,8 +392,34 @@ export default function AdminView({
         setMntPagination(remoteMnt.pagination)
       }
       setCustomers(remoteCustomers)
+      api
+        .getSettings()
+        .then((s) => {
+          if (typeof s?.reviews_enabled === "boolean") {
+            setReviewsEnabled(s.reviews_enabled)
+          }
+        })
+        .catch(() => {})
     } catch (e) {
       console.warn("Auxiliary data load:", e)
+    }
+  }
+
+  const handleToggleReviews = async () => {
+    setIsUpdatingReviewsSetting(true)
+    const next = !reviewsEnabled
+    try {
+      await api.updateSetting("reviews_enabled", next)
+      setReviewsEnabled(next)
+      notify(
+        next
+          ? "Customer vehicle ratings & reviews ENABLED globally."
+          : "Customer vehicle ratings & reviews DISABLED globally.",
+      )
+    } catch (err: any) {
+      alert("Failed to update setting: " + err.message)
+    } finally {
+      setIsUpdatingReviewsSetting(false)
     }
   }
 
@@ -964,8 +1016,8 @@ export default function AdminView({
           licenseState: "Florida",
           carId:
             cars.find((c) => c.status === "Available")?.id || cars[0]?.id || "",
-          pickupDate: "Today, Right Now",
-          returnDate: "In 3 Days",
+          pickupDate: getWalkinPickupDefault(),
+          returnDate: getWalkinReturnDefault(3),
           totalDays: 3,
           immediateCheckout: true,
           notes: "Counter express walk-in reservation.",
@@ -1138,6 +1190,21 @@ export default function AdminView({
       alert("Failed to delete car: " + err.message)
     }
   }
+
+  // Automated Overdue / Trip-Elapsed Notification System (Bug 4)
+  const overdueBookings = useMemo(() => {
+    const now = Date.now()
+    return bookings.filter((b) => {
+      if (b.status !== "Checked Out") return false
+      try {
+        const returnTs = Date.parse(b.returnDate)
+        if (!isNaN(returnTs) && returnTs < now) {
+          return true
+        }
+      } catch {}
+      return false
+    })
+  }, [bookings])
 
   // Filtered reservations with priority ordering (Pending requests first)
   const filteredBookings = useMemo(() => {
@@ -1396,6 +1463,24 @@ export default function AdminView({
 
             {/* Quick Actions & Exit */}
             <div className="flex items-center gap-2.5">
+              {/* Global Reviews System Toggle Button (Bug 6) */}
+              <button
+                type="button"
+                onClick={handleToggleReviews}
+                disabled={isUpdatingReviewsSetting}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                  reviewsEnabled
+                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/25"
+                    : isDark
+                      ? "bg-stone-800 text-stone-400 border-stone-700"
+                      : "bg-stone-100 text-stone-500 border-stone-200"
+                }`}
+                title="Toggle Customer Reviews & Feedback Globally"
+              >
+                <span>★</span>
+                <span>{reviewsEnabled ? "Reviews: ON" : "Reviews: OFF"}</span>
+              </button>
+
               {/* Light / Dark Mode Toggle */}
               <button
                 type="button"
@@ -1460,7 +1545,11 @@ export default function AdminView({
                 label: "Active Bookings",
                 icon: <LinkIcon size={14} className="text-[#F97316]" />,
                 badge:
-                  stats.pendingMating > 0 ? (
+                  overdueBookings.length > 0 ? (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-600 text-white animate-pulse">
+                      {overdueBookings.length} Overdue
+                    </span>
+                  ) : stats.pendingMating > 0 ? (
                     <span
                       className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold border ${
                         isDark
@@ -1581,6 +1670,44 @@ export default function AdminView({
             >
               ✕
             </button>
+          </div>
+        )}
+
+        {/* Automated Overdue / Trip-Elapsed Notification Card (Bug 4) */}
+        {overdueBookings.length > 0 && (
+          <div className="p-4 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-700 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-fade-in">
+            <div className="flex items-center gap-3">
+              <span className="w-3.5 h-3.5 rounded-full bg-rose-500 shrink-0 animate-ping" />
+              <div>
+                <h4 className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
+                  <span>🚨 RENTAL TIME FINISHED / OVERDUE ALERT</span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-600 text-white">
+                    {overdueBookings.length} Trip(s) Elapsed
+                  </span>
+                </h4>
+                <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">
+                  Trip duration has finished for reservation(s):{" "}
+                  <strong>
+                    {overdueBookings.map((b) => b.id).join(", ")}
+                  </strong>
+                  . Scheduled return time has passed. Please initiate vehicle
+                  turnaround return inspection.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("manifest")
+                  setManifestStatusFilter("Checked Out")
+                  setInspectedBooking(overdueBookings[0])
+                }}
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+              >
+                Inspect Overdue Trip ({overdueBookings[0]?.id}) →
+              </button>
+            </div>
           </div>
         )}
 
@@ -3704,12 +3831,14 @@ export default function AdminView({
                     min="1"
                     max="60"
                     value={walkinForm.totalDays}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const days = Math.max(1, Number(e.target.value) || 1)
                       setWalkinForm({
                         ...walkinForm,
-                        totalDays: Number(e.target.value) || 1,
+                        totalDays: days,
+                        returnDate: getWalkinReturnDefault(days),
                       })
-                    }
+                    }}
                     className={`w-full px-3 py-2 rounded-xl text-sm font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
                       isDark
                         ? "bg-stone-900 border border-stone-700 text-white"
@@ -4055,7 +4184,7 @@ export default function AdminView({
                       >
                         <div className="flex items-center gap-2">
                           <div
-                            className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                               isDark
                                 ? "bg-stone-800 text-stone-300"
                                 : "bg-stone-100 text-stone-700"
@@ -4063,12 +4192,22 @@ export default function AdminView({
                           >
                             {cust.name.charAt(0)}
                           </div>
-                          <span>{cust.name}</span>
-                          {cust.hasAccount && (
-                            <span className="text-[10px] text-emerald-500 font-mono font-bold">
-                              ✓ App
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span>{cust.name}</span>
+                              {cust.hasAccount && (
+                                <span className="text-[10px] text-emerald-500 font-mono font-bold">
+                                  ✓ App
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-mono text-[10px] text-stone-400 block mt-0.5">
+                              User ID:{" "}
+                              <span className="text-orange-500 font-semibold font-mono">
+                                {cust.id}
+                              </span>
                             </span>
-                          )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
@@ -4137,6 +4276,7 @@ export default function AdminView({
                         <button
                           onClick={() =>
                             setInspectedLicense({
+                              id: cust.id,
                               name: cust.name,
                               licenseNum: cust.driverLicenseNum || "DL-99018",
                               state: cust.driverLicenseState || "Florida",
@@ -4489,73 +4629,71 @@ export default function AdminView({
       </main>
 
       {/* ========================================================
-          SLIDE-OUT INSPECTION DRAWER (Reservation Manifest)
+          FULL-PAGE RESERVATION INSPECTION MANIFEST (Bug 5: Full View)
           ======================================================== */}
       {inspectedBooking && (
         <div
           onClick={() => setInspectedBooking(null)}
-          className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm flex justify-end animate-fade-in cursor-pointer"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in"
         >
           <div
-            onClick={() => setInspectedBooking(null)}
-            className={`w-full max-w-xl border-l h-full overflow-y-auto p-6 sm:p-8 flex flex-col justify-between shadow-2xl transition cursor-default ${
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-6xl max-h-[94vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden transition cursor-default my-auto ${
               isDark
-                ? "bg-[#17191C] border-stone-800 text-white"
+                ? "bg-[#14161A] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
             }`}
-            title="Click anywhere on the white background to go back"
           >
-            <div className="space-y-4">
-              {/* Drawer Top Header */}
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className={`sticky top-0 z-20 -mx-6 -mt-6 sm:-mx-8 sm:-mt-8 p-6 sm:p-8 border-b backdrop-blur-md flex items-center justify-between ${
-                  isDark
-                    ? "bg-[#17191C]/95 border-stone-800"
-                    : "bg-white/95 border-stone-200/90 shadow-2xs"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setInspectedBooking(null)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                      isDark
-                        ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
-                        : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-700 border border-stone-200 shadow-2xs"
-                    }`}
-                    title="Return to Manifest Table (or press Esc)"
-                  >
-                    <ArrowLeftIcon size={14} />
-                    <span>Back</span>
-                  </button>
-                  <div>
-                    <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider block">
-                      RESERVATION INSPECTION SHEET
-                    </span>
-                    <h3
-                      className={`text-lg font-black font-mono mt-0.5 leading-none ${
-                        isDark ? "text-white" : "text-stone-900"
-                      }`}
-                    >
-                      {inspectedBooking.id}
-                    </h3>
-                  </div>
-                </div>
+            {/* Modal Top Header */}
+            <div
+              className={`p-5 sm:p-6 border-b flex items-center justify-between shrink-0 ${
+                isDark
+                  ? "bg-[#17191C] border-stone-800"
+                  : "bg-white border-stone-200 shadow-2xs"
+              }`}
+            >
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setInspectedBooking(null)}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     isDark
-                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
-                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 shadow-2xs"
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
+                      : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-700 border border-stone-200 shadow-2xs"
                   }`}
-                  title="Close (Esc or click white space)"
+                  title="Return to Manifest Table (or press Esc)"
                 >
-                  ✕
+                  <ArrowLeftIcon size={14} />
+                  <span>Back</span>
                 </button>
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider block">
+                    RESERVATION INSPECTION MANIFEST • FULL PAGE VIEW
+                  </span>
+                  <h3
+                    className={`text-xl font-black font-mono mt-0.5 leading-none ${
+                      isDark ? "text-white" : "text-stone-900"
+                    }`}
+                  >
+                    {inspectedBooking.id}
+                  </h3>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setInspectedBooking(null)}
+                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
+                    : "bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 shadow-2xs"
+                }`}
+                title="Close Manifest"
+              >
+                ✕
+              </button>
+            </div>
 
+            <div className="p-5 sm:p-7 overflow-y-auto space-y-5 flex-1">
               {/* Status Banner with Green Signal */}
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -5179,11 +5317,15 @@ export default function AdminView({
                       {/* Front Photo Card */}
                       {(() => {
                         const frontSrc =
-                          inspectedBooking.driver?.licensePhotoFront ||
                           (inspectedBooking.driver?.licenseFileName?.startsWith(
                             "data:",
                           )
                             ? inspectedBooking.driver.licenseFileName
+                            : null) ||
+                          (inspectedBooking.driver?.licensePhotoFront?.startsWith(
+                            "data:",
+                          )
+                            ? inspectedBooking.driver.licensePhotoFront
                             : null) ||
                           api.getLicenseDownloadUrl(
                             inspectedBooking.id,
@@ -5246,11 +5388,15 @@ export default function AdminView({
                       {/* Back Photo Card */}
                       {(() => {
                         const backSrc =
-                          inspectedBooking.driver?.licensePhotoBack ||
                           (inspectedBooking.driver?.licenseBackFileName?.startsWith(
                             "data:",
                           )
                             ? inspectedBooking.driver.licenseBackFileName
+                            : null) ||
+                          (inspectedBooking.driver?.licensePhotoBack?.startsWith(
+                            "data:",
+                          )
+                            ? inspectedBooking.driver.licensePhotoBack
                             : null) ||
                           api.getLicenseDownloadUrl(inspectedBooking.id, "back")
                         return (
@@ -5584,13 +5730,13 @@ export default function AdminView({
             >
               <button
                 onClick={() => setInspectedBooking(null)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
-                    : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                    : "bg-stone-100 hover:bg-stone-200 text-stone-700 shadow-2xs"
                 }`}
               >
-                Close Drawer
+                Close Inspection Sheet
               </button>
               {inspectedBooking.status !== "Cancelled" && (
                 <button
@@ -7315,6 +7461,11 @@ export default function AdminView({
                   PHOTO
                 </div>
                 <div className="space-y-1 text-xs">
+                  {inspectedLicense.id && (
+                    <span className="font-mono text-[10px] font-bold text-orange-500 block">
+                      USER PROFILE ID: {inspectedLicense.id}
+                    </span>
+                  )}
                   <p
                     className={`font-bold text-sm ${
                       isDark ? "text-white" : "text-stone-900"

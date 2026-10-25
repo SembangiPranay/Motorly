@@ -41676,6 +41676,12 @@ app.delete("/api/cars/:id", requireAdmin, async (req, res) => {
 function parseDateWithTime(dateStr, defaultTime = "09:00 AM") {
 	if (!dateStr || typeof dateStr !== "string") return NaN;
 	const trimmed = dateStr.trim();
+	if (/today/i.test(trimmed) || /right now/i.test(trimmed)) return Date.now();
+	const matchInDays = trimmed.match(/in\s+(\d+)\s+days?/i);
+	if (matchInDays) {
+		const days = parseInt(matchInDays[1], 10) || 3;
+		return Date.now() + days * 864e5;
+	}
 	if (!/\b(\d{1,2}:\d{2}(\s*(AM|PM))?|T\d{2}:\d{2})/i.test(trimmed)) {
 		const withTime = `${trimmed} ${defaultTime}`;
 		const parsedWithTime = Date.parse(withTime);
@@ -42465,7 +42471,23 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
 		const car = await tx.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 		if (!car) return res.status(404).json({ error: "Selected vehicle not found." });
 		if (car.status === "Maintenance") return res.status(409).json({ error: `Conflict: ${car.name} (${car.plate_number}) is currently under maintenance and cannot be dispatched.` });
-		const conflict = await findVehicleBookingConflict(carId, b.pickupDate || "Today, Right Now", b.returnDate || "In 3 Days", void 0, tx);
+		const now = /* @__PURE__ */ new Date();
+		let pickupDateStr = b.pickupDate;
+		let returnDateStr = b.returnDate;
+		if (!pickupDateStr || /today|now/i.test(pickupDateStr)) pickupDateStr = now.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric"
+		}) + " 10:00 AM";
+		if (!returnDateStr || /in\s+\d+\s+days?/i.test(returnDateStr)) {
+			const days = parseInt(returnDateStr?.match(/\d+/)?.[0] || String(b.totalDays || "3"), 10);
+			returnDateStr = new Date(now.getTime() + days * 864e5).toLocaleDateString("en-US", {
+				month: "short",
+				day: "numeric",
+				year: "numeric"
+			}) + " 06:00 PM";
+		}
+		const conflict = await findVehicleBookingConflict(carId, pickupDateStr, returnDateStr, void 0, tx);
 		if (conflict || car.status === "Rented") return res.status(409).json({ error: conflict?.conflictingBookingId && conflict.conflictingBookingId !== "INVALID_DATES" && conflict.conflictingBookingId !== "DB_FAILSAFE" ? `Conflict: ${car.name} (${car.plate_number}) is currently rented or assigned to another active reservation (${conflict.conflictingBookingId}).` : conflict?.reason || `Conflict: ${car.name} (${car.plate_number}) is currently unavailable for dispatch.` });
 		const initialStatus = b.immediateCheckout ? "Checked Out" : "Assigned";
 		await tx.prepare(`
@@ -42482,7 +42504,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         ?, ?, ?, ?, ?,
         ?, ?, ?
       )
-    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation || car.location || "Miami International Airport (MIA)", b.returnLocation || car.location || "Miami International Airport (MIA)", b.pickupDate || "Today, Right Now", b.returnDate || "In 3 Days", car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.");
+    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation || car.location || "Miami International Airport (MIA)", b.returnLocation || car.location || "Miami International Airport (MIA)", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.");
 		await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 		const created = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		return res.status(201).json({
@@ -42774,6 +42796,133 @@ app.post("/api/upload", async (req, res) => {
 		fileName: cleanName,
 		url: `/uploads/${cleanName}`
 	});
+});
+app.get("/api/settings", async (_req, res) => {
+	try {
+		const rows = await db.prepare("SELECT key, value FROM system_settings").all() || [];
+		const settings = { reviews_enabled: true };
+		for (const r of rows) if (r.key === "reviews_enabled") settings.reviews_enabled = r.value === "true" || r.value === true || r.value === "1";
+		else settings[r.key] = r.value;
+		return res.json({
+			success: true,
+			settings
+		});
+	} catch (err) {
+		console.error("[Settings Fetch Error]", err?.message);
+		return res.json({
+			success: true,
+			settings: { reviews_enabled: true }
+		});
+	}
+});
+app.patch("/api/settings", requireAdmin, async (req, res) => {
+	try {
+		const { key, value } = req.body;
+		if (!key) return res.status(400).json({
+			success: false,
+			error: "Setting key is required."
+		});
+		const strVal = String(value);
+		if (db.isSupabase && db.pool) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()", [key, strVal]);
+		else await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(key, strVal);
+		return res.json({
+			success: true,
+			message: `Setting '${key}' updated successfully.`,
+			key,
+			value: strVal === "true" ? true : strVal === "false" ? false : strVal
+		});
+	} catch (err) {
+		console.error("[Settings Update Error]", err?.message);
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to update system setting."
+		});
+	}
+});
+app.get("/api/reviews", async (req, res) => {
+	try {
+		const carId = req.query.carId;
+		const bookingId = req.query.bookingId;
+		let rows = [];
+		if (carId) rows = await db.prepare("SELECT * FROM reviews WHERE car_id = ? ORDER BY created_at DESC").all(carId);
+		else if (bookingId) rows = await db.prepare("SELECT * FROM reviews WHERE booking_id = ? ORDER BY created_at DESC").all(bookingId);
+		else rows = await db.prepare("SELECT * FROM reviews ORDER BY created_at DESC LIMIT 50").all();
+		const reviews = (rows || []).map((r) => ({
+			id: r.id,
+			carId: r.car_id,
+			bookingId: r.booking_id,
+			customerName: r.customer_name,
+			customerEmail: r.customer_email,
+			rating: Number(r.rating) || 5,
+			comment: r.comment || "",
+			createdAt: r.created_at
+		}));
+		return res.json({
+			success: true,
+			reviews
+		});
+	} catch (err) {
+		console.error("[Reviews Fetch Error]", err?.message);
+		return res.json({
+			success: true,
+			reviews: []
+		});
+	}
+});
+app.post("/api/reviews", async (req, res) => {
+	try {
+		const settingRow = await db.prepare("SELECT value FROM system_settings WHERE key = 'reviews_enabled'").get();
+		if (!(settingRow ? settingRow.value === "true" || settingRow.value === "1" : true)) return res.status(403).json({
+			success: false,
+			error: "Customer reviews are currently disabled by administration."
+		});
+		const { carId, bookingId, customerName, customerEmail, rating, comment } = req.body;
+		if (!carId) return res.status(400).json({
+			success: false,
+			error: "carId is required to submit a review."
+		});
+		const numRating = parseInt(String(rating), 10);
+		if (isNaN(numRating) || numRating < 1 || numRating > 5) return res.status(400).json({
+			success: false,
+			error: "Rating must be an integer between 1 and 5 stars."
+		});
+		const reviewId = `REV-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+		const reviewerName = String(customerName || "Verified Driver").trim();
+		const reviewerEmail = String(customerEmail || "").trim();
+		const reviewComment = String(comment || "").trim();
+		await db.prepare(`
+      INSERT INTO reviews (id, car_id, booking_id, customer_name, customer_email, rating, comment, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(reviewId, carId, bookingId || null, reviewerName, reviewerEmail || null, numRating, reviewComment || null);
+		const statsRow = await db.prepare("SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE car_id = ?").get(carId);
+		const avgRating = statsRow?.avg_rating ? Math.round(Number(statsRow.avg_rating) * 10) / 10 : numRating;
+		const count = Number(statsRow?.count) || 1;
+		await db.prepare("UPDATE vehicles SET rating = ?, reviews_count = ? WHERE id = ?").run(avgRating, count, carId).catch(() => {});
+		return res.json({
+			success: true,
+			message: "Review submitted successfully! Thank you for your feedback.",
+			review: {
+				id: reviewId,
+				carId,
+				bookingId,
+				customerName: reviewerName,
+				rating: numRating,
+				comment: reviewComment,
+				createdAt: (/* @__PURE__ */ new Date()).toISOString()
+			},
+			car: {
+				id: carId,
+				rating: avgRating,
+				reviewsCount: count
+			}
+		});
+	} catch (err) {
+		console.error("[Review Submission Error]", err?.message);
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to submit review."
+		});
+	}
 });
 app.use((err, req, res, next) => {
 	console.error("[Backend Error]", err?.message || err);
