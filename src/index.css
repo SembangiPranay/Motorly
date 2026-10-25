@@ -12,6 +12,15 @@
   --bg-sand: #faf7f2;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
 body {
   margin: 0;
   font-family: "Inter", sans-serif;

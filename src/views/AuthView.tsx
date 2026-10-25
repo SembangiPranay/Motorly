@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import type { CustomerUser } from "../types"
 import { api } from "../services/api"
 import {
@@ -28,6 +28,10 @@ export default function AuthView({
 }: AuthViewProps) {
   // Active primary tab: "customer" vs "admin"
   const [activeTab, setActiveTab] = useState<"customer" | "admin">(initialTab)
+
+  useEffect(() => {
+    setActiveTab(initialTab)
+  }, [initialTab])
 
   // Customer mode: "signin" vs "register"
   const [customerMode, setCustomerMode] = useState<"signin" | "register">(

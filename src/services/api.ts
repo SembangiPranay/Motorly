@@ -51,6 +51,56 @@ class ApiService {
     }
   }
 
+  private handleUnauthorizedResponse(
+    endpoint: string,
+    role?: "admin" | "customer",
+    mergedHeaders?: Record<string, string>,
+  ) {
+    if (typeof window === "undefined") return
+
+    const adminToken = localStorage.getItem("motorly_admin_token")
+    const customerToken = localStorage.getItem("motorly_customer_token")
+
+    const isAdminReq =
+      role === "admin" ||
+      (Boolean(adminToken) &&
+        mergedHeaders?.["Authorization"] === `Bearer ${adminToken}`) ||
+      endpoint.startsWith("/admin") ||
+      endpoint.startsWith("/maintenance") ||
+      endpoint.includes("/accept") ||
+      endpoint.includes("/decline") ||
+      endpoint.includes("/handover-keys") ||
+      endpoint.includes("/return-inspection") ||
+      endpoint === "/auth/verify"
+
+    if (isAdminReq) {
+      localStorage.removeItem("motorly_admin_token")
+      localStorage.removeItem("motorly_admin_user")
+      window.dispatchEvent(
+        new CustomEvent("motorly_admin_unauthorized", {
+          detail: { endpoint },
+        }),
+      )
+    }
+
+    const isCustomerReq =
+      role === "customer" ||
+      (Boolean(customerToken) &&
+        mergedHeaders?.["Authorization"] === `Bearer ${customerToken}`) ||
+      endpoint.startsWith("/users/") ||
+      endpoint === "/auth/customer-profile"
+
+    if (isCustomerReq) {
+      localStorage.removeItem("motorly_customer_token")
+      localStorage.removeItem("motorly_customer_user")
+      window.dispatchEvent(
+        new CustomEvent("motorly_customer_unauthorized", {
+          detail: { endpoint },
+        }),
+      )
+    }
+  }
+
   private async request(
     endpoint: string,
     options: RequestInit = {},
@@ -58,7 +108,7 @@ class ApiService {
   ): Promise<Response> {
     const mergedHeaders = {
       ...this.getHeaders(role),
-      ...(options.headers as Record<string, string> || {}),
+      ...((options.headers as Record<string, string>) || {}),
     }
     const config: RequestInit = {
       ...options,
@@ -73,6 +123,9 @@ class ApiService {
     // Try relative URL first (standard in Vercel and Vite dev proxy)
     try {
       const res = await fetch(`${PRIMARY_BASE}${endpoint}`, config)
+      if (res.status === 401) {
+        this.handleUnauthorizedResponse(endpoint, role, mergedHeaders)
+      }
       if (
         !isLocalhost ||
         (res.status !== 404 &&
@@ -88,7 +141,11 @@ class ApiService {
 
     // In local development only, fallback to direct backend port 3001
     if (isLocalhost) {
-      return fetch(`${FALLBACK_BASE}${endpoint}`, config)
+      const fallbackRes = await fetch(`${FALLBACK_BASE}${endpoint}`, config)
+      if (fallbackRes.status === 401) {
+        this.handleUnauthorizedResponse(endpoint, role, mergedHeaders)
+      }
+      return fallbackRes
     }
 
     throw new Error("Unable to reach backend service.")
@@ -291,8 +348,16 @@ class ApiService {
         },
         "admin",
       )
+      if (res.status === 401) {
+        this.handleUnauthorizedResponse("/auth/verify", "admin")
+        return false
+      }
       const data = await this.safeJson(res, null)
-      return Boolean(data?.authenticated)
+      const isAuth = Boolean(data?.authenticated)
+      if (!isAuth) {
+        this.handleUnauthorizedResponse("/auth/verify", "admin")
+      }
+      return isAuth
     } catch {
       return false
     }
@@ -472,7 +537,17 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to approve reservation request")
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error(
+          "Admin session expired or unauthorized. Please re-enter passcode (0709) to approve.",
+        )
+      }
+      const data = await this.safeJson(res, null)
+      throw new Error(
+        data?.message || data?.error || "Failed to approve reservation request",
+      )
+    }
     return res.json()
   }
 
@@ -488,7 +563,17 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to decline reservation request")
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error(
+          "Admin session expired or unauthorized. Please re-enter passcode (0709) to decline.",
+        )
+      }
+      const data = await this.safeJson(res, null)
+      throw new Error(
+        data?.message || data?.error || "Failed to decline reservation request",
+      )
+    }
     return res.json()
   }
 

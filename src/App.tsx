@@ -191,9 +191,17 @@ export default function App() {
         const isAuth = await api.verifyAdminSession().catch(() => false)
         if (isAuth) {
           setIsAdminAuthenticated(true)
-        } else if (localStorage.getItem("motorly_admin_token")) {
-          // Keep optimistic true if token exists
-          setIsAdminAuthenticated(true)
+        } else {
+          // Token is missing, expired, or rejected: purge stale credentials
+          localStorage.removeItem("motorly_admin_token")
+          localStorage.removeItem("motorly_admin_user")
+          setIsAdminAuthenticated(false)
+          // Route to AuthView with admin tab if on admin view
+          if (currentView === "admin") {
+            setAuthInitialTab("admin")
+            setAuthReturnView("admin")
+            setCurrentView("auth")
+          }
         }
 
         // Load customer session if present
@@ -223,6 +231,45 @@ export default function App() {
     }
     initData()
   }, [])
+
+  // Handle 401 Unauthorized globally for admin and customer sessions
+  useEffect(() => {
+    const handleAdminUnauthorized = () => {
+      setIsAdminAuthenticated(false)
+      localStorage.removeItem("motorly_admin_token")
+      localStorage.removeItem("motorly_admin_user")
+      if (currentView === "admin") {
+        setAuthInitialTab("admin")
+        setAuthReturnView("admin")
+        setCurrentView("auth")
+      }
+    }
+
+    const handleCustomerUnauthorized = () => {
+      setCurrentUser(null)
+      localStorage.removeItem("motorly_customer_token")
+      localStorage.removeItem("motorly_customer_user")
+    }
+
+    window.addEventListener(
+      "motorly_admin_unauthorized",
+      handleAdminUnauthorized,
+    )
+    window.addEventListener(
+      "motorly_customer_unauthorized",
+      handleCustomerUnauthorized,
+    )
+    return () => {
+      window.removeEventListener(
+        "motorly_admin_unauthorized",
+        handleAdminUnauthorized,
+      )
+      window.removeEventListener(
+        "motorly_customer_unauthorized",
+        handleCustomerUnauthorized,
+      )
+    }
+  }, [currentView])
 
   // Scroll to top on screen change
   useEffect(() => {
@@ -357,7 +404,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C]">
+    <div className="w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C]">
       {/* Header (hidden in dedicated full-screen admin & auth mode for cleaner layout) */}
       {currentView !== "admin" && currentView !== "auth" && (
         <Header
@@ -480,8 +527,8 @@ export default function App() {
           />
         )}
 
-        {/* Dynamic Admin Panel View */}
-        {currentView === "admin" && (
+        {/* Dynamic Admin Panel View (Only accessible when verified authenticated) */}
+        {currentView === "admin" && isAdminAuthenticated && (
           <AdminView
             cars={cars}
             setCars={setCars}
@@ -494,6 +541,21 @@ export default function App() {
               localStorage.setItem("motorly_current_view", "home")
               setCurrentView("home")
             }}
+          />
+        )}
+
+        {/* Fallback Auth view if in admin view without authenticated session */}
+        {currentView === "admin" && !isAdminAuthenticated && (
+          <AuthView
+            initialTab="admin"
+            onSuccess={(role) => {
+              if (role === "admin") {
+                setIsAdminAuthenticated(true)
+                setCurrentView("admin")
+              }
+            }}
+            onNavigateHome={() => setCurrentView("home")}
+            onNavigateListing={() => setCurrentView("listing")}
           />
         )}
       </main>
@@ -534,11 +596,17 @@ export default function App() {
       {/* Admin Authentication Modal (Password: 0709) */}
       <AdminLoginModal
         isOpen={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
+        onClose={() => {
+          setIsAdminModalOpen(false)
+          if (currentView === "admin") {
+            setCurrentView("home")
+          }
+        }}
         onSuccess={() => {
           setIsAdminAuthenticated(true)
           setIsAdminModalOpen(false)
           setCurrentView("admin")
+          api.getBookings().then((b) => b && setBookings(b)).catch(() => {})
         }}
       />
     </div>

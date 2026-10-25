@@ -1251,7 +1251,7 @@ export default function AdminView({
 
   return (
     <div
-      className={`min-h-screen pb-24 font-sans transition-colors duration-200 ${
+      className={`w-full max-w-full overflow-x-hidden min-h-screen pb-24 font-sans transition-colors duration-200 ${
         isDark
           ? "dark bg-[#111215] text-[#F3F4F6]"
           : "bg-[#FAF7F2] text-[#17191C]"
@@ -1788,7 +1788,7 @@ export default function AdminView({
             >
               <div className="flex flex-wrap items-center gap-3">
                 {/* Search */}
-                <div className="relative w-72">
+                <div className="relative w-full sm:w-72">
                   <SearchIcon
                     size={16}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
