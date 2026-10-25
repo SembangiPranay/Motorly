@@ -3,6 +3,7 @@ import path from "node:path"
 import os from "node:os"
 import { fileURLToPath } from "node:url"
 import pg from "pg"
+import bcrypt from "bcryptjs"
 
 const { Pool } = pg
 
@@ -1803,10 +1804,13 @@ function seedUsers() {
     {
       id: "usr_admin",
       email: "admin@motorly.com",
-      password_hash: "0709",
+      password_hash: bcrypt.hashSync(
+        process.env.ADMIN_PASSWORD || "Admin#Enterprise2026",
+        10,
+      ),
       name: "Fleet Operations Admin",
-      phone: "+1 (800) 555-0709",
-      driver_license_num: "ADM-0709-FL",
+      phone: "+1 (800) 555-0199",
+      driver_license_num: "ADM-9901-FL",
       driver_license_state: "Florida",
       driver_license_expiry: "12/2035",
       role: "admin",

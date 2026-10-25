@@ -561,7 +561,7 @@ export default function Header({
                   }}
                   className="text-[#F97316] font-bold hover:underline"
                 >
-                  Fleet Admin (Pass: 0709)
+                  Fleet Operations Console
                 </button>
               </span>
             </div>

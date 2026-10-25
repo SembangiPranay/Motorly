@@ -31,7 +31,7 @@ export default function AdminLoginModal({
         setPassword("")
         onSuccess()
       } else {
-        setError(res.message || "Incorrect password. Backend password is 0709.")
+        setError(res.message || "Invalid administrator credentials. Access denied.")
       }
     } catch {
       setError("Network error connecting to backend.")
@@ -86,10 +86,10 @@ export default function AdminLoginModal({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-gray-700">
-                Backend Password
+                Administrator Password
               </label>
-              <span className="text-[11px] font-mono text-[#F97316] bg-orange-50 px-2 py-0.5 rounded font-bold">
-                Pass: 0709
+              <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-200">
+                Encrypted Auth
               </span>
             </div>
             <input
@@ -98,7 +98,7 @@ export default function AdminLoginModal({
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password..."
+              placeholder="Enter administrator password..."
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm tracking-widest text-center font-bold focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent transition-all"
             />
           </div>

@@ -540,7 +540,7 @@ class ApiService {
     if (!res.ok) {
       if (res.status === 401) {
         throw new Error(
-          "Admin session expired or unauthorized. Please re-enter passcode (0709) to approve.",
+          "Admin session expired or unauthorized. Please re-authenticate with administrator credentials to approve.",
         )
       }
       const data = await this.safeJson(res, null)
@@ -566,7 +566,7 @@ class ApiService {
     if (!res.ok) {
       if (res.status === 401) {
         throw new Error(
-          "Admin session expired or unauthorized. Please re-enter passcode (0709) to decline.",
+          "Admin session expired or unauthorized. Please re-authenticate with administrator credentials to decline.",
         )
       }
       const data = await this.safeJson(res, null)

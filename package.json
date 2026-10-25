@@ -7,14 +7,19 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "vite --port 3000",
+    "dev:server": "node api/index.js",
     "dev:3000": "vite --port 3000",
     "dev:5173": "vite --port 5173",
-    "server": "tsx server/index.ts",
+    "server": "node api/index.js",
     "build:api": "rolldown server/index.ts --file api/index.js --format esm --platform node --external node:sqlite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:auth": "playwright test e2e/auth_session_invalidation.spec.ts",
+    "test:fsm": "playwright test e2e/fsm_booking_lifecycle.spec.ts",
     "format": "oxfmt src server scripts"
   },
   "dependencies": {

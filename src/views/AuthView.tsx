@@ -778,8 +778,8 @@ export default function AuthView({
                               ? "Master Security Passcode *"
                               : "Admin Password *"}
                           </label>
-                          <span className="text-[11px] font-mono text-orange-600 bg-orange-50 px-2 py-0.5 rounded font-bold">
-                            Default: 0709
+                          <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold border border-emerald-200">
+                            Verified Hash
                           </span>
                         </div>
                         <input
@@ -787,7 +787,7 @@ export default function AuthView({
                           required
                           value={adminPassword}
                           onChange={(e) => setAdminPassword(e.target.value)}
-                          placeholder="Enter 0709 or admin password"
+                          placeholder="Enter admin passcode or password"
                           className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900 bg-stone-50/50 font-mono tracking-wider"
                         />
                       </div>

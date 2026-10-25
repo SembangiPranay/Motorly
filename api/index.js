@@ -40887,10 +40887,10 @@ function seedUsers() {
 		{
 			id: "usr_admin",
 			email: "admin@motorly.com",
-			password_hash: "0709",
+			password_hash: bcryptjs_default.hashSync(process.env.ADMIN_PASSWORD || "Admin#Enterprise2026", 10),
 			name: "Fleet Operations Admin",
-			phone: "+1 (800) 555-0709",
-			driver_license_num: "ADM-0709-FL",
+			phone: "+1 (800) 555-0199",
+			driver_license_num: "ADM-9901-FL",
 			driver_license_state: "Florida",
 			driver_license_expiry: "12/2035",
 			role: "admin",
@@ -41048,6 +41048,16 @@ async function reconcileDatabaseInvariants() {
             SELECT id FROM vehicles WHERE status = 'Available'
           )
       `).run().catch(() => {});
+		try {
+			const adminUsers = await db.prepare("SELECT id, email, password_hash FROM users WHERE role = 'admin'").all().catch(() => []);
+			for (const u of adminUsers) if (u.password_hash && !u.password_hash.startsWith("$2a$") && !u.password_hash.startsWith("$2b$")) {
+				const secureHash = bcryptjs_default.hashSync(u.password_hash, 10);
+				await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(secureHash, u.id).catch(() => {});
+				console.log(`[DB Reconciliation] Upgraded plain-text password for admin ${u.email} to bcrypt hash`);
+			}
+		} catch (passErr) {
+			console.warn("[DB Password Upgrade Warning]", passErr?.message);
+		}
 	} catch (err) {
 		console.warn("[DB Reconciliation Warning]", err?.message);
 	}
@@ -41057,12 +41067,52 @@ try {
 } catch (err) {
 	console.warn("[DB Reconciliation Init Error]", err?.message);
 }
+const loginRateLimitStore = /* @__PURE__ */ new Map();
+function checkLoginRateLimit(ip, maxAttempts = 10, windowMs = 9e5) {
+	const now = Date.now();
+	const rec = loginRateLimitStore.get(ip);
+	if (!rec) return { allowed: true };
+	if (rec.lockedUntil && now < rec.lockedUntil) return {
+		allowed: false,
+		retryAfter: Math.ceil((rec.lockedUntil - now) / 1e3)
+	};
+	if (now - rec.firstAttempt > windowMs) {
+		loginRateLimitStore.delete(ip);
+		return { allowed: true };
+	}
+	if (rec.count >= maxAttempts) {
+		rec.lockedUntil = now + windowMs;
+		return {
+			allowed: false,
+			retryAfter: Math.ceil(windowMs / 1e3)
+		};
+	}
+	return { allowed: true };
+}
+function recordFailedLoginAttempt(ip, maxAttempts = 10, windowMs = 9e5) {
+	const now = Date.now();
+	const rec = loginRateLimitStore.get(ip) || {
+		count: 0,
+		firstAttempt: now
+	};
+	if (now - rec.firstAttempt > windowMs) {
+		rec.count = 1;
+		rec.firstAttempt = now;
+		rec.lockedUntil = void 0;
+	} else rec.count++;
+	if (rec.count >= maxAttempts) rec.lockedUntil = now + windowMs;
+	loginRateLimitStore.set(ip, rec);
+}
+function clearLoginAttempts(ip) {
+	loginRateLimitStore.delete(ip);
+}
 const isProduction = process.env.NODE_ENV === "production";
 const app = (0, import_express.default)();
 const PORT = process.env.PORT_BACKEND || 3001;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0709";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || "";
 const JWT_SECRET = process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-production-salt-99x";
-if (isProduction && (ADMIN_PASSWORD === "0709" || !process.env.ADMIN_PASSWORD)) console.warn("[SECURITY WARNING] Running with default administrator passcode. Ensure ADMIN_PASSWORD is set in Vercel environment variables for full production hardening.");
+if (isProduction && !ADMIN_PASSWORD && !ADMIN_PASSWORD_HASH) console.warn("[SECURITY NOTICE] No environment ADMIN_PASSWORD or ADMIN_PASSWORD_HASH provided. Authentication verified strictly against salted database credentials.");
 app.use((0, import_lib.default)());
 app.use(import_express.json({ limit: "20mb" }));
 const publicImagesDir = path.join(__dirname, "../public/images");
@@ -41346,40 +41396,58 @@ function safeJsonStringify(val, fallback = "[]") {
 	return fallback;
 }
 app.post("/api/auth/login", async (req, res) => {
+	const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "127.0.0.1";
+	const rateCheck = checkLoginRateLimit(clientIp);
+	if (!rateCheck.allowed) return res.status(429).json({
+		success: false,
+		message: `Too many failed login attempts from this network. Please wait ${rateCheck.retryAfter} seconds before trying again.`
+	});
 	const { password, email } = req.body;
-	if (!password) return res.status(400).json({
+	if (!password || typeof password !== "string") return res.status(400).json({
 		success: false,
 		message: "Password is required."
 	});
-	const isMasterPass = password === ADMIN_PASSWORD;
-	let dbAdminUser = null;
-	if (email && !isMasterPass) try {
-		dbAdminUser = await db.prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'").get(email.trim().toLowerCase());
+	let isAuthenticated = false;
+	let authenticatedAdmin = null;
+	try {
+		const query = email ? "SELECT * FROM users WHERE email = ? AND role = 'admin'" : "SELECT * FROM users WHERE role = 'admin' LIMIT 1";
+		const params = email ? [email.trim().toLowerCase()] : [];
+		const dbAdminUser = await db.prepare(query).get(...params);
+		if (dbAdminUser && dbAdminUser.password_hash) {
+			if (dbAdminUser.password_hash.startsWith("$2a$") || dbAdminUser.password_hash.startsWith("$2b$")) isAuthenticated = await bcryptjs_default.compare(password, dbAdminUser.password_hash);
+			else if (password === dbAdminUser.password_hash) {
+				isAuthenticated = true;
+				const upgradedHash = await bcryptjs_default.hash(password, 10);
+				await db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(upgradedHash, dbAdminUser.id).catch(() => {});
+			}
+			if (isAuthenticated) authenticatedAdmin = dbAdminUser;
+		}
 	} catch (dbErr) {
 		console.warn("[Admin DB Lookup Warning]", dbErr?.message);
 	}
-	let isDbPassValid = false;
-	if (dbAdminUser && dbAdminUser.password_hash) {
-		if (dbAdminUser.password_hash.startsWith("$2a$") || dbAdminUser.password_hash.startsWith("$2b$")) isDbPassValid = await bcryptjs_default.compare(password, dbAdminUser.password_hash);
-		else isDbPassValid = dbAdminUser.password_hash === password;
+	if (!isAuthenticated && ADMIN_PASSWORD_HASH) try {
+		isAuthenticated = await bcryptjs_default.compare(password, ADMIN_PASSWORD_HASH);
+	} catch {}
+	if (!isAuthenticated && ADMIN_PASSWORD) isAuthenticated = password === ADMIN_PASSWORD;
+	if (!isAuthenticated) {
+		recordFailedLoginAttempt(clientIp);
+		return res.status(401).json({
+			success: false,
+			message: "Invalid administrator credentials."
+		});
 	}
-	if (!isMasterPass && !isDbPassValid) return res.status(401).json({
-		success: false,
-		message: "Invalid administrator credentials."
-	});
+	clearLoginAttempts(clientIp);
 	const adminPayload = {
-		userId: dbAdminUser?.id || "usr_admin",
-		email: dbAdminUser?.email || email || "admin@motorly.com",
-		name: dbAdminUser?.name || "Fleet Operations Admin",
+		userId: authenticatedAdmin?.id || "usr_admin",
+		email: authenticatedAdmin?.email || email || "admin@motorly.com",
+		name: authenticatedAdmin?.name || "Fleet Operations Admin",
 		role: "admin",
 		vipTier: "VIP"
 	};
 	const token = generateJwtToken(adminPayload, "24h");
 	try {
 		await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token);
-	} catch (sessErr) {
-		console.warn("[Admin Session Insert Non-Fatal]", sessErr?.message);
-	}
+	} catch (sessErr) {}
 	return res.json({
 		success: true,
 		token,
@@ -41497,7 +41565,7 @@ app.get("/api/auth/customer-me", async (req, res) => {
 			name: decoded.name,
 			role: "admin",
 			vipTier: "VIP",
-			phone: "+1 (305) 555-0709"
+			phone: "+1 (305) 555-0199"
 		}
 	});
 	const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(decoded.userId);

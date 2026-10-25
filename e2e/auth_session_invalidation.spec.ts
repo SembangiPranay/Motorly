@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test"
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0709"
+
 test.describe("Auth Session Invalidation & Stale Token Recovery", () => {
   test("Stale or expired admin token is purged on init and user can re-authenticate", async ({
     page,
@@ -23,7 +25,7 @@ test.describe("Auth Session Invalidation & Stale Token Recovery", () => {
     // AuthView is rendered asking for passcode
     const passInput = page.locator("input[type='password']").first()
     await expect(passInput).toBeVisible({ timeout: 5000 })
-    await passInput.fill("0709")
+    await passInput.fill(ADMIN_PASSWORD)
 
     const submitBtn = page.locator("button:has-text('Authorize & Launch Fleet Console')").first()
     await expect(submitBtn).toBeVisible({ timeout: 5000 })

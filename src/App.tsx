@@ -593,7 +593,7 @@ export default function App() {
         />
       )}
 
-      {/* Admin Authentication Modal (Password: 0709) */}
+      {/* Admin Authentication Modal */}
       <AdminLoginModal
         isOpen={isAdminModalOpen}
         onClose={() => {
