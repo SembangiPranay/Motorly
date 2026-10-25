@@ -307,189 +307,193 @@ export default function DateSchedulingModal({
 
   const modalNode = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-md overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md overflow-hidden animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-7 shadow-2xl relative space-y-4 sm:space-y-5 border border-stone-200 animate-scale-up my-auto"
+        className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] flex flex-col shadow-2xl relative border border-stone-200 animate-scale-up my-auto overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-stone-100 pb-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#F97316] uppercase tracking-wider mb-1">
-              <CalendarIcon size={14} />
-              <span>Rental Schedule &amp; Order Calendar</span>
+        {/* Sticky Fixed Header */}
+        <div className="p-4 sm:p-5 pb-3 border-b border-stone-100 bg-white shrink-0 space-y-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#F97316] uppercase tracking-wider mb-0.5">
+                <CalendarIcon size={14} />
+                <span>Rental Schedule &amp; Order Calendar</span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-stone-900 font-heading">
+                Select Trip Dates &amp; Hours
+              </h3>
+              <p className="text-xs text-stone-500 font-medium mt-0.5">
+                Pickup from {pickupLocation}. Configure trip below.
+              </p>
             </div>
-            <h3 className="text-xl sm:text-2xl font-black text-stone-900 font-heading">
-              Select Trip Dates &amp; Hours
-            </h3>
-            <p className="text-xs text-stone-500 font-medium mt-0.5">
-              Pickup from {pickupLocation}. Tap dates on calendar to configure.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-800 flex items-center justify-center font-bold text-base transition cursor-pointer shrink-0 ml-2"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Trip Type Segmented Selector */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
-          <button
-            type="button"
-            onClick={() => {
-              setTripMode("same-day")
-              setSelectedReturn(new Date(selectedPickup))
-              if (returnHour < pickupHour + 3) {
-                setReturnTime(formatHourToTimeStr(Math.min(22, pickupHour + 8)))
-              }
-            }}
-            className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              tripMode === "same-day"
-                ? "bg-[#F97316] text-white shadow-xs"
-                : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
-            }`}
-          >
-            <span>⚡ Same-Day Rental (Hourly)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTripMode("multi-day")
-              if (isSameDay(selectedPickup, selectedReturn)) {
-                const nextDay = new Date(selectedPickup)
-                nextDay.setDate(nextDay.getDate() + 3)
-                setSelectedReturn(nextDay)
-              }
-            }}
-            className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              tripMode === "multi-day"
-                ? "bg-[#F97316] text-white shadow-xs"
-                : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
-            }`}
-          >
-            <span>📅 Multi-Day Rental (1-45 Days)</span>
-          </button>
-        </div>
-
-        {/* Same-Day Hourly Duration Quick Toolbar (Only shown in Same-Day mode) */}
-        {tripMode === "same-day" ? (
-          <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                <ClockIcon size={14} className="text-[#F97316]" />
-                <span>Same-Day Rental Hours: <span className="text-[#F97316]">{sameDayHours} Hours Total</span></span>
-              </span>
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
-                Min 3 Hrs • Return by {returnTime}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-              {[
-                { label: "3 Hrs (Min)", hrs: 3 },
-                { label: "4 Hrs", hrs: 4 },
-                { label: "6 Hrs", hrs: 6 },
-                { label: "8 Hrs (Full Day)", hrs: 8 },
-                { label: "10 Hrs", hrs: 10 },
-                { label: "12 Hrs (Max)", hrs: 12 },
-              ].map((h) => {
-                const isCurrent = sameDayHours === h.hrs
-                return (
-                  <button
-                    key={h.hrs}
-                    type="button"
-                    onClick={() => {
-                      const newReturnHour = Math.min(23, pickupHour + h.hrs)
-                      setReturnTime(formatHourToTimeStr(newReturnHour))
-                    }}
-                    className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
-                      isCurrent
-                        ? "bg-[#F97316] text-white shadow-xs"
-                        : "bg-white text-stone-700 hover:bg-orange-100/60 border border-amber-200/80"
-                    }`}
-                  >
-                    {h.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ) : (
-          /* Step Guide Indicator for Multi-Day */
-          <div className="flex items-center gap-1.5 sm:gap-2 bg-stone-50 p-1.5 sm:p-2 rounded-xl border border-stone-200/80 text-xs">
             <button
               type="button"
-              onClick={() => setSelectionStep("pickup")}
-              className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-                selectionStep === "pickup"
-                  ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
-                  : "text-stone-600 hover:bg-stone-100"
-              }`}
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-800 flex items-center justify-center font-bold text-sm transition cursor-pointer shrink-0 ml-2"
             >
-              <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
-                1
-              </span>
-              <span className="text-[11px] sm:text-xs truncate">
-                Pickup: {formatDateStr(selectedPickup)}
-              </span>
+              ✕
             </button>
-            <span className="text-stone-300 shrink-0">→</span>
+          </div>
+
+          {/* Trip Type Segmented Selector */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
             <button
               type="button"
-              onClick={() => setSelectionStep("return")}
-              className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-                selectionStep === "return"
-                  ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
-                  : "text-stone-600 hover:bg-stone-100"
+              onClick={() => {
+                setTripMode("same-day")
+                setSelectedReturn(new Date(selectedPickup))
+                if (returnHour < pickupHour + 3) {
+                  setReturnTime(formatHourToTimeStr(Math.min(22, pickupHour + 8)))
+                }
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                tripMode === "same-day"
+                  ? "bg-[#F97316] text-white shadow-xs"
+                  : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
               }`}
             >
-              <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
-                2
-              </span>
-              <span className="text-[11px] sm:text-xs truncate">
-                Return: {formatDateStr(selectedReturn)}
-              </span>
+              <span>⚡ Same-Day Rental (Hourly)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTripMode("multi-day")
+                if (isSameDay(selectedPickup, selectedReturn)) {
+                  const nextDay = new Date(selectedPickup)
+                  nextDay.setDate(nextDay.getDate() + 3)
+                  setSelectedReturn(nextDay)
+                }
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                tripMode === "multi-day"
+                  ? "bg-[#F97316] text-white shadow-xs"
+                  : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
+              }`}
+            >
+              <span>📅 Multi-Day Rental (1-45 Days)</span>
             </button>
           </div>
-        )}
-
-        {/* Quick Duration Presets */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-            Quick Duration Presets
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Same Day (8 Hrs)", days: 0 },
-              { label: "1 Day (24 Hrs)", days: 1 },
-              { label: "3 Days (Weekend)", days: 3 },
-              { label: "7 Days (Week)", days: 7 },
-              { label: "14 Days", days: 14 },
-              { label: "30 Days (Month)", days: 30 },
-            ].map((p) => {
-              const isSelected =
-                p.days === 0 ? isSameDayBooking : !isSameDayBooking && rentalDays === p.days
-              return (
-                <button
-                  key={p.days}
-                  type="button"
-                  onClick={() => applyPresetDays(p.days)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
-                      : "bg-stone-50 text-stone-700 border-stone-200 hover:border-orange-300 hover:bg-stone-100"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              )
-            })}
-          </div>
         </div>
+
+        {/* Scrollable Center Body */}
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 flex-1">
+          {/* Same-Day Hourly Duration Quick Toolbar (Only shown in Same-Day mode) */}
+          {tripMode === "same-day" ? (
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                  <ClockIcon size={14} className="text-[#F97316]" />
+                  <span>Same-Day Rental Hours: <span className="text-[#F97316]">{sameDayHours} Hours Total</span></span>
+                </span>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                  Min 3 Hrs • Return by {returnTime}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                {[
+                  { label: "3 Hrs (Min)", hrs: 3 },
+                  { label: "4 Hrs", hrs: 4 },
+                  { label: "6 Hrs", hrs: 6 },
+                  { label: "8 Hrs (Full Day)", hrs: 8 },
+                  { label: "10 Hrs", hrs: 10 },
+                  { label: "12 Hrs (Max)", hrs: 12 },
+                ].map((h) => {
+                  const isCurrent = sameDayHours === h.hrs
+                  return (
+                    <button
+                      key={h.hrs}
+                      type="button"
+                      onClick={() => {
+                        const newReturnHour = Math.min(23, pickupHour + h.hrs)
+                        setReturnTime(formatHourToTimeStr(newReturnHour))
+                      }}
+                      className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
+                        isCurrent
+                          ? "bg-[#F97316] text-white shadow-xs"
+                          : "bg-white text-stone-700 hover:bg-orange-100/60 border border-amber-200/80"
+                      }`}
+                    >
+                      {h.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Step Guide Indicator for Multi-Day */
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-stone-50 p-1.5 sm:p-2 rounded-xl border border-stone-200/80 text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectionStep("pickup")}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
+                  selectionStep === "pickup"
+                    ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
+                    : "text-stone-600 hover:bg-stone-100"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
+                  1
+                </span>
+                <span className="text-[11px] sm:text-xs truncate">
+                  Pickup: {formatDateStr(selectedPickup)}
+                </span>
+              </button>
+              <span className="text-stone-300 shrink-0">→</span>
+              <button
+                type="button"
+                onClick={() => setSelectionStep("return")}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
+                  selectionStep === "return"
+                    ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
+                    : "text-stone-600 hover:bg-stone-100"
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
+                  2
+                </span>
+                <span className="text-[11px] sm:text-xs truncate">
+                  Return: {formatDateStr(selectedReturn)}
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* Quick Duration Presets (Only shown in Multi-Day Mode to avoid visual conflict) */}
+          {tripMode === "multi-day" && (
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                Quick Duration Presets
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "1 Day (24 Hrs)", days: 1 },
+                  { label: "3 Days (Weekend)", days: 3 },
+                  { label: "7 Days (Week)", days: 7 },
+                  { label: "14 Days", days: 14 },
+                  { label: "30 Days (Month)", days: 30 },
+                ].map((p) => {
+                  const isSelected = !isSameDayBooking && rentalDays === p.days
+                  return (
+                    <button
+                      key={p.days}
+                      type="button"
+                      onClick={() => applyPresetDays(p.days)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
+                          : "bg-stone-50 text-stone-700 border-stone-200 hover:border-orange-300 hover:bg-stone-100"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
         {/* Interactive Month Calendar */}
         <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80 space-y-3">
@@ -665,10 +669,11 @@ export default function DateSchedulingModal({
               })}
             </select>
           </div>
+          </div>
         </div>
 
-        {/* Live Trip Summary & Order Action Button */}
-        <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 sm:gap-4">
+        {/* Sticky Fixed Bottom Footer */}
+        <div className="p-4 sm:p-5 border-t border-stone-100 bg-white shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 sm:gap-4 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
           <div className="text-left w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <span className="text-sm sm:text-base font-black text-stone-900 font-heading">

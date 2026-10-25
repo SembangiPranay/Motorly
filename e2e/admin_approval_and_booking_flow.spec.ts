@@ -142,10 +142,15 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
     // Verify modal is open
     await expect(page.locator("text=Select Trip Dates & Hours")).toBeVisible({ timeout: 5000 })
 
-    // 1. Verify "Same Day (8 Hrs)" quick preset button exists and is clickable
-    const sameDayPreset = page.locator("button:has-text('Same Day (8 Hrs)')")
-    await expect(sameDayPreset).toBeVisible()
-    await sameDayPreset.click()
+    // 1. Verify "Same-Day Rental (Hourly)" toggle switch exists and is clickable
+    const sameDaySwitch = page.locator("button:has-text('Same-Day Rental (Hourly)')").first()
+    await expect(sameDaySwitch).toBeVisible()
+    await sameDaySwitch.click()
+
+    // Select 8 Hours from the dedicated Same-Day Hourly duration toolbar
+    const eightHrChip = page.locator("button:has-text('8 Hrs (Full Day)')").first()
+    await expect(eightHrChip).toBeVisible()
+    await eightHrChip.click()
 
     // 2. Verify Live Trip Summary shows Same-Day (8 Hours)
     await expect(page.locator("text=Same-Day (8 Hours)")).toBeVisible()

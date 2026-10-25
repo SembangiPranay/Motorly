@@ -178,8 +178,12 @@ function formatCarRow(row: any) {
     model: row.model,
     year: row.year,
     type: row.type,
-    pricePerDay: row.price_per_day,
-    pricePerHour: row.price_per_hour,
+    pricePerDay: Number(row.price_per_day),
+    pricePerHour: Number(row.price_per_hour),
+    pricePerMonth:
+      row.price_per_month != null && !isNaN(Number(row.price_per_month))
+        ? Number(row.price_per_month)
+        : Math.round(Number(row.price_per_day) * 22),
     image: row.image,
     gallery:
       typeof row.gallery === "string"
@@ -1059,13 +1063,13 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
   await db
     .prepare(`
     INSERT INTO vehicles (
-      id, name, brand, model, year, type, price_per_day, price_per_hour,
+      id, name, brand, model, year, type, price_per_day, price_per_hour, price_per_month,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score,
       insurance_policy, insurance_provider, insurance_expiry, purchase_date, purchase_cost, current_odometer,
       garage_name, garage_address, garage_lat, garage_lng, garage_bay
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
@@ -1081,6 +1085,7 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       car.type || "Sedan",
       Number(car.pricePerDay) || 50,
       Number(car.pricePerHour) || 7,
+      Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22),
       car.image ||
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       galleryJson,
@@ -1135,7 +1140,7 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
   await db
     .prepare(`
     UPDATE vehicles SET
-      name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?,
+      name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?, price_per_month = ?,
       image = ?, gallery = ?, seats = ?, transmission = ?, fuel_type = ?,
       mileage = ?, luggage = ?, features = ?, description = ?, status = ?,
       plate_number = ?, location = ?, health_score = ?,
@@ -1152,6 +1157,7 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       car.type,
       Number(car.pricePerDay),
       Number(car.pricePerHour),
+      Number(car.pricePerMonth) || Math.round(Number(car.pricePerDay) * 22),
       car.image,
       galleryJson,
       Number(car.seats) || 5,
@@ -1183,6 +1189,49 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
     .prepare("SELECT * FROM vehicles WHERE id = ?")
     .get(carId)
   return res.json(formatCarRow(updated))
+})
+
+// PATCH dynamic vehicle pricing (per hour, per day, per month)
+app.patch("/api/cars/:id/pricing", requireAdmin, async (req, res) => {
+  const { pricePerHour, pricePerDay, pricePerMonth } = req.body
+  const carId = req.params.id
+
+  const existing = await db
+    .prepare("SELECT id, price_per_day, price_per_hour, price_per_month FROM vehicles WHERE id = ?")
+    .get(carId)
+  if (!existing) {
+    return res.status(404).json({ error: "Vehicle not found." })
+  }
+
+  const newPricePerDay =
+    pricePerDay !== undefined && !isNaN(Number(pricePerDay))
+      ? Number(pricePerDay)
+      : Number(existing.price_per_day)
+  const newPricePerHour =
+    pricePerHour !== undefined && !isNaN(Number(pricePerHour))
+      ? Number(pricePerHour)
+      : Number(existing.price_per_hour)
+  const newPricePerMonth =
+    pricePerMonth !== undefined && !isNaN(Number(pricePerMonth))
+      ? Number(pricePerMonth)
+      : (existing.price_per_month ? Number(existing.price_per_month) : Math.round(newPricePerDay * 22))
+
+  if (newPricePerHour <= 0 || newPricePerDay <= 0 || newPricePerMonth <= 0) {
+    return res.status(400).json({ error: "Prices must be positive numbers greater than 0." })
+  }
+
+  await db
+    .prepare("UPDATE vehicles SET price_per_hour = ?, price_per_day = ?, price_per_month = ? WHERE id = ?")
+    .run(newPricePerHour, newPricePerDay, newPricePerMonth, carId)
+
+  const updated = await db
+    .prepare("SELECT * FROM vehicles WHERE id = ?")
+    .get(carId)
+  return res.json({
+    success: true,
+    message: "Vehicle dynamic pricing updated successfully.",
+    car: formatCarRow(updated),
+  })
 })
 
 // PATCH car status

@@ -522,6 +522,7 @@ async function initSupabaseTables(pool: pg.Pool) {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
       rating REAL DEFAULT 5.0,
@@ -683,6 +684,7 @@ async function initSupabaseTables(pool: pg.Pool) {
 
   // High-performance secondary indexes for high-frequency search and relational filters
   await pool.query(`
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -690,6 +692,14 @@ async function initSupabaseTables(pool: pg.Pool) {
     CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
     CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `)
+
+  // Ensure price_per_month exists on vehicles in SQLite
+  const vCols = sqlite.prepare("PRAGMA table_info(vehicles)").all() as any[]
+  if (!vCols.some((c: any) => c.name === "price_per_month")) {
+    try {
+      sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;")
+    } catch {}
+  }
 }
 
 function initSqliteTables() {
@@ -705,6 +715,7 @@ function initSqliteTables() {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
       rating REAL DEFAULT 5.0,
@@ -887,6 +898,14 @@ function initSqliteTables() {
     CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
     CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `)
+
+  // Ensure price_per_month exists on vehicles in SQLite
+  const vCols = sqlite.prepare("PRAGMA table_info(vehicles)").all() as any[]
+  if (!vCols.some((c: any) => c.name === "price_per_month")) {
+    try {
+      sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;")
+    } catch {}
+  }
 
   // Seed Vehicles if empty
   const countRow = sqlite

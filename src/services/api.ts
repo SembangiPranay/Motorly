@@ -357,6 +357,21 @@ class ApiService {
     return res.json()
   }
 
+  async updateCarPricing(
+    id: string,
+    pricing: { pricePerHour: number; pricePerDay: number; pricePerMonth: number },
+  ): Promise<{ success: boolean; message: string; car: Car }> {
+    const res = await this.request(`/cars/${id}/pricing`, {
+      method: "PATCH",
+      body: JSON.stringify(pricing),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || "Failed to update vehicle pricing")
+    }
+    return res.json()
+  }
+
   async deleteCar(id: string): Promise<boolean> {
     const res = await this.request(`/cars/${id}`, {
       method: "DELETE",

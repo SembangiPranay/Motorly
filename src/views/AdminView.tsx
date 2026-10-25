@@ -301,6 +301,7 @@ export default function AdminView({
     type: "Sedan",
     pricePerDay: 55,
     pricePerHour: 8,
+    pricePerMonth: 1210,
     image:
       "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     seats: 5,
@@ -773,7 +774,9 @@ export default function AdminView({
       rateAmount = matchedCar?.pricePerHour || 10
     } else if (unit.startsWith("month")) {
       rateType = "month"
-      rateAmount = (matchedCar?.pricePerDay || 65) * 25
+      rateAmount =
+        matchedCar?.pricePerMonth ||
+        Math.round((matchedCar?.pricePerDay || 65) * 22)
     }
 
     const total = rateAmount * durationVal
@@ -1049,6 +1052,7 @@ export default function AdminView({
       type: "Sedan",
       pricePerDay: 55,
       pricePerHour: 8,
+      pricePerMonth: 1210,
       image:
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       seats: 5,
@@ -1082,6 +1086,7 @@ export default function AdminView({
     setEditingCar(car)
     setCarFormData({
       ...car,
+      pricePerMonth: car.pricePerMonth || Math.round((car.pricePerDay || 55) * 22),
       insurancePolicy: car.insurancePolicy || "POL-FL-883201",
       insuranceProvider: car.insuranceProvider || "Geico Commercial Fleet",
       insuranceExpiry: car.insuranceExpiry || "2027-12-31",
@@ -3265,13 +3270,19 @@ export default function AdminView({
                           {c.mileage || "30 MPG"}
                         </td>
 
-                        {/* Daily Rate */}
-                        <td
-                          className={`px-5 py-3.5 text-right font-mono font-bold ${
-                            isDark ? "text-white" : "text-stone-900"
-                          }`}
-                        >
-                          ${c.pricePerDay}/day
+                        {/* Daily, Hourly & Monthly Dynamic Rates */}
+                        <td className="px-5 py-3.5 text-right font-mono">
+                          <span
+                            className={`font-bold block ${
+                              isDark ? "text-white" : "text-stone-900"
+                            }`}
+                          >
+                            ${c.pricePerDay}/day
+                          </span>
+                          <span className="text-[11px] text-stone-400 block font-normal">
+                            ${c.pricePerHour || 8}/hr • $
+                            {c.pricePerMonth || Math.round(c.pricePerDay * 22)}/mo
+                          </span>
                         </td>
 
                         {/* Actions */}
@@ -3366,13 +3377,19 @@ export default function AdminView({
                         isDark ? "border-stone-800" : "border-stone-100"
                       }`}
                     >
-                      <span
-                        className={`font-mono font-bold text-sm ${
-                          isDark ? "text-white" : "text-stone-900"
-                        }`}
-                      >
-                        ${c.pricePerDay}/day
-                      </span>
+                      <div>
+                        <span
+                          className={`font-mono font-bold text-sm block ${
+                            isDark ? "text-white" : "text-stone-900"
+                          }`}
+                        >
+                          ${c.pricePerDay}/day
+                        </span>
+                        <span className="font-mono text-[10px] text-stone-400 block font-medium">
+                          ${c.pricePerHour || 8}/hr • $
+                          {c.pricePerMonth || Math.round(c.pricePerDay * 22)}/mo
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenEditCar(c)}
@@ -6211,7 +6228,7 @@ export default function AdminView({
                             isDark ? "text-stone-300" : "text-stone-800"
                           }`}
                         >
-                          Price Per Hour ($)
+                          Price Per Hour ($/hr)
                         </label>
                         <div className="relative flex items-center">
                           <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
@@ -6235,6 +6252,67 @@ export default function AdminView({
                             }`}
                           />
                         </div>
+                      </div>
+
+                      {/* Price Per Month */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label
+                            className={`block text-xs font-bold ${
+                              isDark ? "text-stone-300" : "text-stone-800"
+                            }`}
+                          >
+                            Price Per Month ($/mo)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const calculated = Math.round((carFormData.pricePerDay || 55) * 22)
+                              setCarFormData({
+                                ...carFormData,
+                                pricePerMonth: calculated,
+                              })
+                            }}
+                            className="text-[10px] font-bold text-orange-500 hover:text-orange-600 cursor-pointer underline"
+                          >
+                            Auto-calculate (~27% off)
+                          </button>
+                        </div>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
+                            $
+                          </span>
+                          <input
+                            type="number"
+                            min="100"
+                            max="50000"
+                            value={
+                              carFormData.pricePerMonth !== undefined
+                                ? carFormData.pricePerMonth
+                                : Math.round((carFormData.pricePerDay || 55) * 22)
+                            }
+                            onChange={(e) =>
+                              setCarFormData({
+                                ...carFormData,
+                                pricePerMonth: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                              isDark
+                                ? "bg-stone-900 border border-stone-700 text-emerald-400"
+                                : "bg-white border border-stone-300 text-emerald-600 focus:bg-white"
+                            }`}
+                          />
+                        </div>
+                        <p className="text-[10px] text-stone-400 mt-1 font-mono">
+                          Effective: $
+                          {(
+                            (carFormData.pricePerMonth ||
+                              Math.round((carFormData.pricePerDay || 55) * 22)) /
+                            30
+                          ).toFixed(1)}
+                          /day
+                        </p>
                       </div>
 
                       {/* Transmission */}
@@ -6803,7 +6881,10 @@ export default function AdminView({
                             / day
                           </span>
                           <span className="text-[10px] text-stone-400 block font-medium">
-                            (${carFormData.pricePerHour || 8}/hr)
+                            ${carFormData.pricePerHour || 8}/hr • $
+                            {carFormData.pricePerMonth ||
+                              Math.round((carFormData.pricePerDay || 55) * 22)}
+                            /mo
                           </span>
                         </div>
 
@@ -7652,7 +7733,9 @@ export default function AdminView({
                       if (newType === "hour")
                         newRate = matchedCar?.pricePerHour || 10
                       if (newType === "month")
-                        newRate = (matchedCar?.pricePerDay || 65) * 25
+                        newRate =
+                          matchedCar?.pricePerMonth ||
+                          Math.round((matchedCar?.pricePerDay || 65) * 22)
                       const duration =
                         extensionBooking.extensionRequest?.durationValue || 1
                       setExtensionQuoteData({

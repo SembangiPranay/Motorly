@@ -14,6 +14,7 @@ export interface Car {
   type: VehicleType
   pricePerDay: number
   pricePerHour: number
+  pricePerMonth?: number
   image: string
   gallery: string[]
   rating: number

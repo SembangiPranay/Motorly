@@ -10,6 +10,7 @@ import type {
 } from "../types"
 import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
+import { calculateRentalPrice } from "../utils/pricing"
 import {
   HeartIcon,
   ArrowRightIcon,
@@ -889,7 +890,13 @@ export default function ListingView({
                 {filteredCars.map((car) => {
                   const isFav = favorites.includes(car.id)
                   const isCompared = compareIds.includes(car.id)
-                  const tripTotal = car.pricePerDay * tripDurationDays
+                  const pricing = calculateRentalPrice({
+                    car,
+                    isSameDay: isSameDayBooking,
+                    sameDayHours,
+                    days: tripDurationDays,
+                  })
+                  const tripTotal = pricing.basePrice
 
                   // Dynamic conflict & availability check against requested dates
                   const isRentedOrConflicted =
@@ -1091,23 +1098,16 @@ export default function ListingView({
                                 <span className="text-xs text-stone-500 font-semibold">
                                   /day
                                 </span>
-                                <span className="text-xs text-stone-400 font-medium ml-1">
-                                  (${car.pricePerHour}/hr)
+                                <span className="text-[11px] text-stone-400 font-medium ml-1">
+                                  (${car.pricePerHour}/hr • ${car.pricePerMonth || Math.round(car.pricePerDay * 22)}/mo)
                                 </span>
                               </div>
-                              {tripDurationDays > 1 ? (
-                                <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
-                                  <CheckIcon size={11} />
-                                  <span>
-                                    ${tripTotal} total for {tripDurationDays}{" "}
-                                    days
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="text-[11px] font-medium text-stone-400 mt-0.5">
-                                  Unlimited miles • Free cancellation
-                                </div>
-                              )}
+                              <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+                                <CheckIcon size={11} />
+                                <span>
+                                  ${tripTotal} total • {pricing.durationText}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
@@ -1154,7 +1154,13 @@ export default function ListingView({
               /* LIST VIEW: High-Density Studio Rows */
               <div className="space-y-4">
                 {filteredCars.map((car) => {
-                  const tripTotal = car.pricePerDay * tripDurationDays
+                  const pricing = calculateRentalPrice({
+                    car,
+                    isSameDay: isSameDayBooking,
+                    sameDayHours,
+                    days: tripDurationDays,
+                  })
+                  const tripTotal = pricing.basePrice
 
                   const isRentedOrConflicted =
                     car.status === "Rented" ||
@@ -1289,14 +1295,12 @@ export default function ListingView({
                               /day
                             </span>
                           </div>
-                          <div className="text-xs text-stone-400 font-medium">
-                            ${car.pricePerHour}/hr
+                          <div className="text-[11px] text-stone-400 font-medium">
+                            ${car.pricePerHour || 8}/hr • ${car.pricePerMonth || Math.round(car.pricePerDay * 22)}/mo
                           </div>
-                          {tripDurationDays > 1 && (
-                            <div className="text-[11px] font-bold text-emerald-700 mt-1">
-                              ${tripTotal} total ({tripDurationDays}d)
-                            </div>
-                          )}
+                          <div className="text-[11px] font-bold text-emerald-700 mt-0.5">
+                            ${tripTotal} total • {pricing.durationText}
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2">

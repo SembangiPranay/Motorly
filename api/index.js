@@ -39745,6 +39745,7 @@ async function initSupabaseTables(pool) {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
       rating REAL DEFAULT 5.0,
@@ -39890,6 +39891,7 @@ async function initSupabaseTables(pool) {
     END $$;
   `);
 	await pool.query(`
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -39897,6 +39899,9 @@ async function initSupabaseTables(pool) {
     CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
     CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `);
+	if (!sqlite.prepare("PRAGMA table_info(vehicles)").all().some((c) => c.name === "price_per_month")) try {
+		sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;");
+	} catch {}
 }
 function initSqliteTables() {
 	if (!sqlite) return;
@@ -39910,6 +39915,7 @@ function initSqliteTables() {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
       rating REAL DEFAULT 5.0,
@@ -40148,6 +40154,9 @@ function initSqliteTables() {
     CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
     CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `);
+	if (!sqlite.prepare("PRAGMA table_info(vehicles)").all().some((c) => c.name === "price_per_month")) try {
+		sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;");
+	} catch {}
 	if (sqlite.prepare("SELECT COUNT(*) as count FROM vehicles").get().count === 0) seedVehicles();
 	if (sqlite.prepare("SELECT COUNT(*) as count FROM bookings").get().count === 0) seedBookings();
 	if (sqlite.prepare("SELECT COUNT(*) as count FROM users").get().count === 0) seedUsers();
@@ -41089,8 +41098,9 @@ function formatCarRow(row) {
 		model: row.model,
 		year: row.year,
 		type: row.type,
-		pricePerDay: row.price_per_day,
-		pricePerHour: row.price_per_hour,
+		pricePerDay: Number(row.price_per_day),
+		pricePerHour: Number(row.price_per_hour),
+		pricePerMonth: row.price_per_month != null && !isNaN(Number(row.price_per_month)) ? Number(row.price_per_month) : Math.round(Number(row.price_per_day) * 22),
 		image: row.image,
 		gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery || "[]") : row.gallery,
 		rating: row.rating,
@@ -41649,19 +41659,19 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
 	const featuresJson = safeJsonStringify(car.features || ["Bluetooth", "Apple CarPlay"]);
 	await db.prepare(`
     INSERT INTO vehicles (
-      id, name, brand, model, year, type, price_per_day, price_per_hour,
+      id, name, brand, model, year, type, price_per_day, price_per_hour, price_per_month,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score,
       insurance_policy, insurance_provider, insurance_expiry, purchase_date, purchase_cost, current_odometer,
       garage_name, garage_address, garage_lat, garage_lng, garage_bay
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?
     )
-  `).run(newId, car.name || "Custom Vehicle", car.brand || "Toyota", car.model || "Camry", Number(car.year) || 2024, car.type || "Sedan", Number(car.pricePerDay) || 50, Number(car.pricePerHour) || 7, car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", galleryJson, Number(car.rating) || 5, Number(car.reviewsCount) || 1, Number(car.seats) || 5, car.transmission || "Automatic", car.fuelType || "Gasoline", car.mileage || "30 MPG", car.luggage || "3 Bags", featuresJson, car.description || "Premium rental vehicle.", car.isPopular ? 1 : 0, car.status || "Available", car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`, car.location || "Miami International Airport (MIA)", Number(car.healthScore) || 98, car.insurancePolicy || "POL-STF-994021", car.insuranceProvider || "State Farm Comprehensive", car.insuranceExpiry || "2027-04-15", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || "MOTORLY Central Hub & Garage Bay 4", car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142", Number(car.garageLat) || 25.7959, Number(car.garageLng) || -80.287, car.garageBay || "Bay 14-B");
+  `).run(newId, car.name || "Custom Vehicle", car.brand || "Toyota", car.model || "Camry", Number(car.year) || 2024, car.type || "Sedan", Number(car.pricePerDay) || 50, Number(car.pricePerHour) || 7, Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", galleryJson, Number(car.rating) || 5, Number(car.reviewsCount) || 1, Number(car.seats) || 5, car.transmission || "Automatic", car.fuelType || "Gasoline", car.mileage || "30 MPG", car.luggage || "3 Bags", featuresJson, car.description || "Premium rental vehicle.", car.isPopular ? 1 : 0, car.status || "Available", car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`, car.location || "Miami International Airport (MIA)", Number(car.healthScore) || 98, car.insurancePolicy || "POL-STF-994021", car.insuranceProvider || "State Farm Comprehensive", car.insuranceExpiry || "2027-04-15", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || "MOTORLY Central Hub & Garage Bay 4", car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142", Number(car.garageLat) || 25.7959, Number(car.garageLng) || -80.287, car.garageBay || "Bay 14-B");
 	const created = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(newId);
 	return res.status(201).json(formatCarRow(created));
 });
@@ -41673,7 +41683,7 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
 	const featuresJson = safeJsonStringify(car.features || []);
 	await db.prepare(`
     UPDATE vehicles SET
-      name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?,
+      name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?, price_per_month = ?,
       image = ?, gallery = ?, seats = ?, transmission = ?, fuel_type = ?,
       mileage = ?, luggage = ?, features = ?, description = ?, status = ?,
       plate_number = ?, location = ?, health_score = ?,
@@ -41681,9 +41691,26 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       purchase_date = ?, purchase_cost = ?, current_odometer = ?,
       garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?
     WHERE id = ?
-  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay), Number(car.pricePerHour), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy || "POL-STF-994021", car.insuranceProvider || "State Farm Comprehensive", car.insuranceExpiry || "2027-04-15", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || "MOTORLY Central Hub & Garage Bay 4", car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142", Number(car.garageLat) || 25.7959, Number(car.garageLng) || -80.287, car.garageBay || "Bay 14-B", carId);
+  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay), Number(car.pricePerHour), Number(car.pricePerMonth) || Math.round(Number(car.pricePerDay) * 22), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy || "POL-STF-994021", car.insuranceProvider || "State Farm Comprehensive", car.insuranceExpiry || "2027-04-15", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || "MOTORLY Central Hub & Garage Bay 4", car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142", Number(car.garageLat) || 25.7959, Number(car.garageLng) || -80.287, car.garageBay || "Bay 14-B", carId);
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json(formatCarRow(updated));
+});
+app.patch("/api/cars/:id/pricing", requireAdmin, async (req, res) => {
+	const { pricePerHour, pricePerDay, pricePerMonth } = req.body;
+	const carId = req.params.id;
+	const existing = await db.prepare("SELECT id, price_per_day, price_per_hour, price_per_month FROM vehicles WHERE id = ?").get(carId);
+	if (!existing) return res.status(404).json({ error: "Vehicle not found." });
+	const newPricePerDay = pricePerDay !== void 0 && !isNaN(Number(pricePerDay)) ? Number(pricePerDay) : Number(existing.price_per_day);
+	const newPricePerHour = pricePerHour !== void 0 && !isNaN(Number(pricePerHour)) ? Number(pricePerHour) : Number(existing.price_per_hour);
+	const newPricePerMonth = pricePerMonth !== void 0 && !isNaN(Number(pricePerMonth)) ? Number(pricePerMonth) : existing.price_per_month ? Number(existing.price_per_month) : Math.round(newPricePerDay * 22);
+	if (newPricePerHour <= 0 || newPricePerDay <= 0 || newPricePerMonth <= 0) return res.status(400).json({ error: "Prices must be positive numbers greater than 0." });
+	await db.prepare("UPDATE vehicles SET price_per_hour = ?, price_per_day = ?, price_per_month = ? WHERE id = ?").run(newPricePerHour, newPricePerDay, newPricePerMonth, carId);
+	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
+	return res.json({
+		success: true,
+		message: "Vehicle dynamic pricing updated successfully.",
+		car: formatCarRow(updated)
+	});
 });
 app.patch("/api/cars/:id/status", requireAdmin, async (req, res) => {
 	const { status } = req.body;

@@ -10,6 +10,7 @@ import type {
 } from "../types"
 import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
+import { calculateRentalPrice } from "../utils/pricing"
 import {
   ShieldIcon,
   CardIcon,
@@ -341,7 +342,15 @@ export default function CheckoutView({
     const rHour = parseHour(bookingState.returnTime)
     return Math.max(0, rHour - pHour)
   }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
-  const rawRentalTotal = car.pricePerDay * days
+  const pricingResult = useMemo(() => {
+    return calculateRentalPrice({
+      car,
+      isSameDay: isSameDayBooking,
+      sameDayHours,
+      days,
+    })
+  }, [car, isSameDayBooking, sameDayHours, days])
+  const rawRentalTotal = pricingResult.basePrice
   const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
   const taxesAndFees = Number((discountedRentalTotal * 0.18).toFixed(2))
   const totalAmount = Number((discountedRentalTotal + taxesAndFees).toFixed(2))
@@ -1114,9 +1123,11 @@ export default function CheckoutView({
             <div className="space-y-2 text-xs text-gray-600">
               <div className="flex justify-between">
                 <span>
-                  {isSameDayBooking
-                    ? `Vehicle Rental ($${car.pricePerDay} • Same-Day Hourly)`
-                    : `Vehicle Rental ($${car.pricePerDay} × ${days} days)`}
+                  {pricingResult.tier === "hourly"
+                    ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
+                    : pricingResult.tier === "monthly"
+                      ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
+                      : `Vehicle Rental ($${car.pricePerDay} × ${days} ${days === 1 ? "day" : "days"})`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   ${rawRentalTotal.toFixed(2)}

@@ -3,6 +3,7 @@ import type { Car, BookingState } from "../types"
 import { api } from "../services/api"
 import GarageMapViewer from "../components/GarageMapViewer"
 import DateSchedulingModal from "../components/DateSchedulingModal"
+import { calculateRentalPrice } from "../utils/pricing"
 import {
   StarIcon,
   CheckIcon,
@@ -174,7 +175,16 @@ export default function CarDetailView({
     const rHour = parseHour(bookingState.returnTime)
     return Math.max(0, rHour - pHour)
   }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
-  const baseRental = car.pricePerDay * days
+  const pricingResult = useMemo(() => {
+    return calculateRentalPrice({
+      car,
+      isSameDay: isSameDayBooking,
+      sameDayHours,
+      days,
+    })
+  }, [car, isSameDayBooking, sameDayHours, days])
+
+  const baseRental = pricingResult.basePrice
   const discountMultiplier = promoApplied ? 0.85 : 1.0 // 15% off with promo code
   const discountedBase = baseRental * discountMultiplier
   const taxes = Number((discountedBase * 0.18).toFixed(2))
@@ -575,15 +585,18 @@ export default function CarDetailView({
                       Unlimited miles across state
                     </span>
                   </div>
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 text-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase">
-                      Weekly (7+ Days)
+                  <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-center relative">
+                    <span className="absolute -top-2.5 right-4 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                      Best Value
                     </span>
-                    <p className="text-2xl font-black text-[#17191C] font-heading mt-1">
-                      ${(car.pricePerDay * 0.82).toFixed(0)}/day
+                    <span className="text-xs font-bold text-emerald-800 uppercase">
+                      Monthly (30+ Days)
+                    </span>
+                    <p className="text-2xl font-black text-emerald-900 font-heading mt-1">
+                      ${car.pricePerMonth || Math.round(car.pricePerDay * 22)}
                     </p>
-                    <span className="text-[11px] text-green-600 font-bold">
-                      18% Automatic Savings
+                    <span className="text-[11px] text-emerald-700 font-bold">
+                      Includes garage perks &amp; ~27% off
                     </span>
                   </div>
                 </div>
@@ -821,9 +834,11 @@ export default function CarDetailView({
             <div className="space-y-2 pt-3 border-t border-gray-100 text-xs text-gray-600">
               <div className="flex justify-between">
                 <span>
-                  {isSameDayBooking
-                    ? `Base Rental ($${car.pricePerDay} • Same-Day Hourly)`
-                    : `Base ($${car.pricePerDay} × ${days} days)`}
+                  {pricingResult.tier === "hourly"
+                    ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
+                    : pricingResult.tier === "monthly"
+                      ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
+                      : `Base ($${car.pricePerDay} × ${days} ${days === 1 ? "day" : "days"})`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   ${baseRental.toFixed(2)}
