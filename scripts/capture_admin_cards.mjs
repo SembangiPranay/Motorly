@@ -1,5 +1,7 @@
 import { chromium } from 'playwright';
 
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+
 async function capture() {
   const browser = await chromium.launch({ headless: true });
 
@@ -9,7 +11,7 @@ async function capture() {
     deviceScaleFactor: 2,
   });
   const mobilePage = await mobileContext.newPage();
-  await mobilePage.goto('http://localhost:8443', { waitUntil: 'networkidle' });
+  await mobilePage.goto(APP_URL, { waitUntil: 'networkidle' });
 
   // Open mobile menu
   const hamburger = await mobilePage.$('div.flex.md\\:hidden button');
@@ -49,7 +51,7 @@ async function capture() {
     deviceScaleFactor: 1,
   });
   const desktopPage = await desktopContext.newPage();
-  await desktopPage.goto('http://localhost:8443', { waitUntil: 'networkidle' });
+  await desktopPage.goto(APP_URL, { waitUntil: 'networkidle' });
 
   const desktopAdminBtn = await desktopPage.$('button:has-text("Fleet Admin")');
   if (desktopAdminBtn) {

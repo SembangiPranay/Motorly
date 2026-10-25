@@ -32,6 +32,7 @@ test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () =
   }) => {
     test.setTimeout(240000)
     await page.setViewportSize({ width: 1440, height: 900 })
+    const APP_URL = process.env.APP_URL || "http://localhost:3000"
 
     // Step 0: Authenticate Customer and Admin against live Express API
     console.log("--> Authenticating test accounts against live API...")
@@ -92,7 +93,7 @@ test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () =
         await page.evaluate((v) => {
           localStorage.setItem("motorly_current_view", v)
         }, key)
-        await page.goto("http://localhost:8443")
+        await page.goto(APP_URL)
         await page.waitForTimeout(1000)
       }
 
@@ -107,7 +108,7 @@ test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () =
     }
 
     // Initial page load
-    await page.goto("http://localhost:8443")
+    await page.goto(APP_URL)
     await page.waitForTimeout(1000)
 
     /* =========================================================================

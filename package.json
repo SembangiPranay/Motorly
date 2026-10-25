@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:3000": "vite --port 3000",
+    "dev:5173": "vite --port 5173",
     "server": "tsx server/index.ts",
     "build:api": "rolldown server/index.ts --file api/index.js --format esm --platform node --external node:sqlite",
     "build": "vite build && npm run build:api",

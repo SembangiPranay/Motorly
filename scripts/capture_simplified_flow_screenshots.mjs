@@ -2,7 +2,7 @@ import { chromium } from "playwright"
 import fs from "fs"
 import path from "path"
 
-const TARGET_URL = "http://localhost:8443"
+const TARGET_URL = process.env.APP_URL || "http://localhost:3000"
 const OUTPUT_DIR = path.resolve("screenshots")
 
 if (!fs.existsSync(OUTPUT_DIR)) {

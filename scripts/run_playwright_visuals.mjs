@@ -42,12 +42,13 @@ async function verifyServers() {
     throw new Error(`Backend API unreachable on port 3001: ${err.message}`)
   }
 
+  const frontendPort = process.env.PORT || "3000"
   try {
-    const viteRes = await fetch("http://localhost:8443")
+    const viteRes = await fetch(`http://localhost:${frontendPort}`)
     if (!viteRes.ok) throw new Error(`Vite returned HTTP ${viteRes.status}`)
-    console.log(" Frontend Vite server healthy on port 8443")
+    console.log(` Frontend Vite server healthy on port ${frontendPort}`)
   } catch (err) {
-    throw new Error(`Frontend Vite server unreachable on port 8443: ${err.message}`)
+    throw new Error(`Frontend Vite server unreachable on port ${frontendPort}: ${err.message}`)
   }
 }
 
