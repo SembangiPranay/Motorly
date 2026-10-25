@@ -41,6 +41,7 @@ import {
   QrCodeIcon,
   GridIcon,
   ListIcon,
+  BellIcon,
 } from "../components/Icons"
 
 interface AdminViewProps {
@@ -104,6 +105,10 @@ export default function AdminView({
   // --- Reviews & Global System Settings State ---
   const [reviewsEnabled, setReviewsEnabled] = useState(true)
   const [isUpdatingReviewsSetting, setIsUpdatingReviewsSetting] = useState(false)
+
+  // --- Notifications Popover & Admin Profile State ---
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [isAdminProfileOpen, setIsAdminProfileOpen] = useState(false)
 
   // --- Maintenance State ---
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([])
@@ -439,6 +444,8 @@ export default function AdminView({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (zoomedPhoto) setZoomedPhoto(null)
+        else if (isNotificationOpen) setIsNotificationOpen(false)
+        else if (isAdminProfileOpen) setIsAdminProfileOpen(false)
         else if (inspectedLicense) setInspectedLicense(null)
         else if (inspectedBooking) setInspectedBooking(null)
         else if (isCarModalOpen) setIsCarModalOpen(false)
@@ -451,6 +458,8 @@ export default function AdminView({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [
     zoomedPhoto,
+    isNotificationOpen,
+    isAdminProfileOpen,
     inspectedLicense,
     inspectedBooking,
     isCarModalOpen,
@@ -1370,6 +1379,49 @@ export default function AdminView({
 
               {/* Action Icons */}
               <div className="flex items-center gap-1.5">
+                {/* Mobile Notification Bell */}
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationOpen((prev) => !prev)}
+                  className={`relative p-1.5 rounded-lg text-xs font-bold border transition ${
+                    isNotificationOpen
+                      ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
+                      : overdueBookings.length > 0
+                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                        : isDark
+                          ? "bg-stone-800 text-stone-200 border-stone-700"
+                          : "bg-white text-stone-700 border-stone-200 shadow-2xs"
+                  }`}
+                  title="Notifications & Fleet Alerts"
+                  aria-label="Fleet Notifications"
+                >
+                  <BellIcon size={15} />
+                  {overdueBookings.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
+                      {overdueBookings.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Mobile Admin Profile Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsAdminProfileOpen(true)}
+                  className={`p-1.5 rounded-lg text-xs font-bold border transition flex items-center justify-center ${
+                    isAdminProfileOpen
+                      ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
+                      : isDark
+                        ? "bg-stone-800 text-stone-200 border-stone-700"
+                        : "bg-white text-stone-700 border-stone-200 shadow-2xs"
+                  }`}
+                  title="Admin Profile & System Settings"
+                  aria-label="Admin Profile"
+                >
+                  <div className="w-4 h-4 rounded-full bg-linear-to-tr from-[#F97316] to-amber-500 text-white font-black text-[9px] flex items-center justify-center">
+                    A
+                  </div>
+                </button>
+
                 <button
                   type="button"
                   onClick={toggleTheme}
@@ -1397,19 +1449,18 @@ export default function AdminView({
                   <span className={isSyncing ? "animate-spin" : ""}>↻</span>
                 </button>
 
-                {onLogoutAdmin && (
-                  <button
-                    type="button"
-                    onClick={onLogoutAdmin}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition ${
-                      isDark
-                        ? "bg-stone-800 text-stone-400 border-stone-700"
-                        : "bg-stone-100 text-stone-600 border-stone-200"
-                    }`}
-                  >
-                    Lock
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={onLogoutAdmin || onExitAdmin}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold border transition ${
+                    isDark
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                      : "bg-rose-50 text-rose-700 border-rose-200"
+                  }`}
+                  title="Sign Out of Admin Console"
+                >
+                  Sign Out
+                </button>
               </div>
             </div>
 
@@ -1462,13 +1513,171 @@ export default function AdminView({
             </div>
 
             {/* Quick Actions & Exit */}
-            <div className="flex items-center gap-2.5">
-              {/* Global Reviews System Toggle Button (Bug 6) */}
+            <div className="flex items-center gap-2">
+              {/* Notification Center Button & Popover */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationOpen((prev) => !prev)}
+                  className={`relative p-2 rounded-xl border text-xs font-medium transition cursor-pointer flex items-center justify-center ${
+                    isNotificationOpen
+                      ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
+                      : overdueBookings.length > 0
+                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
+                        : isDark
+                          ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                          : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
+                  }`}
+                  title="Notifications & Fleet Alerts"
+                  aria-label="Fleet Notifications"
+                >
+                  <BellIcon size={17} />
+                  {overdueBookings.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center animate-pulse shadow-sm">
+                      {overdueBookings.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown Popover */}
+                {isNotificationOpen && (
+                  <div
+                    className={`absolute right-0 mt-2 w-84 sm:w-96 rounded-2xl border shadow-2xl p-4 z-50 animate-fade-in ${
+                      isDark
+                        ? "bg-[#1A1C20] border-stone-700 text-stone-100"
+                        : "bg-white border-stone-200 text-stone-900"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-orange-500/10 text-[#F97316]">
+                          <BellIcon size={16} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-xs uppercase tracking-wider">
+                            Fleet Alerts Center
+                          </h4>
+                          <p className="text-[10px] text-stone-500">
+                            Real-time rental return monitoring
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {overdueBookings.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-600 text-white">
+                            {overdueBookings.length} Overdue
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsNotificationOpen(false)}
+                          className="w-6 h-6 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-xs font-bold cursor-pointer flex items-center justify-center transition"
+                          aria-label="Close notifications"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 max-h-72 overflow-y-auto space-y-2.5 pr-1">
+                      {overdueBookings.length === 0 ? (
+                        <div className="py-7 text-center">
+                          <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-2 text-sm font-black">
+                            ✓
+                          </div>
+                          <p className="font-bold text-xs">All Clear & On Schedule</p>
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            No overdue rentals. All vehicles operating within scheduled trip time.
+                          </p>
+                        </div>
+                      ) : (
+                        overdueBookings.map((b) => (
+                          <div
+                            key={b.id}
+                            className={`p-3 rounded-xl border transition ${
+                              isDark
+                                ? "bg-stone-900/90 border-rose-500/40 hover:border-rose-500/70"
+                                : "bg-rose-50/80 border-rose-200 hover:border-rose-300"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="text-[10px] font-mono font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block" />
+                                  Rental Duration Finished
+                                </span>
+                                <p className="font-bold text-xs mt-1 text-stone-900 dark:text-white">
+                                  {b.customer.firstName} {b.customer.lastName}{" "}
+                                  <span className="font-mono text-stone-500 font-normal">
+                                    ({b.id})
+                                  </span>
+                                </p>
+                                <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-0.5">
+                                  🚗{" "}
+                                  {cars.find((c) => c.id === b.matchedCarId)
+                                    ?.name ||
+                                    b.requestedCategory ||
+                                    "Rental Vehicle"}
+                                </p>
+                                <p className="text-[10px] font-mono text-rose-600 dark:text-rose-400 mt-0.5">
+                                  Scheduled Return: {formatFullDateTime(b.returnDate)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-rose-200/50 dark:border-rose-500/20">
+                              <span className="text-[10px] text-stone-500 font-mono">
+                                Action needed:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveTab("manifest")
+                                  setManifestStatusFilter("Checked Out")
+                                  setInspectedBooking(b)
+                                  setIsNotificationOpen(false)
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs"
+                              >
+                                Inspect & Return →
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {overdueBookings.length > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-stone-200 dark:border-stone-800 flex justify-between items-center text-xs">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab("manifest")
+                            setManifestStatusFilter("Checked Out")
+                            setIsNotificationOpen(false)
+                          }}
+                          className="text-[#F97316] hover:underline font-bold text-[11px] cursor-pointer"
+                        >
+                          View in Active Manifest →
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsNotificationOpen(false)}
+                          className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-[11px] cursor-pointer"
+                        >
+                          Dismiss Dropdown
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Global Reviews System Toggle Button */}
               <button
                 type="button"
                 onClick={handleToggleReviews}
                 disabled={isUpdatingReviewsSetting}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                   reviewsEnabled
                     ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/25"
                     : isDark
@@ -1485,51 +1694,76 @@ export default function AdminView({
               <button
                 type="button"
                 onClick={toggleTheme}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
-                    : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-xs"
+                    : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
                 }`}
                 title="Toggle Light / Dark Mode"
               >
-                <span>{isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}</span>
+                <span>{isDark ? "🌙 Dark" : "☀️ Light"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleRefreshData}
                 disabled={isSyncing}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
-                    : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-xs"
+                    : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
                 }`}
+                title="Force refresh database records"
               >
                 <span className={isSyncing ? "animate-spin" : ""}>↻</span>
                 <span>{isSyncing ? "Syncing..." : "Sync DB"}</span>
               </button>
 
+              {/* Admin Profile Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsAdminProfileOpen(true)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                  isAdminProfileOpen
+                    ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
+                    : isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                      : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
+                }`}
+                title="View Admin Profile & System Details"
+              >
+                <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#F97316] to-amber-500 text-white font-black text-[10px] flex items-center justify-center shrink-0">
+                  A
+                </div>
+                <span className="font-semibold">Alex Vance</span>
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
+                  title="System Lead Active"
+                />
+              </button>
+
               <button
                 type="button"
                 onClick={onExitAdmin}
-                className="px-3.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold transition border border-stone-200 dark:border-stone-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                title="Browse customer storefront without logging out"
               >
-                ← Return to Customer Storefront
+                ← Storefront
               </button>
 
-              {onLogoutAdmin && (
-                <button
-                  type="button"
-                  onClick={onLogoutAdmin}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                    isDark
-                      ? "bg-stone-800/80 hover:bg-stone-700 text-stone-400 hover:text-white border-stone-800"
-                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200 shadow-2xs"
-                  }`}
-                >
-                  Lock
-                </button>
-              )}
+              {/* Direct Sign Out Button */}
+              <button
+                type="button"
+                onClick={onLogoutAdmin || onExitAdmin}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                  isDark
+                    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30 hover:border-rose-500/50"
+                    : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
+                }`}
+                title="Sign Out of Admin Console"
+              >
+                <span>Sign Out</span>
+              </button>
             </div>
           </div>
 
@@ -1673,43 +1907,7 @@ export default function AdminView({
           </div>
         )}
 
-        {/* Automated Overdue / Trip-Elapsed Notification Card (Bug 4) */}
-        {overdueBookings.length > 0 && (
-          <div className="p-4 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-700 dark:text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-fade-in">
-            <div className="flex items-center gap-3">
-              <span className="w-3.5 h-3.5 rounded-full bg-rose-500 shrink-0 animate-ping" />
-              <div>
-                <h4 className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
-                  <span>🚨 RENTAL TIME FINISHED / OVERDUE ALERT</span>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-600 text-white">
-                    {overdueBookings.length} Trip(s) Elapsed
-                  </span>
-                </h4>
-                <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">
-                  Trip duration has finished for reservation(s):{" "}
-                  <strong>
-                    {overdueBookings.map((b) => b.id).join(", ")}
-                  </strong>
-                  . Scheduled return time has passed. Please initiate vehicle
-                  turnaround return inspection.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("manifest")
-                  setManifestStatusFilter("Checked Out")
-                  setInspectedBooking(overdueBookings[0])
-                }}
-                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition cursor-pointer"
-              >
-                Inspect Overdue Trip ({overdueBookings[0]?.id}) →
-              </button>
-            </div>
-          </div>
-        )}
+
 
         {/* Executive KPI Bar */}
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -8424,6 +8622,286 @@ export default function AdminView({
                   Done
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ADMIN PROFILE & SYSTEM DETAILS MODAL                                      */}
+      {/* ========================================================================= */}
+      {isAdminProfileOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-profile-title"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsAdminProfileOpen(false)
+          }}
+        >
+          <div
+            className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border shadow-2xl p-6 sm:p-8 relative ${
+              isDark
+                ? "bg-[#181A1E] border-stone-800 text-stone-100"
+                : "bg-white border-stone-200 text-stone-900"
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-5 border-b border-stone-200 dark:border-stone-800">
+              <div className="flex items-center gap-3.5">
+                <div className="w-13 h-13 rounded-2xl bg-linear-to-tr from-[#F97316] to-amber-500 text-white font-black text-xl flex items-center justify-center shadow-md shrink-0">
+                  AV
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 id="admin-profile-title" className="font-black text-lg sm:text-xl tracking-tight">
+                      Alex Vance
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-orange-500/10 text-[#F97316] border border-orange-500/20">
+                      SUPER ADMIN • TIER 4
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    Fleet Operations Director & Lead Systems Administrator
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdminProfileOpen(false)}
+                className="w-8 h-8 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 flex items-center justify-center text-sm font-bold transition cursor-pointer"
+                aria-label="Close Admin Profile"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Profile Grid Details */}
+            <div className="mt-6 space-y-6">
+              {/* Identity & Clearance Info */}
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider font-mono text-stone-400 mb-3">
+                  Administrator Credentials
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div
+                    className={`p-3.5 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Official Email</span>
+                    <p className="font-bold font-mono mt-0.5 text-stone-800 dark:text-stone-200">
+                      admin@motorly.com
+                    </p>
+                    <span className="text-[10px] text-emerald-500 font-semibold mt-1 inline-block">
+                      ● Verified Root Console Account
+                    </span>
+                  </div>
+
+                  <div
+                    className={`p-3.5 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Clearance Level</span>
+                    <p className="font-bold mt-0.5 text-stone-800 dark:text-stone-200">
+                      Tier 4 (Master Controller)
+                    </p>
+                    <span className="text-[10px] text-stone-500 font-mono mt-1 inline-block">
+                      Full Read / Write / Overrides / CRM
+                    </span>
+                  </div>
+
+                  <div
+                    className={`p-3.5 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Stationed Hub</span>
+                    <p className="font-bold mt-0.5 text-stone-800 dark:text-stone-200">
+                      Miami Intl Airport (MIA)
+                    </p>
+                    <span className="text-[10px] text-stone-500 font-mono mt-1 inline-block">
+                      Terminal Garage B • Bay 4 HQ
+                    </span>
+                  </div>
+
+                  <div
+                    className={`p-3.5 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Active Session</span>
+                    <p className="font-bold font-mono mt-0.5 text-stone-800 dark:text-stone-200">
+                      #ADM-9842-SEC
+                    </p>
+                    <span className="text-[10px] text-emerald-500 font-semibold mt-1 inline-block">
+                      ● Authenticated via Secure Token
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Real-time Fleet Telemetry Snapshot */}
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider font-mono text-stone-400 mb-3">
+                  Live System & Fleet Telemetry
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                  <div
+                    className={`p-3 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <p className="text-xl font-black text-[#F97316]">{cars.length}</p>
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Fleet Vehicles</span>
+                  </div>
+
+                  <div
+                    className={`p-3 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <p className="text-xl font-black text-emerald-500">
+                      {bookings.filter((b) => b.status === "Checked Out").length}
+                    </p>
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Active Trips</span>
+                  </div>
+
+                  <div
+                    className={`p-3 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <p className="text-xl font-black text-amber-500">
+                      {
+                        bookings.filter((b) => b.status === "Pending Assignment")
+                          .length
+                      }
+                    </p>
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Pending Requests</span>
+                  </div>
+
+                  <div
+                    className={`p-3 rounded-2xl border ${
+                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                    }`}
+                  >
+                    <p
+                      className={`text-xl font-black ${
+                        overdueBookings.length > 0 ? "text-rose-500" : "text-stone-400"
+                      }`}
+                    >
+                      {overdueBookings.length}
+                    </p>
+                    <span className="text-[10px] font-mono text-stone-400 uppercase">Overdue Trips</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Infrastructure & Security Integrity */}
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider font-mono text-stone-400 mb-3">
+                  Infrastructure & Database Security
+                </h4>
+                <div
+                  className={`p-4 rounded-2xl border space-y-2.5 text-xs ${
+                    isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Database Engine:</span>
+                    <span className="font-mono font-bold text-stone-800 dark:text-stone-200">
+                      Supabase PostgreSQL (aws-0-us-east-1)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Security / Password Auth:</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      Salted Bcrypt PBKDF2 (Zero Plaintext)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Backend API Gateway:</span>
+                    <span className="font-mono font-bold text-stone-800 dark:text-stone-200">
+                      Express Gateway • Port 3001
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-500">Public Reviews Setting:</span>
+                    <span
+                      className={`font-mono font-bold ${
+                        reviewsEnabled ? "text-amber-500" : "text-stone-400"
+                      }`}
+                    >
+                      {reviewsEnabled ? "Enabled (Public Feedback ON)" : "Disabled (Reviews Suppressed)"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions inside Profile */}
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleToggleReviews}
+                  disabled={isUpdatingReviewsSetting}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-2 cursor-pointer ${
+                    reviewsEnabled
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                      : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700"
+                  }`}
+                >
+                  <span>★</span>
+                  <span>{reviewsEnabled ? "Disable Customer Reviews" : "Enable Customer Reviews"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold border border-stone-200 dark:border-stone-700 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{isDark ? "☀️ Switch to Light Mode" : "🌙 Switch to Dark Mode"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRefreshData}
+                  disabled={isSyncing}
+                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold border border-stone-200 dark:border-stone-700 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <span className={isSyncing ? "animate-spin" : ""}>↻</span>
+                  <span>{isSyncing ? "Syncing..." : "Sync Database"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Footer with Sign Out */}
+            <div className="mt-8 pt-5 border-t border-stone-200 dark:border-stone-800 flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAdminProfileOpen(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-bold text-xs transition cursor-pointer"
+              >
+                Close Profile
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdminProfileOpen(false)
+                  if (onLogoutAdmin) {
+                    onLogoutAdmin()
+                  } else {
+                    onExitAdmin()
+                  }
+                }}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>🚪</span>
+                <span>Sign Out of Admin Console</span>
+              </button>
             </div>
           </div>
         </div>
