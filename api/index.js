@@ -39446,11 +39446,49 @@ const SUPABASE_POOLER_URL = process.env.DATABASE_URL || "postgresql://postgres.m
 const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL || "postgresql://postgres:Koushik.git1@db.mrbymhhcjvebpxcfmnhy.supabase.co:5432/postgres";
 let supabasePool = null;
 let isSupabaseActive = false;
+let activeConnStr = SUPABASE_POOLER_URL;
+function createSupabasePool(connectionString) {
+	const pool = new Pool({
+		connectionString,
+		ssl: { rejectUnauthorized: false },
+		connectionTimeoutMillis: 1e4,
+		idleTimeoutMillis: 15e3,
+		max: 10,
+		keepAlive: true,
+		keepAliveInitialDelayMillis: 1e4
+	});
+	pool.on("error", (err) => {
+		console.warn("[Supabase Pool Warning] Background connection dropped/reset:", err?.message || err);
+	});
+	return pool;
+}
 function translateSql(sql) {
 	let paramIndex = 1;
 	let translated = sql.replace(/\?/g, () => `$${paramIndex++}`);
 	translated = translated.replace(/\browid\b/gi, "created_at");
 	return translated;
+}
+async function querySupabaseWithRetry(sql, params = []) {
+	if (!supabasePool) throw new Error("Supabase pool not initialized");
+	const translated = translateSql(sql);
+	try {
+		return await supabasePool.query(translated, params);
+	} catch (firstErr) {
+		if (/terminated|timeout|ECONNRESET|ETIMEDOUT|closed|Connection/i.test(firstErr?.message || "") && activeConnStr) {
+			console.warn(`[DB Auto-Recovery] Transient connection issue (${firstErr?.message}). Refreshing pool & retrying...`);
+			try {
+				try {
+					await supabasePool.end().catch(() => {});
+				} catch {}
+				supabasePool = createSupabasePool(activeConnStr);
+				return await supabasePool.query(translated, params);
+			} catch (retryErr) {
+				console.error("[DB Auto-Recovery] Retry also failed:", retryErr?.message || retryErr);
+				throw retryErr;
+			}
+		}
+		throw firstErr;
+	}
 }
 const db = {
 	get isSupabase() {
@@ -39465,10 +39503,17 @@ const db = {
 	async all(sql, ...params) {
 		if (!isSupabaseActive && !sqlite) await ensureDatabase();
 		if (isSupabaseActive && supabasePool) try {
-			const translated = translateSql(sql);
-			return (await supabasePool.query(translated, params)).rows;
+			return (await querySupabaseWithRetry(sql, params)).rows;
 		} catch (err) {
-			console.error("[Supabase Query Error]", err);
+			console.warn("[Supabase Query Warning]", err?.message);
+			if (sqlite) {
+				console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45));
+				try {
+					return sqlite.prepare(sql).all(...params);
+				} catch (sqliteErr) {
+					console.error("[SQLite Fallback Error]", sqliteErr);
+				}
+			}
 			throw err;
 		}
 		if (sqlite) return sqlite.prepare(sql).all(...params);
@@ -39477,10 +39522,17 @@ const db = {
 	async get(sql, ...params) {
 		if (!isSupabaseActive && !sqlite) await ensureDatabase();
 		if (isSupabaseActive && supabasePool) try {
-			const translated = translateSql(sql);
-			return (await supabasePool.query(translated, params)).rows[0] || null;
+			return (await querySupabaseWithRetry(sql, params)).rows[0] || null;
 		} catch (err) {
-			console.error("[Supabase Query Error]", err);
+			console.warn("[Supabase Query Warning]", err?.message);
+			if (sqlite) {
+				console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45));
+				try {
+					return sqlite.prepare(sql).get(...params);
+				} catch (sqliteErr) {
+					console.error("[SQLite Fallback Error]", sqliteErr);
+				}
+			}
 			throw err;
 		}
 		if (sqlite) return sqlite.prepare(sql).get(...params);
@@ -39489,14 +39541,28 @@ const db = {
 	async run(sql, ...params) {
 		if (!isSupabaseActive && !sqlite) await ensureDatabase();
 		if (isSupabaseActive && supabasePool) try {
-			const translated = translateSql(sql);
-			const res = await supabasePool.query(translated, params);
+			const res = await querySupabaseWithRetry(sql, params);
+			if (sqlite) try {
+				sqlite.prepare(sql).run(...params);
+			} catch {}
 			return {
 				changes: res.rowCount || 0,
 				rowCount: res.rowCount || 0
 			};
 		} catch (err) {
-			console.error("[Supabase Exec Error]", err);
+			console.warn("[Supabase Exec Warning]", err?.message);
+			if (sqlite) {
+				console.log("[DB Fallback] Executing write in SQLite mirror:", sql.slice(0, 45));
+				try {
+					const res = sqlite.prepare(sql).run(...params);
+					return {
+						changes: res?.changes || 1,
+						rowCount: res?.changes || 1
+					};
+				} catch (sqliteErr) {
+					console.error("[SQLite Fallback Error]", sqliteErr);
+				}
+			}
 			throw err;
 		}
 		if (sqlite) {
@@ -39527,15 +39593,11 @@ async function initDatabase() {
 		const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL];
 		let connected = false;
 		for (const connStr of candidateUrls) try {
-			const pool = new Pool({
-				connectionString: connStr,
-				ssl: { rejectUnauthorized: false },
-				connectionTimeoutMillis: 3500,
-				max: 10
-			});
+			const pool = createSupabasePool(connStr);
 			const testRes = await pool.query("SELECT NOW() as now, current_database() as db");
 			if (testRes.rows && testRes.rows.length > 0) {
 				supabasePool = pool;
+				activeConnStr = connStr;
 				isSupabaseActive = true;
 				connected = true;
 				console.log(`[DB] Connected directly to Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy, db: ${testRes.rows[0].db})`);
@@ -41212,7 +41274,11 @@ app.post("/api/auth/login", async (req, res) => {
 	});
 	const isMasterPass = password === ADMIN_PASSWORD;
 	let dbAdminUser = null;
-	if (email) dbAdminUser = await db.prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'").get(email.trim().toLowerCase());
+	if (email && !isMasterPass) try {
+		dbAdminUser = await db.prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'").get(email.trim().toLowerCase());
+	} catch (dbErr) {
+		console.warn("[Admin DB Lookup Warning]", dbErr?.message);
+	}
 	let isDbPassValid = false;
 	if (dbAdminUser && dbAdminUser.password_hash) {
 		if (dbAdminUser.password_hash.startsWith("$2a$") || dbAdminUser.password_hash.startsWith("$2b$")) isDbPassValid = await bcryptjs_default.compare(password, dbAdminUser.password_hash);
@@ -41230,7 +41296,11 @@ app.post("/api/auth/login", async (req, res) => {
 		vipTier: "VIP"
 	};
 	const token = generateJwtToken(adminPayload, "24h");
-	await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token);
+	try {
+		await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token);
+	} catch (sessErr) {
+		console.warn("[Admin Session Insert Non-Fatal]", sessErr?.message);
+	}
 	return res.json({
 		success: true,
 		token,

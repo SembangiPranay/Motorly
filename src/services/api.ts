@@ -74,7 +74,10 @@ class ApiService {
       const res = await fetch(`${PRIMARY_BASE}${endpoint}`, config)
       if (
         !isLocalhost ||
-        (res.status !== 404 && res.status !== 502 && res.status !== 503)
+        (res.status !== 404 &&
+          res.status !== 500 &&
+          res.status !== 502 &&
+          res.status !== 503)
       ) {
         return res
       }

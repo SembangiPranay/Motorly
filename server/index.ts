@@ -577,12 +577,16 @@ app.post("/api/auth/login", async (req, res) => {
   // Check 1: Master Passcode
   const isMasterPass = password === ADMIN_PASSWORD
 
-  // Check 2: Database Admin User Check
+  // Check 2: Database Admin User Check (only if not master passcode or if email is provided)
   let dbAdminUser: any = null
-  if (email) {
-    dbAdminUser = ((await db
-      .prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'")
-      .get(email.trim().toLowerCase())) as any)
+  if (email && !isMasterPass) {
+    try {
+      dbAdminUser = ((await db
+        .prepare("SELECT * FROM users WHERE email = ? AND role = 'admin'")
+        .get(email.trim().toLowerCase())) as any)
+    } catch (dbErr: any) {
+      console.warn("[Admin DB Lookup Warning]", dbErr?.message)
+    }
   }
 
   let isDbPassValid = false
@@ -615,7 +619,11 @@ app.post("/api/auth/login", async (req, res) => {
 
   // Cryptographically signed JWT token with 24-hour expiration
   const token = generateJwtToken(adminPayload, "24h")
-  await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token)
+  try {
+    await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token)
+  } catch (sessErr: any) {
+    console.warn("[Admin Session Insert Non-Fatal]", sessErr?.message)
+  }
 
   return res.json({
     success: true,

@@ -11,7 +11,7 @@ async function capture() {
     deviceScaleFactor: 2,
   });
   const mobilePage = await mobileContext.newPage();
-  await mobilePage.goto(APP_URL, { waitUntil: 'networkidle' });
+  await mobilePage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 
   // Open mobile menu
   const hamburger = await mobilePage.$('div.flex.md\\:hidden button');
@@ -51,7 +51,7 @@ async function capture() {
     deviceScaleFactor: 1,
   });
   const desktopPage = await desktopContext.newPage();
-  await desktopPage.goto(APP_URL, { waitUntil: 'networkidle' });
+  await desktopPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 
   const desktopAdminBtn = await desktopPage.$('button:has-text("Fleet Admin")');
   if (desktopAdminBtn) {

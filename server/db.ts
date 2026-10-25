@@ -51,12 +51,71 @@ const SUPABASE_DIRECT_URL =
 
 let supabasePool: pg.Pool | null = null
 let isSupabaseActive = false
+let activeConnStr = SUPABASE_POOLER_URL
+
+export function createSupabasePool(connectionString: string): pg.Pool {
+  const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 15000,
+    max: 10,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  })
+
+  // Mandatory pg.Pool error handler to catch background connection drops on idle clients
+  pool.on("error", (err: any) => {
+    console.warn(
+      "[Supabase Pool Warning] Background connection dropped/reset:",
+      err?.message || err,
+    )
+  })
+
+  return pool
+}
 
 function translateSql(sql: string): string {
   let paramIndex = 1
   let translated = sql.replace(/\?/g, () => `$${paramIndex++}`)
   translated = translated.replace(/\browid\b/gi, "created_at")
   return translated
+}
+
+async function querySupabaseWithRetry<T = any>(
+  sql: string,
+  params: any[] = [],
+): Promise<pg.QueryResult<T>> {
+  if (!supabasePool) {
+    throw new Error("Supabase pool not initialized")
+  }
+
+  const translated = translateSql(sql)
+  try {
+    return await supabasePool.query(translated, params)
+  } catch (firstErr: any) {
+    const isConnErr =
+      /terminated|timeout|ECONNRESET|ETIMEDOUT|closed|Connection/i.test(
+        firstErr?.message || "",
+      )
+
+    if (isConnErr && activeConnStr) {
+      console.warn(
+        `[DB Auto-Recovery] Transient connection issue (${firstErr?.message}). Refreshing pool & retrying...`,
+      )
+      try {
+        try {
+          await supabasePool.end().catch(() => {})
+        } catch {}
+        supabasePool = createSupabasePool(activeConnStr)
+        return await supabasePool.query(translated, params)
+      } catch (retryErr: any) {
+        console.error("[DB Auto-Recovery] Retry also failed:", retryErr?.message || retryErr)
+        throw retryErr
+      }
+    }
+    throw firstErr
+  }
 }
 
 export const db = {
@@ -76,11 +135,18 @@ export const db = {
     }
     if (isSupabaseActive && supabasePool) {
       try {
-        const translated = translateSql(sql)
-        const res = await supabasePool.query(translated, params)
+        const res = await querySupabaseWithRetry(sql, params)
         return res.rows
-      } catch (err) {
-        console.error("[Supabase Query Error]", err)
+      } catch (err: any) {
+        console.warn("[Supabase Query Warning]", err?.message)
+        if (sqlite) {
+          console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45))
+          try {
+            return sqlite.prepare(sql).all(...params) as any[]
+          } catch (sqliteErr: any) {
+            console.error("[SQLite Fallback Error]", sqliteErr)
+          }
+        }
         throw err
       }
     }
@@ -98,11 +164,18 @@ export const db = {
     }
     if (isSupabaseActive && supabasePool) {
       try {
-        const translated = translateSql(sql)
-        const res = await supabasePool.query(translated, params)
+        const res = await querySupabaseWithRetry(sql, params)
         return res.rows[0] || null
-      } catch (err) {
-        console.error("[Supabase Query Error]", err)
+      } catch (err: any) {
+        console.warn("[Supabase Query Warning]", err?.message)
+        if (sqlite) {
+          console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45))
+          try {
+            return sqlite.prepare(sql).get(...params) as any
+          } catch (sqliteErr: any) {
+            console.error("[SQLite Fallback Error]", sqliteErr)
+          }
+        }
         throw err
       }
     }
@@ -123,14 +196,30 @@ export const db = {
     }
     if (isSupabaseActive && supabasePool) {
       try {
-        const translated = translateSql(sql)
-        const res = await supabasePool.query(translated, params)
+        const res = await querySupabaseWithRetry(sql, params)
+        if (sqlite) {
+          try {
+            sqlite.prepare(sql).run(...params)
+          } catch {}
+        }
         return {
           changes: res.rowCount || 0,
           rowCount: res.rowCount || 0,
         }
-      } catch (err) {
-        console.error("[Supabase Exec Error]", err)
+      } catch (err: any) {
+        console.warn("[Supabase Exec Warning]", err?.message)
+        if (sqlite) {
+          console.log("[DB Fallback] Executing write in SQLite mirror:", sql.slice(0, 45))
+          try {
+            const res = sqlite.prepare(sql).run(...params) as any
+            return {
+              changes: res?.changes || 1,
+              rowCount: res?.changes || 1,
+            }
+          } catch (sqliteErr: any) {
+            console.error("[SQLite Fallback Error]", sqliteErr)
+          }
+        }
         throw err
       }
     }
@@ -172,18 +261,14 @@ export async function initDatabase() {
 
     for (const connStr of candidateUrls) {
       try {
-        const pool = new Pool({
-          connectionString: connStr,
-          ssl: { rejectUnauthorized: false },
-          connectionTimeoutMillis: 3500,
-          max: 10,
-        })
+        const pool = createSupabasePool(connStr)
 
         const testRes = await pool.query(
           "SELECT NOW() as now, current_database() as db",
         )
         if (testRes.rows && testRes.rows.length > 0) {
           supabasePool = pool
+          activeConnStr = connStr
           isSupabaseActive = true
           connected = true
           console.log(
