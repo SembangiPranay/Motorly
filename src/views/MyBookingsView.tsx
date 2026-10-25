@@ -937,8 +937,13 @@ export default function MyBookingsView({
                                 <p className="text-stone-500">
                                   {b.returnLocation}
                                 </p>
-                                <p className="text-stone-700 font-mono font-medium mt-0.5">
-                                  {b.returnDate}
+                                <p className="text-stone-700 font-mono font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                  <span>{b.returnDate}</span>
+                                  {b.pickupDate?.split(" ")[0] === b.returnDate?.split(" ")[0] && (
+                                    <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded">
+                                      ⚡ Same Day
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -1037,7 +1042,16 @@ export default function MyBookingsView({
                                 {b.id}
                               </td>
                               <td className="px-5 py-3 text-stone-600 font-mono">
-                                {b.pickupDate} → {b.returnDate}
+                                {b.pickupDate?.split(" ")[0] === b.returnDate?.split(" ")[0] ? (
+                                  <span className="flex items-center gap-1.5 flex-wrap">
+                                    <span>{b.pickupDate} → {b.returnDate}</span>
+                                    <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded">
+                                      ⚡ Same Day
+                                    </span>
+                                  </span>
+                                ) : (
+                                  `${b.pickupDate} → ${b.returnDate}`
+                                )}
                               </td>
                               <td className="px-5 py-3 text-stone-600 truncate max-w-[180px]">
                                 {b.pickupLocation}

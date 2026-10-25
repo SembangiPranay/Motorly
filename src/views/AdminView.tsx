@@ -462,6 +462,20 @@ export default function AdminView({
       const p = new Date(pickupDate)
       const r = new Date(returnDate)
       if (!isNaN(p.getTime()) && !isNaN(r.getTime())) {
+        const isSame =
+          p.getFullYear() === r.getFullYear() &&
+          p.getMonth() === r.getMonth() &&
+          p.getDate() === r.getDate()
+        if (isSame) {
+          const diffMs = Math.max(0, r.getTime() - p.getTime())
+          const exactHours = Math.round(diffMs / (1000 * 60 * 60))
+          const displayHours = exactHours > 0 ? exactHours : 8
+          return {
+            days: 1,
+            hours: displayHours,
+            label: `Same-Day (${displayHours} Hours)`,
+          }
+        }
         const diffMs = r.getTime() - p.getTime()
         const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)))
         const hours = days * 24
@@ -2045,7 +2059,7 @@ export default function AdminView({
 
                       {/* Schedule & Location Block */}
                       <div className="rounded-xl bg-stone-50/60 dark:bg-stone-800/30 border border-stone-200/60 dark:border-stone-800/80 p-2.5 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs text-stone-800 dark:text-stone-200">
+                        <div className="flex items-center justify-between text-xs text-stone-800 dark:text-stone-200 flex-wrap gap-1">
                           <div className="flex items-center gap-1.5 font-bold">
                             <CalendarIcon
                               size={13}
@@ -2063,6 +2077,11 @@ export default function AdminView({
                             />
                             <span>{b.returnDate}</span>
                           </div>
+                          {getBookingDurationInfo(b.pickupDate, b.returnDate).hours < 24 && (
+                            <span className="text-[9.5px] font-black text-[#F97316] bg-orange-100/90 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900/60 shrink-0">
+                              ⚡ {getBookingDurationInfo(b.pickupDate, b.returnDate).label}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
@@ -2342,7 +2361,7 @@ export default function AdminView({
 
                           {/* Schedule & Location Block */}
                           <div className="rounded-xl bg-stone-50/60 dark:bg-stone-800/30 border border-stone-200/60 dark:border-stone-800/80 p-2.5 space-y-1.5">
-                            <div className="flex items-center justify-between text-xs text-stone-800 dark:text-stone-200">
+                            <div className="flex items-center justify-between text-xs text-stone-800 dark:text-stone-200 flex-wrap gap-1">
                               <div className="flex items-center gap-1.5 font-bold">
                                 <CalendarIcon
                                   size={13}
@@ -2360,6 +2379,11 @@ export default function AdminView({
                                 />
                                 <span>{b.returnDate}</span>
                               </div>
+                              {getBookingDurationInfo(b.pickupDate, b.returnDate).hours < 24 && (
+                                <span className="text-[9.5px] font-black text-[#F97316] bg-orange-100/90 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900/60 shrink-0">
+                                  ⚡ {getBookingDurationInfo(b.pickupDate, b.returnDate).label}
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">

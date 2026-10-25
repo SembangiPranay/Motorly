@@ -143,6 +143,37 @@ export default function CarDetailView({
     bookingState.returnTime,
     bookingState.rentalDurationDays,
   ])
+
+  const isSameDayBooking = useMemo(() => {
+    if (!bookingState.pickupDate || !bookingState.returnDate) return false
+    const p = new Date(bookingState.pickupDate)
+    const r = new Date(bookingState.returnDate)
+    if (isNaN(p.getTime()) || isNaN(r.getTime())) {
+      return bookingState.pickupDate.trim() === bookingState.returnDate.trim()
+    }
+    return (
+      p.getFullYear() === r.getFullYear() &&
+      p.getMonth() === r.getMonth() &&
+      p.getDate() === r.getDate()
+    )
+  }, [bookingState.pickupDate, bookingState.returnDate])
+
+  const sameDayHours = useMemo(() => {
+    if (!isSameDayBooking) return 0
+    const parseHour = (t?: string): number => {
+      if (!t) return 10
+      const parts = t.split(" ")
+      const time = parts[0] || "10:00"
+      const modifier = parts[1] || "AM"
+      let [h] = time.split(":").map(Number)
+      if (modifier === "PM" && h < 12) h += 12
+      if (modifier === "AM" && h === 12) h = 0
+      return h
+    }
+    const pHour = parseHour(bookingState.pickupTime)
+    const rHour = parseHour(bookingState.returnTime)
+    return Math.max(0, rHour - pHour)
+  }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
   const baseRental = car.pricePerDay * days
   const discountMultiplier = promoApplied ? 0.85 : 1.0 // 15% off with promo code
   const discountedBase = baseRental * discountMultiplier
@@ -717,16 +748,34 @@ export default function CarDetailView({
                       className="text-[#F97316] group-hover:scale-110 transition-transform shrink-0"
                     />
                     <div className="text-xs">
-                      <div className="font-bold text-stone-900">
-                        {bookingState.pickupDate} ({bookingState.pickupTime})
-                      </div>
-                      <div className="text-stone-500 text-[11px]">
-                        to {bookingState.returnDate} ({bookingState.returnTime})
-                      </div>
+                      {isSameDayBooking ? (
+                        <>
+                          <div className="font-extrabold text-stone-900 flex items-center gap-1.5">
+                            <span>{bookingState.pickupDate}</span>
+                            <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded border border-orange-200">
+                              Same-Day
+                            </span>
+                          </div>
+                          <div className="text-stone-600 text-[11px] font-medium mt-0.5">
+                            Schedule: <strong className="text-stone-900">{bookingState.pickupTime} → {bookingState.returnTime}</strong> ({sameDayHours} Hours)
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="font-bold text-stone-900">
+                            {bookingState.pickupDate} ({bookingState.pickupTime})
+                          </div>
+                          <div className="text-stone-500 text-[11px]">
+                            to {bookingState.returnDate} ({bookingState.returnTime})
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <span className="text-[11px] font-bold text-[#F97316] bg-orange-100/80 px-2 py-0.5 rounded-md shrink-0">
-                    {days} {days === 1 ? "day" : "days"}
+                  <span className="text-[11px] font-bold text-[#F97316] bg-orange-100/80 px-2.5 py-1 rounded-lg shrink-0 border border-orange-200">
+                    {isSameDayBooking
+                      ? `⚡ ${sameDayHours} Hours`
+                      : `${days} ${days === 1 ? "day" : "days"}`}
                   </span>
                 </div>
               </div>
@@ -772,7 +821,9 @@ export default function CarDetailView({
             <div className="space-y-2 pt-3 border-t border-gray-100 text-xs text-gray-600">
               <div className="flex justify-between">
                 <span>
-                  Base (${car.pricePerDay} × {days} days)
+                  {isSameDayBooking
+                    ? `Base Rental ($${car.pricePerDay} • Same-Day Hourly)`
+                    : `Base ($${car.pricePerDay} × ${days} days)`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   ${baseRental.toFixed(2)}

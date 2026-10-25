@@ -132,6 +132,11 @@ export default function DateSchedulingModal({
   const [selectionStep, setSelectionStep] = useState<"pickup" | "return">(
     "pickup",
   )
+  const [tripMode, setTripMode] = useState<"same-day" | "multi-day">(() =>
+    isSameDay(parseDateStr(initialPickupDate), parseDateStr(initialReturnDate))
+      ? "same-day"
+      : "multi-day",
+  )
 
   useEffect(() => {
     setMounted(true)
@@ -139,12 +144,15 @@ export default function DateSchedulingModal({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedPickup(parseDateStr(initialPickupDate))
-      setSelectedReturn(parseDateStr(initialReturnDate))
+      const p = parseDateStr(initialPickupDate)
+      const r = parseDateStr(initialReturnDate)
+      setSelectedPickup(p)
+      setSelectedReturn(r)
       setPickupTime(initialPickupTime || "10:00 AM")
       setReturnTime(initialReturnTime || "10:00 AM")
-      setCurrentMonth(parseDateStr(initialPickupDate))
+      setCurrentMonth(p)
       setSelectionStep("pickup")
+      setTripMode(isSameDay(p, r) ? "same-day" : "multi-day")
     }
   }, [
     isOpen,
@@ -219,6 +227,17 @@ export default function DateSchedulingModal({
     const clickedDate = new Date(year, month, day)
     if (clickedDate < today) return
 
+    if (tripMode === "same-day") {
+      setSelectedPickup(clickedDate)
+      setSelectedReturn(clickedDate)
+      setSelectionStep("pickup")
+      if (returnHour < pickupHour + 3) {
+        const newReturnHour = Math.min(22, Math.max(pickupHour + 4, 17))
+        setReturnTime(formatHourToTimeStr(newReturnHour))
+      }
+      return
+    }
+
     if (selectionStep === "pickup") {
       setSelectedPickup(clickedDate)
       // If return date is before new pickup, align return date with pickup
@@ -254,11 +273,13 @@ export default function DateSchedulingModal({
   const applyPresetDays = (days: number) => {
     if (days === 0) {
       // Same day hourly rental preset
+      setTripMode("same-day")
       setSelectedReturn(new Date(selectedPickup))
       setPickupTime("09:00 AM")
       setReturnTime("05:00 PM")
       return
     }
+    setTripMode("multi-day")
     const newReturn = new Date(
       selectedPickup.getFullYear(),
       selectedPickup.getMonth(),
@@ -316,42 +337,125 @@ export default function DateSchedulingModal({
           </button>
         </div>
 
-        {/* Step Guide Indicator */}
-        <div className="flex items-center gap-1.5 sm:gap-2 bg-stone-50 p-1.5 sm:p-2 rounded-xl border border-stone-200/80 text-xs">
+        {/* Trip Type Segmented Selector */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-stone-100 rounded-2xl border border-stone-200">
           <button
             type="button"
-            onClick={() => setSelectionStep("pickup")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-              selectionStep === "pickup"
-                ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
-                : "text-stone-600 hover:bg-stone-100"
+            onClick={() => {
+              setTripMode("same-day")
+              setSelectedReturn(new Date(selectedPickup))
+              if (returnHour < pickupHour + 3) {
+                setReturnTime(formatHourToTimeStr(Math.min(22, pickupHour + 8)))
+              }
+            }}
+            className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              tripMode === "same-day"
+                ? "bg-[#F97316] text-white shadow-xs"
+                : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
-              1
-            </span>
-            <span className="text-[11px] sm:text-xs truncate">
-              Pickup: {formatDateStr(selectedPickup)}
-            </span>
+            <span>⚡ Same-Day Rental (Hourly)</span>
           </button>
-          <span className="text-stone-300 shrink-0">→</span>
           <button
             type="button"
-            onClick={() => setSelectionStep("return")}
-            className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-              selectionStep === "return"
-                ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
-                : "text-stone-600 hover:bg-stone-100"
+            onClick={() => {
+              setTripMode("multi-day")
+              if (isSameDay(selectedPickup, selectedReturn)) {
+                const nextDay = new Date(selectedPickup)
+                nextDay.setDate(nextDay.getDate() + 3)
+                setSelectedReturn(nextDay)
+              }
+            }}
+            className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              tripMode === "multi-day"
+                ? "bg-[#F97316] text-white shadow-xs"
+                : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
-              2
-            </span>
-            <span className="text-[11px] sm:text-xs truncate">
-              Return: {formatDateStr(selectedReturn)}
-            </span>
+            <span>📅 Multi-Day Rental (1-45 Days)</span>
           </button>
         </div>
+
+        {/* Same-Day Hourly Duration Quick Toolbar (Only shown in Same-Day mode) */}
+        {tripMode === "same-day" ? (
+          <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                <ClockIcon size={14} className="text-[#F97316]" />
+                <span>Same-Day Rental Hours: <span className="text-[#F97316]">{sameDayHours} Hours Total</span></span>
+              </span>
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                Min 3 Hrs • Return by {returnTime}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              {[
+                { label: "3 Hrs (Min)", hrs: 3 },
+                { label: "4 Hrs", hrs: 4 },
+                { label: "6 Hrs", hrs: 6 },
+                { label: "8 Hrs (Full Day)", hrs: 8 },
+                { label: "10 Hrs", hrs: 10 },
+                { label: "12 Hrs (Max)", hrs: 12 },
+              ].map((h) => {
+                const isCurrent = sameDayHours === h.hrs
+                return (
+                  <button
+                    key={h.hrs}
+                    type="button"
+                    onClick={() => {
+                      const newReturnHour = Math.min(23, pickupHour + h.hrs)
+                      setReturnTime(formatHourToTimeStr(newReturnHour))
+                    }}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
+                      isCurrent
+                        ? "bg-[#F97316] text-white shadow-xs"
+                        : "bg-white text-stone-700 hover:bg-orange-100/60 border border-amber-200/80"
+                    }`}
+                  >
+                    {h.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Step Guide Indicator for Multi-Day */
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-stone-50 p-1.5 sm:p-2 rounded-xl border border-stone-200/80 text-xs">
+            <button
+              type="button"
+              onClick={() => setSelectionStep("pickup")}
+              className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
+                selectionStep === "pickup"
+                  ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
+                  : "text-stone-600 hover:bg-stone-100"
+              }`}
+            >
+              <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
+                1
+              </span>
+              <span className="text-[11px] sm:text-xs truncate">
+                Pickup: {formatDateStr(selectedPickup)}
+              </span>
+            </button>
+            <span className="text-stone-300 shrink-0">→</span>
+            <button
+              type="button"
+              onClick={() => setSelectionStep("return")}
+              className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
+                selectionStep === "return"
+                  ? "bg-white text-[#F97316] shadow-xs border border-orange-200"
+                  : "text-stone-600 hover:bg-stone-100"
+              }`}
+            >
+              <span className="w-4 h-4 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-black flex items-center justify-center shrink-0">
+                2
+              </span>
+              <span className="text-[11px] sm:text-xs truncate">
+                Return: {formatDateStr(selectedReturn)}
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Quick Duration Presets */}
         <div className="space-y-1.5">
@@ -524,9 +628,20 @@ export default function DateSchedulingModal({
           </div>
 
           <div className="bg-stone-50 rounded-2xl p-3 border border-stone-200/80 space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1">
-              <ClockIcon size={12} className="text-[#F97316]" />
-              <span>Return Time ({formatDateStr(selectedReturn)})</span>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <ClockIcon size={12} className="text-[#F97316]" />
+                <span>
+                  {isSameDayBooking
+                    ? `Return Time (Same-Day • ${formatDateStr(selectedReturn)})`
+                    : `Return Time (${formatDateStr(selectedReturn)})`}
+                </span>
+              </span>
+              {isSameDayBooking && (
+                <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-md">
+                  ⚡ {sameDayHours} Hrs Trip
+                </span>
+              )}
             </label>
             <select
               value={returnTime}

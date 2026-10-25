@@ -104,6 +104,37 @@ export default function ListingView({
     bookingState.rentalDurationDays,
   ])
 
+  const isSameDayBooking = useMemo(() => {
+    if (!bookingState.pickupDate || !bookingState.returnDate) return false
+    const p = new Date(bookingState.pickupDate)
+    const r = new Date(bookingState.returnDate)
+    if (isNaN(p.getTime()) || isNaN(r.getTime())) {
+      return bookingState.pickupDate.trim() === bookingState.returnDate.trim()
+    }
+    return (
+      p.getFullYear() === r.getFullYear() &&
+      p.getMonth() === r.getMonth() &&
+      p.getDate() === r.getDate()
+    )
+  }, [bookingState.pickupDate, bookingState.returnDate])
+
+  const sameDayHours = useMemo(() => {
+    if (!isSameDayBooking) return 0
+    const parseHour = (t?: string): number => {
+      if (!t) return 10
+      const parts = t.split(" ")
+      const time = parts[0] || "10:00"
+      const modifier = parts[1] || "AM"
+      let [h] = time.split(":").map(Number)
+      if (modifier === "PM" && h < 12) h += 12
+      if (modifier === "AM" && h === 12) h = 0
+      return h
+    }
+    const pHour = parseHour(bookingState.pickupTime)
+    const rHour = parseHour(bookingState.returnTime)
+    return Math.max(0, rHour - pHour)
+  }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
+
   // Synchronize with backend availability on mount and when dates change
   useEffect(() => {
     let isMounted = true
@@ -493,13 +524,27 @@ export default function ListingView({
               <div className="min-w-0 text-left">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <span className="text-xs sm:text-sm font-extrabold text-stone-900 tracking-tight">
-                    {formatDisplayDate(bookingState.pickupDate)} (
-                    {bookingState.pickupTime}) –{" "}
-                    {formatDisplayDate(bookingState.returnDate)} (
-                    {bookingState.returnTime})
+                    {isSameDayBooking ? (
+                      <>
+                        {formatDisplayDate(bookingState.pickupDate)} •{" "}
+                        <span className="text-[#F97316]">
+                          {bookingState.pickupTime} → {bookingState.returnTime}
+                        </span>{" "}
+                        (Same Day)
+                      </>
+                    ) : (
+                      <>
+                        {formatDisplayDate(bookingState.pickupDate)} (
+                        {bookingState.pickupTime}) –{" "}
+                        {formatDisplayDate(bookingState.returnDate)} (
+                        {bookingState.returnTime})
+                      </>
+                    )}
                   </span>
-                  <span className="text-[10px] sm:text-xs font-bold text-[#F97316] bg-orange-100 px-2 py-0.5 rounded-md">
-                    {tripDurationDays} {tripDurationDays === 1 ? "day" : "days"}
+                  <span className="text-[10px] sm:text-xs font-bold text-[#F97316] bg-orange-100 px-2 py-0.5 rounded-md border border-orange-200">
+                    {isSameDayBooking
+                      ? `⚡ Same-Day (${sameDayHours} Hours)`
+                      : `${tripDurationDays} ${tripDurationDays === 1 ? "day" : "days"}`}
                   </span>
                 </div>
 

@@ -31,6 +31,18 @@ interface HomeViewProps {
   onNavigateCompare?: () => void
 }
 
+function isSameDay(dateA?: string, dateB?: string): boolean {
+  if (!dateA || !dateB) return false
+  const a = new Date(dateA)
+  const b = new Date(dateB)
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return dateA.trim() === dateB.trim()
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
 export default function HomeView({
   cars = [],
   bookingState,
@@ -161,14 +173,24 @@ export default function HomeView({
                         type="button"
                         onClick={() => {
                           setSelectedDuration(mode)
+                          if (mode === "Hourly") {
+                            // Same-day hourly rental: return is on the same day!
+                            setBookingState((prev) => ({
+                              ...prev,
+                              rentalPlan: "hourly",
+                              rentalDurationDays: 1,
+                              returnDate: prev.pickupDate,
+                              pickupTime: prev.pickupTime || "09:00 AM",
+                              returnTime: "05:00 PM",
+                            }))
+                            return
+                          }
                           const days =
-                            mode === "Hourly"
-                              ? 1
-                              : mode === "Daily"
-                                ? 3
-                                : mode === "Weekly"
-                                  ? 7
-                                  : 30
+                            mode === "Daily"
+                              ? 3
+                              : mode === "Weekly"
+                                ? 7
+                                : 30
 
                           // Advance returnDate based on pickupDate + duration days
                           let newReturnDate = bookingState.returnDate
@@ -321,9 +343,16 @@ export default function HomeView({
 
               {/* Return Date & Time */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-900">
-                  Return Date &amp; Time
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-900">
+                    Return Date &amp; Time
+                  </label>
+                  {isSameDay(bookingState.pickupDate, bookingState.returnDate) && (
+                    <span className="text-[10px] font-extrabold text-[#F97316] bg-orange-100/80 border border-orange-200 px-1.5 py-0.5 rounded-md">
+                      ⚡ Same-Day Return
+                    </span>
+                  )}
+                </div>
                 <div
                   onClick={() => setIsScheduleModalOpen(true)}
                   className="relative h-[52px] border border-gray-200 hover:border-orange-400 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 rounded-xl px-3.5 flex items-center bg-white transition-all cursor-pointer group shadow-xs"
@@ -335,6 +364,11 @@ export default function HomeView({
                   <div className="flex-1 flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-bold text-stone-900">
                       {bookingState.returnDate}
+                      {isSameDay(bookingState.pickupDate, bookingState.returnDate) && (
+                        <span className="ml-1 text-[10px] font-bold text-[#F97316]">
+                          (Same Day)
+                        </span>
+                      )}
                     </span>
                     <span className="text-xs font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md ml-1">
                       {bookingState.returnTime}

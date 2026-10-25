@@ -310,6 +310,37 @@ export default function CheckoutView({
     bookingState.returnDate,
     bookingState.rentalDurationDays,
   ])
+
+  const isSameDayBooking = useMemo(() => {
+    if (!bookingState.pickupDate || !bookingState.returnDate) return false
+    const p = new Date(bookingState.pickupDate)
+    const r = new Date(bookingState.returnDate)
+    if (isNaN(p.getTime()) || isNaN(r.getTime())) {
+      return bookingState.pickupDate.trim() === bookingState.returnDate.trim()
+    }
+    return (
+      p.getFullYear() === r.getFullYear() &&
+      p.getMonth() === r.getMonth() &&
+      p.getDate() === r.getDate()
+    )
+  }, [bookingState.pickupDate, bookingState.returnDate])
+
+  const sameDayHours = useMemo(() => {
+    if (!isSameDayBooking) return 0
+    const parseHour = (t?: string): number => {
+      if (!t) return 10
+      const parts = t.split(" ")
+      const time = parts[0] || "10:00"
+      const modifier = parts[1] || "AM"
+      let [h] = time.split(":").map(Number)
+      if (modifier === "PM" && h < 12) h += 12
+      if (modifier === "AM" && h === 12) h = 0
+      return h
+    }
+    const pHour = parseHour(bookingState.pickupTime)
+    const rHour = parseHour(bookingState.returnTime)
+    return Math.max(0, rHour - pHour)
+  }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
   const rawRentalTotal = car.pricePerDay * days
   const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
   const taxesAndFees = Number((discountedRentalTotal * 0.18).toFixed(2))
@@ -860,13 +891,34 @@ export default function CheckoutView({
                     className="text-[#F97316] mt-0.5 flex-shrink-0 group-hover:scale-110 transition-transform"
                   />
                   <div>
-                    <span className="font-bold text-gray-900 block text-xs">
-                      Dates ({days} {days === 1 ? "Day" : "Days"} Duration)
-                    </span>
-                    <span className="text-gray-500 text-xs">
-                      {bookingState.pickupDate} ({bookingState.pickupTime}) →{" "}
-                      {bookingState.returnDate} ({bookingState.returnTime})
-                    </span>
+                    {isSameDayBooking ? (
+                      <>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-extrabold text-gray-900 block text-xs">
+                            Same-Day Rental ({sameDayHours} Hours)
+                          </span>
+                          <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.2 rounded">
+                            ⚡ Same-Day Return
+                          </span>
+                        </div>
+                        <span className="text-gray-700 text-xs font-semibold block mt-0.5">
+                          Date: <span className="text-stone-900 font-bold">{bookingState.pickupDate}</span>
+                        </span>
+                        <span className="text-stone-500 text-[11px] block mt-0.5">
+                          Schedule: <strong className="text-stone-800">{bookingState.pickupTime} → {bookingState.returnTime}</strong> (Return to garage today)
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-bold text-gray-900 block text-xs">
+                          Dates ({days} {days === 1 ? "Day" : "Days"} Duration)
+                        </span>
+                        <span className="text-gray-500 text-xs">
+                          {bookingState.pickupDate} ({bookingState.pickupTime}) →{" "}
+                          {bookingState.returnDate} ({bookingState.returnTime})
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <button
@@ -1062,7 +1114,9 @@ export default function CheckoutView({
             <div className="space-y-2 text-xs text-gray-600">
               <div className="flex justify-between">
                 <span>
-                  Vehicle Rental (${car.pricePerDay} × {days} days)
+                  {isSameDayBooking
+                    ? `Vehicle Rental ($${car.pricePerDay} • Same-Day Hourly)`
+                    : `Vehicle Rental ($${car.pricePerDay} × ${days} days)`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   ${rawRentalTotal.toFixed(2)}

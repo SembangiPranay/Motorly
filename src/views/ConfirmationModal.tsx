@@ -140,13 +140,26 @@ export default function ConfirmationModal({
             <div>
               <div className="flex items-center gap-1 text-gray-400 font-semibold mb-0.5">
                 <CalendarIcon size={12} className="text-[#F97316]" />
-                <span>Rental Dates</span>
+                <span>
+                  {bookingState.pickupDate === bookingState.returnDate
+                    ? "Rental Schedule (Same-Day)"
+                    : "Rental Dates"}
+                </span>
               </div>
               <p className="font-bold text-gray-800 text-[11px] leading-tight">
-                {bookingState.pickupDate} → {bookingState.returnDate}
+                {bookingState.pickupDate === bookingState.returnDate ? (
+                  <>
+                    {bookingState.pickupDate}{" "}
+                    <span className="text-[#F97316] font-extrabold text-[10px]">
+                      (⚡ Same-Day)
+                    </span>
+                  </>
+                ) : (
+                  `${bookingState.pickupDate} → ${bookingState.returnDate}`
+                )}
               </p>
-              <p className="text-gray-500 text-[10px] mt-0.5">
-                {bookingState.pickupTime} Pickup
+              <p className="text-gray-500 text-[10px] mt-0.5 font-medium">
+                {bookingState.pickupTime} Pickup → {bookingState.returnTime} Return
               </p>
             </div>
           </div>
