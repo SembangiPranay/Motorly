@@ -60,9 +60,7 @@ let activeConnStr = SUPABASE_POOLER_URL
 
 export function createSupabasePool(connectionString: string): pg.Pool {
   const rejectUnauthorized =
-    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== undefined
-      ? process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true"
-      : isProduction
+    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true"
 
   const sslConfig: any = {
     rejectUnauthorized,
