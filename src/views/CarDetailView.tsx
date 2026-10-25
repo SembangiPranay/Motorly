@@ -123,16 +123,24 @@ export default function CarDetailView({
   // Live dynamic calculations
   const days = useMemo(() => {
     try {
-      const start = Date.parse(bookingState.pickupDate)
-      const end = Date.parse(bookingState.returnDate)
+      const pStr = bookingState.pickupTime
+        ? `${bookingState.pickupDate} ${bookingState.pickupTime}`
+        : bookingState.pickupDate
+      const rStr = bookingState.returnTime
+        ? `${bookingState.returnDate} ${bookingState.returnTime}`
+        : bookingState.returnDate
+      const start = Date.parse(pStr)
+      const end = Date.parse(rStr)
       if (!isNaN(start) && !isNaN(end) && end > start) {
         return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
       }
     } catch {}
-    return bookingState.rentalDurationDays || 3
+    return bookingState.rentalDurationDays || 1
   }, [
     bookingState.pickupDate,
+    bookingState.pickupTime,
     bookingState.returnDate,
+    bookingState.returnTime,
     bookingState.rentalDurationDays,
   ])
   const baseRental = car.pricePerDay * days
@@ -466,14 +474,9 @@ export default function CarDetailView({
                   exact garage bay.
                 </p>
                 <GarageMapViewer
-                  garageName={
-                    car.garageName ||
-                    "Main Garage Facility"
-                  }
+                  garageName={car.garageName || "Main Garage Facility"}
                   garageAddress={
-                    car.garageAddress ||
-                    car.location ||
-                    "Main Garage Bay"
+                    car.garageAddress || car.location || "Main Garage Bay"
                   }
                   garageBay={car.garageBay || "Bay 14-B"}
                   lat={car.garageLat || 25.7959}
@@ -728,8 +731,6 @@ export default function CarDetailView({
                 </div>
               </div>
 
-
-
               {/* Promo Code Box */}
               <div className="pt-1 flex gap-2">
                 <div className="relative flex-1">
@@ -814,13 +815,23 @@ export default function CarDetailView({
                   </div>
                   <div className="p-2.5 bg-white/95 rounded-xl border border-amber-200/70 space-y-1 shadow-2xs">
                     <div className="flex items-center gap-1.5 text-stone-800 font-mono text-xs font-bold">
-                      <CalendarIcon size={13} className="text-amber-700 shrink-0" />
-                      <span>{availabilityCheck.conflict?.pickupDate || bookingState.pickupDate}</span>
+                      <CalendarIcon
+                        size={13}
+                        className="text-amber-700 shrink-0"
+                      />
+                      <span>
+                        {availabilityCheck.conflict?.pickupDate ||
+                          bookingState.pickupDate}
+                      </span>
                       <span className="text-stone-400">→</span>
-                      <span>{availabilityCheck.conflict?.returnDate || bookingState.returnDate}</span>
+                      <span>
+                        {availabilityCheck.conflict?.returnDate ||
+                          bookingState.returnDate}
+                      </span>
                     </div>
                     <p className="text-[11px] text-stone-600 leading-tight">
-                      This car already has an approved reservation during this period.
+                      This car already has an approved reservation during this
+                      period.
                     </p>
                   </div>
                   <button
@@ -871,7 +882,9 @@ export default function CarDetailView({
               </div>
               <div className="flex items-center gap-2">
                 <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>Free cancellation anytime before vehicle key handover</span>
+                <span>
+                  Free cancellation anytime before vehicle key handover
+                </span>
               </div>
             </div>
           </div>

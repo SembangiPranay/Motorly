@@ -11,14 +11,18 @@ const pool = new pg.Pool({
 
 async function run() {
   console.log("--- 1. Orphan Rented Vehicles ---")
-  const rented = await pool.query("SELECT id, name, status FROM vehicles WHERE status = 'Rented'")
+  const rented = await pool.query(
+    "SELECT id, name, status FROM vehicles WHERE status = 'Rented'",
+  )
   console.log("Current rented count:", rented.rows.length)
   for (const r of rented.rows) {
     const active = await pool.query(
       "SELECT id, status, customer_email FROM bookings WHERE matched_car_id = $1 AND status = 'Checked Out'",
-      [r.id]
+      [r.id],
     )
-    console.log(`Car ${r.id} (${r.name}): ${active.rows.length} checked out bookings`)
+    console.log(
+      `Car ${r.id} (${r.name}): ${active.rows.length} checked out bookings`,
+    )
   }
 
   // Reset orphan rented vehicles to Available
@@ -40,7 +44,9 @@ async function run() {
     SET status = 'Completed'
     WHERE status = 'Returned'
   `)
-  console.log(`Updated ${returnedRes.rowCount} bookings with status 'Returned' to 'Completed'`)
+  console.log(
+    `Updated ${returnedRes.rowCount} bookings with status 'Returned' to 'Completed'`,
+  )
 
   console.log("\n--- 3. Clean up Prior Concurrency Test Bookings ---")
   const delRes = await pool.query(`
@@ -60,10 +66,10 @@ async function run() {
     "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
     "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
   ])
-  const galRes = await pool.query("UPDATE vehicles SET gallery = $1 WHERE id = $2", [
-    newGallery,
-    "toyota-camry",
-  ])
+  const galRes = await pool.query(
+    "UPDATE vehicles SET gallery = $1 WHERE id = $2",
+    [newGallery, "toyota-camry"],
+  )
   console.log(`Updated gallery for ${galRes.rowCount} vehicles`)
 
   await pool.end()

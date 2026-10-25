@@ -130,7 +130,9 @@ export default function Footer({
             <span className="hover:text-gray-400 cursor-pointer">
               Rental Agreement
             </span>
-            <span className="hover:text-gray-400 cursor-pointer">Garage Policies</span>
+            <span className="hover:text-gray-400 cursor-pointer">
+              Garage Policies
+            </span>
           </div>
         </div>
       </div>

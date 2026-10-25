@@ -11,6 +11,7 @@ import type {
   AdminCustomerRecord,
   PromoCode,
   MaintenanceLog,
+  MaintenancePagination,
   InspectionChecklistOut,
   InspectionChecklistIn,
   ExtensionQuote,
@@ -101,6 +102,49 @@ export default function AdminView({
 
   // --- Maintenance State ---
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([])
+  const [mntPagination, setMntPagination] = useState<MaintenancePagination>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  })
+  const [mntSearch, setMntSearch] = useState("")
+  const [mntStatusFilter, setMntStatusFilter] = useState("")
+  const [mntLoading, setMntLoading] = useState(false)
+
+  const fetchMaintenancePage = async (
+    page: number,
+    limit?: number,
+    search?: string,
+    status?: string,
+  ) => {
+    setMntLoading(true)
+    try {
+      const targetLimit = limit ?? mntPagination.limit
+      const targetSearch = search !== undefined ? search : mntSearch
+      const targetStatus = status !== undefined ? status : mntStatusFilter
+
+      const res = await api.getMaintenanceLogs({
+        page,
+        limit: targetLimit,
+        search: targetSearch || undefined,
+        status: targetStatus || undefined,
+      })
+
+      const list = Array.isArray(res) ? res : res.data || []
+      setMaintenanceLogs(list)
+      if (res.pagination) {
+        setMntPagination(res.pagination)
+      }
+    } catch (err: any) {
+      console.warn("Failed to load maintenance page:", err?.message)
+    } finally {
+      setMntLoading(false)
+    }
+  }
+
   const [isMntModalOpen, setIsMntModalOpen] = useState(false)
   const [newMntData, setNewMntData] = useState({
     carId: cars[0]?.id || "toyota-camry",
@@ -288,18 +332,38 @@ export default function AdminView({
   const [manifestStatusFilter, setManifestStatusFilter] =
     useState<string>("all")
   const [manifestSearch, setManifestSearch] = useState("")
-  const [manifestViewMode, setManifestViewMode] = useState<"cards" | "table">("cards")
+  const [manifestViewMode, setManifestViewMode] = useState<"cards" | "table">(
+    "cards",
+  )
 
   // Fetch initial secondary dataset (promos, maintenance, crm)
   const loadAuxiliaryData = async () => {
     try {
       const [remotePromos, remoteMnt, remoteCustomers] = await Promise.all([
         api.getPromos().catch(() => []),
-        api.getMaintenanceLogs().catch(() => []),
+        api
+          .getMaintenanceLogs({ page: 1, limit: mntPagination.limit })
+          .catch(() => ({
+            data: [],
+            pagination: {
+              page: 1,
+              limit: 10,
+              total: 0,
+              totalPages: 1,
+              hasNextPage: false,
+              hasPrevPage: false,
+            },
+          })),
         api.getAdminCustomers().catch(() => []),
       ])
       setPromos(remotePromos)
-      setMaintenanceLogs(remoteMnt)
+      const mntList = Array.isArray(remoteMnt)
+        ? remoteMnt
+        : remoteMnt?.data || []
+      setMaintenanceLogs(mntList)
+      if (remoteMnt?.pagination) {
+        setMntPagination(remoteMnt.pagination)
+      }
       setCustomers(remoteCustomers)
     } catch (e) {
       console.warn("Auxiliary data load:", e)
@@ -819,7 +883,9 @@ export default function AdminView({
             (b) =>
               b.extensionStatus === "Requested" ||
               b.extensionStatus === "Pending",
-          ) || bookings.find((b) => b.status === "Checked Out") || bookings[0]
+          ) ||
+          bookings.find((b) => b.status === "Checked Out") ||
+          bookings[0]
       if (target) handleOpenExtensionQuote(target)
     }
     ;(window as any).__handleOpenReturnInspection = (bookingId?: string) => {
@@ -946,7 +1012,7 @@ export default function AdminView({
     e.preventDefault()
     try {
       const created = await api.createMaintenanceLog(newMntData)
-      setMaintenanceLogs((prev) => [created, ...prev])
+      await fetchMaintenancePage(1)
       setIsMntModalOpen(false)
       if (newMntData.setVehicleStatus) {
         const freshCars = await api.getCars()
@@ -1083,7 +1149,10 @@ export default function AdminView({
         b.status !== "Cancelled" &&
         b.status !== "Completed" &&
         b.status !== "Checked Out"
-      if (b.id?.startsWith("BK-2026") && (isPending || b.status === "Pending Assignment")) {
+      if (
+        b.id?.startsWith("BK-2026") &&
+        (isPending || b.status === "Pending Assignment")
+      ) {
         return 0
       }
       if (isPending || b.status === "Pending Assignment") return 1
@@ -1435,7 +1504,7 @@ export default function AdminView({
                       isDark ? "text-stone-500" : "text-stone-400"
                     }`}
                   >
-                    ({maintenanceLogs.length})
+                    ({mntPagination.total || maintenanceLogs.length})
                   </span>
                 ),
               },
@@ -1811,10 +1880,12 @@ export default function AdminView({
                   const cleanLocation =
                     b.pickupLocation?.replace(/\s*\([A-Z]{3,4}\)/, "") ||
                     "Main Garage Facility"
-                  const formattedAmount = Number(b.totalAmount || 0).toLocaleString(
-                    "en-US",
-                    { style: "currency", currency: "USD" }
-                  )
+                  const formattedAmount = Number(
+                    b.totalAmount || 0,
+                  ).toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  })
                   const isPendingReview =
                     !b.approvedByAdmin &&
                     b.status !== "Cancelled" &&
@@ -1856,6 +1927,13 @@ export default function AdminView({
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 Confirmed (Ready)
                               </span>
+                            ) : b.status === "Pending Assignment" ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                {b.approvedByAdmin
+                                  ? "Approved (Assign Car)"
+                                  : "Pending Mating"}
+                              </span>
                             ) : b.status === "Checked Out" ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -1869,9 +1947,13 @@ export default function AdminView({
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700">
                                 Completed
                               </span>
-                            ) : (
+                            ) : b.status === "Cancelled" ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
                                 Declined
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700">
+                                {b.status}
                               </span>
                             )}
                           </div>
@@ -1882,7 +1964,9 @@ export default function AdminView({
                             {formattedAmount}
                           </span>
                           <span className="text-[10px] font-medium text-stone-400 block mt-0.5">
-                            {b.status === "Completed" ? "Settled" : "Pay on pickup"}
+                            {b.status === "Completed"
+                              ? "Settled"
+                              : "Pay on pickup"}
                           </span>
                         </div>
                       </div>
@@ -1898,7 +1982,9 @@ export default function AdminView({
                               {b.customer?.firstName} {b.customer?.lastName}
                             </h4>
                             <p className="text-[11px] font-mono text-stone-500 dark:text-stone-400 truncate">
-                              {b.customer?.phone || b.customer?.email || "No contact info"}
+                              {b.customer?.phone ||
+                                b.customer?.email ||
+                                "No contact info"}
                             </p>
                           </div>
                         </div>
@@ -1961,18 +2047,29 @@ export default function AdminView({
                       <div className="rounded-xl bg-stone-50/60 dark:bg-stone-800/30 border border-stone-200/60 dark:border-stone-800/80 p-2.5 space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-stone-800 dark:text-stone-200">
                           <div className="flex items-center gap-1.5 font-bold">
-                            <CalendarIcon size={13} className="text-[#F97316] shrink-0" />
+                            <CalendarIcon
+                              size={13}
+                              className="text-[#F97316] shrink-0"
+                            />
                             <span>{b.pickupDate}</span>
                           </div>
-                          <span className="text-stone-400 font-bold text-[11px]">→</span>
+                          <span className="text-stone-400 font-bold text-[11px]">
+                            →
+                          </span>
                           <div className="flex items-center gap-1.5 font-bold">
-                            <ClockIcon size={13} className="text-stone-400 shrink-0" />
+                            <ClockIcon
+                              size={13}
+                              className="text-stone-400 shrink-0"
+                            />
                             <span>{b.returnDate}</span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
-                          <LocationIcon size={12} className="text-[#F97316]/70 shrink-0" />
+                          <LocationIcon
+                            size={12}
+                            className="text-[#F97316]/70 shrink-0"
+                          />
                           <span className="truncate">{cleanLocation}</span>
                         </div>
                       </div>
@@ -2013,6 +2110,18 @@ export default function AdminView({
                               <span>Handover Keys</span>
                             </button>
                           )}
+
+                          {!isPendingReview &&
+                            b.status === "Pending Assignment" && (
+                              <button
+                                type="button"
+                                onClick={() => handleAutoMate(b)}
+                                className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <ZapIcon size={13} />
+                                <span>Auto-Assign</span>
+                              </button>
+                            )}
 
                           {b.status === "Checked Out" && (
                             <button
@@ -2058,7 +2167,9 @@ export default function AdminView({
                       const matedCar = cars.find((c) => c.id === b.matchedCarId)
                       const isWalkIn =
                         b.id.startsWith("MTR-") ||
-                        b.createdAt?.toLowerCase().includes("counter dispatch") ||
+                        b.createdAt
+                          ?.toLowerCase()
+                          .includes("counter dispatch") ||
                         b.createdAt?.toLowerCase().includes("walk-in")
                       const initials =
                         (b.customer?.firstName?.[0] || "C") +
@@ -2066,10 +2177,12 @@ export default function AdminView({
                       const cleanLocation =
                         b.pickupLocation?.replace(/\s*\([A-Z]{3,4}\)/, "") ||
                         "Main Garage Facility"
-                      const formattedAmount = Number(b.totalAmount || 0).toLocaleString(
-                        "en-US",
-                        { style: "currency", currency: "USD" }
-                      )
+                      const formattedAmount = Number(
+                        b.totalAmount || 0,
+                      ).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })
                       const isPendingReview =
                         !b.approvedByAdmin &&
                         b.status !== "Cancelled" &&
@@ -2111,6 +2224,13 @@ export default function AdminView({
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                     Confirmed (Ready)
                                   </span>
+                                ) : b.status === "Pending Assignment" ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                    {b.approvedByAdmin
+                                      ? "Approved (Assign Car)"
+                                      : "Pending Mating"}
+                                  </span>
                                 ) : b.status === "Checked Out" ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -2124,9 +2244,13 @@ export default function AdminView({
                                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700">
                                     Completed
                                   </span>
-                                ) : (
+                                ) : b.status === "Cancelled" ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
                                     Declined
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700">
+                                    {b.status}
                                   </span>
                                 )}
                               </div>
@@ -2137,7 +2261,9 @@ export default function AdminView({
                                 {formattedAmount}
                               </span>
                               <span className="text-[10px] font-medium text-stone-400 block mt-0.5">
-                                {b.status === "Completed" ? "Settled" : "Pay on pickup"}
+                                {b.status === "Completed"
+                                  ? "Settled"
+                                  : "Pay on pickup"}
                               </span>
                             </div>
                           </div>
@@ -2153,7 +2279,9 @@ export default function AdminView({
                                   {b.customer?.firstName} {b.customer?.lastName}
                                 </h4>
                                 <p className="text-[11px] font-mono text-stone-500 dark:text-stone-400 truncate">
-                                  {b.customer?.phone || b.customer?.email || "No contact info"}
+                                  {b.customer?.phone ||
+                                    b.customer?.email ||
+                                    "No contact info"}
                                 </p>
                               </div>
                             </div>
@@ -2216,18 +2344,29 @@ export default function AdminView({
                           <div className="rounded-xl bg-stone-50/60 dark:bg-stone-800/30 border border-stone-200/60 dark:border-stone-800/80 p-2.5 space-y-1.5">
                             <div className="flex items-center justify-between text-xs text-stone-800 dark:text-stone-200">
                               <div className="flex items-center gap-1.5 font-bold">
-                                <CalendarIcon size={13} className="text-[#F97316] shrink-0" />
+                                <CalendarIcon
+                                  size={13}
+                                  className="text-[#F97316] shrink-0"
+                                />
                                 <span>{b.pickupDate}</span>
                               </div>
-                              <span className="text-stone-400 font-bold text-[11px]">→</span>
+                              <span className="text-stone-400 font-bold text-[11px]">
+                                →
+                              </span>
                               <div className="flex items-center gap-1.5 font-bold">
-                                <ClockIcon size={13} className="text-stone-400 shrink-0" />
+                                <ClockIcon
+                                  size={13}
+                                  className="text-stone-400 shrink-0"
+                                />
                                 <span>{b.returnDate}</span>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
-                              <LocationIcon size={12} className="text-[#F97316]/70 shrink-0" />
+                              <LocationIcon
+                                size={12}
+                                className="text-[#F97316]/70 shrink-0"
+                              />
                               <span className="truncate">{cleanLocation}</span>
                             </div>
                           </div>
@@ -2257,6 +2396,18 @@ export default function AdminView({
                                   </button>
                                 </>
                               )}
+
+                              {!isPendingReview &&
+                                b.status === "Pending Assignment" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAutoMate(b)}
+                                    className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  >
+                                    <ZapIcon size={13} />
+                                    <span>Auto-Assign</span>
+                                  </button>
+                                )}
 
                               {!isPendingReview && b.status === "Assigned" && (
                                 <button
@@ -2299,513 +2450,525 @@ export default function AdminView({
             ) : (
               /* Manifest Table (Desktop >= lg screens) */
               <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr
-                    className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
-                      isDark
-                        ? "bg-stone-900/80 border-stone-800 text-stone-400"
-                        : "bg-stone-50/90 border-stone-200 text-stone-500"
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr
+                      className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                        isDark
+                          ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                          : "bg-stone-50/90 border-stone-200 text-stone-500"
+                      }`}
+                    >
+                      <th className="px-4 py-3.5 w-36 text-left">
+                        Reservation
+                      </th>
+                      <th className="px-4 py-3.5 w-48 text-left">
+                        Customer / Driver
+                      </th>
+                      <th className="px-4 py-3.5 w-56 text-left">
+                        Pickup Hub & Dates
+                      </th>
+                      <th className="px-3 py-3.5 w-24 text-center">Category</th>
+                      <th className="px-4 py-3.5 w-52 text-left">
+                        Mated Vehicle
+                      </th>
+                      <th className="px-4 py-3.5 w-44 text-left">
+                        Lifecycle &amp; Signals
+                      </th>
+                      <th className="px-4 py-3.5 w-28 text-right">Amount</th>
+                      <th className="px-4 py-3.5 w-44 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody
+                    className={`divide-y font-sans ${
+                      isDark ? "divide-stone-800/60" : "divide-stone-100"
                     }`}
                   >
-                    <th className="px-4 py-3.5 w-36 text-left">Reservation</th>
-                    <th className="px-4 py-3.5 w-48 text-left">
-                      Customer / Driver
-                    </th>
-                    <th className="px-4 py-3.5 w-56 text-left">
-                      Pickup Hub & Dates
-                    </th>
-                    <th className="px-3 py-3.5 w-24 text-center">Category</th>
-                    <th className="px-4 py-3.5 w-52 text-left">
-                      Mated Vehicle
-                    </th>
-                    <th className="px-4 py-3.5 w-44 text-left">
-                      Lifecycle &amp; Signals
-                    </th>
-                    <th className="px-4 py-3.5 w-28 text-right">Amount</th>
-                    <th className="px-4 py-3.5 w-44 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody
-                  className={`divide-y font-sans ${
-                    isDark ? "divide-stone-800/60" : "divide-stone-100"
-                  }`}
-                >
-                  {filteredBookings.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className={`py-12 text-center text-xs ${
-                          isDark ? "text-stone-500" : "text-stone-400"
-                        }`}
-                      >
-                        No reservations match the filter criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredBookings.map((b) => {
-                      const matedCar = cars.find((c) => c.id === b.matchedCarId)
-                      const isWalkIn =
-                        b.id.startsWith("MTR-") ||
-                        b.createdAt
-                          ?.toLowerCase()
-                          .includes("counter dispatch") ||
-                        b.createdAt?.toLowerCase().includes("walk-in")
-                      const cleanCreatedDate = b.createdAt
-                        ? b.createdAt
-                            .replace(/Counter Dispatch\s*\(/i, "")
-                            .replace(/\)$/, "")
-                            .trim()
-                        : "Recently"
-
-                      // Format location string cleanly without text blowout
-                      const codeMatch =
-                        b.pickupLocation?.match(/\(([A-Z]{3,4})\)/)
-                      const airportCode = codeMatch ? codeMatch[1] : ""
-                      const hubCleanName = (b.pickupLocation || "Station Hub")
-                        .replace(/\s*\([A-Z]{3,4}\)/, "")
-                        .replace(/International Airport/i, "Intl")
-                        .replace(/Airport/i, "Hub")
-                        .trim()
-
-                      return (
-                        <tr
-                          key={b.id}
-                          onClick={() => setInspectedBooking(b)}
-                          className={`cursor-pointer transition group ${
-                            isDark
-                              ? "hover:bg-stone-800/50 border-stone-800/60"
-                              : "hover:bg-orange-50/40 border-stone-100"
+                    {filteredBookings.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className={`py-12 text-center text-xs ${
+                            isDark ? "text-stone-500" : "text-stone-400"
                           }`}
                         >
-                          {/* Col 1: ID & Date */}
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={`font-mono font-bold text-xs block group-hover:text-[#F97316] transition ${
-                                  isDark ? "text-white" : "text-stone-900"
-                                }`}
-                              >
-                                {b.id}
-                              </span>
-                              {isWalkIn && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
-                                  Walk-In
-                                </span>
-                              )}
-                            </div>
-                            <p
-                              className={`text-[11px] font-mono mt-0.5 whitespace-nowrap ${
-                                isDark ? "text-stone-400" : "text-stone-500"
-                              }`}
-                            >
-                              {cleanCreatedDate}
-                            </p>
-                          </td>
+                          No reservations match the filter criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBookings.map((b) => {
+                        const matedCar = cars.find(
+                          (c) => c.id === b.matchedCarId,
+                        )
+                        const isWalkIn =
+                          b.id.startsWith("MTR-") ||
+                          b.createdAt
+                            ?.toLowerCase()
+                            .includes("counter dispatch") ||
+                          b.createdAt?.toLowerCase().includes("walk-in")
+                        const cleanCreatedDate = b.createdAt
+                          ? b.createdAt
+                              .replace(/Counter Dispatch\s*\(/i, "")
+                              .replace(/\)$/, "")
+                              .trim()
+                          : "Recently"
 
-                          {/* Col 2: Customer / Driver */}
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
-                                  isDark
-                                    ? "bg-stone-800 text-stone-300 border border-stone-700"
-                                    : "bg-orange-50 text-orange-700 border border-orange-200/80"
-                                }`}
-                              >
-                                {(b.customer.firstName?.[0] || "U") +
-                                  (b.customer.lastName?.[0] || "")}
-                              </div>
-                              <div className="min-w-0">
-                                <div
-                                  className={`font-semibold text-xs truncate max-w-[130px] ${
-                                    isDark ? "text-stone-100" : "text-stone-900"
-                                  }`}
-                                  title={`${b.customer.firstName} ${b.customer.lastName}`}
-                                >
-                                  {b.customer.firstName} {b.customer.lastName}
-                                </div>
-                                <div
-                                  className="text-[11px] font-mono text-stone-400 truncate max-w-[130px]"
-                                  title={b.customer.phone || b.customer.email}
-                                >
-                                  {b.customer.phone ||
-                                    b.customer.email ||
-                                    "No contact"}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
+                        // Format location string cleanly without text blowout
+                        const codeMatch =
+                          b.pickupLocation?.match(/\(([A-Z]{3,4})\)/)
+                        const airportCode = codeMatch ? codeMatch[1] : ""
+                        const hubCleanName = (b.pickupLocation || "Station Hub")
+                          .replace(/\s*\([A-Z]{3,4}\)/, "")
+                          .replace(/International Airport/i, "Intl")
+                          .replace(/Airport/i, "Hub")
+                          .trim()
 
-                          {/* Col 3: Route & Hub */}
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="flex items-center gap-1.5 font-medium text-xs leading-tight">
-                              {airportCode && (
+                        return (
+                          <tr
+                            key={b.id}
+                            onClick={() => setInspectedBooking(b)}
+                            className={`cursor-pointer transition group ${
+                              isDark
+                                ? "hover:bg-stone-800/50 border-stone-800/60"
+                                : "hover:bg-orange-50/40 border-stone-100"
+                            }`}
+                          >
+                            {/* Col 1: ID & Date */}
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="flex items-center gap-1.5">
                                 <span
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 border ${
-                                    isDark
-                                      ? "bg-stone-800 text-stone-200 border-stone-700"
-                                      : "bg-stone-100 text-stone-700 border-stone-200"
+                                  className={`font-mono font-bold text-xs block group-hover:text-[#F97316] transition ${
+                                    isDark ? "text-white" : "text-stone-900"
                                   }`}
                                 >
-                                  {airportCode}
+                                  {b.id}
                                 </span>
-                              )}
-                              <span
-                                className={`truncate max-w-[130px] ${
-                                  isDark ? "text-stone-200" : "text-stone-800"
+                                {isWalkIn && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
+                                    Walk-In
+                                  </span>
+                                )}
+                              </div>
+                              <p
+                                className={`text-[11px] font-mono mt-0.5 whitespace-nowrap ${
+                                  isDark ? "text-stone-400" : "text-stone-500"
                                 }`}
-                                title={b.pickupLocation}
                               >
-                                {hubCleanName}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-stone-500 dark:text-stone-400 mt-1 whitespace-nowrap">
-                              <CalendarIcon
-                                size={12}
-                                className="text-stone-400 shrink-0"
-                              />
-                              <span>
-                                {b.pickupDate} → {b.returnDate}
-                              </span>
-                            </div>
-                          </td>
+                                {cleanCreatedDate}
+                              </p>
+                            </td>
 
-                          {/* Col 4: Category */}
-                          <td className="px-3 py-3.5 align-middle text-center">
-                            <span
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block ${
-                                b.requestedCategory === "SUV"
-                                  ? isDark
-                                    ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30"
-                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : b.requestedCategory === "Luxury"
-                                    ? isDark
-                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                                      : "bg-amber-50 text-amber-700 border-amber-200"
-                                    : b.requestedCategory === "Electric"
-                                      ? isDark
-                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                      : isDark
-                                        ? "bg-stone-800 text-stone-300 border-stone-700"
-                                        : "bg-stone-100 text-stone-700 border-stone-200"
-                              }`}
-                            >
-                              {b.requestedCategory || "Standard"}
-                            </span>
-                          </td>
-
-                          {/* Col 5: Mated Car */}
-                          <td className="px-4 py-3.5 align-middle">
-                            {matedCar ? (
-                              <div>
+                            {/* Col 2: Customer / Driver */}
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="flex items-center gap-2.5">
                                 <div
-                                  className={`font-bold text-xs truncate max-w-[170px] ${
-                                    isDark ? "text-stone-200" : "text-stone-900"
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                                    isDark
+                                      ? "bg-stone-800 text-stone-300 border border-stone-700"
+                                      : "bg-orange-50 text-orange-700 border border-orange-200/80"
                                   }`}
-                                  title={matedCar.name}
                                 >
-                                  {matedCar.name}
+                                  {(b.customer.firstName?.[0] || "U") +
+                                    (b.customer.lastName?.[0] || "")}
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <span
-                                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border inline-block shrink-0 ${
+                                <div className="min-w-0">
+                                  <div
+                                    className={`font-semibold text-xs truncate max-w-[130px] ${
                                       isDark
-                                        ? "bg-stone-800 text-amber-400 border-stone-700"
+                                        ? "text-stone-100"
+                                        : "text-stone-900"
+                                    }`}
+                                    title={`${b.customer.firstName} ${b.customer.lastName}`}
+                                  >
+                                    {b.customer.firstName} {b.customer.lastName}
+                                  </div>
+                                  <div
+                                    className="text-[11px] font-mono text-stone-400 truncate max-w-[130px]"
+                                    title={b.customer.phone || b.customer.email}
+                                  >
+                                    {b.customer.phone ||
+                                      b.customer.email ||
+                                      "No contact"}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Col 3: Route & Hub */}
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="flex items-center gap-1.5 font-medium text-xs leading-tight">
+                                {airportCode && (
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 border ${
+                                      isDark
+                                        ? "bg-stone-800 text-stone-200 border-stone-700"
+                                        : "bg-stone-100 text-stone-700 border-stone-200"
+                                    }`}
+                                  >
+                                    {airportCode}
+                                  </span>
+                                )}
+                                <span
+                                  className={`truncate max-w-[130px] ${
+                                    isDark ? "text-stone-200" : "text-stone-800"
+                                  }`}
+                                  title={b.pickupLocation}
+                                >
+                                  {hubCleanName}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-stone-500 dark:text-stone-400 mt-1 whitespace-nowrap">
+                                <CalendarIcon
+                                  size={12}
+                                  className="text-stone-400 shrink-0"
+                                />
+                                <span>
+                                  {b.pickupDate} → {b.returnDate}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Col 4: Category */}
+                            <td className="px-3 py-3.5 align-middle text-center">
+                              <span
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border inline-block ${
+                                  b.requestedCategory === "SUV"
+                                    ? isDark
+                                      ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30"
+                                      : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                    : b.requestedCategory === "Luxury"
+                                      ? isDark
+                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                      : b.requestedCategory === "Electric"
+                                        ? isDark
+                                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : isDark
+                                          ? "bg-stone-800 text-stone-300 border-stone-700"
+                                          : "bg-stone-100 text-stone-700 border-stone-200"
+                                }`}
+                              >
+                                {b.requestedCategory || "Standard"}
+                              </span>
+                            </td>
+
+                            {/* Col 5: Mated Car */}
+                            <td className="px-4 py-3.5 align-middle">
+                              {matedCar ? (
+                                <div>
+                                  <div
+                                    className={`font-bold text-xs truncate max-w-[170px] ${
+                                      isDark
+                                        ? "text-stone-200"
+                                        : "text-stone-900"
+                                    }`}
+                                    title={matedCar.name}
+                                  >
+                                    {matedCar.name}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border inline-block shrink-0 ${
+                                        isDark
+                                          ? "bg-stone-800 text-amber-400 border-stone-700"
+                                          : "bg-amber-50 text-amber-800 border-amber-200"
+                                      }`}
+                                    >
+                                      {matedCar.plateNumber || "NO-PLATE"}
+                                    </span>
+                                    <span
+                                      className={`text-[10px] font-mono truncate max-w-[110px] ${
+                                        isDark
+                                          ? "text-stone-400"
+                                          : "text-stone-500"
+                                      }`}
+                                      title={matedCar.garageBay || "Bay 14-B"}
+                                    >
+                                      {matedCar.garageBay || "Bay 14-B"}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center">
+                                  <span
+                                    className={`px-2 py-1 rounded-md text-[11px] font-bold border inline-flex items-center gap-1.5 ${
+                                      isDark
+                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
                                         : "bg-amber-50 text-amber-800 border-amber-200"
                                     }`}
                                   >
-                                    {matedCar.plateNumber || "NO-PLATE"}
-                                  </span>
-                                  <span
-                                    className={`text-[10px] font-mono truncate max-w-[110px] ${
-                                      isDark
-                                        ? "text-stone-400"
-                                        : "text-stone-500"
-                                    }`}
-                                    title={matedCar.garageBay || "Bay 14-B"}
-                                  >
-                                    {matedCar.garageBay || "Bay 14-B"}
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    Unassigned
                                   </span>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center">
-                                <span
-                                  className={`px-2 py-1 rounded-md text-[11px] font-bold border inline-flex items-center gap-1.5 ${
-                                    isDark
-                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                                      : "bg-amber-50 text-amber-800 border-amber-200"
-                                  }`}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                  Unassigned
-                                </span>
-                              </div>
-                            )}
-                          </td>
+                              )}
+                            </td>
 
-                          {/* Col 6: Status & Signals */}
-                          <td className="px-4 py-3.5 align-middle">
-                            <div className="flex flex-col gap-1 items-start">
-                              {b.status === "Pending Assignment" && (
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
-                                    isDark
-                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                                      : "bg-amber-50 text-amber-800 border-amber-200"
-                                  }`}
-                                >
-                                  Pending Mating
-                                </span>
-                              )}
-                              {b.status === "Assigned" && (
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
-                                    isDark
-                                      ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
-                                      : "bg-sky-50 text-sky-800 border-sky-200"
-                                  }`}
-                                >
-                                  Assigned / Staged
-                                </span>
-                              )}
-                              {b.status === "Checked Out" && (
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
-                                    isDark
-                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                  }`}
-                                >
-                                  In Drive
-                                </span>
-                              )}
-                              {b.status === "Returned" && (
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
-                                    isDark
-                                      ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
-                                      : "bg-purple-50 text-purple-800 border-purple-200"
-                                  }`}
-                                >
-                                  Returned (Audit)
-                                </span>
-                              )}
-                              {b.status === "Completed" && (
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
-                                    isDark
-                                      ? "bg-stone-700/40 text-stone-400 border-stone-700"
-                                      : "bg-stone-100 text-stone-600 border-stone-200"
-                                  }`}
-                                >
-                                  Completed
-                                </span>
-                              )}
-                              {b.status === "Cancelled" && (
-                                <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
-                                    isDark
-                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                                      : "bg-rose-50 text-rose-800 border-rose-200"
-                                  }`}
-                                >
-                                  Cancelled
-                                </span>
-                              )}
-
-                              {/* Operational Signals in neat secondary row */}
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {b.approvedByAdmin ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" />
-                                    Accepted
-                                  </span>
-                                ) : b.status !== "Cancelled" ? (
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleApproveBooking(b.id)
-                                      }}
-                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
-                                        isDark
-                                          ? "bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white border-emerald-500/40"
-                                          : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
-                                      }`}
-                                      title="Accept booking request from customer"
-                                    >
-                                      Accept Request
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleDeclineBooking(b.id)
-                                      }}
-                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
-                                        isDark
-                                          ? "bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border-rose-500/40"
-                                          : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
-                                      }`}
-                                      title="Decline booking request"
-                                    >
-                                      Decline
-                                    </button>
-                                  </div>
-                                ) : null}
-
-                                {(b.extensionStatus === "Pending" ||
-                                  b.extensionStatus === "Requested") && (
-                                  <button
-                                    data-testid="quote-extension-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleOpenExtensionQuote(b)
-                                    }}
-                                    className={`px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 animate-pulse cursor-pointer whitespace-nowrap ${
+                            {/* Col 6: Status & Signals */}
+                            <td className="px-4 py-3.5 align-middle">
+                              <div className="flex flex-col gap-1 items-start">
+                                {b.status === "Pending Assignment" && (
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
                                       isDark
-                                        ? "bg-amber-500/20 hover:bg-amber-500 text-amber-200 border-amber-500/40"
-                                        : "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
+                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                        : "bg-amber-50 text-amber-800 border-amber-200"
                                     }`}
-                                    title="Customer requested booking extension - click to quote"
                                   >
-                                    🔔 Quote Ext
+                                    Pending Mating
+                                  </span>
+                                )}
+                                {b.status === "Assigned" && (
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-sky-500/10 text-sky-400 border-sky-500/30"
+                                        : "bg-sky-50 text-sky-800 border-sky-200"
+                                    }`}
+                                  >
+                                    Assigned / Staged
+                                  </span>
+                                )}
+                                {b.status === "Checked Out" && (
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    }`}
+                                  >
+                                    In Drive
+                                  </span>
+                                )}
+                                {b.status === "Returned" && (
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                        : "bg-purple-50 text-purple-800 border-purple-200"
+                                    }`}
+                                  >
+                                    Returned (Audit)
+                                  </span>
+                                )}
+                                {b.status === "Completed" && (
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-stone-700/40 text-stone-400 border-stone-700"
+                                        : "bg-stone-100 text-stone-600 border-stone-200"
+                                    }`}
+                                  >
+                                    Completed
+                                  </span>
+                                )}
+                                {b.status === "Cancelled" && (
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block whitespace-nowrap ${
+                                      isDark
+                                        ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                        : "bg-rose-50 text-rose-800 border-rose-200"
+                                    }`}
+                                  >
+                                    Cancelled
+                                  </span>
+                                )}
+
+                                {/* Operational Signals in neat secondary row */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {b.approvedByAdmin ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" />
+                                      Accepted
+                                    </span>
+                                  ) : b.status !== "Cancelled" ? (
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleApproveBooking(b.id)
+                                        }}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                                          isDark
+                                            ? "bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white border-emerald-500/40"
+                                            : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                                        }`}
+                                        title="Accept booking request from customer"
+                                      >
+                                        Accept Request
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleDeclineBooking(b.id)
+                                        }}
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                                          isDark
+                                            ? "bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border-rose-500/40"
+                                            : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
+                                        }`}
+                                        title="Decline booking request"
+                                      >
+                                        Decline
+                                      </button>
+                                    </div>
+                                  ) : null}
+
+                                  {(b.extensionStatus === "Pending" ||
+                                    b.extensionStatus === "Requested") && (
+                                    <button
+                                      data-testid="quote-extension-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenExtensionQuote(b)
+                                      }}
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 animate-pulse cursor-pointer whitespace-nowrap ${
+                                        isDark
+                                          ? "bg-amber-500/20 hover:bg-amber-500 text-amber-200 border-amber-500/40"
+                                          : "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
+                                      }`}
+                                      title="Customer requested booking extension - click to quote"
+                                    >
+                                      🔔 Quote Ext
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Col 7: Total Amount */}
+                            <td className="px-4 py-3.5 text-right align-middle">
+                              <div
+                                className={`font-mono font-black text-xs ${
+                                  isDark ? "text-white" : "text-stone-900"
+                                }`}
+                              >
+                                ${b.totalAmount.toFixed(2)}
+                              </div>
+                              <div className="text-[10px] font-mono text-stone-400 mt-0.5">
+                                {b.status === "Completed"
+                                  ? "Settled"
+                                  : "Auth Captured"}
+                              </div>
+                            </td>
+
+                            {/* Col 8: Lifecycle Actions */}
+                            <td
+                              className="px-4 py-3.5 text-right align-middle"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                                {b.status === "Pending Assignment" && (
+                                  <button
+                                    onClick={() => handleAutoMate(b)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shadow-2xs cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                                  >
+                                    <ZapIcon size={12} /> Auto-Mate
                                   </button>
                                 )}
+
+                                {b.status === "Assigned" && (
+                                  <>
+                                    <button
+                                      onClick={() => handleOpenKeyHandoff(b)}
+                                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                      title="Handoff keys & start rental clock"
+                                    >
+                                      <ZapIcon size={12} /> Keys
+                                    </button>
+                                    <button
+                                      onClick={() => handleUnmateCar(b.id)}
+                                      className={`p-1.5 rounded-lg text-xs transition border cursor-pointer ${
+                                        isDark
+                                          ? "bg-stone-800 hover:bg-rose-900/40 hover:text-rose-400 hover:border-rose-700/50 text-stone-400 border-stone-700"
+                                          : "bg-stone-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-stone-600 border-stone-200"
+                                      }`}
+                                      title="Unassign vehicle from reservation"
+                                    >
+                                      <TrashIcon size={12} />
+                                    </button>
+                                  </>
+                                )}
+
+                                {b.status === "Checked Out" && (
+                                  <button
+                                    data-testid="return-audit-btn"
+                                    onClick={() =>
+                                      handleOpenReturnInspection(b)
+                                    }
+                                    className="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                    title="Perform return vehicle audit"
+                                  >
+                                    <WrenchIcon size={12} /> Return Audit
+                                  </button>
+                                )}
+
+                                {b.status === "Returned" && (
+                                  <button
+                                    onClick={() =>
+                                      handleOpenReturnInspection(b)
+                                    }
+                                    className="px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 dark:bg-stone-700 dark:hover:bg-stone-600 text-white font-bold text-xs transition shadow-2xs cursor-pointer whitespace-nowrap"
+                                  >
+                                    Verify Audit
+                                  </button>
+                                )}
+
+                                {b.status === "Completed" && (
+                                  <span className="text-[11px] font-mono text-stone-400 px-2 py-1">
+                                    Archived
+                                  </span>
+                                )}
+
+                                {/* Secondary Action: Download Driver ID Verification */}
+                                <button
+                                  onClick={() => handleDownloadLicense(b)}
+                                  className={`p-1.5 rounded-lg text-xs transition border flex items-center justify-center cursor-pointer shrink-0 ${
+                                    isDark
+                                      ? "bg-stone-800 hover:bg-[#F97316] text-stone-400 hover:text-white border-stone-700"
+                                      : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-600 border-stone-200"
+                                  }`}
+                                  title="Download Driver ID Verification Documents"
+                                >
+                                  <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                    />
+                                  </svg>
+                                </button>
+
+                                {/* Secondary Action: Inspect Details Modal */}
+                                <button
+                                  onClick={() => setInspectedBooking(b)}
+                                  className={`p-1.5 rounded-lg text-xs transition border flex items-center justify-center cursor-pointer shrink-0 ${
+                                    isDark
+                                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                                      : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200"
+                                  }`}
+                                  title="Inspect Full Booking Details & Telemetry"
+                                >
+                                  <ArrowRightIcon size={12} />
+                                </button>
                               </div>
-                            </div>
-                          </td>
-
-                          {/* Col 7: Total Amount */}
-                          <td className="px-4 py-3.5 text-right align-middle">
-                            <div
-                              className={`font-mono font-black text-xs ${
-                                isDark ? "text-white" : "text-stone-900"
-                              }`}
-                            >
-                              ${b.totalAmount.toFixed(2)}
-                            </div>
-                            <div className="text-[10px] font-mono text-stone-400 mt-0.5">
-                              {b.status === "Completed"
-                                ? "Settled"
-                                : "Auth Captured"}
-                            </div>
-                          </td>
-
-                          {/* Col 8: Lifecycle Actions */}
-                          <td
-                            className="px-4 py-3.5 text-right align-middle"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
-                              {b.status === "Pending Assignment" && (
-                                <button
-                                  onClick={() => handleAutoMate(b)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shadow-2xs cursor-pointer flex items-center gap-1 whitespace-nowrap"
-                                >
-                                  <ZapIcon size={12} /> Auto-Mate
-                                </button>
-                              )}
-
-                              {b.status === "Assigned" && (
-                                <>
-                                  <button
-                                    onClick={() => handleOpenKeyHandoff(b)}
-                                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                                    title="Handoff keys & start rental clock"
-                                  >
-                                    <ZapIcon size={12} /> Keys
-                                  </button>
-                                  <button
-                                    onClick={() => handleUnmateCar(b.id)}
-                                    className={`p-1.5 rounded-lg text-xs transition border cursor-pointer ${
-                                      isDark
-                                        ? "bg-stone-800 hover:bg-rose-900/40 hover:text-rose-400 hover:border-rose-700/50 text-stone-400 border-stone-700"
-                                        : "bg-stone-100 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-stone-600 border-stone-200"
-                                    }`}
-                                    title="Unassign vehicle from reservation"
-                                  >
-                                    <TrashIcon size={12} />
-                                  </button>
-                                </>
-                              )}
-
-                              {b.status === "Checked Out" && (
-                                <button
-                                  data-testid="return-audit-btn"
-                                  onClick={() => handleOpenReturnInspection(b)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                                  title="Perform return vehicle audit"
-                                >
-                                  <WrenchIcon size={12} /> Return Audit
-                                </button>
-                              )}
-
-                              {b.status === "Returned" && (
-                                <button
-                                  onClick={() => handleOpenReturnInspection(b)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 dark:bg-stone-700 dark:hover:bg-stone-600 text-white font-bold text-xs transition shadow-2xs cursor-pointer whitespace-nowrap"
-                                >
-                                  Verify Audit
-                                </button>
-                              )}
-
-                              {b.status === "Completed" && (
-                                <span className="text-[11px] font-mono text-stone-400 px-2 py-1">
-                                  Archived
-                                </span>
-                              )}
-
-                              {/* Secondary Action: Download Driver ID Verification */}
-                              <button
-                                onClick={() => handleDownloadLicense(b)}
-                                className={`p-1.5 rounded-lg text-xs transition border flex items-center justify-center cursor-pointer shrink-0 ${
-                                  isDark
-                                    ? "bg-stone-800 hover:bg-[#F97316] text-stone-400 hover:text-white border-stone-700"
-                                    : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-600 border-stone-200"
-                                }`}
-                                title="Download Driver ID Verification Documents"
-                              >
-                                <svg
-                                  className="w-3.5 h-3.5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                  />
-                                </svg>
-                              </button>
-
-                              {/* Secondary Action: Inspect Details Modal */}
-                              <button
-                                onClick={() => setInspectedBooking(b)}
-                                className={`p-1.5 rounded-lg text-xs transition border flex items-center justify-center cursor-pointer shrink-0 ${
-                                  isDark
-                                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
-                                    : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200"
-                                }`}
-                                title="Inspect Full Booking Details & Telemetry"
-                              >
-                                <ArrowRightIcon size={12} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         )}
 
         {/* ========================================================
@@ -3962,7 +4125,7 @@ export default function AdminView({
             }`}
           >
             <div
-              className={`p-4 sm:p-5 border-b flex items-center justify-between ${
+              className={`p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
                 isDark
                   ? "border-stone-800 bg-[#17191C]"
                   : "border-stone-200/80 bg-white"
@@ -3983,18 +4146,78 @@ export default function AdminView({
                   }`}
                 >
                   Track oil services, ceramic brake overhauls, EV battery
-                  diagnostics, and service work orders.
+                  diagnostics, and service work orders with pagination.
                 </p>
               </div>
-              <button
-                onClick={() => setIsMntModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
-              >
-                <PlusIcon size={14} />+ Log Service Ticket
-              </button>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Search */}
+                <div className="relative">
+                  <SearchIcon
+                    size={14}
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${
+                      isDark ? "text-stone-500" : "text-stone-400"
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    value={mntSearch}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setMntSearch(val)
+                      fetchMaintenancePage(
+                        1,
+                        mntPagination.limit,
+                        val,
+                        mntStatusFilter,
+                      )
+                    }}
+                    placeholder="Search logs or car..."
+                    className={`pl-8 pr-3 py-1.5 rounded-lg text-xs border outline-none transition w-44 md:w-52 ${
+                      isDark
+                        ? "bg-stone-900 border-stone-800 text-stone-200 placeholder-stone-600 focus:border-rose-500"
+                        : "bg-stone-50 border-stone-200 text-stone-800 placeholder-stone-400 focus:border-rose-500"
+                    }`}
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <select
+                  value={mntStatusFilter}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setMntStatusFilter(val)
+                    fetchMaintenancePage(1, mntPagination.limit, mntSearch, val)
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs border outline-none transition cursor-pointer ${
+                    isDark
+                      ? "bg-stone-900 border-stone-800 text-stone-300 focus:border-rose-500"
+                      : "bg-stone-50 border-stone-200 text-stone-700 focus:border-rose-500"
+                  }`}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Completed">Completed</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Scheduled">Scheduled</option>
+                </select>
+
+                <button
+                  onClick={() => setIsMntModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer ml-auto"
+                >
+                  <PlusIcon size={14} />+ Log Service Ticket
+                </button>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative">
+              {mntLoading && (
+                <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center z-10">
+                  <span className="text-xs font-mono px-3 py-1.5 rounded-lg bg-stone-900 text-white border border-stone-700 shadow-md">
+                    Loading records...
+                  </span>
+                </div>
+              )}
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr
@@ -4019,79 +4242,199 @@ export default function AdminView({
                     isDark ? "divide-stone-800/60" : "divide-stone-100"
                   }`}
                 >
-                  {maintenanceLogs.map((log) => (
-                    <tr
-                      key={log.id}
-                      className={`transition ${
-                        isDark
-                          ? "hover:bg-stone-800/50 border-stone-800/60"
-                          : "hover:bg-orange-50/40 border-stone-100"
-                      }`}
-                    >
+                  {maintenanceLogs.length === 0 ? (
+                    <tr>
                       <td
-                        className={`px-5 py-3.5 font-mono font-bold ${
-                          isDark ? "text-white" : "text-stone-900"
+                        colSpan={8}
+                        className={`text-center py-10 text-xs ${
+                          isDark ? "text-stone-500" : "text-stone-400"
                         }`}
                       >
-                        {log.id}
-                      </td>
-                      <td
-                        className={`px-5 py-3.5 font-semibold ${
-                          isDark ? "text-stone-200" : "text-stone-900"
-                        }`}
-                      >
-                        {log.carName || log.carId}
-                      </td>
-                      <td
-                        className={`px-5 py-3.5 ${
-                          isDark ? "text-stone-300" : "text-stone-700"
-                        }`}
-                      >
-                        {log.serviceType}
-                      </td>
-                      <td
-                        className={`px-5 py-3.5 font-mono ${
-                          isDark ? "text-stone-400" : "text-stone-500"
-                        }`}
-                      >
-                        {log.odometer.toLocaleString()} mi
-                      </td>
-                      <td
-                        className={`px-5 py-3.5 font-mono ${
-                          isDark ? "text-stone-400" : "text-stone-500"
-                        }`}
-                      >
-                        {log.date}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span
-                          className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
-                            log.status === "Completed"
-                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                              : "bg-amber-500/10 text-amber-600 border-amber-500/30"
-                          }`}
-                        >
-                          {log.status}
-                        </span>
-                      </td>
-                      <td
-                        className={`px-5 py-3.5 text-right font-mono font-bold ${
-                          isDark ? "text-white" : "text-stone-900"
-                        }`}
-                      >
-                        ${log.cost.toFixed(2)}
-                      </td>
-                      <td
-                        className={`px-5 py-3.5 max-w-xs truncate ${
-                          isDark ? "text-stone-400" : "text-stone-500"
-                        }`}
-                      >
-                        {log.technicianNotes || "N/A"}
+                        No maintenance work orders found matching filters.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    maintenanceLogs.map((log) => (
+                      <tr
+                        key={log.id}
+                        className={`transition ${
+                          isDark
+                            ? "hover:bg-stone-800/50 border-stone-800/60"
+                            : "hover:bg-orange-50/40 border-stone-100"
+                        }`}
+                      >
+                        <td
+                          className={`px-5 py-3.5 font-mono font-bold ${
+                            isDark ? "text-white" : "text-stone-900"
+                          }`}
+                        >
+                          {log.id}
+                        </td>
+                        <td
+                          className={`px-5 py-3.5 font-semibold ${
+                            isDark ? "text-stone-200" : "text-stone-900"
+                          }`}
+                        >
+                          {log.carName || log.carId}
+                        </td>
+                        <td
+                          className={`px-5 py-3.5 ${
+                            isDark ? "text-stone-300" : "text-stone-700"
+                          }`}
+                        >
+                          {log.serviceType}
+                        </td>
+                        <td
+                          className={`px-5 py-3.5 font-mono ${
+                            isDark ? "text-stone-400" : "text-stone-500"
+                          }`}
+                        >
+                          {log.odometer ? log.odometer.toLocaleString() : "0"}{" "}
+                          mi
+                        </td>
+                        <td
+                          className={`px-5 py-3.5 font-mono ${
+                            isDark ? "text-stone-400" : "text-stone-500"
+                          }`}
+                        >
+                          {log.date}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span
+                            className={`px-2.5 py-0.5 rounded text-[11px] font-bold border ${
+                              log.status === "Completed"
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                            }`}
+                          >
+                            {log.status}
+                          </span>
+                        </td>
+                        <td
+                          className={`px-5 py-3.5 text-right font-mono font-bold ${
+                            isDark ? "text-white" : "text-stone-900"
+                          }`}
+                        >
+                          ${(log.cost || 0).toFixed(2)}
+                        </td>
+                        <td
+                          className={`px-5 py-3.5 max-w-xs truncate ${
+                            isDark ? "text-stone-400" : "text-stone-500"
+                          }`}
+                        >
+                          {log.technicianNotes || "N/A"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Footer */}
+            <div
+              className={`p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs ${
+                isDark
+                  ? "border-stone-800 bg-stone-900/50 text-stone-400"
+                  : "border-stone-200 bg-stone-50/70 text-stone-500"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span>
+                  Showing{" "}
+                  <strong className={isDark ? "text-white" : "text-stone-900"}>
+                    {mntPagination.total === 0
+                      ? 0
+                      : (mntPagination.page - 1) * mntPagination.limit + 1}
+                  </strong>{" "}
+                  to{" "}
+                  <strong className={isDark ? "text-white" : "text-stone-900"}>
+                    {Math.min(
+                      mntPagination.page * mntPagination.limit,
+                      mntPagination.total,
+                    )}
+                  </strong>{" "}
+                  of{" "}
+                  <strong className={isDark ? "text-white" : "text-stone-900"}>
+                    {mntPagination.total}
+                  </strong>{" "}
+                  work orders
+                </span>
+
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className="text-[11px]">Rows:</span>
+                  <select
+                    value={mntPagination.limit}
+                    onChange={(e) => {
+                      const newLimit = parseInt(e.target.value, 10)
+                      fetchMaintenancePage(
+                        1,
+                        newLimit,
+                        mntSearch,
+                        mntStatusFilter,
+                      )
+                    }}
+                    className={`px-2 py-1 rounded text-xs border outline-none cursor-pointer ${
+                      isDark
+                        ? "bg-stone-900 border-stone-800 text-stone-300"
+                        : "bg-white border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={!mntPagination.hasPrevPage || mntLoading}
+                  onClick={() =>
+                    fetchMaintenancePage(
+                      mntPagination.page - 1,
+                      mntPagination.limit,
+                      mntSearch,
+                      mntStatusFilter,
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-lg border flex items-center gap-1 transition text-xs font-semibold ${
+                    !mntPagination.hasPrevPage || mntLoading
+                      ? "opacity-40 cursor-not-allowed border-transparent"
+                      : isDark
+                        ? "bg-stone-800 border-stone-700 hover:bg-stone-700 text-white cursor-pointer"
+                        : "bg-white border-stone-200 hover:bg-stone-100 text-stone-800 cursor-pointer shadow-xs"
+                  }`}
+                >
+                  <ArrowLeftIcon size={12} /> Previous
+                </button>
+
+                <div className="px-3 py-1 text-xs font-mono font-medium">
+                  Page {mntPagination.page} of {mntPagination.totalPages}
+                </div>
+
+                <button
+                  disabled={!mntPagination.hasNextPage || mntLoading}
+                  onClick={() =>
+                    fetchMaintenancePage(
+                      mntPagination.page + 1,
+                      mntPagination.limit,
+                      mntSearch,
+                      mntStatusFilter,
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-lg border flex items-center gap-1 transition text-xs font-semibold ${
+                    !mntPagination.hasNextPage || mntLoading
+                      ? "opacity-40 cursor-not-allowed border-transparent"
+                      : isDark
+                        ? "bg-stone-800 border-stone-700 hover:bg-stone-700 text-white cursor-pointer"
+                        : "bg-white border-stone-200 hover:bg-stone-100 text-stone-800 cursor-pointer shadow-xs"
+                  }`}
+                >
+                  Next <ArrowRightIcon size={12} />
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -4307,13 +4650,17 @@ export default function AdminView({
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleApproveBooking(inspectedBooking.id)}
+                        onClick={() =>
+                          handleApproveBooking(inspectedBooking.id)
+                        }
                         className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <CheckIcon size={14} /> Accept Request
                       </button>
                       <button
-                        onClick={() => handleDeclineBooking(inspectedBooking.id)}
+                        onClick={() =>
+                          handleDeclineBooking(inspectedBooking.id)
+                        }
                         className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                       >
                         Decline

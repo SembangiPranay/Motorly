@@ -8,7 +8,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 })
 const res = await pool.query(
-  "SELECT id, matched_car_id, pickup_date, return_date, status FROM bookings WHERE matched_car_id = 'toyota-camry'"
+  "SELECT id, matched_car_id, pickup_date, return_date, status FROM bookings WHERE matched_car_id = 'toyota-camry'",
 )
 console.log("Bookings for toyota-camry:", res.rows)
 await pool.end()

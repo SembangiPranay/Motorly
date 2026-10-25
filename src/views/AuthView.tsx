@@ -277,7 +277,8 @@ export default function AuthView({
                     Direct Garage Pickup
                   </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Vehicle inspection and personal key handoff directly at the garage bay.
+                    Vehicle inspection and personal key handoff directly at the
+                    garage bay.
                   </p>
                 </div>
               </div>

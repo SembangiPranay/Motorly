@@ -244,8 +244,6 @@ export default function CheckoutView({
     }
   }
 
-
-
   const handleApplyPromo = async () => {
     const code = promoCode.trim().toUpperCase()
     if (!code) {
@@ -282,6 +280,22 @@ export default function CheckoutView({
   }
 
   // Calculations matching reference design with promo support and live date math
+  const maxDobStr = useMemo(() => {
+    const d = new Date()
+    d.setFullYear(d.getFullYear() - 21)
+    return d.toISOString().split("T")[0]
+  }, [])
+
+  const minExpiryStr = useMemo(() => {
+    try {
+      const parsed = Date.parse(bookingState.returnDate)
+      if (!isNaN(parsed)) {
+        return new Date(parsed).toISOString().split("T")[0]
+      }
+    } catch {}
+    return new Date().toISOString().split("T")[0]
+  }, [bookingState.returnDate])
+
   const days = useMemo(() => {
     try {
       const start = Date.parse(bookingState.pickupDate)
@@ -307,6 +321,54 @@ export default function CheckoutView({
       onNavigateAuth?.("checkout")
       return
     }
+
+    // Validation 1: Past pickup date
+    const pickupParsed = Date.parse(bookingState.pickupDate)
+    if (!isNaN(pickupParsed) && pickupParsed < Date.now() - 15 * 60 * 1000) {
+      alert("Pickup date cannot be in the past. Please select a future date.")
+      return
+    }
+
+    // Validation 2: Driver Minimum Age (21+)
+    if (driver.dateOfBirth) {
+      const dobParsed = Date.parse(driver.dateOfBirth)
+      if (isNaN(dobParsed)) {
+        alert("Please enter a valid date of birth.")
+        return
+      }
+      const refDate = !isNaN(pickupParsed) ? new Date(pickupParsed) : new Date()
+      const bDate = new Date(dobParsed)
+      let age = refDate.getFullYear() - bDate.getFullYear()
+      const m = refDate.getMonth() - bDate.getMonth()
+      if (m < 0 || (m === 0 && refDate.getDate() < bDate.getDate())) age--
+      if (age < 21) {
+        alert(
+          `Driver must be at least 21 years old to rent a vehicle. (Calculated age: ${age} years old)`,
+        )
+        return
+      }
+    }
+
+    // Validation 3: Driver License Expiry
+    if (driver.licenseExpiry) {
+      const expiryParsed = Date.parse(driver.licenseExpiry)
+      if (isNaN(expiryParsed)) {
+        alert("Please enter a valid driver's license expiration date.")
+        return
+      }
+      if (expiryParsed <= Date.now()) {
+        alert("Driver's license is expired. Please provide a valid, unexpired license.")
+        return
+      }
+      const returnParsed = Date.parse(bookingState.returnDate)
+      if (!isNaN(returnParsed) && expiryParsed < returnParsed) {
+        alert(
+          "Driver's license expires before the rental return date. A license valid for the full trip duration is required.",
+        )
+        return
+      }
+    }
+
     if (!availabilityCheck.isAvailable) {
       alert(
         `Double Booking Conflict: ${car.name} is reserved from ${availabilityCheck.conflict?.pickupDate} to ${availabilityCheck.conflict?.returnDate}. Please choose different dates or select another vehicle.`,
@@ -378,7 +440,8 @@ export default function CheckoutView({
           Complete Your Reservation Request
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Review your dates, provide your contact &amp; driver info, and submit your request directly to the Fleet Manager.
+          Review your dates, provide your contact &amp; driver info, and submit
+          your request directly to the Fleet Manager.
         </p>
       </div>
 
@@ -525,12 +588,14 @@ export default function CheckoutView({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Date of Birth <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                  <span>Date of Birth (21+ Only) <span className="text-red-500">*</span></span>
+                  <span className="text-[10px] text-gray-400 font-normal">Must be 21+</span>
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   required
+                  max={maxDobStr}
                   value={driver.dateOfBirth}
                   onChange={(e) =>
                     setDriver({ ...driver, dateOfBirth: e.target.value })
@@ -546,6 +611,7 @@ export default function CheckoutView({
                 <input
                   type="text"
                   required
+                  placeholder="e.g. D123-456-789-0"
                   value={driver.licenseNumber}
                   onChange={(e) =>
                     setDriver({ ...driver, licenseNumber: e.target.value })
@@ -561,6 +627,7 @@ export default function CheckoutView({
                 <input
                   type="text"
                   required
+                  placeholder="e.g. FL (Florida) or USA"
                   value={driver.licenseState}
                   onChange={(e) =>
                     setDriver({ ...driver, licenseState: e.target.value })
@@ -569,12 +636,14 @@ export default function CheckoutView({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  License Expiry Date <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                  <span>License Expiration Date <span className="text-red-500">*</span></span>
+                  <span className="text-[10px] text-gray-400 font-normal">Valid through trip</span>
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   required
+                  min={minExpiryStr}
                   value={driver.licenseExpiry}
                   onChange={(e) =>
                     setDriver({ ...driver, licenseExpiry: e.target.value })
@@ -722,7 +791,8 @@ export default function CheckoutView({
                   No Online Payment Required — Pay Upon Vehicle Pickup
                 </h2>
                 <p className="text-[11px] text-gray-500">
-                  Zero advance charges • Pay directly at the garage when you inspect the vehicle and collect the keys.
+                  Zero advance charges • Pay directly at the garage when you
+                  inspect the vehicle and collect the keys.
                 </p>
               </div>
             </div>
@@ -736,7 +806,11 @@ export default function CheckoutView({
                   100% Free Reservation Request
                 </p>
                 <p className="text-emerald-800 text-[11px] leading-relaxed">
-                  Once you submit your details and dates, your request is sent directly to our <strong>Fleet Operations Manager</strong>. When the manager accepts your request, your vehicle is prepped and held at the hub. You will pay <strong>${totalAmount.toFixed(2)}</strong> at vehicle pickup.
+                  Once you submit your details and dates, your request is sent
+                  directly to our <strong>Fleet Operations Manager</strong>.
+                  When the manager accepts your request, your vehicle is prepped
+                  and held at the hub. You will pay{" "}
+                  <strong>${totalAmount.toFixed(2)}</strong> at vehicle pickup.
                 </p>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] text-emerald-700 font-semibold">
                   <span>✓ No credit card required</span>
@@ -861,13 +935,29 @@ export default function CheckoutView({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-2xs">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                        <line x1="10" y1="14" x2="14" y2="18"/>
-                        <line x1="14" y1="14" x2="10" y2="18"/>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect
+                          x="3"
+                          y="4"
+                          width="18"
+                          height="18"
+                          rx="2"
+                          ry="2"
+                        />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                        <line x1="10" y1="14" x2="14" y2="18" />
+                        <line x1="14" y1="14" x2="10" y2="18" />
                       </svg>
                     </span>
                     <div>
@@ -887,17 +977,32 @@ export default function CheckoutView({
                 {/* Overlapping Range Visual Block */}
                 <div className="p-3 bg-white/95 rounded-xl border border-amber-200/80 space-y-2 shadow-2xs">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-stone-600 font-semibold">{car.name} is reserved:</span>
-                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-md">Existing Booking</span>
+                    <span className="text-stone-600 font-semibold">
+                      {car.name} is reserved:
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-md">
+                      Existing Booking
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-stone-900 font-mono text-xs font-bold bg-amber-50/50 px-3 py-2 rounded-lg border border-amber-100">
-                    <CalendarIcon size={14} className="text-amber-700 shrink-0" />
-                    <span>{availabilityCheck.conflict?.pickupDate || bookingState.pickupDate}</span>
+                    <CalendarIcon
+                      size={14}
+                      className="text-amber-700 shrink-0"
+                    />
+                    <span>
+                      {availabilityCheck.conflict?.pickupDate ||
+                        bookingState.pickupDate}
+                    </span>
                     <span className="text-stone-400">→</span>
-                    <span>{availabilityCheck.conflict?.returnDate || bookingState.returnDate}</span>
+                    <span>
+                      {availabilityCheck.conflict?.returnDate ||
+                        bookingState.returnDate}
+                    </span>
                   </div>
                   <p className="text-[11px] text-stone-600 leading-relaxed">
-                    Another customer has an approved reservation during these dates. You can modify your rental dates or select another car from our available fleet.
+                    Another customer has an approved reservation during these
+                    dates. You can modify your rental dates or select another
+                    car from our available fleet.
                   </p>
                 </div>
 
@@ -1015,7 +1120,8 @@ export default function CheckoutView({
                   <>
                     <ZapIcon size={16} />
                     <span>
-                      Submit Request to Manager (${totalAmount.toFixed(2)} on Pickup)
+                      Submit Request to Manager (${totalAmount.toFixed(2)} on
+                      Pickup)
                     </span>
                   </>
                 )}
@@ -1024,7 +1130,8 @@ export default function CheckoutView({
 
             {/* Reassurance */}
             <p className="text-[10px] text-gray-500 text-center leading-tight">
-              🔒 No online payment charged. Fleet Manager will review dates and accept your request. Pay upon pickup.
+              🔒 No online payment charged. Fleet Manager will review dates and
+              accept your request. Pay upon pickup.
             </p>
           </div>
         </div>

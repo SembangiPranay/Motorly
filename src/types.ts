@@ -226,4 +226,18 @@ export interface MaintenanceLog {
   technicianNotes: string
 }
 
+export interface MaintenancePagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNextPage?: boolean
+  hasPrevPage?: boolean
+}
+
+export interface PaginatedMaintenanceLogs {
+  data: MaintenanceLog[]
+  pagination: MaintenancePagination
+}
+
 export type ViewMode = "home" | "listing" | "detail" | "checkout" | "admin" | "my-bookings" | "compare" | "auth"

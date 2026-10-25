@@ -6,12 +6,17 @@ async function run() {
   // 1. Health check
   const healthRes = await fetch(`${BASE_URL}/health`)
   const health = await healthRes.json()
-  console.log("1. Health Status:", health.status, "| Supabase:", health.supabase)
+  console.log(
+    "1. Health Status:",
+    health.status,
+    "| Supabase:",
+    health.supabase,
+  )
   if (health.status !== "ok") throw new Error("Health check failed")
 
   // 2. Test RBAC: Manager Auth vs Customer Auth
   console.log("\n--- Testing Super-Efficient RBAC ---")
-  
+
   // 2a. Login as Manager (Admin)
   const adminLoginRes = await fetch(`${BASE_URL}/auth/login`, {
     method: "POST",
@@ -20,7 +25,10 @@ async function run() {
   })
   const adminLogin = await adminLoginRes.json()
   const adminToken = adminLogin.token
-  console.log("2a. Manager Auth Token received (role: admin):", Boolean(adminToken))
+  console.log(
+    "2a. Manager Auth Token received (role: admin):",
+    Boolean(adminToken),
+  )
 
   // 2b. Register/Login as Customer
   const customerEmail = `renter_${Date.now()}@example.com`
@@ -37,41 +45,69 @@ async function run() {
   const customerReg = await customerRegRes.json()
   const customerToken = customerReg.token
   const customerId = customerReg.user?.id
-  console.log("2b. Customer Registered (role: customer):", customerEmail, "ID:", customerId)
+  console.log(
+    "2b. Customer Registered (role: customer):",
+    customerEmail,
+    "ID:",
+    customerId,
+  )
 
   // 2c. Fast RBAC Barrier Check: Customer cannot access Manager routes (403 Forbidden)
   const forbiddenAdminCheck = await fetch(`${BASE_URL}/admin/stats`, {
     headers: { Authorization: `Bearer ${customerToken}` },
   })
-  console.log("2c. Customer trying to access Admin Stats:", forbiddenAdminCheck.status, "(Expected: 403 Forbidden)")
-  if (forbiddenAdminCheck.status !== 403) throw new Error("RBAC failed: Customer was not blocked with 403!")
+  console.log(
+    "2c. Customer trying to access Admin Stats:",
+    forbiddenAdminCheck.status,
+    "(Expected: 403 Forbidden)",
+  )
+  if (forbiddenAdminCheck.status !== 403)
+    throw new Error("RBAC failed: Customer was not blocked with 403!")
 
   // 2d. Manager accessing Manager routes (200 OK)
   const adminStatsCheck = await fetch(`${BASE_URL}/admin/stats`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   })
-  console.log("2d. Manager accessing Admin Stats:", adminStatsCheck.status, "(Expected: 200 OK)")
-  if (adminStatsCheck.status !== 200) throw new Error("Manager failed to access Admin Stats!")
+  console.log(
+    "2d. Manager accessing Admin Stats:",
+    adminStatsCheck.status,
+    "(Expected: 200 OK)",
+  )
+  if (adminStatsCheck.status !== 200)
+    throw new Error("Manager failed to access Admin Stats!")
 
   // 3. Clean car checking & dynamic price & availability
   console.log("\n--- Checking Cars, Free Dates & Transparent Pricing ---")
   const carsRes = await fetch(`${BASE_URL}/cars`)
   const cars = await carsRes.json()
   const targetCar = cars.find((c) => c.status === "Available") || cars[0]
-  console.log(`3a. Selected Car: "${targetCar.name}" | Daily Rate: $${targetCar.pricePerDay}/day`)
+  console.log(
+    `3a. Selected Car: "${targetCar.name}" | Daily Rate: $${targetCar.pricePerDay}/day`,
+  )
 
   // Generate unique test dates based on timestamp
   const randomOffsetDays = Math.floor(200 + Math.random() * 500)
   const dStart = new Date(Date.now() + randomOffsetDays * 86400000)
   const dEnd = new Date(Date.now() + (randomOffsetDays + 4) * 86400000)
-  const testPickup = dStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  const testReturn = dEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  const testPickup = dStart.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+  const testReturn = dEnd.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
 
   const availRes = await fetch(
-    `${BASE_URL}/cars/${targetCar.id}/availability?pickupDate=${encodeURIComponent(testPickup)}&returnDate=${encodeURIComponent(testReturn)}`
+    `${BASE_URL}/cars/${targetCar.id}/availability?pickupDate=${encodeURIComponent(testPickup)}&returnDate=${encodeURIComponent(testReturn)}`,
   )
   const avail = await availRes.json()
-  console.log(`3b. Checking Availability (${testPickup} -> ${testReturn}):`, avail.isAvailable ? "FREE / AVAILABLE" : "OCCUPIED")
+  console.log(
+    `3b. Checking Availability (${testPickup} -> ${testReturn}):`,
+    avail.isAvailable ? "FREE / AVAILABLE" : "OCCUPIED",
+  )
   if (!avail.isAvailable) throw new Error("Expected test dates to be available")
 
   // Calculate pricing
@@ -79,7 +115,9 @@ async function run() {
   const expectedBase = targetCar.pricePerDay * days
   const taxes = expectedBase * 0.18
   const grandTotal = expectedBase + taxes
-  console.log(`3c. Pricing Breakdown: $${targetCar.pricePerDay} × ${days} days = $${expectedBase} (+ taxes: $${taxes.toFixed(2)}) -> Grand Total: $${grandTotal.toFixed(2)} (Due on Pickup)`)
+  console.log(
+    `3c. Pricing Breakdown: $${targetCar.pricePerDay} × ${days} days = $${expectedBase} (+ taxes: $${taxes.toFixed(2)}) -> Grand Total: $${grandTotal.toFixed(2)} (Due on Pickup)`,
+  )
 
   // 4. Create Booking Request with NO ONLINE PAYMENT
   console.log("\n--- Submitting Booking Request (Zero Online Payment) ---")
@@ -129,29 +167,46 @@ async function run() {
 
   const newBooking = await createRes.json()
   console.log(`4a. Reservation Request Created: ${newBooking.id}`)
-  console.log(`    Status: "${newBooking.status}" | Approved by Manager: ${Boolean(newBooking.approvedByAdmin) ? "Yes" : "No (Pending)"}`)
+  console.log(
+    `    Status: "${newBooking.status}" | Approved by Manager: ${
+      Boolean(newBooking.approvedByAdmin) ? "Yes" : "No (Pending)"
+    }`,
+  )
   console.log(`    Total Due at Hub: $${newBooking.totalAmount}`)
-  if (Boolean(newBooking.approvedByAdmin)) throw new Error("Expected booking to start unapproved (pending manager acceptance)")
+  if (Boolean(newBooking.approvedByAdmin))
+    throw new Error(
+      "Expected booking to start unapproved (pending manager acceptance)",
+    )
 
   // 5. Manager Reviews and Accepts Request
   console.log("\n--- Manager Reviews & Accepts Request ---")
-  const acceptRes = await fetch(`${BASE_URL}/bookings/${newBooking.id}/accept`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
+  const acceptRes = await fetch(
+    `${BASE_URL}/bookings/${newBooking.id}/accept`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${adminToken}`,
+      },
     },
-  })
+  )
 
   if (acceptRes.status !== 200) {
     const errText = await acceptRes.text()
-    throw new Error(`Manager acceptance failed (${acceptRes.status}): ${errText}`)
+    throw new Error(
+      `Manager acceptance failed (${acceptRes.status}): ${errText}`,
+    )
   }
 
   const acceptData = await acceptRes.json()
   console.log("5a. Manager Accept Response:", acceptData.message)
-  console.log(`    Booking Approved by Manager: ${Boolean(acceptData.booking.approvedByAdmin) ? "✅ YES" : "❌ NO"}`)
-  if (!Boolean(acceptData.booking.approvedByAdmin)) throw new Error("Booking was not approved in database!")
+  console.log(
+    `    Booking Approved by Manager: ${
+      Boolean(acceptData.booking.approvedByAdmin) ? "✅ YES" : "❌ NO"
+    }`,
+  )
+  if (!Boolean(acceptData.booking.approvedByAdmin))
+    throw new Error("Booking was not approved in database!")
 
   // 6. Customer Checks Their Bookings
   console.log("\n--- Customer Verifies Accepted Booking in Portal ---")
@@ -160,15 +215,30 @@ async function run() {
   })
   const customerBookings = await customerBookingsRes.json()
   const found = customerBookings.find((b) => b.id === newBooking.id)
-  console.log(`6a. Found in Customer Portal: ${Boolean(found)} | Approved: ${Boolean(found?.approvedByAdmin) ? "✅ YES" : "❌ NO"}`)
-  if (!found || !Boolean(found.approvedByAdmin)) throw new Error("Customer portal does not reflect manager acceptance!")
+  console.log(
+    `6a. Found in Customer Portal: ${Boolean(found)} | Approved: ${
+      Boolean(found?.approvedByAdmin) ? "✅ YES" : "❌ NO"
+    }`,
+  )
+  if (!found || !Boolean(found.approvedByAdmin))
+    throw new Error("Customer portal does not reflect manager acceptance!")
 
   // 7. Test Manager Decline Flow
   console.log("\n--- Testing Manager Decline Flow ---")
-  const dDeclineStart = new Date(Date.now() + Math.floor(2500 + Math.random() * 800) * 86400000)
+  const dDeclineStart = new Date(
+    Date.now() + Math.floor(2500 + Math.random() * 800) * 86400000,
+  )
   const dDeclineEnd = new Date(dDeclineStart.getTime() + 4 * 86400000)
-  const declinePickup = dDeclineStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  const declineReturn = dDeclineEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  const declinePickup = dDeclineStart.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+  const declineReturn = dDeclineEnd.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
 
   const declineBookingRes = await fetch(`${BASE_URL}/bookings`, {
     method: "POST",
@@ -184,25 +254,41 @@ async function run() {
   })
   const toDecline = await declineBookingRes.json()
   if (declineBookingRes.status !== 201) {
-    console.error("Booking creation for decline failed:", declineBookingRes.status, toDecline)
+    console.error(
+      "Booking creation for decline failed:",
+      declineBookingRes.status,
+      toDecline,
+    )
     throw new Error("Failed to create booking for decline test")
   }
   console.log(`7a. New Request to Decline: ${toDecline.id}`)
 
-  const declineRes = await fetch(`${BASE_URL}/bookings/${toDecline.id}/decline`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${adminToken}`,
+  const declineRes = await fetch(
+    `${BASE_URL}/bookings/${toDecline.id}/decline`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${adminToken}`,
+      },
     },
-  })
+  )
   const declineData = await declineRes.json()
-  console.log(`7b. Manager Decline Response: "${declineData.message}" | Status: ${declineData.booking.status}`)
-  if (declineData.booking.status !== "Cancelled") throw new Error("Decline did not mark booking as Cancelled!")
+  console.log(
+    `7b. Manager Decline Response: "${declineData.message}" | Status: ${declineData.booking.status}`,
+  )
+  if (declineData.booking.status !== "Cancelled")
+    throw new Error("Decline did not mark booking as Cancelled!")
 
-  console.log("\n======================================================================")
-  console.log("  🏆 ALL CHECKS PASSED: SIMPLIFIED WORKFLOW & RBAC VERIFIED 100%")
-  console.log("======================================================================")
+  console.log(
+    "\n======================================================================",
+  )
+  console.log(
+    "  🏆 ALL CHECKS PASSED: SIMPLIFIED WORKFLOW & RBAC VERIFIED 100%",
+  )
+  console.log(
+    "======================================================================",
+  )
 }
 
 run().catch((err) => {

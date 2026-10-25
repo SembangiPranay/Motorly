@@ -589,10 +589,10 @@ export default function Header({
               Local Garage Fleet &amp; Vehicle Rentals
             </h3>
             <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              We maintain an inspected, clean fleet of vehicles directly from our
-              garage. We believe in transparent rates, honest vehicle maintenance,
-              and a simple reservation process without hidden fees or corporate
-              gimmicks.
+              We maintain an inspected, clean fleet of vehicles directly from
+              our garage. We believe in transparent rates, honest vehicle
+              maintenance, and a simple reservation process without hidden fees
+              or corporate gimmicks.
             </p>
             <div className="grid grid-cols-2 gap-3 text-xs pt-2">
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
@@ -604,7 +604,8 @@ export default function Header({
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="font-bold text-[#F97316]">Transparent Rates</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  Clear daily rates and pay-on-pickup with zero online surprise fees.
+                  Clear daily rates and pay-on-pickup with zero online surprise
+                  fees.
                 </p>
               </div>
             </div>
@@ -709,7 +710,8 @@ export default function Header({
 
             <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
               <span className="flex items-center gap-1 font-semibold text-gray-800">
-                <HeadsetIcon size={14} className="text-[#F97316]" /> Direct Line: (555) 123-4567
+                <HeadsetIcon size={14} className="text-[#F97316]" /> Direct
+                Line: (555) 123-4567
               </span>
               <span>Garage Service &amp; Maintenance Bay</span>
             </div>

@@ -139,7 +139,10 @@ export default function App() {
   useEffect(() => {
     try {
       if (bookings && bookings.length > 0) {
-        localStorage.setItem("motorly_cached_bookings", JSON.stringify(bookings))
+        localStorage.setItem(
+          "motorly_cached_bookings",
+          JSON.stringify(bookings),
+        )
       }
     } catch {}
   }, [bookings])
@@ -202,7 +205,9 @@ export default function App() {
         const hasAdmin = api.hasAdminToken()
         const [remoteCars, remoteBookings] = await Promise.all([
           api.getCars().catch(() => null),
-          hasAdmin ? api.getBookings().catch(() => null) : Promise.resolve(null),
+          hasAdmin
+            ? api.getBookings().catch(() => null)
+            : Promise.resolve(null),
         ])
 
         if (remoteCars && remoteCars.length > 0) {
@@ -308,8 +313,12 @@ export default function App() {
       driver: details.driver,
       pickupLocation: garageLoc,
       returnLocation: garageLoc,
-      pickupDate: bookingState.pickupDate,
-      returnDate: bookingState.returnDate,
+      pickupDate: bookingState.pickupTime
+        ? `${bookingState.pickupDate} ${bookingState.pickupTime}`
+        : bookingState.pickupDate,
+      returnDate: bookingState.returnTime
+        ? `${bookingState.returnDate} ${bookingState.returnTime}`
+        : bookingState.returnDate,
       requestedCategory: activeCar.type,
       matchedCarId: activeCar.id,
       status: "Assigned" as const,

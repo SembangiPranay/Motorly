@@ -90,6 +90,23 @@ function isSameDay(a: Date, b: Date): boolean {
   )
 }
 
+function parseHourFromTimeStr(t: string): number {
+  if (!t) return 10
+  const parts = t.split(" ")
+  const time = parts[0] || "10:00"
+  const modifier = parts[1] || "AM"
+  let [hours] = time.split(":").map(Number)
+  if (modifier === "PM" && hours < 12) hours += 12
+  if (modifier === "AM" && hours === 12) hours = 0
+  return hours
+}
+
+function formatHourToTimeStr(h: number): string {
+  const period = h >= 12 ? "PM" : "AM"
+  const displayHour = h % 12 === 0 ? 12 : h % 12
+  return `${displayHour.toString().padStart(2, "0")}:00 ${period}`
+}
+
 export default function DateSchedulingModal({
   isOpen,
   onClose,
@@ -160,14 +177,24 @@ export default function DateSchedulingModal({
 
   if (!isOpen || !mounted) return null
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const isSameDayBooking = isSameDay(selectedPickup, selectedReturn)
+  const pickupHour = parseHourFromTimeStr(pickupTime)
+  const returnHour = parseHourFromTimeStr(returnTime)
+  const sameDayHours = Math.max(0, returnHour - pickupHour)
+
   // Calculate rental duration in days
-  const rentalDays = Math.max(
-    1,
-    Math.round(
-      (selectedReturn.getTime() - selectedPickup.getTime()) /
-        (1000 * 60 * 60 * 24),
-    ),
-  )
+  const rentalDays = isSameDayBooking
+    ? 1
+    : Math.max(
+        1,
+        Math.round(
+          (selectedReturn.getTime() - selectedPickup.getTime()) /
+            (1000 * 60 * 60 * 24),
+        ),
+      )
 
   // Calendar grid calculations
   const year = currentMonth.getFullYear()
@@ -175,7 +202,12 @@ export default function DateSchedulingModal({
   const firstDayOfMonth = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
+  const isCurrentMonthOrPast =
+    year < today.getFullYear() ||
+    (year === today.getFullYear() && month <= today.getMonth())
+
   const handlePrevMonth = () => {
+    if (isCurrentMonthOrPast) return
     setCurrentMonth(new Date(year, month - 1, 1))
   }
 
@@ -185,29 +217,48 @@ export default function DateSchedulingModal({
 
   const handleDayClick = (day: number) => {
     const clickedDate = new Date(year, month, day)
+    if (clickedDate < today) return
 
     if (selectionStep === "pickup") {
       setSelectedPickup(clickedDate)
-      // If return date is on or before new pickup, set return to pickup + 3 days
-      if (selectedReturn <= clickedDate) {
-        setSelectedReturn(new Date(year, month, day + 3))
+      // If return date is before new pickup, align return date with pickup
+      if (selectedReturn < clickedDate) {
+        setSelectedReturn(clickedDate)
+        if (returnHour < pickupHour + 3) {
+          const newReturnHour = Math.min(22, Math.max(pickupHour + 4, 17))
+          setReturnTime(formatHourToTimeStr(newReturnHour))
+        }
       }
       setSelectionStep("return")
     } else {
       // Selecting return
-      if (clickedDate <= selectedPickup) {
-        // Reset pickup if clicked date is before pickup
+      if (clickedDate < selectedPickup) {
+        // If clicked date is before pickup, treat it as new pickup
         setSelectedPickup(clickedDate)
-        setSelectedReturn(new Date(year, month, day + 3))
+        setSelectedReturn(clickedDate)
         setSelectionStep("return")
       } else {
         setSelectedReturn(clickedDate)
+        // If selecting same day, ensure return time is at least 3 hours after pickup
+        if (isSameDay(selectedPickup, clickedDate)) {
+          if (returnHour < pickupHour + 3) {
+            const newReturnHour = Math.min(22, Math.max(pickupHour + 4, 17))
+            setReturnTime(formatHourToTimeStr(newReturnHour))
+          }
+        }
         setSelectionStep("pickup")
       }
     }
   }
 
   const applyPresetDays = (days: number) => {
+    if (days === 0) {
+      // Same day hourly rental preset
+      setSelectedReturn(new Date(selectedPickup))
+      setPickupTime("09:00 AM")
+      setReturnTime("05:00 PM")
+      return
+    }
     const newReturn = new Date(
       selectedPickup.getFullYear(),
       selectedPickup.getMonth(),
@@ -217,6 +268,12 @@ export default function DateSchedulingModal({
   }
 
   const handleConfirm = () => {
+    if (isSameDayBooking && returnHour < pickupHour + 3) {
+      alert(
+        "Minimum rental duration is 3 hours for same-day rentals. Please choose a return time at least 3 hours after pickup.",
+      )
+      return
+    }
     onApply({
       pickupDate: formatDateStr(selectedPickup),
       pickupTime,
@@ -303,13 +360,15 @@ export default function DateSchedulingModal({
           </label>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "1 Day", days: 1 },
+              { label: "Same Day (8 Hrs)", days: 0 },
+              { label: "1 Day (24 Hrs)", days: 1 },
               { label: "3 Days (Weekend)", days: 3 },
               { label: "7 Days (Week)", days: 7 },
               { label: "14 Days", days: 14 },
               { label: "30 Days (Month)", days: 30 },
             ].map((p) => {
-              const isSelected = rentalDays === p.days
+              const isSelected =
+                p.days === 0 ? isSameDayBooking : !isSameDayBooking && rentalDays === p.days
               return (
                 <button
                   key={p.days}
@@ -334,8 +393,13 @@ export default function DateSchedulingModal({
           <div className="flex items-center justify-between">
             <button
               type="button"
+              disabled={isCurrentMonthOrPast}
               onClick={handlePrevMonth}
-              className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-xs font-bold transition cursor-pointer shadow-xs"
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs ${
+                isCurrentMonthOrPast
+                  ? "opacity-30 cursor-not-allowed bg-stone-100 border-stone-200 text-stone-400"
+                  : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100 cursor-pointer"
+              }`}
             >
               ← Prev
             </button>
@@ -373,10 +437,25 @@ export default function DateSchedulingModal({
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1
               const thisDate = new Date(year, month, day)
+              const isPast = thisDate < today
               const isPickup = isSameDay(thisDate, selectedPickup)
               const isReturn = isSameDay(thisDate, selectedReturn)
               const isInRange =
                 thisDate > selectedPickup && thisDate < selectedReturn
+
+              if (isPast) {
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    disabled
+                    className="h-9 w-full rounded-xl flex items-center justify-center opacity-25 cursor-not-allowed bg-stone-100/60 text-stone-400 font-medium"
+                    title="Past dates are unavailable"
+                  >
+                    <span className="text-xs">{day}</span>
+                  </button>
+                )
+              }
 
               let style =
                 "bg-white hover:bg-orange-50 text-stone-800 border border-transparent"
@@ -395,16 +474,19 @@ export default function DateSchedulingModal({
                   className={`h-9 w-full rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${style}`}
                 >
                   <span className="text-xs">{day}</span>
-                  {isPickup && (
+                  {isPickup && isReturn ? (
+                    <span className="text-[7.5px] font-black uppercase tracking-tighter leading-none -mt-0.5">
+                      Same Day
+                    </span>
+                  ) : isPickup ? (
                     <span className="text-[8px] font-black uppercase tracking-tighter leading-none -mt-0.5">
                       Pickup
                     </span>
-                  )}
-                  {isReturn && (
+                  ) : isReturn ? (
                     <span className="text-[8px] font-black uppercase tracking-tighter leading-none -mt-0.5">
                       Return
                     </span>
-                  )}
+                  ) : null}
                 </button>
               )
             })}
@@ -420,7 +502,17 @@ export default function DateSchedulingModal({
             </label>
             <select
               value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value)}
+              onChange={(e) => {
+                const newPickupTime = e.target.value
+                setPickupTime(newPickupTime)
+                if (isSameDayBooking) {
+                  const newPickupHour = parseHourFromTimeStr(newPickupTime)
+                  if (returnHour < newPickupHour + 3) {
+                    const newReturnHour = Math.min(22, Math.max(newPickupHour + 4, 17))
+                    setReturnTime(formatHourToTimeStr(newReturnHour))
+                  }
+                }
+              }}
               className="w-full text-xs font-bold text-stone-900 bg-white border border-stone-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs"
             >
               {TIME_OPTIONS.map((t) => (
@@ -441,11 +533,21 @@ export default function DateSchedulingModal({
               onChange={(e) => setReturnTime(e.target.value)}
               className="w-full text-xs font-bold text-stone-900 bg-white border border-stone-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs"
             >
-              {TIME_OPTIONS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
+              {TIME_OPTIONS.map((t) => {
+                const tHour = parseHourFromTimeStr(t)
+                const isTooEarlyForSameDay =
+                  isSameDayBooking && tHour < pickupHour + 3
+                return (
+                  <option
+                    key={t}
+                    value={t}
+                    disabled={isTooEarlyForSameDay}
+                    className={isTooEarlyForSameDay ? "text-stone-300" : ""}
+                  >
+                    {t} {isTooEarlyForSameDay ? "(Min 3 hrs required)" : ""}
+                  </option>
+                )
+              })}
             </select>
           </div>
         </div>
@@ -455,7 +557,9 @@ export default function DateSchedulingModal({
           <div className="text-left w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <span className="text-sm sm:text-base font-black text-stone-900 font-heading">
-                {rentalDays} {rentalDays === 1 ? "Day" : "Days"} Total
+                {isSameDayBooking
+                  ? `Same-Day (${sameDayHours} Hours)`
+                  : `${rentalDays} ${rentalDays === 1 ? "Day" : "Days"} Total`}
               </span>
               <span className="text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                 ✓ Available for Order

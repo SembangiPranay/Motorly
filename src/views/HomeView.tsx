@@ -413,7 +413,9 @@ export default function HomeView({
               <h4 className="text-sm font-bold text-[#17191C] font-heading">
                 Direct Contact
               </h4>
-              <p className="text-xs text-gray-500">Owner &amp; manager support</p>
+              <p className="text-xs text-gray-500">
+                Owner &amp; manager support
+              </p>
             </div>
           </div>
         </div>
@@ -679,7 +681,8 @@ export default function HomeView({
               1. Choose a Vehicle
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Explore available cars in our garage with clear daily and weekly rates.
+              Explore available cars in our garage with clear daily and weekly
+              rates.
             </p>
           </div>
 
@@ -694,7 +697,8 @@ export default function HomeView({
               2. Submit Request
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Pick your rental dates and fill in your contact details. No online payment required upfront.
+              Pick your rental dates and fill in your contact details. No online
+              payment required upfront.
             </p>
           </div>
 
@@ -709,7 +713,8 @@ export default function HomeView({
               3. Manager Approval &amp; Pickup
             </h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              The garage manager approves your request. Inspect your car, pay on arrival, and pick up the keys.
+              The garage manager approves your request. Inspect your car, pay on
+              arrival, and pick up the keys.
             </p>
           </div>
         </div>

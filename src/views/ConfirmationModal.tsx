@@ -63,7 +63,9 @@ export default function ConfirmationModal({
             Booking Request Sent!
           </h2>
           <p className="text-xs text-gray-500">
-            Zero online payment charged. Our fleet manager will review your dates and accept your request. You will pay at the garage hub when collecting your keys!
+            Zero online payment charged. Our fleet manager will review your
+            dates and accept your request. You will pay at the garage hub when
+            collecting your keys!
           </p>
         </div>
 

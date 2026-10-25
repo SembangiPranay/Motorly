@@ -33,6 +33,7 @@ scratch/
 api/data/
 .agents/
 screenshots/
+scripts/backups/
 
 .vercel
 .env*

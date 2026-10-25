@@ -7,6 +7,7 @@ import type {
   AdminCustomerRecord,
   PromoCode,
   MaintenanceLog,
+  PaginatedMaintenanceLogs,
   BookingStatus,
 } from "../types"
 
@@ -763,10 +764,41 @@ class ApiService {
   }
 
   // --- Maintenance & Service Logs ---
-  async getMaintenanceLogs(): Promise<MaintenanceLog[]> {
-    const res = await this.request("/maintenance")
+  async getMaintenanceLogs(params?: {
+    page?: number
+    limit?: number
+    carId?: string
+    status?: string
+    search?: string
+    all?: boolean
+  }): Promise<PaginatedMaintenanceLogs> {
+    const query = new URLSearchParams()
+    if (params?.page) query.set("page", String(params.page))
+    if (params?.limit) query.set("limit", String(params.limit))
+    if (params?.carId) query.set("carId", params.carId)
+    if (params?.status) query.set("status", params.status)
+    if (params?.search) query.set("search", params.search)
+    if (params?.all) query.set("all", "true")
+
+    const queryString = query.toString() ? `?${query.toString()}` : ""
+    const res = await this.request(`/maintenance${queryString}`)
     if (!res.ok) throw new Error("Failed to fetch maintenance logs")
-    return res.json()
+    const json = await res.json()
+
+    if (Array.isArray(json)) {
+      return {
+        data: json,
+        pagination: {
+          page: 1,
+          limit: json.length,
+          total: json.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      }
+    }
+    return json
   }
 
   async createMaintenanceLog(data: {

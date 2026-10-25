@@ -36,7 +36,8 @@ async function verifyServers() {
   console.log("Checking server health...")
   try {
     const backendRes = await fetch("http://localhost:3001/api/cars")
-    if (!backendRes.ok) throw new Error(`Backend returned HTTP ${backendRes.status}`)
+    if (!backendRes.ok)
+      throw new Error(`Backend returned HTTP ${backendRes.status}`)
     console.log(" Backend API healthy on port 3001")
   } catch (err) {
     throw new Error(`Backend API unreachable on port 3001: ${err.message}`)
@@ -48,7 +49,9 @@ async function verifyServers() {
     if (!viteRes.ok) throw new Error(`Vite returned HTTP ${viteRes.status}`)
     console.log(` Frontend Vite server healthy on port ${frontendPort}`)
   } catch (err) {
-    throw new Error(`Frontend Vite server unreachable on port ${frontendPort}: ${err.message}`)
+    throw new Error(
+      `Frontend Vite server unreachable on port ${frontendPort}: ${err.message}`,
+    )
   }
 }
 
@@ -63,7 +66,9 @@ async function run() {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true })
   }
 
-  console.log("\nExecuting Playwright E2E Visual Suite via npx playwright test...")
+  console.log(
+    "\nExecuting Playwright E2E Visual Suite via npx playwright test...",
+  )
   const startTime = Date.now()
 
   try {
@@ -73,7 +78,9 @@ async function run() {
         ...process.env,
       },
     })
-    console.log(`\nPlaywright test suite completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s`)
+    console.log(
+      `\nPlaywright test suite completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+    )
   } catch (err) {
     console.error("\nPlaywright execution encountered an error:", err.message)
     // Continue to audit screenshots captured
@@ -84,7 +91,8 @@ async function run() {
   console.log("  SCREENSHOT ARTIFACT AUDIT & INTEGRITY VERIFICATION")
   console.log("-".repeat(80))
 
-  const files = fs.readdirSync(SCREENSHOTS_DIR)
+  const files = fs
+    .readdirSync(SCREENSHOTS_DIR)
     .filter((f) => f.endsWith(".png"))
     .sort()
 
@@ -98,13 +106,16 @@ async function run() {
     const stats = fs.statSync(fullPath)
     const sizeKb = (stats.size / 1024).toFixed(1)
     const dims = getPngDimensions(fullPath)
-    const isValid = stats.size > 20000 && dims && dims.width >= 1280 && dims.height >= 800
+    const isValid =
+      stats.size > 20000 && dims && dims.width >= 1280 && dims.height >= 800
 
     if (isValid) validCount++
 
     const status = isValid ? "[PASS]" : "[WARN]"
     const dimStr = dims ? `${dims.width}x${dims.height}` : "Unknown"
-    console.log(`${status} ${file.padEnd(46)} | ${sizeKb.padStart(7)} KB | ${dimStr.padStart(11)}`)
+    console.log(
+      `${status} ${file.padEnd(46)} | ${sizeKb.padStart(7)} KB | ${dimStr.padStart(11)}`,
+    )
 
     auditReport.push({
       file,
@@ -116,7 +127,9 @@ async function run() {
   }
 
   console.log("-".repeat(80))
-  console.log(`Verification Summary: ${validCount} of ${files.length} screenshots fully validated (>= 1280x800, non-empty)\n`)
+  console.log(
+    `Verification Summary: ${validCount} of ${files.length} screenshots fully validated (>= 1280x800, non-empty)\n`,
+  )
 
   return auditReport
 }

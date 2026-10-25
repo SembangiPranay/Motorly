@@ -667,7 +667,9 @@ export default function MyBookingsView({
                               </span>
                             </div>
                             <p className="text-xs text-stone-600 mb-3">
-                              Your reservation request was reviewed and accepted by the manager. Please proceed to the garage bay below to pay and collect your keys:
+                              Your reservation request was reviewed and accepted
+                              by the manager. Please proceed to the garage bay
+                              below to pay and collect your keys:
                             </p>
 
                             {/* Exact Garage Hub & Bay Location with Interactive Map Engine */}
@@ -715,7 +717,10 @@ export default function MyBookingsView({
                                   Awaiting Fleet Manager Acceptance
                                 </span>
                                 <span className="text-stone-600 text-[11px]">
-                                  Your reservation request has been sent to our fleet manager. Zero advance payment charged — you will pay at the garage upon key pickup once accepted.
+                                  Your reservation request has been sent to our
+                                  fleet manager. Zero advance payment charged —
+                                  you will pay at the garage upon key pickup
+                                  once accepted.
                                 </span>
                               </div>
                             </div>
@@ -1202,7 +1207,8 @@ export default function MyBookingsView({
                     SHOW UPON ARRIVAL AT GARAGE
                   </p>
                   <p className="text-[10px] text-stone-400 mt-0.5 relative z-20">
-                    Present this voucher to the manager to inspect the vehicle and collect the keys.
+                    Present this voucher to the manager to inspect the vehicle
+                    and collect the keys.
                   </p>
                 </div>
 

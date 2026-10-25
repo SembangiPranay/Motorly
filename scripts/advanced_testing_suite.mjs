@@ -209,8 +209,16 @@ async function runAdvancedTestingSuite() {
     const raceDaysAhead = Math.floor(100 + Math.random() * 800)
     const dRaceStart = new Date(Date.now() + raceDaysAhead * 86400000)
     const dRaceEnd = new Date(Date.now() + (raceDaysAhead + 4) * 86400000)
-    const racePickup = dRaceStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    const raceReturn = dRaceEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    const racePickup = dRaceStart.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    const raceReturn = dRaceEnd.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
 
     console.log(
       `Firing 5 simultaneous concurrent reservation attempts for available vehicle "${sampleAvailCar.name}" (${targetCarId}) on ${racePickup}...`,
@@ -309,8 +317,16 @@ async function runAdvancedTestingSuite() {
     const p4Days = Math.floor(1000 + Math.random() * 800)
     const p4Start = new Date(Date.now() + p4Days * 86400000)
     const p4End = new Date(Date.now() + (p4Days + 4) * 86400000)
-    const p4Pickup = p4Start.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    const p4Return = p4End.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    const p4Pickup = p4Start.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    const p4Return = p4End.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
 
     // 4.2 Lowercase promo code normalization & FK safety
     const lcPromoRes = await fetch(`${API_BASE}/bookings`, {
@@ -463,8 +479,15 @@ async function runAdvancedTestingSuite() {
     // 5.5 Verify Conflict Detection catches the extended period
     const dConflictCheckStart = new Date(p4End.getTime() + 86400000)
     const dConflictCheckEnd = new Date(p4End.getTime() + 2 * 86400000)
-    const conflictCheckPickup = dConflictCheckStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    const conflictCheckReturn = dConflictCheckEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    const conflictCheckPickup = dConflictCheckStart.toLocaleDateString(
+      "en-US",
+      { month: "short", day: "numeric", year: "numeric" },
+    )
+    const conflictCheckReturn = dConflictCheckEnd.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
 
     const extendedConflictRes = await fetch(
       `${API_BASE}/cars/honda-crv/availability?pickupDate=${encodeURIComponent(conflictCheckPickup)}&returnDate=${encodeURIComponent(conflictCheckReturn)}`,
@@ -499,8 +522,16 @@ async function runAdvancedTestingSuite() {
 
     const dCounterStart = new Date(Date.now() + 1500 * 86400000)
     const dCounterEnd = new Date(Date.now() + 1504 * 86400000)
-    const counterPickup = dCounterStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    const counterReturn = dCounterEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    const counterPickup = dCounterStart.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    const counterReturn = dCounterEnd.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
 
     // Create walkin booking for carOldId
     const walkinRes = await fetch(`${API_BASE}/admin/counter-booking`, {

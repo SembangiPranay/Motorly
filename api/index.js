@@ -39426,13 +39426,14 @@ try {
 	if (typeof process.loadEnvFile === "function") process.loadEnvFile();
 } catch {}
 const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename$1);
+const __dirname$1 = path.dirname(__filename$1);
+const isProduction$1 = process.env.NODE_ENV === "production";
 let sqliteInstance = null;
 let dbPath = "";
-try {
+if (!isProduction$1) try {
 	const sqliteMod = await import("node:sqlite").catch(() => null);
 	if (sqliteMod && sqliteMod.DatabaseSync) {
-		let dataDir = path.join(__dirname, "data");
+		let dataDir = path.join(__dirname$1, "data");
 		if (process.env.VERCEL === "1" || process.env.NOW_REGION) dataDir = path.join(os.tmpdir(), "drive_rent_data");
 		if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 		dbPath = path.join(dataDir, "drive_rent.db");
@@ -39442,18 +39443,23 @@ try {
 	console.warn("[DB] Local SQLite initialization skipped/disabled:", e?.message);
 }
 const sqlite = sqliteInstance;
-const SUPABASE_POOLER_URL = process.env.DATABASE_URL || "postgresql://postgres.mrbymhhcjvebpxcfmnhy:Koushik.git1@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
-const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL || "postgresql://postgres:Koushik.git1@db.mrbymhhcjvebpxcfmnhy.supabase.co:5432/postgres";
+const SUPABASE_POOLER_URL = process.env.DATABASE_URL || "";
+const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL || "";
+if (isProduction$1 && !SUPABASE_POOLER_URL && !SUPABASE_DIRECT_URL) throw new Error("[SECURITY CRITICAL] DATABASE_URL environment variable is required in production.");
 let supabasePool = null;
 let isSupabaseActive = false;
 let activeConnStr = SUPABASE_POOLER_URL;
 function createSupabasePool(connectionString) {
+	const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== void 0 ? process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true" : isProduction$1;
+	const sslConfig = { rejectUnauthorized };
+	if (process.env.DATABASE_CA_CERT) sslConfig.ca = process.env.DATABASE_CA_CERT;
+	if (!rejectUnauthorized && isProduction$1) console.warn("[SECURITY WARNING] Database TLS certificate validation is disabled in production! Set DATABASE_SSL_REJECT_UNAUTHORIZED=true or provide DATABASE_CA_CERT.");
 	const pool = new Pool({
 		connectionString,
-		ssl: { rejectUnauthorized: false },
-		connectionTimeoutMillis: 1e4,
-		idleTimeoutMillis: 15e3,
-		max: 10,
+		ssl: sslConfig,
+		connectionTimeoutMillis: 15e3,
+		idleTimeoutMillis: 3e4,
+		max: 25,
 		keepAlive: true,
 		keepAliveInitialDelayMillis: 1e4
 	});
@@ -39478,7 +39484,7 @@ async function querySupabaseWithRetry(sql, params = []) {
 			console.warn(`[DB Auto-Recovery] Transient connection issue (${firstErr?.message}). Refreshing pool & retrying...`);
 			try {
 				try {
-					await supabasePool.end().catch(() => {});
+					supabasePool.end().catch(() => {});
 				} catch {}
 				supabasePool = createSupabasePool(activeConnStr);
 				return await supabasePool.query(translated, params);
@@ -39494,6 +39500,18 @@ const db = {
 	get isSupabase() {
 		return isSupabaseActive;
 	},
+	get activeHost() {
+		if (activeConnStr) try {
+			return new URL(activeConnStr).host;
+		} catch {}
+		return null;
+	},
+	get activeDbName() {
+		if (activeConnStr) try {
+			return new URL(activeConnStr).pathname.replace(/^\//, "");
+		} catch {}
+		return null;
+	},
 	get pool() {
 		return supabasePool;
 	},
@@ -39506,7 +39524,7 @@ const db = {
 			return (await querySupabaseWithRetry(sql, params)).rows;
 		} catch (err) {
 			console.warn("[Supabase Query Warning]", err?.message);
-			if (sqlite) {
+			if (!isProduction$1 && sqlite) {
 				console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45));
 				try {
 					return sqlite.prepare(sql).all(...params);
@@ -39525,7 +39543,7 @@ const db = {
 			return (await querySupabaseWithRetry(sql, params)).rows[0] || null;
 		} catch (err) {
 			console.warn("[Supabase Query Warning]", err?.message);
-			if (sqlite) {
+			if (!isProduction$1 && sqlite) {
 				console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45));
 				try {
 					return sqlite.prepare(sql).get(...params);
@@ -39551,7 +39569,7 @@ const db = {
 			};
 		} catch (err) {
 			console.warn("[Supabase Exec Warning]", err?.message);
-			if (sqlite) {
+			if (!isProduction$1 && sqlite) {
 				console.log("[DB Fallback] Executing write in SQLite mirror:", sql.slice(0, 45));
 				try {
 					const res = sqlite.prepare(sql).run(...params);
@@ -39580,6 +39598,98 @@ const db = {
 			get: (...params) => db.get(sql, ...params),
 			run: (...params) => db.run(sql, ...params)
 		};
+	},
+	async transaction(task) {
+		if (!isSupabaseActive && !sqlite) await ensureDatabase();
+		if (isSupabaseActive && supabasePool) {
+			const client = await supabasePool.connect();
+			try {
+				await client.query("BEGIN");
+				const tx = {
+					async all(sql, ...params) {
+						const translated = translateSql(sql);
+						return (await client.query(translated, params)).rows;
+					},
+					async get(sql, ...params) {
+						const translated = translateSql(sql);
+						return (await client.query(translated, params)).rows[0] || null;
+					},
+					async run(sql, ...params) {
+						const translated = translateSql(sql);
+						const res = await client.query(translated, params);
+						if (sqlite) try {
+							sqlite.prepare(sql).run(...params);
+						} catch {}
+						return {
+							changes: res.rowCount || 0,
+							rowCount: res.rowCount || 0
+						};
+					},
+					prepare(sql) {
+						return {
+							all: (...params) => tx.all(sql, ...params),
+							get: (...params) => tx.get(sql, ...params),
+							run: (...params) => tx.run(sql, ...params)
+						};
+					}
+				};
+				const result = await task(tx);
+				await client.query("COMMIT");
+				return result;
+			} catch (err) {
+				try {
+					await client.query("ROLLBACK");
+				} catch {}
+				throw err;
+			} finally {
+				client.release();
+			}
+		}
+		if (sqlite) {
+			sqlite.exec("BEGIN IMMEDIATE");
+			try {
+				const tx = {
+					async all(sql, ...params) {
+						return sqlite.prepare(sql).all(...params);
+					},
+					async get(sql, ...params) {
+						return sqlite.prepare(sql).get(...params);
+					},
+					async run(sql, ...params) {
+						const res = sqlite.prepare(sql).run(...params);
+						return {
+							changes: res?.changes || 1,
+							rowCount: res?.changes || 1
+						};
+					},
+					prepare(sql) {
+						return {
+							all: (...params) => tx.all(sql, ...params),
+							get: (...params) => tx.get(sql, ...params),
+							run: (...params) => tx.run(sql, ...params)
+						};
+					}
+				};
+				const result = await task(tx);
+				sqlite.exec("COMMIT");
+				return result;
+			} catch (err) {
+				try {
+					sqlite.exec("ROLLBACK");
+				} catch {}
+				throw err;
+			}
+		}
+		throw new Error("No database connection available (Supabase offline and SQLite unavailable).");
+	},
+	async withVehicleBookingLock(carId, task) {
+		return await this.transaction(async (tx) => {
+			if (carId && isSupabaseActive && supabasePool) {
+				await tx.get("SELECT pg_advisory_xact_lock(hashtext(?))", `vehicle_booking_${carId}`);
+				await tx.get("SELECT id, status FROM vehicles WHERE id = ? FOR UPDATE", carId);
+			}
+			return await task(tx);
+		});
 	}
 };
 async function ensureDatabase() {
@@ -39590,7 +39700,7 @@ async function ensureDatabase() {
 async function initDatabase() {
 	console.log("[DB] Connecting to Supabase PostgreSQL...");
 	try {
-		const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL];
+		const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL].filter(Boolean);
 		let connected = false;
 		for (const connStr of candidateUrls) try {
 			const pool = createSupabasePool(connStr);
@@ -39600,7 +39710,7 @@ async function initDatabase() {
 				activeConnStr = connStr;
 				isSupabaseActive = true;
 				connected = true;
-				console.log(`[DB] Connected directly to Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy, db: ${testRes.rows[0].db})`);
+				console.log(`[DB] Connected directly to Supabase PostgreSQL (db: ${testRes.rows[0].db})`);
 				break;
 			}
 		} catch (e) {
@@ -39609,11 +39719,15 @@ async function initDatabase() {
 		if (connected && supabasePool) {
 			await initSupabaseTables(supabasePool);
 			console.log("[DB] Supabase PostgreSQL tables verified and active!");
-		} else console.warn(`[DB] Could not connect to Supabase. Falling back to local SQLite at ${dbPath}`);
+		} else {
+			if (isProduction$1) throw new Error("[SECURITY CRITICAL] Failed to connect to primary PostgreSQL database in production. Aborting to prevent split-brain SQLite degradation.");
+			console.warn(`[DB] Could not connect to Supabase. Falling back to local SQLite at ${dbPath}`);
+		}
 	} catch (err) {
+		if (isProduction$1) throw err;
 		console.warn(`[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`);
 	}
-	if (sqlite) try {
+	if (!isProduction$1 && sqlite) try {
 		initSqliteTables();
 	} catch (e) {
 		console.warn("[DB] Local SQLite mirror setup skipped:", e?.message);
@@ -40876,7 +40990,7 @@ function seedMaintenance() {
 //#endregion
 //#region server/index.ts
 const __filename = fileURLToPath(import.meta.url);
-path.dirname(__filename);
+const __dirname = path.dirname(__filename);
 try {
 	await initDatabase();
 } catch (err) {
@@ -40934,13 +41048,21 @@ try {
 } catch (err) {
 	console.warn("[DB Reconciliation Init Error]", err?.message);
 }
+const isProduction = process.env.NODE_ENV === "production";
 const app = (0, import_express.default)();
 const PORT = process.env.PORT_BACKEND || 3001;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0709";
-const JWT_SECRET = process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-prod";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (isProduction ? "" : "0709");
+const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? "" : "motorly-fleet-jwt-secret-secure-key-2026-dev");
+if (isProduction) {
+	if (!ADMIN_PASSWORD || ADMIN_PASSWORD === "0709") throw new Error("[SECURITY CRITICAL] A secure, non-default ADMIN_PASSWORD must be configured in production.");
+	if (!JWT_SECRET || JWT_SECRET.includes("motorly-fleet-jwt-secret")) throw new Error("[SECURITY CRITICAL] A secure, non-default JWT_SECRET must be configured in production.");
+}
 app.use((0, import_lib.default)());
 app.use(import_express.json({ limit: "20mb" }));
+const publicImagesDir = path.join(__dirname, "../public/images");
+if (fs.existsSync(publicImagesDir)) app.use(["/images", "/api/images"], import_express.static(publicImagesDir, { maxAge: "1d" }));
 app.use((req, _res, next) => {
+	if (req.url.startsWith("/images")) return next();
 	if (!req.url.startsWith("/api")) req.url = "/api" + (req.url.startsWith("/") ? req.url : "/" + req.url);
 	next();
 });
@@ -40949,6 +41071,12 @@ app.get(["/api", "/api/health"], async (_req, res) => {
 		status: "ok",
 		service: "MOTORLY Fleet API",
 		supabase: db.isSupabase,
+		database: {
+			active: db.isSupabase ? "supabase" : "sqlite",
+			host: db.activeHost || null,
+			name: db.activeDbName || null
+		},
+		environment: isProduction ? "production" : "staging",
 		timestamp: (/* @__PURE__ */ new Date()).toISOString()
 	});
 });
@@ -41166,39 +41294,12 @@ async function requireAuth(req, res, next) {
 		message: "Authorization token required."
 	});
 	const decoded = verifyJwtToken(token);
-	if (decoded) {
-		req.user = decoded;
-		return next();
-	}
-	try {
-		if (await db.prepare("SELECT token FROM admin_sessions WHERE token = ?").get(token)) {
-			req.user = {
-				userId: "usr_admin",
-				email: "admin@motorly.com",
-				name: "Fleet Operations Admin",
-				role: "admin"
-			};
-			return next();
-		}
-		const customerSess = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?").get(token);
-		if (customerSess) {
-			const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(customerSess.user_id);
-			if (u) {
-				req.user = {
-					userId: u.id,
-					email: u.email,
-					name: u.name,
-					role: u.role || "customer",
-					vipTier: u.vip_tier || "Standard"
-				};
-				return next();
-			}
-		}
-	} catch {}
-	return res.status(401).json({
+	if (!decoded) return res.status(401).json({
 		authenticated: false,
 		message: "Invalid or expired authorization token."
 	});
+	req.user = decoded;
+	return next();
 }
 async function requireAdmin(req, res, next) {
 	const token = parseAuthHeader(req) || req.body && req.body.token;
@@ -41207,51 +41308,22 @@ async function requireAdmin(req, res, next) {
 		message: "Authorization token required for fleet manager operations."
 	});
 	const decoded = verifyJwtToken(token);
-	if (decoded) {
-		if (decoded.role !== "admin") return res.status(403).json({
-			authenticated: true,
-			error: "Access denied. Fleet Manager (admin) privileges required."
-		});
-		req.user = decoded;
-		return next();
-	}
-	try {
-		if (await db.prepare("SELECT token FROM admin_sessions WHERE token = ?").get(token)) {
-			req.user = {
-				userId: "usr_admin",
-				email: "admin@motorly.com",
-				name: "Fleet Operations Admin",
-				role: "admin"
-			};
-			return next();
-		}
-	} catch {}
-	return res.status(403).json({
+	if (!decoded) return res.status(401).json({
 		authenticated: false,
-		error: "Access denied. Valid Fleet Manager authorization required."
+		message: "Invalid or expired authorization token."
 	});
+	if (decoded.role !== "admin") return res.status(403).json({
+		authenticated: true,
+		error: "Access denied. Fleet Manager (admin) privileges required."
+	});
+	req.user = decoded;
+	return next();
 }
 async function optionalAuth(req, _res, next) {
 	const token = parseAuthHeader(req) || req.body && req.body.token;
 	if (token) {
 		const decoded = verifyJwtToken(token);
-		if (decoded) {
-			req.user = decoded;
-			return next();
-		}
-		try {
-			const customerSess = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?").get(token);
-			if (customerSess) {
-				const u = await db.prepare("SELECT * FROM users WHERE id = ?").get(customerSess.user_id);
-				if (u) req.user = {
-					userId: u.id,
-					email: u.email,
-					name: u.name,
-					role: u.role || "customer",
-					vipTier: u.vip_tier || "Standard"
-				};
-			}
-		} catch {}
+		if (decoded) req.user = decoded;
 	}
 	next();
 }
@@ -41286,7 +41358,7 @@ app.post("/api/auth/login", async (req, res) => {
 	}
 	if (!isMasterPass && !isDbPassValid) return res.status(401).json({
 		success: false,
-		message: "Invalid administrator credentials. Use passcode 0709 or authorized admin email."
+		message: "Invalid administrator credentials."
 	});
 	const adminPayload = {
 		userId: dbAdminUser?.id || "usr_admin",
@@ -41313,24 +41385,14 @@ app.post("/api/auth/verify", async (req, res) => {
 	const token = parseAuthHeader(req) || req.body?.token;
 	if (!token) return res.status(401).json({ authenticated: false });
 	const decoded = verifyJwtToken(token);
-	if (decoded && decoded.role === "admin") return res.json({
-		authenticated: true,
-		role: "admin",
-		user: decoded
-	});
-	if (!await db.prepare("SELECT token FROM admin_sessions WHERE token = ?").get(token)) return res.status(401).json({
+	if (!decoded || decoded.role !== "admin") return res.status(401).json({
 		authenticated: false,
 		message: "Session expired or invalid."
 	});
 	return res.json({
 		authenticated: true,
 		role: "admin",
-		user: {
-			userId: "usr_admin",
-			email: "admin@motorly.com",
-			name: "Fleet Operations Admin",
-			role: "admin"
-		}
+		user: decoded
 	});
 });
 app.post("/api/auth/register", async (req, res) => {
@@ -41416,30 +41478,22 @@ app.get("/api/auth/customer-me", async (req, res) => {
 		message: "No token provided."
 	});
 	const decoded = verifyJwtToken(token);
-	if (decoded) {
-		if (decoded.role === "admin") return res.json({
-			authenticated: true,
-			user: {
-				id: decoded.userId,
-				email: decoded.email,
-				name: decoded.name,
-				role: "admin",
-				vipTier: "VIP",
-				phone: "+1 (305) 555-0709"
-			}
-		});
-		const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(decoded.userId);
-		if (user) return res.json({
-			authenticated: true,
-			user: formatUserRow(user)
-		});
-	}
-	const session = await db.prepare("SELECT user_id FROM customer_sessions WHERE token = ?").get(token);
-	if (!session) return res.status(401).json({
+	if (!decoded) return res.status(401).json({
 		authenticated: false,
 		message: "Session invalid or expired."
 	});
-	const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(session.user_id);
+	if (decoded.role === "admin") return res.json({
+		authenticated: true,
+		user: {
+			id: decoded.userId,
+			email: decoded.email,
+			name: decoded.name,
+			role: "admin",
+			vipTier: "VIP",
+			phone: "+1 (305) 555-0709"
+		}
+	});
+	const user = await db.prepare("SELECT * FROM users WHERE id = ?").get(decoded.userId);
 	if (!user) return res.status(404).json({
 		authenticated: false,
 		message: "User not found."
@@ -41503,12 +41557,83 @@ app.get("/api/cars", async (req, res) => {
 	}
 	query += " ORDER BY is_popular DESC, price_per_day ASC";
 	const cars = (await db.prepare(query).all(...params)).map(formatCarRow);
-	if (pickupDate && returnDate) for (const car of cars) {
-		const conflict = await findVehicleBookingConflict(car.id, String(pickupDate), String(returnDate));
-		car.isAvailableForDates = !conflict && car.status !== "Maintenance";
-		car.conflict = conflict || null;
-		if (conflict) car.statusForDates = "Reserved";
-		else car.statusForDates = car.status;
+	if (pickupDate && returnDate) {
+		const range = parseDateRangeStrict(String(pickupDate), String(returnDate));
+		if (!range.valid) for (const car of cars) {
+			car.isAvailableForDates = false;
+			car.conflict = {
+				conflictingBookingId: "INVALID_DATES",
+				customerName: "Validation Guard",
+				pickupDate: String(pickupDate),
+				returnDate: String(returnDate),
+				status: "Invalid Dates",
+				reason: range.error || "Invalid date range specified."
+			};
+			car.statusForDates = "Invalid Dates";
+		}
+		else try {
+			const activeBookings = await db.prepare(`
+            SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status, matched_car_id
+            FROM bookings
+            WHERE matched_car_id IS NOT NULL
+              AND status NOT IN ('Completed', 'Cancelled')
+          `).all();
+			const bookingsByCar = /* @__PURE__ */ new Map();
+			for (const b of activeBookings) {
+				if (!b.matched_car_id) continue;
+				const list = bookingsByCar.get(b.matched_car_id) || [];
+				list.push(b);
+				bookingsByCar.set(b.matched_car_id, list);
+			}
+			for (const car of cars) {
+				if (car.status === "Maintenance") {
+					car.isAvailableForDates = false;
+					car.conflict = {
+						conflictingBookingId: "MAINTENANCE",
+						customerName: "Fleet Maintenance",
+						pickupDate: "Active",
+						returnDate: "Scheduled",
+						status: "Maintenance"
+					};
+					car.statusForDates = "Maintenance";
+					continue;
+				}
+				const carBookings = bookingsByCar.get(car.id) || [];
+				let conflict = null;
+				for (const b of carBookings) {
+					const bRange = parseDateRangeStrict(b.pickup_date, b.return_date);
+					const bStart = bRange.valid ? bRange.start : Date.parse(b.pickup_date);
+					const bEnd = bRange.valid ? bRange.end : Date.parse(b.return_date);
+					if (!isNaN(bStart) && !isNaN(bEnd) && datesOverlap(range.start, range.end, bStart, bEnd)) {
+						conflict = {
+							conflictingBookingId: b.id,
+							customerName: `${b.customer_first_name} ${b.customer_last_name}`,
+							pickupDate: b.pickup_date,
+							returnDate: b.return_date,
+							status: b.status
+						};
+						break;
+					}
+				}
+				car.isAvailableForDates = !conflict;
+				car.conflict = conflict || null;
+				car.statusForDates = conflict ? "Reserved" : car.status;
+			}
+		} catch (err) {
+			console.error("[Safe Availability Batch Error]", err?.message);
+			for (const car of cars) {
+				car.isAvailableForDates = false;
+				car.conflict = {
+					conflictingBookingId: "DB_FAILSAFE",
+					customerName: "System Guard",
+					pickupDate: String(pickupDate),
+					returnDate: String(returnDate),
+					status: "Degraded Safe",
+					reason: "Availability check degraded safely to prevent overbooking."
+				};
+				car.statusForDates = "Unavailable";
+			}
+		}
 	}
 	return res.json(cars);
 });
@@ -41575,154 +41700,356 @@ app.delete("/api/cars/:id", requireAdmin, async (req, res) => {
 		message: "Vehicle decommissioned and removed."
 	});
 });
-function parseDateRange(pickupStr, returnStr) {
-	let start = Date.parse(pickupStr);
-	let end = Date.parse(returnStr);
-	if (isNaN(start)) start = Date.now();
-	if (isNaN(end)) end = start + 2592e5;
-	if (end <= start) end = start + 864e5;
+function parseDateWithTime(dateStr, defaultTime = "09:00 AM") {
+	if (!dateStr || typeof dateStr !== "string") return NaN;
+	const trimmed = dateStr.trim();
+	if (!/\b(\d{1,2}:\d{2}(\s*(AM|PM))?|T\d{2}:\d{2})/i.test(trimmed)) {
+		const withTime = `${trimmed} ${defaultTime}`;
+		const parsedWithTime = Date.parse(withTime);
+		if (!isNaN(parsedWithTime)) return parsedWithTime;
+	}
+	return Date.parse(trimmed);
+}
+function parseDateRangeStrict(pickupStr, returnStr, options) {
+	if (!pickupStr || !returnStr || typeof pickupStr !== "string" || typeof returnStr !== "string") return {
+		start: 0,
+		end: 0,
+		valid: false,
+		error: "Both pickup date and return date are required valid strings."
+	};
+	const trimmedPickup = pickupStr.trim();
+	const trimmedReturn = returnStr.trim();
+	if (!trimmedPickup || !trimmedReturn) return {
+		start: 0,
+		end: 0,
+		valid: false,
+		error: "Pickup date and return date cannot be empty."
+	};
+	const start = parseDateWithTime(trimmedPickup, "09:00 AM");
+	const end = parseDateWithTime(trimmedReturn, "06:00 PM");
+	if (isNaN(start) || isNaN(end)) return {
+		start: 0,
+		end: 0,
+		valid: false,
+		error: `Invalid date format provided (pickup: "${pickupStr}", return: "${returnStr}").`
+	};
+	if (end <= start) return {
+		start,
+		end,
+		valid: false,
+		error: "Return date and time must be strictly after pickup date and time."
+	};
+	const durationMs = end - start;
+	if (durationMs < 108e5) return {
+		start,
+		end,
+		valid: false,
+		error: "Minimum rental duration is 3 hours. Please select a return time at least 3 hours after pickup."
+	};
+	if (durationMs > 3888e6) return {
+		start,
+		end,
+		valid: false,
+		error: "Maximum online reservation duration is 45 days. For extended commercial leasing, please contact fleet operations."
+	};
+	if (options?.checkPastDates) {
+		if (start < Date.now() - 9e5) return {
+			start,
+			end,
+			valid: false,
+			error: "Pickup date and time cannot be in the past. Please select a future date and time."
+		};
+	}
 	return {
 		start,
-		end
+		end,
+		valid: true,
+		durationHours: Math.round(durationMs / 36e5 * 10) / 10,
+		durationDays: Math.max(1, Math.ceil(durationMs / 864e5))
 	};
+}
+function validateCustomerContact(customer) {
+	if (!customer) return {
+		valid: false,
+		error: "Customer details are required."
+	};
+	const firstName = String(customer.firstName || "").trim();
+	const lastName = String(customer.lastName || "").trim();
+	const email = String(customer.email || "").trim();
+	const phone = String(customer.phone || "").trim();
+	if (!firstName) return {
+		valid: false,
+		error: "Customer first name is required."
+	};
+	if (!lastName) return {
+		valid: false,
+		error: "Customer last name is required."
+	};
+	if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return {
+		valid: false,
+		error: "A valid customer email address is required."
+	};
+	if (!phone || phone.replace(/\D/g, "").length < 7) return {
+		valid: false,
+		error: "A valid phone number with at least 7 digits is required."
+	};
+	return { valid: true };
+}
+function validateDriverInfo(driver, pickupTimestamp, returnTimestamp) {
+	if (!driver) return { valid: true };
+	if (driver.licenseExpiry) {
+		const expiryStr = String(driver.licenseExpiry).trim();
+		const expiryTimestamp = Date.parse(expiryStr);
+		if (isNaN(expiryTimestamp)) return {
+			valid: false,
+			error: "Invalid driver's license expiration date format."
+		};
+		if (expiryTimestamp <= Date.now()) return {
+			valid: false,
+			error: "Driver's license is expired. A valid, unexpired driver's license is required to drive."
+		};
+		if (expiryTimestamp < returnTimestamp) return {
+			valid: false,
+			error: `Driver's license expires on ${new Date(expiryTimestamp).toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "short",
+				day: "numeric"
+			})}, before the scheduled rental return date. A license valid through the entire rental duration is required.`
+		};
+	}
+	if (driver.dateOfBirth) {
+		const dobStr = String(driver.dateOfBirth).trim();
+		const dobTimestamp = Date.parse(dobStr);
+		if (isNaN(dobTimestamp)) return {
+			valid: false,
+			error: "Invalid driver's date of birth format."
+		};
+		const pickupDate = new Date(pickupTimestamp);
+		const birthDate = new Date(dobTimestamp);
+		let age = pickupDate.getFullYear() - birthDate.getFullYear();
+		const m = pickupDate.getMonth() - birthDate.getMonth();
+		if (m < 0 || m === 0 && pickupDate.getDate() < birthDate.getDate()) age--;
+		if (age < 21) return {
+			valid: false,
+			error: `Driver must be at least 21 years old to rent a vehicle. Verified age: ${age} years old.`
+		};
+		if (age > 105) return {
+			valid: false,
+			error: "Invalid driver's date of birth provided."
+		};
+	}
+	return { valid: true };
 }
 function datesOverlap(startA, endA, startB, endB) {
 	return startA < endB && endA > startB;
 }
-async function findVehicleBookingConflict(carId, pickupStr, returnStr, excludeBookingId) {
-	const { start: reqStart, end: reqEnd } = parseDateRange(pickupStr, returnStr);
-	let query = `
-    SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status
-    FROM bookings
-    WHERE matched_car_id = ?
-      AND status NOT IN ('Completed', 'Cancelled')
-  `;
-	const params = [carId];
-	if (excludeBookingId) {
-		query += " AND id != ?";
-		params.push(excludeBookingId);
-	}
-	const activeBookings = await db.prepare(query).all(...params);
-	for (const b of activeBookings) {
-		const { start: bStart, end: bEnd } = parseDateRange(b.pickup_date, b.return_date);
-		if (datesOverlap(reqStart, reqEnd, bStart, bEnd)) return {
-			conflictingBookingId: b.id,
-			customerName: `${b.customer_first_name} ${b.customer_last_name}`,
-			pickupDate: b.pickup_date,
-			returnDate: b.return_date,
-			status: b.status
+async function findVehicleBookingConflict(carId, pickupStr, returnStr, excludeBookingId, executor = db) {
+	const range = parseDateRangeStrict(pickupStr, returnStr);
+	if (!range.valid) return {
+		conflictingBookingId: "INVALID_DATES",
+		customerName: "Validation Guard",
+		pickupDate: String(pickupStr || ""),
+		returnDate: String(returnStr || ""),
+		status: "Invalid Dates",
+		reason: range.error || "Invalid date range specified."
+	};
+	try {
+		let query = `
+      SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status
+      FROM bookings
+      WHERE matched_car_id = ?
+        AND status NOT IN ('Completed', 'Cancelled')
+    `;
+		const params = [carId];
+		if (excludeBookingId) {
+			query += " AND id != ?";
+			params.push(excludeBookingId);
+		}
+		const activeBookings = await executor.prepare(query).all(...params);
+		for (const b of activeBookings) {
+			const bRange = parseDateRangeStrict(b.pickup_date, b.return_date);
+			const bStart = bRange.valid ? bRange.start : Date.parse(b.pickup_date);
+			const bEnd = bRange.valid ? bRange.end : Date.parse(b.return_date);
+			if (!isNaN(bStart) && !isNaN(bEnd) && datesOverlap(range.start, range.end, bStart, bEnd)) return {
+				conflictingBookingId: b.id,
+				customerName: `${b.customer_first_name} ${b.customer_last_name}`,
+				pickupDate: b.pickup_date,
+				returnDate: b.return_date,
+				status: b.status
+			};
+		}
+		return null;
+	} catch (err) {
+		console.error(`[Fail-Safe Availability] Database error checking conflicts for ${carId}:`, err?.message);
+		return {
+			conflictingBookingId: "DB_FAILSAFE",
+			customerName: "System Fail-Safe",
+			pickupDate: String(pickupStr || ""),
+			returnDate: String(returnStr || ""),
+			status: "FailSafe Locked",
+			reason: "Database query error during availability check. Vehicle blocked for safety."
 		};
 	}
-	return null;
 }
 app.get("/api/cars/:id/availability", async (req, res) => {
 	const carId = req.params.id;
 	const pickupDate = req.query.pickupDate || "Mar 15, 2026";
 	const returnDate = req.query.returnDate || "Mar 18, 2026";
-	const car = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
-	if (!car) return res.status(404).json({ error: "Vehicle not found." });
-	const conflict = await findVehicleBookingConflict(carId, pickupDate, returnDate);
-	const isAvailable = !conflict && car.status !== "Maintenance";
-	return res.json({
-		carId,
-		isAvailable,
-		carStatus: car.status,
-		conflict: conflict || null
-	});
+	try {
+		const range = parseDateRangeStrict(pickupDate, returnDate);
+		if (!range.valid) return res.status(400).json({
+			carId,
+			isAvailable: false,
+			error: range.error,
+			conflict: {
+				conflictingBookingId: "INVALID_DATES",
+				customerName: "Validation Guard",
+				pickupDate,
+				returnDate,
+				status: "Invalid Dates",
+				reason: range.error
+			}
+		});
+		const car = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
+		if (!car) return res.status(404).json({
+			carId,
+			isAvailable: false,
+			error: "Vehicle not found."
+		});
+		if (car.status === "Maintenance") return res.json({
+			carId,
+			isAvailable: false,
+			carStatus: car.status,
+			conflict: {
+				conflictingBookingId: "MAINTENANCE",
+				customerName: "Fleet Maintenance",
+				pickupDate: "Active",
+				returnDate: "Scheduled End",
+				status: "Maintenance",
+				reason: "Vehicle is currently under maintenance."
+			}
+		});
+		const conflict = await findVehicleBookingConflict(carId, pickupDate, returnDate);
+		const isAvailable = !conflict && car.status !== "Maintenance";
+		return res.json({
+			carId,
+			isAvailable,
+			carStatus: car.status,
+			conflict: conflict || null
+		});
+	} catch (err) {
+		console.error(`[Fail-Safe Check Error] Vehicle ${carId}:`, err?.message);
+		return res.status(500).json({
+			carId,
+			isAvailable: false,
+			carStatus: "Unavailable",
+			conflict: {
+				conflictingBookingId: "FAILSAFE_ERROR",
+				customerName: "System Fail-Safe",
+				pickupDate,
+				returnDate,
+				status: "Error",
+				reason: "Availability check encountered an unexpected error. Fail-safe engaged to prevent double booking."
+			},
+			error: "Availability verification failed safely."
+		});
+	}
 });
 app.get("/api/bookings", requireAdmin, async (req, res) => {
 	const rows = await db.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all();
 	rows.sort((a, b) => parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at));
 	return res.json(rows.map(formatBookingRow));
 });
-const vehicleBookingLocks = {};
-function withVehicleBookingLock(carId, task) {
-	if (!carId) return task();
-	const prevPromise = vehicleBookingLocks[carId] || Promise.resolve();
-	let release = () => {};
-	const currentPromise = new Promise((resolve) => {
-		release = resolve;
-	});
-	vehicleBookingLocks[carId] = currentPromise;
-	return prevPromise.catch(() => {}).then(async () => {
-		try {
-			return await task();
-		} finally {
-			if (vehicleBookingLocks[carId] === currentPromise) delete vehicleBookingLocks[carId];
-			release();
-		}
-	});
-}
 app.post("/api/bookings", optionalAuth, async (req, res) => {
 	const b = req.body;
 	const matchedCarId = b.matchedCarId || b.carId || null;
-	return await withVehicleBookingLock(matchedCarId, async () => {
-		const id = b.id || `MTR-${Math.floor(1e5 + Math.random() * 9e5)}`;
-		const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-		(/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit"
-		});
-		const pickupDate = b.pickupDate || "Mar 15, 2026";
-		const returnDate = b.returnDate || "Mar 18, 2026";
-		if (matchedCarId) {
-			if (!await db.prepare("SELECT id FROM vehicles WHERE id = ?").get(matchedCarId)) return res.status(400).json({
-				success: false,
-				error: `Selected vehicle "${matchedCarId}" does not exist in fleet inventory.`
-			});
-			const conflict = await findVehicleBookingConflict(matchedCarId, pickupDate, returnDate);
-			if (conflict) return res.status(409).json({
-				success: false,
-				error: `Double Booking Conflict: This vehicle is already reserved for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}) under reservation ${conflict.conflictingBookingId}. Please select another car or change your rental dates.`
-			});
-		}
-		let validPromoCode = null;
-		if (b.promoCode) {
-			const candidateCode = String(b.promoCode).trim().toUpperCase();
-			const promoRow = await db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(candidateCode);
-			if (promoRow && promoRow.is_active) {
-				validPromoCode = candidateCode;
-				await db.prepare("UPDATE promo_codes SET usage_count = usage_count + 1 WHERE code = ?").run(candidateCode).catch(() => {});
-			}
-		}
-		let validUserId = null;
-		const candidateUserId = b.userId || req.user?.userId || null;
-		if (candidateUserId) {
-			if (await db.prepare("SELECT id FROM users WHERE id = ?").get(candidateUserId)) validUserId = candidateUserId;
-		}
-		const status = matchedCarId ? "Assigned" : "Pending Assignment";
-		const createdAtValue = b.createdAt && b.createdAt.includes("T") ? b.createdAt : nowIso;
-		try {
-			await db.prepare(`
-        INSERT INTO bookings (
-          id, customer_first_name, customer_last_name, customer_email, customer_phone,
-          driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
-          driver_license_file, driver_license_back_file, driver_selfie_file,
-          pickup_location, return_location, pickup_date, return_date,
-          requested_category, matched_car_id, status, total_amount, created_at,
-          user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed
-        ) VALUES (
-          ?, ?, ?, ?, ?,
-          ?, ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?, ?,
-          ?, ?, ?, ?, ?,
-          ?, ?, ?, 0, 'None', 0
-        )
-      `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation || "Miami International Airport (MIA)", b.returnLocation || "Miami International Airport (MIA)", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || null, validPromoCode);
-			const created = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
-			return res.status(201).json(formatBookingRow(created));
-		} catch (err) {
-			console.error("[Booking Creation Error]", err?.message);
-			return res.status(500).json({
-				success: false,
-				error: err?.message || "Failed to create booking."
-			});
-		}
+	const id = b.id || `MTR-${Math.floor(1e5 + Math.random() * 9e5)}`;
+	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+	const pickupDate = b.pickupDate || "Mar 15, 2026";
+	const returnDate = b.returnDate || "Mar 18, 2026";
+	const range = parseDateRangeStrict(pickupDate, returnDate, { checkPastDates: true });
+	if (!range.valid) return res.status(400).json({
+		success: false,
+		error: range.error || "Invalid rental dates specified."
 	});
+	const customerValidation = validateCustomerContact(b.customer);
+	if (!customerValidation.valid) return res.status(400).json({
+		success: false,
+		error: customerValidation.error
+	});
+	const driverValidation = validateDriverInfo(b.driver, range.start, range.end);
+	if (!driverValidation.valid) return res.status(400).json({
+		success: false,
+		error: driverValidation.error
+	});
+	try {
+		const createdRow = await db.withVehicleBookingLock(matchedCarId, async (tx) => {
+			if (matchedCarId) {
+				const vehicle = await tx.prepare("SELECT id, status FROM vehicles WHERE id = ?").get(matchedCarId);
+				if (!vehicle) {
+					const err = /* @__PURE__ */ new Error(`Selected vehicle "${matchedCarId}" does not exist in fleet inventory.`);
+					err.statusCode = 400;
+					throw err;
+				}
+				if (vehicle.status === "Maintenance") {
+					const err = /* @__PURE__ */ new Error(`Vehicle "${matchedCarId}" is currently in maintenance and unavailable for booking.`);
+					err.statusCode = 409;
+					throw err;
+				}
+				const conflict = await findVehicleBookingConflict(matchedCarId, pickupDate, returnDate, void 0, tx);
+				if (conflict) {
+					const err = new Error(conflict.conflictingBookingId && conflict.conflictingBookingId !== "INVALID_DATES" && conflict.conflictingBookingId !== "DB_FAILSAFE" ? `Double Booking Conflict: This vehicle is already reserved for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}) under reservation ${conflict.conflictingBookingId}. Please select another car or change your rental dates.` : conflict.reason || "Double Booking Conflict: Vehicle is unavailable for selected dates.");
+					err.statusCode = 409;
+					throw err;
+				}
+			}
+			let validPromoCode = null;
+			if (b.promoCode) {
+				const candidateCode = String(b.promoCode).trim().toUpperCase();
+				const promoRow = await tx.prepare("SELECT * FROM promo_codes WHERE code = ?").get(candidateCode);
+				if (promoRow && promoRow.is_active) {
+					validPromoCode = candidateCode;
+					await tx.prepare("UPDATE promo_codes SET usage_count = usage_count + 1 WHERE code = ?").run(candidateCode).catch(() => {});
+				}
+			}
+			let validUserId = null;
+			const candidateUserId = b.userId || req.user?.userId || null;
+			if (candidateUserId) {
+				if (await tx.prepare("SELECT id FROM users WHERE id = ?").get(candidateUserId)) validUserId = candidateUserId;
+			}
+			const status = matchedCarId ? "Assigned" : "Pending Assignment";
+			const createdAtValue = b.createdAt && b.createdAt.includes("T") ? b.createdAt : nowIso;
+			await tx.prepare(`
+          INSERT INTO bookings (
+            id, customer_first_name, customer_last_name, customer_email, customer_phone,
+            driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
+            driver_license_file, driver_license_back_file, driver_selfie_file,
+            pickup_location, return_location, pickup_date, return_date,
+            requested_category, matched_car_id, status, total_amount, created_at,
+            user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed
+          ) VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, 0, 'None', 0
+          )
+        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation || "Miami International Airport (MIA)", b.returnLocation || "Miami International Airport (MIA)", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || null, validPromoCode);
+			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
+		});
+		return res.status(201).json(formatBookingRow(createdRow));
+	} catch (err) {
+		if (err.statusCode) return res.status(err.statusCode).json({
+			success: false,
+			error: err.message
+		});
+		console.error("[Booking Creation Error]", err?.message);
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to create booking."
+		});
+	}
 });
 app.get("/api/bookings/:id/download-license", requireAuth, async (req, res) => {
 	const bookingId = req.params.id;
@@ -41793,18 +42120,38 @@ app.get("/api/bookings/:id/download-license", requireAuth, async (req, res) => {
 });
 const handleManagerApproval = async (req, res) => {
 	const bookingId = req.params.id;
-	if (!await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) return res.status(404).json({ error: "Booking not found." });
+	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	if (booking.status === "Cancelled") return res.status(400).json({ error: "Cannot accept a cancelled or declined reservation." });
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+	let newStatus = booking.status || "Pending Assignment";
+	let matchedCarId = booking.matched_car_id || null;
+	if (matchedCarId) newStatus = "Assigned";
+	else {
+		const category = booking.requested_category;
+		if (category) try {
+			const candidates = await db.prepare("SELECT id, status FROM vehicles WHERE (LOWER(type) = LOWER(?) OR LOWER(name) LIKE ?) AND status = 'Available'").all(category, `%${category.toLowerCase()}%`);
+			for (const cand of candidates) if (!await findVehicleBookingConflict(cand.id, booking.pickup_date, booking.return_date, booking.id, db)) {
+				matchedCarId = cand.id;
+				newStatus = "Assigned";
+				break;
+			}
+		} catch (err) {
+			console.warn("[Auto-Mate During Approval Non-Fatal]", err?.message);
+		}
+	}
 	await db.prepare(`
     UPDATE bookings SET
       approved_by_admin = 1,
-      approved_at = ?
+      approved_at = ?,
+      status = ?,
+      matched_car_id = ?
     WHERE id = ?
-  `).run(nowIso, bookingId);
+  `).run(nowIso, newStatus, matchedCarId, bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	return res.json({
 		success: true,
-		message: `Reservation ${bookingId} accepted by fleet manager. Customer can now proceed to pickup!`,
+		message: `Reservation ${bookingId} accepted by fleet manager.${matchedCarId ? " Vehicle assigned and ready for pickup!" : " Please assign a vehicle."}`,
 		booking: formatBookingRow(updatedBooking)
 	});
 };
@@ -42012,23 +42359,54 @@ app.post("/api/bookings/:id/mate", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { carId } = req.body;
 	if (!carId) return res.status(400).json({ error: "carId is required to mate vehicle." });
-	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
-	if (!booking) return res.status(404).json({ error: "Booking not found." });
-	const car = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
-	if (!car) return res.status(404).json({ error: "Vehicle not found." });
-	const conflict = await findVehicleBookingConflict(carId, booking.pickup_date, booking.return_date, bookingId);
-	if (conflict) return res.status(409).json({ error: `Conflict: Vehicle is already mated to reservation ${conflict.conflictingBookingId} (${conflict.customerName}) for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}).` });
-	if (booking.matched_car_id && booking.matched_car_id !== carId) await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(booking.matched_car_id);
-	await db.prepare("UPDATE bookings SET matched_car_id = ?, status = 'Assigned' WHERE id = ?").run(carId, bookingId);
-	if (booking.status === "Checked Out") await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
-	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
-	const updatedCar = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
-	return res.json({
-		success: true,
-		message: `Vehicle ${car.name} (${car.plate_number}) successfully mated to booking ${bookingId}.`,
-		booking: formatBookingRow(updatedBooking),
-		car: formatCarRow(updatedCar)
-	});
+	try {
+		const result = await db.withVehicleBookingLock(carId, async (tx) => {
+			const booking = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+			if (!booking) {
+				const err = /* @__PURE__ */ new Error("Booking not found.");
+				err.statusCode = 404;
+				throw err;
+			}
+			const car = await tx.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
+			if (!car) {
+				const err = /* @__PURE__ */ new Error("Vehicle not found.");
+				err.statusCode = 404;
+				throw err;
+			}
+			if (car.status === "Maintenance") {
+				const err = /* @__PURE__ */ new Error(`Conflict: Vehicle ${car.name} is currently under maintenance and cannot be assigned.`);
+				err.statusCode = 409;
+				throw err;
+			}
+			const conflict = await findVehicleBookingConflict(carId, booking.pickup_date, booking.return_date, bookingId, tx);
+			if (conflict) {
+				const err = new Error(conflict.conflictingBookingId && conflict.conflictingBookingId !== "INVALID_DATES" && conflict.conflictingBookingId !== "DB_FAILSAFE" ? `Conflict: Vehicle is already mated to reservation ${conflict.conflictingBookingId} (${conflict.customerName}) for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}).` : conflict.reason || "Conflict: Vehicle is unavailable for the selected dates.");
+				err.statusCode = 409;
+				throw err;
+			}
+			if (booking.matched_car_id && booking.matched_car_id !== carId) await tx.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(booking.matched_car_id);
+			await tx.prepare("UPDATE bookings SET matched_car_id = ?, status = 'Assigned' WHERE id = ?").run(carId, bookingId);
+			if (booking.status === "Checked Out") await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
+			const updatedBooking = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+			const updatedCar = await tx.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
+			return {
+				booking: formatBookingRow(updatedBooking),
+				car: formatCarRow(updatedCar),
+				carName: car.name,
+				plateNumber: car.plate_number
+			};
+		});
+		return res.json({
+			success: true,
+			message: `Vehicle ${result.carName} (${result.plateNumber}) successfully mated to booking ${bookingId}.`,
+			booking: result.booking,
+			car: result.car
+		});
+	} catch (err) {
+		if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+		console.error("[Vehicle Mating Error]", err?.message);
+		return res.status(500).json({ error: "Failed to mate vehicle." });
+	}
 });
 app.post("/api/bookings/:id/unmate", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
@@ -42095,31 +42473,35 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
 	});
 	const carId = b.carId;
 	if (!carId) return res.status(400).json({ error: "A vehicle must be selected for counter dispatch." });
-	const car = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
-	if (!car) return res.status(404).json({ error: "Selected vehicle not found." });
-	if (await findVehicleBookingConflict(carId, b.pickupDate || "Today, Right Now", b.returnDate || "In 3 Days") || car.status === "Rented") return res.status(409).json({ error: `Conflict: ${car.name} (${car.plate_number}) is currently rented or assigned to another active reservation.` });
-	const initialStatus = b.immediateCheckout ? "Checked Out" : "Assigned";
-	await db.prepare(`
-    INSERT INTO bookings (
-      id, customer_first_name, customer_last_name, customer_email, customer_phone,
-      driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file,
-      pickup_location, return_location, pickup_date, return_date,
-      requested_category, matched_car_id, status, total_amount, created_at,
-      odometer_out, fuel_level_out, notes
-    ) VALUES (
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?
-    )
-  `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation || car.location || "Miami International Airport (MIA)", b.returnLocation || car.location || "Miami International Airport (MIA)", b.pickupDate || "Today, Right Now", b.returnDate || "In 3 Days", car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.");
-	await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
-	const created = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
-	return res.status(201).json({
-		success: true,
-		message: `Counter walk-in reservation ${id} issued for ${car.name}.`,
-		booking: formatBookingRow(created)
+	return await db.withVehicleBookingLock(carId, async (tx) => {
+		const car = await tx.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
+		if (!car) return res.status(404).json({ error: "Selected vehicle not found." });
+		if (car.status === "Maintenance") return res.status(409).json({ error: `Conflict: ${car.name} (${car.plate_number}) is currently under maintenance and cannot be dispatched.` });
+		const conflict = await findVehicleBookingConflict(carId, b.pickupDate || "Today, Right Now", b.returnDate || "In 3 Days", void 0, tx);
+		if (conflict || car.status === "Rented") return res.status(409).json({ error: conflict?.conflictingBookingId && conflict.conflictingBookingId !== "INVALID_DATES" && conflict.conflictingBookingId !== "DB_FAILSAFE" ? `Conflict: ${car.name} (${car.plate_number}) is currently rented or assigned to another active reservation (${conflict.conflictingBookingId}).` : conflict?.reason || `Conflict: ${car.name} (${car.plate_number}) is currently unavailable for dispatch.` });
+		const initialStatus = b.immediateCheckout ? "Checked Out" : "Assigned";
+		await tx.prepare(`
+      INSERT INTO bookings (
+        id, customer_first_name, customer_last_name, customer_email, customer_phone,
+        driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file,
+        pickup_location, return_location, pickup_date, return_date,
+        requested_category, matched_car_id, status, total_amount, created_at,
+        odometer_out, fuel_level_out, notes
+      ) VALUES (
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?
+      )
+    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation || car.location || "Miami International Airport (MIA)", b.returnLocation || car.location || "Miami International Airport (MIA)", b.pickupDate || "Today, Right Now", b.returnDate || "In 3 Days", car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.");
+		await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
+		const created = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
+		return res.status(201).json({
+			success: true,
+			message: `Counter walk-in reservation ${id} issued for ${car.name}.`,
+			booking: formatBookingRow(created)
+		});
 	});
 });
 app.get("/api/admin/customers", requireAdmin, async (req, res) => {
@@ -42233,14 +42615,74 @@ app.post("/api/promos/validate", async (req, res) => {
 		message: `${promo.discount_percent}% discount applied!`
 	});
 });
-app.get("/api/maintenance", async (req, res) => {
-	const rows = await db.prepare(`
-    SELECT m.*, v.name as car_name
-    FROM maintenance_logs m
-    LEFT JOIN vehicles v ON m.car_id = v.id
-    ORDER BY m.created_at DESC
-  `).all();
-	return res.json(rows.map(formatMaintenanceRow));
+app.get("/api/maintenance", requireAdmin, async (req, res) => {
+	try {
+		const rawAll = req.query.all === "true" || req.query.raw === "true";
+		const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
+		const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || "10"), 10) || 10));
+		const offset = (page - 1) * limit;
+		const carId = req.query.carId ? String(req.query.carId).trim() : null;
+		const status = req.query.status ? String(req.query.status).trim() : null;
+		const search = req.query.search ? String(req.query.search).trim() : null;
+		let whereConditions = [];
+		let params = [];
+		if (carId) {
+			whereConditions.push("m.car_id = ?");
+			params.push(carId);
+		}
+		if (status) {
+			whereConditions.push("m.status = ?");
+			params.push(status);
+		}
+		if (search) {
+			whereConditions.push("(LOWER(v.name) LIKE ? OR LOWER(m.service_type) LIKE ? OR LOWER(m.id) LIKE ?)");
+			const wildcard = `%${search.toLowerCase()}%`;
+			params.push(wildcard, wildcard, wildcard);
+		}
+		const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+		if (rawAll) {
+			const rows = await db.prepare(`
+        SELECT m.*, v.name as car_name
+        FROM maintenance_logs m
+        LEFT JOIN vehicles v ON m.car_id = v.id
+        ${whereClause}
+        ORDER BY m.created_at DESC
+      `).all(...params);
+			return res.json(rows.map(formatMaintenanceRow));
+		}
+		const countSql = `
+      SELECT COUNT(*) as total
+      FROM maintenance_logs m
+      LEFT JOIN vehicles v ON m.car_id = v.id
+      ${whereClause}
+    `;
+		const countRow = await db.prepare(countSql).get(...params);
+		const total = Number(countRow?.total || 0);
+		const totalPages = Math.ceil(total / limit) || 1;
+		const dataSql = `
+      SELECT m.*, v.name as car_name
+      FROM maintenance_logs m
+      LEFT JOIN vehicles v ON m.car_id = v.id
+      ${whereClause}
+      ORDER BY m.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+		const data = (await db.prepare(dataSql).all(...params, limit, offset)).map(formatMaintenanceRow);
+		return res.json({
+			data,
+			pagination: {
+				page,
+				limit,
+				total,
+				totalPages,
+				hasNextPage: page < totalPages,
+				hasPrevPage: page > 1
+			}
+		});
+	} catch (err) {
+		console.error("[Maintenance Logs Error]", err?.message);
+		return res.status(500).json({ error: "Failed to retrieve maintenance logs." });
+	}
 });
 app.post("/api/maintenance", requireAdmin, async (req, res) => {
 	const { carId, serviceType, cost, odometer, date, status, technicianNotes, setVehicleStatus } = req.body;
@@ -42273,33 +42715,53 @@ app.patch("/api/maintenance/:id/status", requireAdmin, async (req, res) => {
 	return res.json(formatMaintenanceRow(updated));
 });
 app.get("/api/admin/stats", requireAdmin, async (req, res) => {
-	const allCars = await db.prepare("SELECT * FROM vehicles").all();
-	const allBookings = await db.prepare("SELECT * FROM bookings").all();
-	const total = allCars.length;
-	const available = allCars.filter((c) => c.status === "Available" || !c.status).length;
-	const rented = allCars.filter((c) => c.status === "Rented").length;
-	const maintenance = allCars.filter((c) => c.status === "Maintenance").length;
-	const cleaning = allCars.filter((c) => c.status === "Cleaning").length;
-	const utilization = total > 0 ? Math.round(rented / total * 100) : 0;
-	const activeRevenue = allCars.filter((c) => c.status === "Rented").reduce((sum, c) => sum + Number(c.price_per_day), 0);
-	const pendingMating = allBookings.filter((b) => b.status === "Pending Assignment").length;
-	const assigned = allBookings.filter((b) => b.status === "Assigned").length;
-	return res.json({
-		fleet: {
-			total,
-			available,
-			rented,
-			maintenance,
-			cleaning,
-			utilization,
-			activeRevenue
-		},
-		bookings: {
-			total: allBookings.length,
-			pendingMating,
-			assigned
-		}
-	});
+	try {
+		const [fleetStats, bookingStats] = await Promise.all([db.get(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(CASE WHEN status = 'Available' OR status IS NULL OR status = '' THEN 1 END) AS available,
+          COUNT(CASE WHEN status = 'Rented' THEN 1 END) AS rented,
+          COUNT(CASE WHEN status = 'Maintenance' THEN 1 END) AS maintenance,
+          COUNT(CASE WHEN status = 'Cleaning' THEN 1 END) AS cleaning,
+          COALESCE(SUM(CASE WHEN status = 'Rented' THEN price_per_day ELSE 0 END), 0) AS active_revenue
+        FROM vehicles
+      `), db.get(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(CASE WHEN status = 'Pending Assignment' THEN 1 END) AS pending_mating,
+          COUNT(CASE WHEN status = 'Assigned' THEN 1 END) AS assigned
+        FROM bookings
+      `)]);
+		const totalFleet = Number(fleetStats?.total || 0);
+		const available = Number(fleetStats?.available || 0);
+		const rented = Number(fleetStats?.rented || 0);
+		const maintenance = Number(fleetStats?.maintenance || 0);
+		const cleaning = Number(fleetStats?.cleaning || 0);
+		const activeRevenue = Number(fleetStats?.active_revenue || 0);
+		const utilization = totalFleet > 0 ? Math.round(rented / totalFleet * 100) : 0;
+		const totalBookings = Number(bookingStats?.total || 0);
+		const pendingMating = Number(bookingStats?.pending_mating || 0);
+		const assigned = Number(bookingStats?.assigned || 0);
+		return res.json({
+			fleet: {
+				total: totalFleet,
+				available,
+				rented,
+				maintenance,
+				cleaning,
+				utilization,
+				activeRevenue
+			},
+			bookings: {
+				total: totalBookings,
+				pendingMating,
+				assigned
+			}
+		});
+	} catch (err) {
+		console.error("[Admin Stats Aggregation Error]", err?.message);
+		return res.status(500).json({ error: "Failed to aggregate admin telemetry statistics." });
+	}
 });
 app.post("/api/upload", async (req, res) => {
 	const { fileName } = req.body;
@@ -42320,7 +42782,7 @@ app.use((err, req, res, next) => {
 });
 if (process.env.VERCEL !== "1" && !process.env.NOW_REGION) app.listen(PORT, () => {
 	console.log(`[Backend] MOTORLY Server running on port ${PORT}`);
-	console.log(`[Backend] Admin Password verified: ${ADMIN_PASSWORD}`);
+	console.log(`[Backend] Admin authentication initialized (${isProduction ? "production mode" : "development mode"})`);
 	console.log(`[Backend] API Endpoints ready at http://localhost:${PORT}/api/`);
 });
 //#endregion

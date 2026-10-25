@@ -15,5 +15,8 @@ const res = await pool.query(`
   HAVING count(b.id) = 0 
   ORDER BY v.name
 `)
-console.log("Vehicles with 0 active bookings:", res.rows.map(r => `${r.id} (${r.name})`))
+console.log(
+  "Vehicles with 0 active bookings:",
+  res.rows.map((r) => `${r.id} (${r.name})`),
+)
 await pool.end()

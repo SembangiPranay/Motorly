@@ -44,7 +44,7 @@ async function capture() {
         email: "marcus@example.com",
         phone: "+1 (555) 345-6789",
         role: "customer",
-      })
+      }),
     )
   })
   await page.goto(`${TARGET_URL}`, { waitUntil: "networkidle" })
@@ -66,7 +66,10 @@ async function capture() {
   // 3. Navigate to Admin / Manager Portal
   console.log("3. Navigating to Manager Command Center...")
   await page.evaluate(() => {
-    localStorage.setItem("motorly_admin_token", "admin_secret_session_token_2026")
+    localStorage.setItem(
+      "motorly_admin_token",
+      "admin_secret_session_token_2026",
+    )
     localStorage.setItem("motorly_current_view", "admin")
   })
   await page.goto(`${TARGET_URL}`, { waitUntil: "networkidle" })

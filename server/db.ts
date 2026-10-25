@@ -16,50 +16,74 @@ try {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Ensure data directory exists for local SQLite fallback (or temp dir in serverless)
+const isProduction = process.env.NODE_ENV === "production"
+
+// Ensure data directory exists for local SQLite fallback (only in non-production local development)
 let sqliteInstance: any = null
 export let dbPath = ""
-try {
-  // Use dynamic import so Node runtimes without node:sqlite (e.g. Node 18/20 on Vercel) never crash on boot
-  const sqliteMod = await import("node:sqlite").catch(() => null)
-  if (sqliteMod && sqliteMod.DatabaseSync) {
-    let dataDir = path.join(__dirname, "data")
-    if (process.env.VERCEL === "1" || process.env.NOW_REGION) {
-      dataDir = path.join(os.tmpdir(), "drive_rent_data")
+if (!isProduction) {
+  try {
+    // Dynamic import: Node runtimes without node:sqlite (e.g. Node 18/20 on Vercel) never crash on boot
+    const sqliteMod = await import("node:sqlite").catch(() => null)
+    if (sqliteMod && sqliteMod.DatabaseSync) {
+      let dataDir = path.join(__dirname, "data")
+      if (process.env.VERCEL === "1" || process.env.NOW_REGION) {
+        dataDir = path.join(os.tmpdir(), "drive_rent_data")
+      }
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true })
+      }
+      dbPath = path.join(dataDir, "drive_rent.db")
+      sqliteInstance = new sqliteMod.DatabaseSync(dbPath)
     }
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true })
-    }
-    dbPath = path.join(dataDir, "drive_rent.db")
-    sqliteInstance = new sqliteMod.DatabaseSync(dbPath)
+  } catch (e: any) {
+    console.warn("[DB] Local SQLite initialization skipped/disabled:", e?.message)
   }
-} catch (e: any) {
-  console.warn("[DB] Local SQLite initialization skipped/disabled:", e?.message)
 }
 
 export const sqlite = sqliteInstance
 
 // Supabase PostgreSQL Configuration
-// Primary pooler host (AWS us-east-1, port 6543) provides universal IPv4/IPv6 support
-const SUPABASE_POOLER_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.mrbymhhcjvebpxcfmnhy:Koushik.git1@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+// Credentials must come strictly from environment variables
+const SUPABASE_POOLER_URL = process.env.DATABASE_URL || ""
+const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL || ""
 
-const SUPABASE_DIRECT_URL =
-  process.env.SUPABASE_DIRECT_URL ||
-  "postgresql://postgres:Koushik.git1@db.mrbymhhcjvebpxcfmnhy.supabase.co:5432/postgres"
+if (isProduction && !SUPABASE_POOLER_URL && !SUPABASE_DIRECT_URL) {
+  throw new Error(
+    "[SECURITY CRITICAL] DATABASE_URL environment variable is required in production.",
+  )
+}
 
 let supabasePool: pg.Pool | null = null
 let isSupabaseActive = false
 let activeConnStr = SUPABASE_POOLER_URL
 
 export function createSupabasePool(connectionString: string): pg.Pool {
+  const rejectUnauthorized =
+    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== undefined
+      ? process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true"
+      : isProduction
+
+  const sslConfig: any = {
+    rejectUnauthorized,
+  }
+
+  if (process.env.DATABASE_CA_CERT) {
+    sslConfig.ca = process.env.DATABASE_CA_CERT
+  }
+
+  if (!rejectUnauthorized && isProduction) {
+    console.warn(
+      "[SECURITY WARNING] Database TLS certificate validation is disabled in production! Set DATABASE_SSL_REJECT_UNAUTHORIZED=true or provide DATABASE_CA_CERT.",
+    )
+  }
+
   const pool = new Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 15000,
-    max: 10,
+    ssl: sslConfig,
+    connectionTimeoutMillis: 15000,
+    idleTimeoutMillis: 30000,
+    max: 25,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,
   })
@@ -105,12 +129,15 @@ async function querySupabaseWithRetry<T = any>(
       )
       try {
         try {
-          await supabasePool.end().catch(() => {})
+          supabasePool.end().catch(() => {})
         } catch {}
         supabasePool = createSupabasePool(activeConnStr)
         return await supabasePool.query(translated, params)
       } catch (retryErr: any) {
-        console.error("[DB Auto-Recovery] Retry also failed:", retryErr?.message || retryErr)
+        console.error(
+          "[DB Auto-Recovery] Retry also failed:",
+          retryErr?.message || retryErr,
+        )
         throw retryErr
       }
     }
@@ -118,9 +145,42 @@ async function querySupabaseWithRetry<T = any>(
   }
 }
 
+export interface DbExecutor {
+  all(sql: string, ...params: any[]): Promise<any[]>
+  get(sql: string, ...params: any[]): Promise<any>
+  run(sql: string, ...params: any[]): Promise<{
+    changes: number
+    rowCount: number
+  }>
+  prepare(sql: string): {
+    all: (...params: any[]) => Promise<any[]>
+    get: (...params: any[]) => Promise<any>
+    run: (...params: any[]) => Promise<{
+      changes: number
+      rowCount: number
+    }>
+  }
+}
+
 export const db = {
   get isSupabase() {
     return isSupabaseActive
+  },
+  get activeHost() {
+    if (activeConnStr) {
+      try {
+        return new URL(activeConnStr).host
+      } catch {}
+    }
+    return null
+  },
+  get activeDbName() {
+    if (activeConnStr) {
+      try {
+        return new URL(activeConnStr).pathname.replace(/^\//, "")
+      } catch {}
+    }
+    return null
   },
   get pool() {
     return supabasePool
@@ -139,8 +199,11 @@ export const db = {
         return res.rows
       } catch (err: any) {
         console.warn("[Supabase Query Warning]", err?.message)
-        if (sqlite) {
-          console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45))
+        if (!isProduction && sqlite) {
+          console.log(
+            "[DB Fallback] Serving query from SQLite mirror:",
+            sql.slice(0, 45),
+          )
           try {
             return sqlite.prepare(sql).all(...params) as any[]
           } catch (sqliteErr: any) {
@@ -168,8 +231,11 @@ export const db = {
         return res.rows[0] || null
       } catch (err: any) {
         console.warn("[Supabase Query Warning]", err?.message)
-        if (sqlite) {
-          console.log("[DB Fallback] Serving query from SQLite mirror:", sql.slice(0, 45))
+        if (!isProduction && sqlite) {
+          console.log(
+            "[DB Fallback] Serving query from SQLite mirror:",
+            sql.slice(0, 45),
+          )
           try {
             return sqlite.prepare(sql).get(...params) as any
           } catch (sqliteErr: any) {
@@ -208,8 +274,11 @@ export const db = {
         }
       } catch (err: any) {
         console.warn("[Supabase Exec Warning]", err?.message)
-        if (sqlite) {
-          console.log("[DB Fallback] Executing write in SQLite mirror:", sql.slice(0, 45))
+        if (!isProduction && sqlite) {
+          console.log(
+            "[DB Fallback] Executing write in SQLite mirror:",
+            sql.slice(0, 45),
+          )
           try {
             const res = sqlite.prepare(sql).run(...params) as any
             return {
@@ -242,6 +311,129 @@ export const db = {
       run: (...params: any[]) => db.run(sql, ...params),
     }
   },
+
+  async transaction<T,>(task: (tx: DbExecutor) => Promise<T>): Promise<T> {
+    if (!isSupabaseActive && !sqlite) {
+      await ensureDatabase()
+    }
+    if (isSupabaseActive && supabasePool) {
+      const client = await supabasePool.connect()
+      try {
+        await client.query("BEGIN")
+        const tx: DbExecutor = {
+          async all(sql: string, ...params: any[]): Promise<any[]> {
+            const translated = translateSql(sql)
+            const res = await client.query(translated, params)
+            return res.rows
+          },
+          async get(sql: string, ...params: any[]): Promise<any> {
+            const translated = translateSql(sql)
+            const res = await client.query(translated, params)
+            return res.rows[0] || null
+          },
+          async run(sql: string, ...params: any[]): Promise<{
+            changes: number
+            rowCount: number
+          }> {
+            const translated = translateSql(sql)
+            const res = await client.query(translated, params)
+            if (sqlite) {
+              try {
+                sqlite.prepare(sql).run(...params)
+              } catch {}
+            }
+            return {
+              changes: res.rowCount || 0,
+              rowCount: res.rowCount || 0,
+            }
+          },
+          prepare(sql: string) {
+            return {
+              all: (...params: any[]) => tx.all(sql, ...params),
+              get: (...params: any[]) => tx.get(sql, ...params),
+              run: (...params: any[]) => tx.run(sql, ...params),
+            }
+          },
+        }
+
+        const result = await task(tx)
+        await client.query("COMMIT")
+        return result
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK")
+        } catch {}
+        throw err
+      } finally {
+        client.release()
+      }
+    }
+
+    if (sqlite) {
+      sqlite.exec("BEGIN IMMEDIATE")
+      try {
+        const tx: DbExecutor = {
+          async all(sql: string, ...params: any[]): Promise<any[]> {
+            return sqlite.prepare(sql).all(...params) as any[]
+          },
+          async get(sql: string, ...params: any[]): Promise<any> {
+            return sqlite.prepare(sql).get(...params) as any
+          },
+          async run(sql: string, ...params: any[]): Promise<{
+            changes: number
+            rowCount: number
+          }> {
+            const res = sqlite.prepare(sql).run(...params) as any
+            return {
+              changes: res?.changes || 1,
+              rowCount: res?.changes || 1,
+            }
+          },
+          prepare(sql: string) {
+            return {
+              all: (...params: any[]) => tx.all(sql, ...params),
+              get: (...params: any[]) => tx.get(sql, ...params),
+              run: (...params: any[]) => tx.run(sql, ...params),
+            }
+          },
+        }
+
+        const result = await task(tx)
+        sqlite.exec("COMMIT")
+        return result
+      } catch (err) {
+        try {
+          sqlite.exec("ROLLBACK")
+        } catch {}
+        throw err
+      }
+    }
+
+    throw new Error(
+      "No database connection available (Supabase offline and SQLite unavailable).",
+    )
+  },
+
+  async withVehicleBookingLock<T,>(
+    carId: string | null | undefined,
+    task: (tx: DbExecutor) => Promise<T>,
+  ): Promise<T> {
+    return await this.transaction(async (tx) => {
+      if (carId && isSupabaseActive && supabasePool) {
+        // 1. Cluster-wide PostgreSQL transaction-level advisory lock on vehicle hash
+        await tx.get(
+          "SELECT pg_advisory_xact_lock(hashtext(?))",
+          `vehicle_booking_${carId}`,
+        )
+        // 2. Row-level lock on the vehicle row
+        await tx.get(
+          "SELECT id, status FROM vehicles WHERE id = ? FOR UPDATE",
+          carId,
+        )
+      }
+      return await task(tx)
+    })
+  },
 }
 
 // Lazy/Safe DB ensure
@@ -256,7 +448,7 @@ export async function initDatabase() {
   // First, attempt direct connection to Supabase PostgreSQL (Universal AWS pooler port 6543)
   console.log("[DB] Connecting to Supabase PostgreSQL...")
   try {
-    const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL]
+    const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL].filter(Boolean)
     let connected = false
 
     for (const connStr of candidateUrls) {
@@ -272,7 +464,7 @@ export async function initDatabase() {
           isSupabaseActive = true
           connected = true
           console.log(
-            `[DB] Connected directly to Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy, db: ${testRes.rows[0].db})`,
+            `[DB] Connected directly to Supabase PostgreSQL (db: ${testRes.rows[0].db})`,
           )
           break
         }
@@ -288,18 +480,26 @@ export async function initDatabase() {
       await initSupabaseTables(supabasePool)
       console.log("[DB] Supabase PostgreSQL tables verified and active!")
     } else {
+      if (isProduction) {
+        throw new Error(
+          "[SECURITY CRITICAL] Failed to connect to primary PostgreSQL database in production. Aborting to prevent split-brain SQLite degradation.",
+        )
+      }
       console.warn(
         `[DB] Could not connect to Supabase. Falling back to local SQLite at ${dbPath}`,
       )
     }
   } catch (err: any) {
+    if (isProduction) {
+      throw err
+    }
     console.warn(
       `[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`,
     )
   }
 
-  // Second, if local SQLite is supported in this runtime, initialize local fallback mirror
-  if (sqlite) {
+  // Second, in non-production local development only, initialize local fallback mirror if supported
+  if (!isProduction && sqlite) {
     try {
       initSqliteTables()
     } catch (e: any) {
