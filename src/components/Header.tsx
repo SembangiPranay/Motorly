@@ -82,12 +82,12 @@ export default function Header({
 
   return (
     <>
-      <header className="w-full bg-[#FAF7F2] transition-colors border-b border-gray-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <header className="w-full bg-[#FAF7F2] transition-colors border-b border-gray-200/50 sticky top-0 z-40 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4 lg:gap-8">
           {/* Logo */}
           <div
             onClick={() => onNavigate("home")}
-            className="flex items-center gap-2.5 cursor-pointer select-none group"
+            className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0 mr-2 sm:mr-4 lg:mr-6"
           >
             {/* Ribbon M Logo */}
             <div className="w-7 h-6 relative flex items-end">
@@ -105,10 +105,10 @@ export default function Header({
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center space-x-7 text-sm font-medium">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-7 text-sm font-medium">
             <button
               onClick={() => onNavigate("home")}
-              className={`transition-colors pb-1 ${
+              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
                 currentView === "home"
                   ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
@@ -118,7 +118,7 @@ export default function Header({
             </button>
             <button
               onClick={() => onNavigate("listing")}
-              className={`transition-colors pb-1 ${
+              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
                 currentView === "listing"
                   ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
@@ -128,7 +128,7 @@ export default function Header({
             </button>
             <button
               onClick={() => onNavigate("compare")}
-              className={`transition-colors pb-1 flex items-center gap-1.5 ${
+              className={`transition-colors pb-1 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "compare"
                   ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
@@ -143,7 +143,7 @@ export default function Header({
             </button>
             <button
               onClick={() => onNavigate("my-bookings")}
-              className={`transition-colors pb-1 flex items-center gap-1.5 ${
+              className={`transition-colors pb-1 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "my-bookings"
                   ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
@@ -162,29 +162,29 @@ export default function Header({
                   if (el) el.scrollIntoView({ behavior: "smooth" })
                 }, 100)
               }}
-              className="text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer"
+              className="hidden xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer whitespace-nowrap"
             >
               How It Works
             </button>
             <button
               onClick={() => setShowAboutModal(true)}
-              className="text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer"
+              className="hidden xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer whitespace-nowrap"
             >
               About
             </button>
             <button
               onClick={() => setShowContactModal(true)}
-              className="text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer"
+              className="hidden xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer whitespace-nowrap"
             >
               Contact
             </button>
           </nav>
 
           {/* Right Action Elements */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden lg:flex items-center gap-3 shrink-0">
             <button
               onClick={() => onNavigate("admin")}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all ${
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
                 currentView === "admin"
                   ? "bg-[#17191C] text-white border-[#17191C]"
                   : "bg-white hover:bg-orange-50 text-gray-700 hover:text-[#F97316] border-gray-200 shadow-xs"
@@ -198,7 +198,7 @@ export default function Header({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onNavigate("my-bookings")}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-xs transition"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-xs transition cursor-pointer"
                 >
                   <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px]">
                     {currentUser.name.charAt(0)}
@@ -210,7 +210,7 @@ export default function Header({
                 </button>
                 <button
                   onClick={onLogoutCustomer}
-                  className="text-xs text-stone-500 hover:text-red-600 font-semibold px-2 py-1 rounded-lg hover:bg-stone-100 transition"
+                  className="text-xs text-stone-500 hover:text-red-600 font-semibold px-2 py-1 rounded-lg hover:bg-stone-100 transition cursor-pointer"
                   title="Sign Out"
                 >
                   Logout
@@ -219,7 +219,7 @@ export default function Header({
             ) : (
               <button
                 onClick={() => onNavigate("auth")}
-                className="flex items-center gap-2 text-sm font-semibold text-[#17191C] hover:text-[#F97316] transition-colors"
+                className="flex items-center gap-2 text-sm font-semibold text-[#17191C] hover:text-[#F97316] transition-colors cursor-pointer"
               >
                 <UserIcon size={18} className="text-gray-700" />
                 <span>Sign In</span>
@@ -228,7 +228,7 @@ export default function Header({
 
             <button
               onClick={() => onNavigate("listing")}
-              className="bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-bold px-4 py-2 rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-2 group"
+              className="bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-bold px-4 py-2 rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-2 group cursor-pointer whitespace-nowrap"
             >
               <span>Book a Car</span>
               <ArrowRightIcon
@@ -239,10 +239,11 @@ export default function Header({
           </div>
 
           {/* Mobile hamburger */}
-          <div className="flex md:hidden">
+          <div className="flex lg:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              className="p-2 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer"
+              aria-label="Toggle Navigation Menu"
             >
               <svg
                 className="w-6 h-6"
@@ -272,7 +273,7 @@ export default function Header({
 
         {/* Mobile Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-[#FAF7F2] px-4 pt-3 pb-5 space-y-3 animate-fade-in">
+          <div className="lg:hidden border-t border-gray-200 bg-[#FAF7F2] px-4 pt-3 pb-5 space-y-3 animate-fade-in">
             <button
               onClick={() => {
                 onNavigate("home")
