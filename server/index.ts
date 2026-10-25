@@ -1621,10 +1621,25 @@ app.get("/api/cars/:id/availability", async (req, res) => {
   }
 })
 
-// GET all bookings (Admin only)
+// GET all bookings (Admin only) - Lightweight projection avoids transferring megabytes of base64 photos over WAN
 app.get("/api/bookings", requireAdmin, async (req, res) => {
   const rows = (await db
-    .prepare("SELECT * FROM bookings ORDER BY created_at DESC")
+    .prepare(`
+      SELECT
+        id, customer_first_name, customer_last_name, customer_email, customer_phone,
+        driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
+        pickup_location, return_location, pickup_date, return_date,
+        requested_category, matched_car_id, status, total_amount, created_at,
+        user_id, notes, promo_code, approved_by_admin, approved_at, keys_handed_at,
+        extension_status, extension_request, extension_quote,
+        checklist_out, checklist_in, inspection_notes, inspection_passed,
+        odometer_out, odometer_in, fuel_level_out, fuel_level_in,
+        CASE WHEN driver_license_file LIKE 'data:%' THEN 'data:base64' ELSE driver_license_file END as driver_license_file,
+        CASE WHEN driver_license_back_file LIKE 'data:%' THEN 'data:base64' ELSE driver_license_back_file END as driver_license_back_file,
+        CASE WHEN driver_selfie_file LIKE 'data:%' THEN 'data:base64' ELSE driver_selfie_file END as driver_selfie_file
+      FROM bookings
+      ORDER BY created_at DESC
+    `)
     .all()) as any[]
   rows.sort(
     (a, b) =>
@@ -2783,7 +2798,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
   })
 })
 
-// GET Customer CRM Directory
+// GET Customer CRM Directory - Lightweight projection avoiding massive image transfers
 app.get("/api/admin/customers", requireAdmin, async (req, res) => {
   const users = (await db
     .prepare(
@@ -2791,20 +2806,36 @@ app.get("/api/admin/customers", requireAdmin, async (req, res) => {
     )
     .all()) as any[]
   const allBookings = (await db
-    .prepare("SELECT * FROM bookings")
+    .prepare(`
+      SELECT
+        id, customer_email, total_amount, created_at, customer_first_name,
+        customer_last_name, customer_phone, driver_license_num,
+        driver_license_state, driver_license_expiry
+      FROM bookings
+      ORDER BY created_at DESC
+    `)
     .all()) as any[]
+
+  // Group bookings by email in O(N)
+  const bookingsByEmail = new Map<string, any[]>()
+  for (const b of allBookings) {
+    const email = (b.customer_email || "").toLowerCase().trim()
+    if (!email) continue
+    const list = bookingsByEmail.get(email) || []
+    list.push(b)
+    bookingsByEmail.set(email, list)
+  }
 
   const customerMap = new Map<string, any>()
 
   for (const u of users) {
-    const userBookings = allBookings.filter(
-      (b) => b.customer_email.toLowerCase() === u.email.toLowerCase(),
-    )
+    const email = (u.email || "").toLowerCase().trim()
+    const userBookings = bookingsByEmail.get(email) || []
     const totalSpent = userBookings.reduce(
-      (sum, b) => sum + Number(b.total_amount),
+      (sum, b) => sum + Number(b.total_amount || 0),
       0,
     )
-    customerMap.set(u.email.toLowerCase(), {
+    customerMap.set(email, {
       id: u.id,
       email: u.email,
       name: u.name,
@@ -2823,31 +2854,29 @@ app.get("/api/admin/customers", requireAdmin, async (req, res) => {
 
   // Also include guest drivers who booked without creating an account
   for (const b of allBookings) {
-    const email = b.customer_email.toLowerCase()
-    if (!customerMap.has(email)) {
-      const guestBookings = allBookings.filter(
-        (x) => x.customer_email.toLowerCase() === email,
-      )
-      const totalSpent = guestBookings.reduce(
-        (sum, x) => sum + Number(x.total_amount),
-        0,
-      )
-      customerMap.set(email, {
-        id: `guest_${email.replace(/[^a-z0-9]/g, "_")}`,
-        email: b.customer_email,
-        name: `${b.customer_first_name} ${b.customer_last_name}`,
-        phone: b.customer_phone,
-        driverLicenseNum: b.driver_license_num || "Pending Verification",
-        driverLicenseState: b.driver_license_state || "N/A",
-        driverLicenseExpiry: b.driver_license_expiry || "N/A",
-        vipTier: totalSpent > 500 ? "Silver" : "Standard",
-        totalBookings: guestBookings.length,
-        totalSpent: Math.round(totalSpent * 100) / 100,
-        createdAt: b.created_at,
-        hasAccount: false,
-        latestBooking: b.created_at,
-      })
-    }
+    const email = (b.customer_email || "").toLowerCase().trim()
+    if (!email || customerMap.has(email)) continue
+
+    const guestBookings = bookingsByEmail.get(email) || []
+    const totalSpent = guestBookings.reduce(
+      (sum, x) => sum + Number(x.total_amount || 0),
+      0,
+    )
+    customerMap.set(email, {
+      id: `guest_${email.replace(/[^a-z0-9]/g, "_")}`,
+      email: b.customer_email,
+      name: `${b.customer_first_name} ${b.customer_last_name}`,
+      phone: b.customer_phone,
+      driverLicenseNum: b.driver_license_num || "Pending Verification",
+      driverLicenseState: b.driver_license_state || "N/A",
+      driverLicenseExpiry: b.driver_license_expiry || "N/A",
+      vipTier: totalSpent > 500 ? "Silver" : "Standard",
+      totalBookings: guestBookings.length,
+      totalSpent: Math.round(totalSpent * 100) / 100,
+      createdAt: b.created_at,
+      hasAccount: false,
+      latestBooking: b.created_at,
+    })
   }
 
   return res.json(Array.from(customerMap.values()))

@@ -12,7 +12,7 @@ export default defineConfig({
     ["html", { outputFolder: "playwright-report", open: "never" }],
   ],
   use: {
-    baseURL: "http://localhost:8443",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
     viewport: { width: 1440, height: 900 },
     trace: "off",
     video: "off",

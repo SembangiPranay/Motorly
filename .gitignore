@@ -29,6 +29,7 @@ server/data/*.db-journal
 
 # Temporary test artifacts
 test-results/
+playwright-report/
 scratch/
 api/data/
 .agents/
