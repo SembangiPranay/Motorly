@@ -3631,44 +3631,41 @@ export default function AdminView({
 
             {/* Fleet View Mode */}
             {fleetViewMode === "table" ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr
-                      className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
-                        isDark
-                          ? "bg-stone-900/80 border-stone-800 text-stone-400"
-                          : "bg-stone-50/90 border-stone-200 text-stone-500"
+              <div>
+                {/* Mobile Fleet Cards (< lg screens) */}
+                <div
+                  className={`block lg:hidden divide-y ${
+                    isDark ? "divide-stone-800/80" : "divide-stone-100"
+                  }`}
+                >
+                  {filteredFleet.length === 0 ? (
+                    <div
+                      className={`py-12 text-center text-xs ${
+                        isDark ? "text-stone-500" : "text-stone-400"
                       }`}
                     >
-                      <th className="px-5 py-3.5">Vehicle / Specs</th>
-                      <th className="px-5 py-3.5">Plate & Hub</th>
-                      <th className="px-5 py-3.5">Status Override</th>
-                      <th className="px-5 py-3.5">Health & Sanitation</th>
-                      <th className="px-5 py-3.5">Fuel / Battery</th>
-                      <th className="px-5 py-3.5 text-right">Daily Rate</th>
-                      <th className="px-5 py-3.5 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody
-                    className={`divide-y font-sans ${
-                      isDark ? "divide-stone-800/60" : "divide-stone-100"
-                    }`}
-                  >
-                    {filteredFleet.map((c) => (
-                      <tr
-                        key={c.id}
-                        className={`transition ${
-                          isDark
-                            ? "hover:bg-stone-800/50 border-stone-800/60"
-                            : "hover:bg-orange-50/40 border-stone-100"
-                        }`}
-                      >
-                        {/* Vehicle details */}
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
+                      No vehicles match the selected filter.
+                    </div>
+                  ) : (
+                    filteredFleet.map((c) => {
+                      const cleanHub = (c.location || "Miami MIA")
+                        .replace(/International Airport/i, "Intl")
+                        .replace(/Airport/i, "Hub")
+                        .trim()
+
+                      return (
+                        <div
+                          key={c.id}
+                          className={`p-4 transition ${
+                            isDark
+                              ? "hover:bg-stone-800/40 border-b border-stone-800/40"
+                              : "hover:bg-orange-50/30 border-b border-stone-100"
+                          }`}
+                        >
+                          {/* Top Row: Thumbnail + Identity */}
+                          <div className="flex items-start gap-3">
                             <div
-                              className={`w-12 h-9 rounded-lg overflow-hidden shrink-0 border relative ${
+                              className={`w-16 h-12 rounded-xl overflow-hidden shrink-0 border relative ${
                                 isDark
                                   ? "bg-stone-800 border-stone-700"
                                   : "bg-stone-100 border-stone-200"
@@ -3680,169 +3677,375 @@ export default function AdminView({
                                 className="w-full h-full object-cover"
                               />
                               {c.gallery && c.gallery.length > 1 && (
-                                <span className="absolute bottom-0 right-0 px-1 py-0.2 rounded-tl bg-black/80 text-white text-[8px] font-bold font-mono">
-                                  {c.gallery.length}
+                                <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
+                                  <span>📷</span>
+                                  <span>{c.gallery.length}</span>
                                 </span>
                               )}
                             </div>
-                            <div>
-                              <div
-                                className={`font-bold text-xs ${
-                                  isDark ? "text-white" : "text-stone-900"
-                                }`}
-                              >
-                                {c.name}
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4
+                                  className={`font-bold text-sm truncate ${
+                                    isDark ? "text-white" : "text-stone-900"
+                                  }`}
+                                >
+                                  {c.name}
+                                </h4>
+                                <span
+                                  className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] border shrink-0 ${
+                                    isDark
+                                      ? "bg-stone-900 border-stone-700 text-stone-200"
+                                      : "bg-stone-100 border-stone-200 text-stone-800"
+                                  }`}
+                                >
+                                  {c.plateNumber || "N/A"}
+                                </span>
                               </div>
-                              <div
-                                className={`text-[11px] ${
+
+                              <p
+                                className={`text-xs mt-0.5 ${
                                   isDark ? "text-stone-400" : "text-stone-500"
                                 }`}
                               >
                                 {c.year} • {c.type} • {c.fuelType}
-                              </div>
+                              </p>
                             </div>
                           </div>
-                        </td>
 
-                        {/* Plate & Hub */}
-                        <td className="px-5 py-3.5">
-                          <span
-                            className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] border inline-block ${
-                              isDark
-                                ? "bg-stone-900 border-stone-700 text-stone-200"
-                                : "bg-stone-100 border-stone-200 text-stone-800"
-                            }`}
-                          >
-                            {c.plateNumber || "N/A"}
-                          </span>
+                          {/* Middle Metrics Row */}
                           <div
-                            className={`text-[11px] mt-1 truncate max-w-[150px] ${
-                              isDark ? "text-stone-500" : "text-stone-400"
+                            className={`mt-3 grid grid-cols-2 gap-2 text-xs p-2.5 rounded-xl border ${
+                              isDark
+                                ? "bg-stone-900/60 border-stone-800 text-stone-300"
+                                : "bg-stone-50 border-stone-200 text-stone-700"
                             }`}
                           >
-                            {c.location || "Miami MIA"}
-                          </div>
-                        </td>
-
-                        {/* Status Override */}
-                        <td className="px-5 py-3.5">
-                          <select
-                            value={c.status || "Available"}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value as CarStatus
-                              const updated = await api.updateCarStatus(
-                                c.id,
-                                newStatus,
-                              )
-                              setCars((prev) =>
-                                prev.map((x) => (x.id === c.id ? updated : x)),
-                              )
-                              notify(
-                                `${c.name} status updated to ${newStatus}.`,
-                              )
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
-                              c.status === "Available"
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                                : c.status === "Rented"
-                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
-                                  : c.status === "Maintenance"
-                                    ? "bg-rose-500/10 text-rose-600 border-rose-500/30"
-                                    : "bg-purple-500/10 text-purple-600 border-purple-500/30"
-                            }`}
-                          >
-                            <option value="Available">Available</option>
-                            <option value="Rented">Rented</option>
-                            <option value="Maintenance">Maintenance</option>
-                            <option value="Cleaning">Cleaning</option>
-                          </select>
-                        </td>
-
-                        {/* Health score */}
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`font-mono font-bold ${
-                                isDark ? "text-white" : "text-stone-900"
-                              }`}
-                            >
-                              {c.healthScore || 98}%
-                            </span>
-                            <div
-                              className={`w-16 h-1.5 rounded-full overflow-hidden ${
-                                isDark ? "bg-stone-800" : "bg-stone-100"
-                              }`}
-                            >
-                              <div
-                                className="bg-emerald-500 h-full rounded-full"
-                                style={{ width: `${c.healthScore || 98}%` }}
-                              />
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-stone-400 block font-mono uppercase">
+                                Hub Location
+                              </span>
+                              <span
+                                className="font-medium text-[11px] truncate block"
+                                title={c.location}
+                              >
+                                📍 {cleanHub}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-stone-400 block font-mono uppercase">
+                                Telemetry & Fuel
+                              </span>
+                              <span className="font-mono text-[11px] font-bold text-emerald-500">
+                                Pass {c.healthScore || 98}% • {c.mileage || "30 MPG"}
+                              </span>
                             </div>
                           </div>
-                          <span
-                            className={`text-[10px] ${
-                              isDark ? "text-stone-500" : "text-stone-400"
-                            }`}
-                          >
-                            Inspection Pass
-                          </span>
-                        </td>
 
-                        {/* Fuel */}
-                        <td
-                          className={`px-5 py-3.5 font-mono ${
-                            isDark ? "text-stone-300" : "text-stone-700"
-                          }`}
-                        >
-                          {c.mileage || "30 MPG"}
-                        </td>
+                          {/* Bottom Row: Status Dropdown + Rates + Actions */}
+                          <div className="mt-3 flex items-center justify-between gap-2 pt-1">
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={c.status || "Available"}
+                                onChange={async (e) => {
+                                  const newStatus = e.target.value as CarStatus
+                                  const updated = await api.updateCarStatus(
+                                    c.id,
+                                    newStatus,
+                                  )
+                                  setCars((prev) =>
+                                    prev.map((x) =>
+                                      x.id === c.id ? updated : x,
+                                    ),
+                                  )
+                                  notify(
+                                    `${c.name} status updated to ${newStatus}.`,
+                                  )
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
+                                  c.status === "Available"
+                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                    : c.status === "Rented"
+                                      ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                      : c.status === "Maintenance"
+                                        ? "bg-rose-500/10 text-rose-600 border-rose-500/30"
+                                        : "bg-purple-500/10 text-purple-600 border-purple-500/30"
+                                }`}
+                              >
+                                <option value="Available">Available</option>
+                                <option value="Rented">Rented</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Cleaning">Cleaning</option>
+                              </select>
 
-                        {/* Daily, Hourly & Monthly Dynamic Rates */}
-                        <td className="px-5 py-3.5 text-right font-mono">
-                          <span
-                            className={`font-bold block ${
-                              isDark ? "text-white" : "text-stone-900"
-                            }`}
-                          >
-                            ${c.pricePerDay}/day
-                          </span>
-                          <span className="text-[11px] text-stone-400 block font-normal">
-                            ${c.pricePerHour || 8}/hr • $
-                            {c.pricePerMonth || Math.round(c.pricePerDay * 22)}/mo
-                          </span>
-                        </td>
+                              <span className="font-mono font-bold text-xs text-stone-900 dark:text-white">
+                                ${c.pricePerDay}
+                                <span className="text-[10px] font-normal text-stone-400">
+                                  /day
+                                </span>
+                              </span>
+                            </div>
 
-                        {/* Actions */}
-                        <td className="px-5 py-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => handleOpenEditCar(c)}
-                              className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                                isDark
-                                  ? "hover:bg-stone-800 text-stone-400 hover:text-white border-stone-800"
-                                  : "hover:bg-stone-100 text-stone-600 hover:text-stone-900 border-stone-200"
-                              }`}
-                              title="Edit specifications"
-                            >
-                              <EditIcon size={14} />
-                            </button>
-                            <button
-                              onClick={() => setDeletingCar(c)}
-                              className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                                isDark
-                                  ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
-                                  : "hover:bg-rose-50 text-stone-500 hover:text-rose-600 border-stone-200"
-                              }`}
-                              title="Decommission vehicle"
-                            >
-                              <TrashIcon size={14} />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditCar(c)}
+                                className={`p-1.5 rounded-lg border transition cursor-pointer flex items-center gap-1 text-xs font-medium ${
+                                  isDark
+                                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                                    : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-300"
+                                }`}
+                                title="Edit specifications"
+                              >
+                                <EditIcon size={13} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={() => setDeletingCar(c)}
+                                className={`p-1.5 rounded-lg border transition cursor-pointer text-xs font-medium ${
+                                  isDark
+                                    ? "bg-stone-800 hover:bg-rose-950/40 text-stone-400 hover:text-rose-400 border-stone-700"
+                                    : "bg-stone-100 hover:bg-rose-50 text-stone-600 hover:text-rose-600 border-stone-300"
+                                }`}
+                                title="Decommission vehicle"
+                              >
+                                <TrashIcon size={13} />
+                              </button>
+                            </div>
                           </div>
-                        </td>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* Desktop Manifest Table (>= lg screens or horizontal scroll) */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="w-full min-w-[920px] text-left text-xs border-collapse">
+                    <thead>
+                      <tr
+                        className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                          isDark
+                            ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                            : "bg-stone-50/90 border-stone-200 text-stone-500"
+                        }`}
+                      >
+                        <th className="px-5 py-3.5 w-72 whitespace-nowrap">Vehicle / Specs</th>
+                        <th className="px-5 py-3.5 w-48 whitespace-nowrap">Plate & Hub</th>
+                        <th className="px-5 py-3.5 w-36 whitespace-nowrap">Status Override</th>
+                        <th className="px-5 py-3.5 w-40 whitespace-nowrap">Health & Sanitation</th>
+                        <th className="px-5 py-3.5 w-28 whitespace-nowrap">Fuel / Battery</th>
+                        <th className="px-5 py-3.5 w-36 text-right whitespace-nowrap">Daily Rate</th>
+                        <th className="px-5 py-3.5 w-28 text-center whitespace-nowrap">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody
+                      className={`divide-y font-sans ${
+                        isDark ? "divide-stone-800/60" : "divide-stone-100"
+                      }`}
+                    >
+                      {filteredFleet.map((c) => {
+                        const cleanHub = (c.location || "Miami MIA")
+                          .replace(/International Airport/i, "Intl")
+                          .replace(/Airport/i, "Hub")
+                          .trim()
+
+                        return (
+                          <tr
+                            key={c.id}
+                            className={`transition ${
+                              isDark
+                                ? "hover:bg-stone-800/50 border-stone-800/60"
+                                : "hover:bg-orange-50/40 border-stone-100"
+                            }`}
+                          >
+                            {/* Vehicle details */}
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`w-12 h-9 rounded-lg overflow-hidden shrink-0 border relative ${
+                                    isDark
+                                      ? "bg-stone-800 border-stone-700"
+                                      : "bg-stone-100 border-stone-200"
+                                  }`}
+                                >
+                                  <img
+                                    src={c.image}
+                                    alt={c.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {c.gallery && c.gallery.length > 1 && (
+                                    <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
+                                      <span>📷</span>
+                                      <span>{c.gallery.length}</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div
+                                    className={`font-bold text-xs whitespace-nowrap ${
+                                      isDark ? "text-white" : "text-stone-900"
+                                    }`}
+                                  >
+                                    {c.name}
+                                  </div>
+                                  <div
+                                    className={`text-[11px] whitespace-nowrap mt-0.5 ${
+                                      isDark ? "text-stone-400" : "text-stone-500"
+                                    }`}
+                                  >
+                                    {c.year} • {c.type} • {c.fuelType}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Plate & Hub */}
+                            <td className="px-5 py-3.5">
+                              <span
+                                className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] border inline-block whitespace-nowrap ${
+                                  isDark
+                                    ? "bg-stone-900 border-stone-700 text-stone-200"
+                                    : "bg-stone-100 border-stone-200 text-stone-800"
+                                }`}
+                              >
+                                {c.plateNumber || "N/A"}
+                              </span>
+                              <div
+                                className={`text-[11px] mt-1 font-medium whitespace-nowrap ${
+                                  isDark ? "text-stone-400" : "text-stone-500"
+                                }`}
+                                title={c.location}
+                              >
+                                {cleanHub}
+                              </div>
+                            </td>
+
+                            {/* Status Override */}
+                            <td className="px-5 py-3.5">
+                              <select
+                                value={c.status || "Available"}
+                                onChange={async (e) => {
+                                  const newStatus = e.target.value as CarStatus
+                                  const updated = await api.updateCarStatus(
+                                    c.id,
+                                    newStatus,
+                                  )
+                                  setCars((prev) =>
+                                    prev.map((x) =>
+                                      x.id === c.id ? updated : x,
+                                    ),
+                                  )
+                                  notify(
+                                    `${c.name} status updated to ${newStatus}.`,
+                                  )
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
+                                  c.status === "Available"
+                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                    : c.status === "Rented"
+                                      ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                      : c.status === "Maintenance"
+                                        ? "bg-rose-500/10 text-rose-600 border-rose-500/30"
+                                        : "bg-purple-500/10 text-purple-600 border-purple-500/30"
+                                }`}
+                              >
+                                <option value="Available">Available</option>
+                                <option value="Rented">Rented</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Cleaning">Cleaning</option>
+                              </select>
+                            </td>
+
+                            {/* Health score */}
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`font-mono font-bold ${
+                                    isDark ? "text-white" : "text-stone-900"
+                                  }`}
+                                >
+                                  {c.healthScore || 98}%
+                                </span>
+                                <div
+                                  className={`w-16 h-1.5 rounded-full overflow-hidden ${
+                                    isDark ? "bg-stone-800" : "bg-stone-100"
+                                  }`}
+                                >
+                                  <div
+                                    className="bg-emerald-500 h-full rounded-full"
+                                    style={{ width: `${c.healthScore || 98}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span
+                                className={`text-[10px] ${
+                                  isDark ? "text-stone-500" : "text-stone-400"
+                                }`}
+                              >
+                                Inspection Pass
+                              </span>
+                            </td>
+
+                            {/* Fuel */}
+                            <td
+                              className={`px-5 py-3.5 font-mono ${
+                                isDark ? "text-stone-300" : "text-stone-700"
+                              }`}
+                            >
+                              {c.mileage || "30 MPG"}
+                            </td>
+
+                            {/* Daily, Hourly & Monthly Dynamic Rates */}
+                            <td className="px-5 py-3.5 text-right font-mono">
+                              <span
+                                className={`font-bold block ${
+                                  isDark ? "text-white" : "text-stone-900"
+                                }`}
+                              >
+                                ${c.pricePerDay}/day
+                              </span>
+                              <span className="text-[11px] text-stone-400 block font-normal">
+                                ${c.pricePerHour || 8}/hr • $
+                                {c.pricePerMonth ||
+                                  Math.round(c.pricePerDay * 22)}
+                                /mo
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-5 py-3.5 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => handleOpenEditCar(c)}
+                                  className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                    isDark
+                                      ? "hover:bg-stone-800 text-stone-400 hover:text-white border-stone-800"
+                                      : "hover:bg-stone-100 text-stone-600 hover:text-stone-900 border-stone-200"
+                                  }`}
+                                  title="Edit specifications"
+                                >
+                                  <EditIcon size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setDeletingCar(c)}
+                                  className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                    isDark
+                                      ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
+                                      : "hover:bg-rose-50 text-stone-500 hover:text-rose-600 border-stone-200"
+                                  }`}
+                                  title="Decommission vehicle"
+                                >
+                                  <TrashIcon size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               /* Grid view */
