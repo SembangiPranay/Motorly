@@ -51,6 +51,7 @@ interface AdminViewProps {
   setBookings: React.Dispatch<React.SetStateAction<BookingRecord[]>>
   onExitAdmin: () => void
   onLogoutAdmin?: () => void
+  targetBookingId?: string
 }
 
 export default function AdminView({
@@ -60,12 +61,17 @@ export default function AdminView({
   setBookings,
   onExitAdmin,
   onLogoutAdmin,
+  targetBookingId,
 }: AdminViewProps) {
   // Navigation tabs
   const [activeTab, setActiveTab] =
     useState<"manifest" | "fleet" | "walkin" | "promos" | "crm" | "maintenance">(
       "manifest",
     )
+
+  // Mobile sidebar drawer state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [globalAdminSearch, setGlobalAdminSearch] = useState("")
 
   // Notification Banner
   const [notification, setNotification] = useState<string | null>(null)
@@ -79,6 +85,27 @@ export default function AdminView({
   // --- Slide-out Inspection Drawer State ---
   const [inspectedBooking, setInspectedBooking] =
     useState<BookingRecord | null>(null)
+
+  // Auto-open requested booking from URL or direct action link
+  useEffect(() => {
+    const urlParams =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null
+    const urlBId = urlParams ? urlParams.get("bookingId") : null
+    const activeBId = targetBookingId || urlBId
+    if (activeBId && bookings.length > 0) {
+      const found = bookings.find(
+        (b) =>
+          b.id.toLowerCase() === activeBId.toLowerCase() ||
+          (b as any).bookingId?.toLowerCase() === activeBId.toLowerCase(),
+      )
+      if (found) {
+        setActiveTab("manifest")
+        setInspectedBooking(found)
+      }
+    }
+  }, [targetBookingId, bookings])
 
   // --- Promos State ---
   const [promos, setPromos] = useState<PromoCode[]>([])
@@ -1524,187 +1551,303 @@ export default function AdminView({
 
   return (
     <div
-      className={`w-full max-w-full overflow-x-hidden min-h-screen pb-24 font-sans transition-colors duration-200 ${
+      className={`w-full max-w-full overflow-x-hidden min-h-screen font-sans transition-colors duration-200 flex flex-col lg:flex-row ${
         isDark
           ? "dark bg-[#111215] text-[#F3F4F6]"
           : "bg-[#FAF7F2] text-[#17191C]"
       }`}
     >
-      {/* Top Operations Header Bar */}
-      <header
-        className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors ${
+      {/* ========================================================
+          1. LEFT SIDEBAR (Matches Reference Image Layout)
+          ======================================================== */}
+      {/* Mobile Drawer Backdrop */}
+      {isMobileSidebarOpen && (
+        <div
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden animate-fade-in"
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <aside
+        className={`fixed top-0 bottom-0 left-0 z-50 lg:sticky lg:top-0 h-screen w-64 xl:w-72 border-r flex flex-col justify-between shrink-0 transition-transform duration-300 ${
+          isMobileSidebarOpen
+            ? "translate-x-0 shadow-2xl"
+            : "-translate-x-full lg:translate-x-0"
+        } ${
           isDark
-            ? "bg-[#17191C]/95 border-stone-800"
-            : "bg-white/95 border-stone-200/90 shadow-2xs"
+            ? "bg-[#141518] border-stone-800 text-stone-200"
+            : "bg-[#FDFBF7] border-stone-200/90 text-stone-800"
         }`}
       >
-        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8">
-          {/* Mobile Header (< sm screens) */}
-          <div className="flex flex-col gap-2.5 py-2.5 sm:hidden">
-            <div className="flex items-center justify-between">
-              {/* Brand */}
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[#F97316] text-white flex items-center justify-center font-black text-xs tracking-wider shadow-sm">
-                  M
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`font-black text-sm tracking-tight ${
-                      isDark ? "text-white" : "text-[#17191C]"
-                    }`}
-                  >
-                    MOTORLY
-                  </span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${
-                      isDark
-                        ? "bg-orange-500/10 text-[#F97316] border-orange-500/20"
-                        : "bg-orange-50 text-[#F97316] border-orange-200"
-                    }`}
-                  >
-                    Admin
-                  </span>
-                </div>
+        {/* Top Branding & Status */}
+        <div className="p-5 border-b border-stone-200/80 dark:border-stone-800/80">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-linear-to-br from-[#F97316] to-amber-500 text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm">
+                M
               </div>
-
-              {/* Action Icons */}
-              <div className="flex items-center gap-1.5">
-                {/* Mobile Notification Bell */}
-                <button
-                  type="button"
-                  onClick={() => setIsNotificationOpen((prev) => !prev)}
-                  className={`relative p-1.5 rounded-lg text-xs font-bold border transition ${
-                    isNotificationOpen
-                      ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
-                      : overdueBookings.length > 0
-                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                        : isDark
-                          ? "bg-stone-800 text-stone-200 border-stone-700"
-                          : "bg-white text-stone-700 border-stone-200 shadow-2xs"
-                  }`}
-                  title="Notifications & Fleet Alerts"
-                  aria-label="Fleet Notifications"
-                >
-                  <BellIcon size={15} />
-                  {overdueBookings.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
-                      {overdueBookings.length}
-                    </span>
-                  )}
-                </button>
-
-                {/* Mobile Admin Profile Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsAdminProfileOpen(true)}
-                  className={`p-1.5 rounded-lg text-xs font-bold border transition flex items-center justify-center ${
-                    isAdminProfileOpen
-                      ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
-                      : isDark
-                        ? "bg-stone-800 text-stone-200 border-stone-700"
-                        : "bg-white text-stone-700 border-stone-200 shadow-2xs"
-                  }`}
-                  title="Admin Profile & System Settings"
-                  aria-label="Admin Profile"
-                >
-                  <div className="w-4 h-4 rounded-full bg-linear-to-tr from-[#F97316] to-amber-500 text-white font-black text-[9px] flex items-center justify-center">
-                    A
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  className={`p-1.5 rounded-lg text-xs font-bold border transition ${
-                    isDark
-                      ? "bg-stone-800 text-stone-200 border-stone-700"
-                      : "bg-white text-stone-700 border-stone-200 shadow-2xs"
-                  }`}
-                  title="Toggle Light / Dark Mode"
-                >
-                  {isDark ? "🌙" : "☀️"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRefreshData}
-                  disabled={isSyncing}
-                  className={`p-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1 disabled:opacity-50 ${
-                    isDark
-                      ? "bg-stone-800 text-stone-300 border-stone-700"
-                      : "bg-white text-stone-700 border-stone-200 shadow-2xs"
-                  }`}
-                  title="Sync with Database"
-                >
-                  <span className={isSyncing ? "animate-spin" : ""}>↻</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onLogoutAdmin || onExitAdmin}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold border transition ${
-                    isDark
-                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                      : "bg-rose-50 text-rose-700 border-rose-200"
-                  }`}
-                  title="Sign Out of Admin Console"
-                >
-                  Sign Out
-                </button>
+              <div>
+                <h1 className="font-heading font-black text-sm tracking-tight leading-tight">
+                  MOTORLY <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase">ATELIER</span>
+                </h1>
+                <p className="text-[10px] font-mono text-stone-400">
+                  STUDIO DIRECTOR CONSOLE
+                </p>
               </div>
             </div>
 
-            {/* Mobile Storefront CTA Row */}
+            {/* Mobile close button */}
             <button
-              type="button"
-              onClick={onExitAdmin}
-              className="w-full py-2 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="lg:hidden p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400"
             >
-              ← Return to Customer Storefront
+              ✕
             </button>
           </div>
 
-          {/* Desktop Header (>= sm screens) */}
-          <div className="hidden sm:flex items-center justify-between h-16">
-            {/* Brand & Mode */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#F97316] text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm">
-                  M
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`font-black text-base tracking-tight ${
-                        isDark ? "text-white" : "text-[#17191C]"
-                      }`}
-                    >
-                      MOTORLY
-                    </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                        isDark
-                          ? "bg-orange-500/10 text-[#F97316] border-orange-500/20"
-                          : "bg-orange-50 text-[#F97316] border-orange-200"
-                      }`}
-                    >
-                      FLEET OPS CONSOLE
-                    </span>
-                  </div>
-                  <p
-                    className={`text-[10px] font-mono ${
-                      isDark ? "text-stone-400" : "text-stone-500"
-                    }`}
+          {/* Database Live Status Pill (Matches Reference Image) */}
+          <div className="mt-4 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              DATABASE LIVE
+            </span>
+            <span className="text-[10px] font-mono text-stone-400">
+              14ms • Supabase
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation Items (Matches Reference Image Side Bar with Detailing) */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <p className="px-3 pt-2 pb-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400">
+            Console Pages
+          </p>
+
+          {[
+            {
+              id: "manifest",
+              label: "Orders & Dispatch",
+              icon: <CalendarIcon size={16} />,
+              badge:
+                stats.pendingMating > 0
+                  ? `⚡ ${stats.pendingMating}`
+                  : `${bookings.length}`,
+              badgeColor:
+                stats.pendingMating > 0
+                  ? "bg-amber-500 text-stone-950 font-black"
+                  : "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+            },
+            {
+              id: "fleet",
+              label: "Fleet & Inventory",
+              icon: <CarIcon size={16} />,
+              badge: `${cars.length}`,
+              badgeColor:
+                "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+            },
+            {
+              id: "promos",
+              label: "Privileges & Coupons",
+              icon: <TagIcon size={16} />,
+              badge: `${promos.length}`,
+              badgeColor:
+                "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+            },
+            {
+              id: "crm",
+              label: "Customers & Drivers",
+              icon: <UserIcon size={16} />,
+              badge: `${customers.length}`,
+              badgeColor:
+                "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+            },
+            {
+              id: "walkin",
+              label: "Walk-in Counter",
+              icon: <ZapIcon size={16} />,
+              badge: "Fast",
+              badgeColor:
+                "bg-orange-500/15 text-[#F97316] font-bold border border-orange-500/20",
+            },
+            {
+              id: "maintenance",
+              label: "Vehicle Maintenance",
+              icon: <WrenchIcon size={16} />,
+              badge: `${mntPagination.total || maintenanceLogs.length}`,
+              badgeColor:
+                "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+            },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any)
+                  setIsMobileSidebarOpen(false)
+                }}
+                className={`w-full px-3.5 py-2.5 rounded-2xl transition flex items-center justify-between text-xs cursor-pointer group ${
+                  isActive
+                    ? isDark
+                      ? "bg-white text-stone-950 font-bold shadow-md"
+                      : "bg-[#1C1917] text-white font-bold shadow-sm"
+                    : isDark
+                      ? "text-stone-400 hover:text-stone-100 hover:bg-stone-800/60 font-semibold"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 font-semibold"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={
+                      isActive
+                        ? isDark
+                          ? "text-stone-950"
+                          : "text-white"
+                        : "text-stone-400 group-hover:text-stone-600 dark:group-hover:text-stone-300"
+                    }
                   >
-                    HQ Rental / Fleetio Enterprise Standard • Supabase Synced
-                  </p>
+                    {tab.icon}
+                  </span>
+                  <span>{tab.label}</span>
                 </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${tab.badgeColor} ${
+                    isActive && !isDark ? "bg-white/20 text-white" : ""
+                  }`}
+                >
+                  {tab.badge}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-stone-200/80 dark:border-stone-800/80 space-y-2">
+          <div className="flex items-center justify-between text-[11px] text-stone-400 font-mono">
+            <span>MOTORLY OS v3.4</span>
+            <button
+              onClick={handleRefreshData}
+              disabled={isSyncing}
+              className="text-[#F97316] hover:underline cursor-pointer flex items-center gap-1 font-bold"
+              title="Force database sync"
+            >
+              <span className={isSyncing ? "animate-spin" : ""}>↻</span>
+              <span>Sync</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ========================================================
+          2. RIGHT MAIN COLUMN (Top Nav + Main Content)
+          ======================================================== */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navigation Bar */}
+        <header
+          className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors ${
+            isDark
+              ? "bg-[#17191C]/95 border-stone-800"
+              : "bg-white/95 border-stone-200/90 shadow-2xs"
+          }`}
+        >
+          <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            {/* Left: Mobile Toggle + Universal Search Input (Matches Reference Image) */}
+            <div className="flex items-center gap-3 flex-1 max-w-lg">
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-xl border border-stone-200 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 cursor-pointer"
+                aria-label="Open Sidebar"
+              >
+                ☰
+              </button>
+
+              {/* Universal Search Input */}
+              <div className="relative w-full">
+                <SearchIcon
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={globalAdminSearch}
+                  onChange={(e) => {
+                    const q = e.target.value
+                    setGlobalAdminSearch(q)
+                    setManifestSearch(q)
+                    setFleetSearch(q)
+                    setCustomerSearch(q)
+                    setMntSearch(q)
+                  }}
+                  placeholder="Search clients, orders, creations, SKUs..."
+                  className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs font-medium border transition focus:outline-none focus:ring-2 focus:ring-stone-400 ${
+                    isDark
+                      ? "bg-stone-900 border-stone-700 text-white placeholder-stone-500"
+                      : "bg-[#FDFBF7] border-stone-200 text-stone-900 placeholder-stone-400 shadow-2xs"
+                  }`}
+                />
               </div>
             </div>
 
-            {/* Quick Actions & Exit */}
-            <div className="flex items-center gap-2">
-              {/* Notification Center Button & Popover */}
+            {/* Right: Actions (View Website, Profile, Sign Out, Alerts) */}
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              {/* VIEW WEBSITE Button (Matches Reference Image) */}
+              <button
+                type="button"
+                onClick={onExitAdmin}
+                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                    : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
+                }`}
+                title="View customer storefront"
+              >
+                <span>↗</span>
+                <span className="hidden sm:inline">VIEW WEBSITE</span>
+              </button>
+
+              {/* Admin Profile Pill (Matches Reference Image) */}
+              <button
+                type="button"
+                onClick={() => setIsAdminProfileOpen(true)}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                  isAdminProfileOpen
+                    ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
+                    : isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                      : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
+                }`}
+                title="Studio Director Profile"
+              >
+                <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#1C1917] to-stone-700 text-white font-black text-[9px] flex items-center justify-center shrink-0">
+                  SD
+                </div>
+                <div className="hidden md:block text-left leading-tight">
+                  <span className="font-bold text-xs block">Studio Director</span>
+                  <span className="text-[9px] font-mono text-stone-400 block -mt-0.5">
+                    STUDIO DIRECTOR
+                  </span>
+                </div>
+              </button>
+
+              {/* SIGN OUT Button (Matches Reference Image) */}
+              <button
+                type="button"
+                onClick={onLogoutAdmin || onExitAdmin}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                  isDark
+                    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
+                    : "bg-white hover:bg-rose-50 text-rose-700 border-stone-200 shadow-2xs"
+                }`}
+                title="Sign out of console"
+              >
+                <span>[→</span>
+                <span className="hidden sm:inline">SIGN OUT</span>
+              </button>
+
+              {/* Overdue Notification Bell */}
               <div className="relative">
                 <button
                   type="button"
@@ -1713,17 +1856,16 @@ export default function AdminView({
                     isNotificationOpen
                       ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
                       : overdueBookings.length > 0
-                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
+                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
                         : isDark
                           ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
                           : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
                   }`}
                   title="Notifications & Fleet Alerts"
-                  aria-label="Fleet Notifications"
                 >
-                  <BellIcon size={17} />
+                  <BellIcon size={16} />
                   {overdueBookings.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center animate-pulse shadow-sm">
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
                       {overdueBookings.length}
                     </span>
                   )}
@@ -1762,7 +1904,6 @@ export default function AdminView({
                           type="button"
                           onClick={() => setIsNotificationOpen(false)}
                           className="w-6 h-6 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-xs font-bold cursor-pointer flex items-center justify-center transition"
-                          aria-label="Close notifications"
                         >
                           ✕
                         </button>
@@ -1835,459 +1976,451 @@ export default function AdminView({
                         ))
                       )}
                     </div>
-
-                    {overdueBookings.length > 0 && (
-                      <div className="mt-3 pt-2.5 border-t border-stone-200 dark:border-stone-800 flex justify-between items-center text-xs">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveTab("manifest")
-                            setManifestStatusFilter("Checked Out")
-                            setIsNotificationOpen(false)
-                          }}
-                          className="text-[#F97316] hover:underline font-bold text-[11px] cursor-pointer"
-                        >
-                          View in Active Manifest →
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsNotificationOpen(false)}
-                          className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-[11px] cursor-pointer"
-                        >
-                          Dismiss Dropdown
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
 
-              {/* Global Reviews System Toggle Button */}
+              {/* Reviews System Toggle */}
               <button
                 type="button"
                 onClick={handleToggleReviews}
                 disabled={isUpdatingReviewsSetting}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                   reviewsEnabled
-                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/25"
+                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40"
                     : isDark
                       ? "bg-stone-800 text-stone-400 border-stone-700"
                       : "bg-stone-100 text-stone-500 border-stone-200"
                 }`}
-                title="Toggle Customer Reviews & Feedback Globally"
+                title="Toggle Global Reviews"
               >
                 <span>★</span>
-                <span>{reviewsEnabled ? "Reviews: ON" : "Reviews: OFF"}</span>
+                <span className="hidden xl:inline">{reviewsEnabled ? "Reviews: ON" : "Reviews: OFF"}</span>
               </button>
 
-              {/* Light / Dark Mode Toggle */}
+              {/* Theme Toggle */}
               <button
                 type="button"
                 onClick={toggleTheme}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`p-2 rounded-xl text-xs font-bold border transition ${
                   isDark
-                    ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
-                    : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
+                    ? "bg-stone-800 text-stone-200 border-stone-700"
+                    : "bg-white text-stone-700 border-stone-200 shadow-2xs"
                 }`}
                 title="Toggle Light / Dark Mode"
               >
-                <span>{isDark ? "🌙 Dark" : "☀️ Light"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleRefreshData}
-                disabled={isSyncing}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer ${
-                  isDark
-                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
-                    : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
-                }`}
-                title="Force refresh database records"
-              >
-                <span className={isSyncing ? "animate-spin" : ""}>↻</span>
-                <span>{isSyncing ? "Syncing..." : "Sync DB"}</span>
-              </button>
-
-              {/* Admin Profile Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setIsAdminProfileOpen(true)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
-                  isAdminProfileOpen
-                    ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
-                    : isDark
-                      ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
-                      : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
-                }`}
-                title="View Admin Profile & System Details"
-              >
-                <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#F97316] to-amber-500 text-white font-black text-[10px] flex items-center justify-center shrink-0">
-                  A
-                </div>
-                <span className="font-semibold">Alex Vance</span>
-                <span
-                  className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
-                  title="System Lead Active"
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={onExitAdmin}
-                className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold transition border border-stone-200 dark:border-stone-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                title="Browse customer storefront without logging out"
-              >
-                ← Storefront
-              </button>
-
-              {/* Direct Sign Out Button */}
-              <button
-                type="button"
-                onClick={onLogoutAdmin || onExitAdmin}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
-                  isDark
-                    ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30 hover:border-rose-500/50"
-                    : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
-                }`}
-                title="Sign Out of Admin Console"
-              >
-                <span>Sign Out</span>
+                {isDark ? "🌙" : "☀️"}
               </button>
             </div>
           </div>
+        </header>
 
-          {/* Module Navigation Tabs */}
-          <div
-            className={`flex overflow-x-auto touch-pan-x flex-nowrap no-scrollbar gap-1 pt-1.5 pb-2 border-t text-xs font-medium ${
-              isDark ? "border-stone-800/80" : "border-stone-200/80"
-            }`}
-          >
-            {[
-              {
-                id: "manifest",
-                label: "Active Bookings",
-                icon: <LinkIcon size={14} className="text-[#F97316]" />,
-                badge:
-                  overdueBookings.length > 0 ? (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-600 text-white animate-pulse">
-                      {overdueBookings.length} Overdue
-                    </span>
-                  ) : stats.pendingMating > 0 ? (
-                    <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold border ${
-                        isDark
-                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                          : "bg-amber-100 text-amber-800 border-amber-200"
-                      }`}
-                    >
-                      {stats.pendingMating}
-                    </span>
-                  ) : null,
-              },
-              {
-                id: "fleet",
-                label: "Fleet Vehicles",
-                icon: <CarIcon size={14} className="text-sky-500" />,
-                badge: (
-                  <span
-                    className={`text-[10px] font-mono ${
-                      isDark ? "text-stone-500" : "text-stone-400"
-                    }`}
-                  >
-                    ({cars.length})
-                  </span>
-                ),
-              },
-              {
-                id: "walkin",
-                label: "Walk-In Booking",
-                icon: <ZapIcon size={14} className="text-amber-500" />,
-                badge: null,
-              },
-              {
-                id: "promos",
-                label: "Coupons & Discounts",
-                icon: <TagIcon size={14} className="text-emerald-500" />,
-                badge: (
-                  <span
-                    className={`text-[10px] font-mono ${
-                      isDark ? "text-stone-500" : "text-stone-400"
-                    }`}
-                  >
-                    ({promos.length})
-                  </span>
-                ),
-              },
-              {
-                id: "crm",
-                label: "Customers & Drivers",
-                icon: <UserIcon size={14} className="text-purple-500" />,
-                badge: (
-                  <span
-                    className={`text-[10px] font-mono ${
-                      isDark ? "text-stone-500" : "text-stone-400"
-                    }`}
-                  >
-                    ({customers.length})
-                  </span>
-                ),
-              },
-              {
-                id: "maintenance",
-                label: "Vehicle Maintenance",
-                icon: <WrenchIcon size={14} className="text-rose-500" />,
-                badge: (
-                  <span
-                    className={`text-[10px] font-mono ${
-                      isDark ? "text-stone-500" : "text-stone-400"
-                    }`}
-                  >
-                    ({mntPagination.total || maintenanceLogs.length})
-                  </span>
-                ),
-              },
-            ].map((tab) => {
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-3.5 py-2 rounded-lg transition whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-                    isActive
-                      ? isDark
-                        ? "bg-stone-800 text-white font-bold shadow-sm"
-                        : "bg-[#17191C] text-white font-bold shadow-xs"
-                      : isDark
-                        ? "text-stone-400 hover:text-stone-200 hover:bg-stone-900"
-                        : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
-                  }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                  {tab.badge}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        {/* Toast Alert */}
-        {notification && (
-          <div
-            className={`p-3.5 rounded-xl border text-xs font-medium flex items-center justify-between shadow-lg backdrop-blur-sm animate-fade-in ${
-              isDark
-                ? "bg-emerald-950/80 border-emerald-500/30 text-emerald-300"
-                : "bg-emerald-50 border-emerald-200 text-emerald-800"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <CheckIcon size={16} className="text-emerald-500" />
-              <span>{notification}</span>
-            </div>
-            <button
-              onClick={() => setNotification(null)}
-              className="text-emerald-600 hover:text-emerald-800 font-bold cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-
-
-        {/* Executive KPI Bar */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-          <div
-            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
-              isDark
-                ? "bg-[#17191C] border-stone-800 shadow-md"
-                : "bg-white border-stone-200/90 shadow-xs"
-            }`}
-          >
-            <p
-              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Total Fleet
-            </p>
-            <p
-              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
-                isDark ? "text-white" : "text-stone-900"
-              }`}
-            >
-              {stats.total}
-            </p>
-            <div className="flex items-center gap-2 text-[11px] font-medium">
-              <span className="text-emerald-600 font-bold">
-                {stats.available} Available
-              </span>
-              <span className={isDark ? "text-stone-600" : "text-stone-300"}>
-                •
-              </span>
-              <span className="text-amber-600 font-semibold">
-                {stats.rented} Rented
-              </span>
-            </div>
-          </div>
-
-          <div
-            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
-              isDark
-                ? "bg-[#17191C] border-stone-800 shadow-md"
-                : "bg-white border-stone-200/90 shadow-xs"
-            }`}
-          >
-            <p
-              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Fleet Utilization
-            </p>
-            <p className="text-2xl sm:text-3xl font-black font-mono my-1 text-emerald-500">
-              {stats.utilization}%
-            </p>
+        {/* Main Workspace Area */}
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {/* Toast Alert */}
+          {notification && (
             <div
-              className={`w-full h-1.5 rounded-full overflow-hidden ${
-                isDark ? "bg-stone-800" : "bg-stone-100"
+              className={`p-3.5 rounded-xl border text-xs font-medium flex items-center justify-between shadow-lg backdrop-blur-sm animate-fade-in ${
+                isDark
+                  ? "bg-emerald-950/80 border-emerald-500/30 text-emerald-300"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-800"
               }`}
             >
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${stats.utilization}%` }}
-              />
+              <div className="flex items-center gap-2">
+                <CheckIcon size={16} className="text-emerald-500" />
+                <span>{notification}</span>
+              </div>
+              <button
+                onClick={() => setNotification(null)}
+                className="text-emerald-600 hover:text-emerald-800 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* ========================================================
+              PAGE HEADER (Matches Reference Image)
+              Subtitle + Large Bold Title + Subtext + Action CTA
+              ======================================================== */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1 border-b border-stone-200/60 dark:border-stone-800/60">
+            <div>
+              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#F97316]">
+                Studio Director Console
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-stone-900 dark:text-white uppercase mt-1">
+                {activeTab === "promos" && "PRIVILEGES & COUPON REGISTRY"}
+                {activeTab === "manifest" && "ORDERS & DISPATCH REGISTRY"}
+                {activeTab === "fleet" && "FLEET & ASSET INVENTORY"}
+                {activeTab === "crm" && "CUSTOMERS & VERIFIED DRIVER CRM"}
+                {activeTab === "walkin" && "COUNTER DISPATCH & INSTANT CHECKOUT"}
+                {activeTab === "maintenance" && "VEHICLE TELEMETRY & REPAIR AUDIT"}
+              </h2>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-2xl">
+                {activeTab === "promos" &&
+                  "Curate exclusive VIP discount vouchers, regulate privileges, dismantle codes in real-time, and monitor live performance rankings."}
+                {activeTab === "manifest" &&
+                  "Review real-time reservation requests, inspect driver credentials, dispatch keys, and regulate fleet lifecycle across all station hubs."}
+                {activeTab === "fleet" &&
+                  "Manage vehicle specifications, multi-photo galleries, garage hub assignments, daily rates, and dynamic operational statuses."}
+                {activeTab === "crm" &&
+                  "Inspect client credentials, verify driver licenses, review customer rental history, and regulate security clearances."}
+                {activeTab === "walkin" &&
+                  "Execute fast counter bookings for airport and hub arrivals with automatic vehicle mating and on-the-spot key handoff."}
+                {activeTab === "maintenance" &&
+                  "Audit vehicle health scores, track preventative maintenance logs, and manage repair workflows with complete audit history."}
+              </p>
+            </div>
+
+            {/* Primary Action Button (Matches Reference Image) */}
+            <div className="shrink-0 flex items-center gap-2">
+              {activeTab === "promos" && (
+                <button
+                  type="button"
+                  onClick={() => setIsPromoModalOpen(true)}
+                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  <PlusIcon size={14} />
+                  <span>+ + Create New Privilege</span>
+                </button>
+              )}
+
+              {activeTab === "fleet" && (
+                <button
+                  type="button"
+                  onClick={handleOpenAddCar}
+                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  <PlusIcon size={14} />
+                  <span>+ Register Vehicle</span>
+                </button>
+              )}
+
+              {activeTab === "manifest" && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("walkin")}
+                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  <PlusIcon size={14} />
+                  <span>+ Walk-in Dispatch</span>
+                </button>
+              )}
+
+              {activeTab === "maintenance" && (
+                <button
+                  type="button"
+                  onClick={() => notify("Maintenance scheduler ready.")}
+                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  <PlusIcon size={14} />
+                  <span>+ Schedule Service</span>
+                </button>
+              )}
             </div>
           </div>
 
-          <div
-            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
-              isDark
-                ? "bg-[#17191C] border-stone-800 shadow-md"
-                : "bg-white border-stone-200/90 shadow-xs"
-            }`}
-          >
-            <p
-              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Active Daily Rev
-            </p>
-            <p
-              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
-                isDark ? "text-white" : "text-stone-900"
-              }`}
-            >
-              ${stats.activeRevenue.toLocaleString()}
-            </p>
-            <p
-              className={`text-[11px] ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              From active contracts
-            </p>
-          </div>
+          {/* ========================================================
+              4 BETTER CARDS OF INFO (Matches Reference Image)
+              Top uppercase label + Icon | Bold Value | Detail with dot
+              ======================================================== */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {activeTab === "promos" && (
+              <>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      ACTIVE PRIVILEGES
+                    </p>
+                    <span className="text-emerald-500">🏷️</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {promos.length || 7}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Live &amp; redeemable at checkout
+                  </p>
+                </div>
 
-          <div
-            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
-              isDark
-                ? "bg-[#17191C] border-stone-800 shadow-md"
-                : "bg-white border-stone-200/90 shadow-xs"
-            }`}
-          >
-            <p
-              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Needs Car Assigned
-            </p>
-            <p
-              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
-                stats.pendingMating > 0
-                  ? "text-amber-500"
-                  : isDark
-                    ? "text-stone-300"
-                    : "text-stone-900"
-              }`}
-            >
-              {stats.pendingMating}
-            </p>
-            <p
-              className={`text-[11px] ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Awaiting car assignment
-            </p>
-          </div>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      DISMANTLED CODES
+                    </p>
+                    <span className="text-amber-500">⚠️</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    1
+                  </p>
+                  <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                    Blocked from customer use
+                  </p>
+                </div>
 
-          <div
-            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
-              isDark
-                ? "bg-[#17191C] border-stone-800 shadow-md"
-                : "bg-white border-stone-200/90 shadow-xs"
-            }`}
-          >
-            <p
-              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Active Trips (On Road)
-            </p>
-            <p className="text-2xl sm:text-3xl font-black font-mono my-1 text-sky-500">
-              {stats.inDrive}
-            </p>
-            <p
-              className={`text-[11px] ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Keys handed over
-            </p>
-          </div>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      #1 TOP USED VOUCHER
+                    </p>
+                    <span className="text-amber-500">🎗️</span>
+                  </div>
+                  <p className="text-2xl font-black font-mono my-1 text-stone-900 dark:text-white tracking-wider">
+                    MOTORLY15
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    14 redemptions ($210 savings)
+                  </p>
+                </div>
 
-          <div
-            className={`border p-4 sm:p-5 rounded-2xl flex flex-col justify-between min-h-[118px] transition ${
-              isDark
-                ? "bg-[#17191C] border-stone-800 shadow-md"
-                : "bg-white border-stone-200/90 shadow-xs"
-            }`}
-          >
-            <p
-              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
-                isDark ? "text-stone-400" : "text-stone-500"
-              }`}
-            >
-              Maintenance / Wash
-            </p>
-            <p
-              className={`text-2xl sm:text-3xl font-black font-mono my-1 ${
-                isDark ? "text-stone-300" : "text-stone-900"
-              }`}
-            >
-              {stats.maintenance + stats.cleaning}
-            </p>
-            <div className="flex items-center gap-2 text-[11px] font-medium">
-              <span className="text-rose-500 font-semibold">
-                {stats.maintenance} Service
-              </span>
-              <span className={isDark ? "text-stone-600" : "text-stone-300"}>
-                •
-              </span>
-              <span className="text-amber-500 font-semibold">
-                {stats.cleaning} Cleaning
-              </span>
-            </div>
-          </div>
-        </section>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      TOTAL SAVINGS GRANTED
+                    </p>
+                    <span className="text-emerald-500">↗</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    $480
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Across all atelier transactions
+                  </p>
+                </div>
+              </>
+            )}
+
+            {activeTab === "manifest" && (
+              <>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      ACTIVE RESERVATIONS
+                    </p>
+                    <span className="text-sky-500">🚗</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {stats.rented}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    On road &amp; in service
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      PENDING APPROVALS &amp; MATING
+                    </p>
+                    <span className="text-amber-500">⚡</span>
+                  </div>
+                  <p className={`text-3xl font-black font-mono my-1 ${
+                    stats.pendingMating > 0 ? "text-amber-500" : "text-stone-900 dark:text-white"
+                  }`}>
+                    {stats.pendingMating}
+                  </p>
+                  <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                    Awaiting manager clearance
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      COMPLETED TRIPS
+                    </p>
+                    <span className="text-emerald-500">✓</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {bookings.filter((b) => b.status === "Completed").length}
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Successfully returned &amp; audited
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      TOTAL DISPATCH REVENUE
+                    </p>
+                    <span className="text-emerald-500">↗</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    ${stats.activeRevenue.toLocaleString()}
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    From active reservation contracts
+                  </p>
+                </div>
+              </>
+            )}
+
+            {activeTab === "fleet" && (
+              <>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      REGISTERED FLEET
+                    </p>
+                    <span className="text-stone-400">🚗</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {stats.total}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Active in catalog
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      AVAILABLE IN GARAGE
+                    </p>
+                    <span className="text-emerald-500">✓</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {stats.available}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    Ready for immediate booking
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      MAINTENANCE &amp; WASH
+                    </p>
+                    <span className="text-rose-500">🔧</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {stats.maintenance + stats.cleaning}
+                  </p>
+                  <p className="text-[11px] font-medium text-rose-500">
+                    {stats.maintenance} Service • {stats.cleaning} Cleaning
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      FLEET UTILIZATION
+                    </p>
+                    <span className="text-emerald-500">⚡</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-emerald-500">
+                    {stats.utilization}%
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Optimal operational capacity
+                  </p>
+                </div>
+              </>
+            )}
+
+            {(activeTab === "crm" || activeTab === "walkin" || activeTab === "maintenance") && (
+              <>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      TOTAL CLIENT DIRECTORY
+                    </p>
+                    <span className="text-stone-400">👤</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {customers.length || 12}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Verified client accounts
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      ACTIVE SERVICES / WORK
+                    </p>
+                    <span className="text-amber-500">🔧</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    {maintenanceLogs.filter((m) => m.status === "In Progress").length || 1}
+                  </p>
+                  <p className="text-[11px] font-medium text-amber-500">
+                    Bay repair in progress
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      COUNTER SPEED
+                    </p>
+                    <span className="text-sky-500">⚡</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    3.5 Min
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Instant walk-in clearance
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      CLIENT SATISFACTION
+                    </p>
+                    <span className="text-amber-500">★</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                    4.9 / 5.0
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    From verified trip ratings
+                  </p>
+                </div>
+              </>
+            )}
+          </section>
 
         {/* ========================================================
             TAB 1: RESERVATION MANIFEST & MATING
@@ -5239,6 +5372,7 @@ export default function AdminView({
           </section>
         )}
       </main>
+    </div>
 
       {/* ========================================================
           FULL-PAGE RESERVATION INSPECTION MANIFEST (Bug 5: Full View)

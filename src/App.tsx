@@ -55,9 +55,13 @@ export default function App() {
     },
   )
 
-  // Current View State with persistent reload restore
+  // Current View State with persistent reload restore + deep link routing
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("view") === "admin" || params.get("bookingId")) {
+        return "admin"
+      }
       const saved = localStorage.getItem(
         "motorly_current_view",
       ) as ViewMode | null
@@ -86,6 +90,30 @@ export default function App() {
       localStorage.setItem("motorly_current_view", currentView)
     } catch {}
   }, [currentView])
+
+  // Direct Deep Link Support (e.g. ?view=admin&bookingId=MTR-XXXXXX)
+  const [targetBookingId, setTargetBookingId] = useState<string | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      return params.get("bookingId")
+    } catch {
+      return null
+    }
+  })
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const bId = params.get("bookingId")
+      const v = params.get("view")
+      if (bId) {
+        setTargetBookingId(bId)
+        setCurrentView("admin")
+      } else if (v === "admin") {
+        setCurrentView("admin")
+      }
+    } catch {}
+  }, [])
 
   const [authInitialTab, setAuthInitialTab] = useState<"customer" | "admin">(
     "customer",
@@ -549,6 +577,7 @@ export default function App() {
             setCars={setCars}
             bookings={bookings}
             setBookings={setBookings}
+            targetBookingId={targetBookingId || undefined}
             onExitAdmin={() => setCurrentView("home")}
             onLogoutAdmin={() => {
               api.logoutAdmin()
@@ -599,8 +628,11 @@ export default function App() {
             setCurrentView("listing")
           }}
           onNavigateAdmin={() => {
+            const bId = confirmedBooking.bookingId
             setConfirmedBooking(null)
-            handleNavigate("admin")
+            setTargetBookingId(bId)
+            setIsAdminAuthenticated(true)
+            setCurrentView("admin")
           }}
           onNavigateMyBookings={() => {
             setConfirmedBooking(null)
