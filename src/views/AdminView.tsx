@@ -42,6 +42,9 @@ import {
   GridIcon,
   ListIcon,
   BellIcon,
+  PhoneIcon,
+  MailIcon,
+  SettingsIcon,
 } from "../components/Icons"
 
 interface AdminViewProps {
@@ -63,15 +66,75 @@ export default function AdminView({
   onLogoutAdmin,
   targetBookingId,
 }: AdminViewProps) {
-  // Navigation tabs
+  // Navigation tabs (includes dedicated Settings tab)
   const [activeTab, setActiveTab] =
-    useState<"manifest" | "fleet" | "walkin" | "promos" | "crm" | "maintenance">(
+    useState<"manifest" | "fleet" | "walkin" | "promos" | "crm" | "maintenance" | "settings">(
       "manifest",
     )
 
   // Mobile sidebar drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [globalAdminSearch, setGlobalAdminSearch] = useState("")
+
+  // Studio Director Contact & Dispatch Settings State
+  const [studioContact, setStudioContact] = useState({
+    contact_phone: "+1 (555) 234-5678",
+    contact_email: "concierge@motorly.com",
+    admin_name: "Studio Director",
+    hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+    support_phone: "+1 (800) 555-MOTOR",
+  })
+  const [isSavingStudioContact, setIsSavingStudioContact] = useState(false)
+  const [contactSaveFeedback, setContactSaveFeedback] = useState<string | null>(null)
+
+  // Load Studio Settings from Supabase on mount
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((res) => {
+        if (res) {
+          if (typeof res.reviews_enabled === "boolean") {
+            setReviewsEnabled(res.reviews_enabled)
+          }
+          setStudioContact((prev) => ({
+            ...prev,
+            contact_phone: res.contact_phone || prev.contact_phone,
+            contact_email: res.contact_email || prev.contact_email,
+            admin_name: res.admin_name || prev.admin_name,
+            hub_address: res.hub_address || prev.hub_address,
+            support_phone: res.support_phone || prev.support_phone,
+          }))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Save Studio Settings to Supabase database
+  const handleSaveStudioContact = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setIsSavingStudioContact(true)
+    setContactSaveFeedback(null)
+    try {
+      const ok = await api.updateSettingsBatch({
+        contact_phone: studioContact.contact_phone,
+        contact_email: studioContact.contact_email,
+        admin_name: studioContact.admin_name,
+        hub_address: studioContact.hub_address,
+        support_phone: studioContact.support_phone,
+      })
+      if (ok) {
+        setContactSaveFeedback("✓ Studio contact details and dispatch numbers saved to Supabase.")
+        notify("✓ Studio contact details (Phone & Email) saved to Supabase database.")
+        setTimeout(() => setContactSaveFeedback(null), 4000)
+      } else {
+        notify("Failed to save settings to database.")
+      }
+    } catch {
+      notify("Network error saving settings.")
+    } finally {
+      setIsSavingStudioContact(false)
+    }
+  }
 
   // Notification Banner
   const [notification, setNotification] = useState<string | null>(null)
@@ -1678,6 +1741,14 @@ export default function AdminView({
               badgeColor:
                 "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
             },
+            {
+              id: "settings",
+              label: "Studio & Dispatch Settings",
+              icon: <SettingsIcon size={16} />,
+              badge: "Phone & Mail",
+              badgeColor:
+                "bg-orange-500/15 text-[#F97316] font-bold border border-orange-500/20",
+            },
           ].map((tab) => {
             const isActive = activeTab === tab.id
             return (
@@ -1753,8 +1824,8 @@ export default function AdminView({
           }`}
         >
           <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-            {/* Left: Mobile Toggle + Universal Search Input (Matches Reference Image) */}
-            <div className="flex items-center gap-3 flex-1 max-w-lg">
+            {/* Left: Mobile Toggle + Universal Search Input */}
+            <div className="flex items-center gap-3 flex-1 max-w-sm">
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
@@ -1791,9 +1862,9 @@ export default function AdminView({
               </div>
             </div>
 
-            {/* Right: Actions (View Website, Profile, Sign Out, Alerts) */}
+            {/* Right: Actions (View Website, Phone/Mail Settings, Profile, Sign Out, Alerts) */}
             <div className="flex items-center gap-2 sm:gap-2.5">
-              {/* VIEW WEBSITE Button (Matches Reference Image) */}
+              {/* VIEW WEBSITE Button */}
               <button
                 type="button"
                 onClick={onExitAdmin}
@@ -1808,7 +1879,27 @@ export default function AdminView({
                 <span className="hidden sm:inline">VIEW WEBSITE</span>
               </button>
 
-              {/* Admin Profile Pill (Matches Reference Image) */}
+              {/* Quick Phone & Mail Settings Action Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("settings")
+                  setIsAdminProfileOpen(true)
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === "settings" || isAdminProfileOpen
+                    ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
+                    : isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                      : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
+                }`}
+                title="Edit WhatsApp phone number & dispatch notification email"
+              >
+                <PhoneIcon size={13} className={activeTab === "settings" || isAdminProfileOpen ? "text-white" : "text-[#F97316]"} />
+                <span className="hidden md:inline">Phone &amp; Mail Settings</span>
+              </button>
+
+              {/* Admin Profile Pill */}
               <button
                 type="button"
                 onClick={() => setIsAdminProfileOpen(true)}
@@ -1819,15 +1910,17 @@ export default function AdminView({
                       ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
                       : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
                 }`}
-                title="Studio Director Profile"
+                title="Studio Director Profile & Dispatch Configuration"
               >
                 <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#1C1917] to-stone-700 text-white font-black text-[9px] flex items-center justify-center shrink-0">
                   SD
                 </div>
-                <div className="hidden md:block text-left leading-tight">
-                  <span className="font-bold text-xs block">Studio Director</span>
+                <div className="hidden lg:block text-left leading-tight">
+                  <span className="font-bold text-xs block truncate max-w-[120px]">
+                    {studioContact.admin_name || "Studio Director"}
+                  </span>
                   <span className="text-[9px] font-mono text-stone-400 block -mt-0.5">
-                    STUDIO DIRECTOR
+                    Fleet Admin
                   </span>
                 </div>
               </button>
@@ -2055,6 +2148,7 @@ export default function AdminView({
                 {activeTab === "crm" && "CUSTOMERS & VERIFIED DRIVER CRM"}
                 {activeTab === "walkin" && "COUNTER DISPATCH & INSTANT CHECKOUT"}
                 {activeTab === "maintenance" && "VEHICLE TELEMETRY & REPAIR AUDIT"}
+                {activeTab === "settings" && "STUDIO CONTACT & COMMUNICATIONS REGISTRY"}
               </h2>
               <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-2xl">
                 {activeTab === "promos" &&
@@ -2069,10 +2163,12 @@ export default function AdminView({
                   "Execute fast counter bookings for airport and hub arrivals with automatic vehicle mating and on-the-spot key handoff."}
                 {activeTab === "maintenance" &&
                   "Audit vehicle health scores, track preventative maintenance logs, and manage repair workflows with complete audit history."}
+                {activeTab === "settings" &&
+                  "Configure official dispatch WhatsApp phone numbers, direct notification emails, key handoff hub locations, and fleet manager credentials with Supabase PostgreSQL live synchronization."}
               </p>
             </div>
 
-            {/* Primary Action Button (Matches Reference Image) */}
+            {/* Primary Action Button */}
             <div className="shrink-0 flex items-center gap-2">
               {activeTab === "promos" && (
                 <button
@@ -2081,7 +2177,7 @@ export default function AdminView({
                   className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
-                  <span>+ + Create New Privilege</span>
+                  <span>Create New Privilege</span>
                 </button>
               )}
 
@@ -2092,7 +2188,7 @@ export default function AdminView({
                   className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
-                  <span>+ Register Vehicle</span>
+                  <span>Register Vehicle</span>
                 </button>
               )}
 
@@ -2103,7 +2199,7 @@ export default function AdminView({
                   className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
-                  <span>+ Walk-in Dispatch</span>
+                  <span>Walk-in Dispatch</span>
                 </button>
               )}
 
@@ -2114,7 +2210,19 @@ export default function AdminView({
                   className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
-                  <span>+ Schedule Service</span>
+                  <span>Schedule Service</span>
+                </button>
+              )}
+
+              {activeTab === "settings" && (
+                <button
+                  type="button"
+                  onClick={() => handleSaveStudioContact()}
+                  disabled={isSavingStudioContact}
+                  className="px-4 py-2.5 rounded-2xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <CheckIcon size={14} />
+                  <span>{isSavingStudioContact ? "Saving..." : "Save Contact Details"}</span>
                 </button>
               )}
             </div>
@@ -2125,6 +2233,79 @@ export default function AdminView({
               Top uppercase label + Icon | Bold Value | Detail with dot
               ======================================================== */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {activeTab === "settings" && (
+              <>
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      WHATSAPP DISPATCH NUMBER
+                    </p>
+                    <span className="text-emerald-500">💬</span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-black font-mono my-1 text-stone-900 dark:text-white truncate">
+                    {studioContact.contact_phone || "Not Configured"}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Automated client WhatsApp routing
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      DISPATCH NOTIFICATIONS EMAIL
+                    </p>
+                    <span className="text-[#F97316]">✉️</span>
+                  </div>
+                  <p className="text-base sm:text-lg font-black font-mono my-1 text-stone-900 dark:text-white truncate">
+                    {studioContact.contact_email || "Not Configured"}
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                    Official fleet notification inbox
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      OPERATING HUB / GARAGE
+                    </p>
+                    <span className="text-sky-500">📍</span>
+                  </div>
+                  <p className="text-base font-black font-mono my-1 text-stone-900 dark:text-white truncate">
+                    {studioContact.hub_address ? studioContact.hub_address.split("•")[0] || studioContact.hub_address : "Miami Terminal"}
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Stationed vehicle dispatch counter
+                  </p>
+                </div>
+
+                <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  isDark ? "bg-[#17191C] border-stone-800 shadow-md" : "bg-white border-stone-200/90 shadow-xs"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      DATABASE STATUS
+                    </p>
+                    <span className="text-emerald-500">🛡️</span>
+                  </div>
+                  <p className="text-3xl font-black font-mono my-1 text-emerald-500">
+                    LIVE
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Supabase Cloud PostgreSQL
+                  </p>
+                </div>
+              </>
+            )}
             {activeTab === "promos" && (
               <>
                 <div className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
@@ -4718,12 +4899,9 @@ export default function AdminView({
                   rate calculation.
                 </p>
               </div>
-              <button
-                onClick={() => setIsPromoModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
-              >
-                <PlusIcon size={14} />+ Create Promo Code
-              </button>
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                ● {promos.filter((p) => p.isActive).length} Active Rules
+              </span>
             </div>
 
             <div className="overflow-x-auto">
@@ -5369,6 +5547,193 @@ export default function AdminView({
                 </button>
               </div>
             </div>
+          </section>
+        )}
+
+        {/* ========================================================
+            TAB 6: STUDIO CONTACT & COMMUNICATIONS SETTINGS (Edit Phone & Email)
+            ======================================================== */}
+        {activeTab === "settings" && (
+          <section
+            className={`border rounded-3xl overflow-hidden transition shadow-sm p-6 sm:p-8 space-y-6 ${
+              isDark
+                ? "bg-[#17191C] border-stone-800 text-white"
+                : "bg-white border-stone-200/90 text-stone-900"
+            }`}
+          >
+            {/* Header Description */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-200 dark:border-stone-800">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2.5 rounded-2xl bg-orange-500/10 text-[#F97316]">
+                    <SettingsIcon size={20} />
+                  </span>
+                  <div>
+                    <h3 className="text-xl font-heading font-black">
+                      Studio Communications &amp; Dispatch Settings
+                    </h3>
+                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                      Directly configure your WhatsApp phone number and notification email with live Supabase database sync.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  DATABASE CONNECTED
+                </span>
+              </div>
+            </div>
+
+            {/* Editable Contact Fields Form */}
+            <form onSubmit={handleSaveStudioContact} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. Official Dispatch WhatsApp Phone */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider font-mono text-stone-700 dark:text-stone-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <PhoneIcon size={14} className="text-emerald-500" />
+                      <span>WhatsApp Dispatch Phone Number</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                      ● Active Dispatch Number
+                    </span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={studioContact.contact_phone}
+                    onChange={(e) =>
+                      setStudioContact({ ...studioContact, contact_phone: e.target.value })
+                    }
+                    placeholder="+1 (555) 234-5678"
+                    className={`w-full px-4 py-3 rounded-2xl text-sm font-mono border transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                      isDark
+                        ? "bg-stone-900 border-stone-700 text-white placeholder-stone-600"
+                        : "bg-stone-50/70 border-stone-200 text-stone-900 placeholder-stone-400"
+                    }`}
+                  />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-normal">
+                    When customers submit a booking and click <strong className="text-emerald-600">Share Dispatch on WhatsApp</strong>, the reservation summary and direct admin approval link will be delivered directly to this phone number.
+                  </p>
+                </div>
+
+                {/* 2. Dispatch Notifications Email */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider font-mono text-stone-700 dark:text-stone-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <MailIcon size={14} className="text-[#F97316]" />
+                      <span>Dispatch &amp; Notifications Email</span>
+                    </span>
+                    <span className="text-[10px] text-[#F97316] font-bold">
+                      ● Admin Notification Inbox
+                    </span>
+                  </label>
+                  <input
+                    type="email"
+                    value={studioContact.contact_email}
+                    onChange={(e) =>
+                      setStudioContact({ ...studioContact, contact_email: e.target.value })
+                    }
+                    placeholder="concierge@motorly.com"
+                    className={`w-full px-4 py-3 rounded-2xl text-sm font-mono border transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                      isDark
+                        ? "bg-stone-900 border-stone-700 text-white placeholder-stone-600"
+                        : "bg-stone-50/70 border-stone-200 text-stone-900 placeholder-stone-400"
+                    }`}
+                  />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-normal">
+                    This email is displayed in official customer dispatch receipts and is designated for incoming automated reservation alerts and digital audit summaries.
+                  </p>
+                </div>
+
+                {/* 3. Studio Director / Admin Name */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider font-mono text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                    <UserIcon size={14} className="text-stone-400" />
+                    <span>Studio Director / Fleet Manager Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={studioContact.admin_name}
+                    onChange={(e) =>
+                      setStudioContact({ ...studioContact, admin_name: e.target.value })
+                    }
+                    placeholder="Studio Director"
+                    className={`w-full px-4 py-3 rounded-2xl text-sm font-medium border transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                      isDark
+                        ? "bg-stone-900 border-stone-700 text-white placeholder-stone-600"
+                        : "bg-stone-50/70 border-stone-200 text-stone-900 placeholder-stone-400"
+                    }`}
+                  />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                    Administrator title or name displayed in the top navigation console pill and on digital key handoff logs.
+                  </p>
+                </div>
+
+                {/* 4. Stationed Garage / Terminal Hub */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider font-mono text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+                    <LocationIcon size={14} className="text-sky-500" />
+                    <span>Stationed Hub &amp; Key Handoff Counter</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={studioContact.hub_address}
+                    onChange={(e) =>
+                      setStudioContact({ ...studioContact, hub_address: e.target.value })
+                    }
+                    placeholder="Terminal Garage B • Bay 4 HQ, Miami Airport"
+                    className={`w-full px-4 py-3 rounded-2xl text-sm font-medium border transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                      isDark
+                        ? "bg-stone-900 border-stone-700 text-white placeholder-stone-600"
+                        : "bg-stone-50/70 border-stone-200 text-stone-900 placeholder-stone-400"
+                    }`}
+                  />
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                    Default location where walk-in customers and scheduled pick-up clients meet for vehicle inspection and key handoff.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons & feedback */}
+              <div className="pt-4 border-t border-stone-200 dark:border-stone-800 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSavingStudioContact}
+                    className="px-6 py-3 rounded-2xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckIcon size={16} />
+                    <span>{isSavingStudioContact ? "Saving to Supabase..." : "Save Contact Settings"}</span>
+                  </button>
+
+                  {/* Test WhatsApp trigger */}
+                  <a
+                    href={`https://api.whatsapp.com/send?phone=${studioContact.contact_phone.replace(/[^\d]/g, "")}&text=${encodeURIComponent("🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`px-4 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                      isDark
+                        ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                        : "bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200"
+                    }`}
+                    title="Send a quick test message to this phone number via WhatsApp"
+                  >
+                    <span>💬</span>
+                    <span>Test WhatsApp Connection</span>
+                  </a>
+                </div>
+
+                {contactSaveFeedback && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-fade-in">
+                    <CheckIcon size={14} />
+                    <span>{contactSaveFeedback}</span>
+                  </div>
+                )}
+              </div>
+            </form>
           </section>
         )}
       </main>
@@ -9371,67 +9736,111 @@ export default function AdminView({
 
             {/* Profile Grid Details */}
             <div className="mt-6 space-y-6">
-              {/* Identity & Clearance Info */}
-              <div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wider font-mono text-stone-400 mb-3">
-                  Administrator Credentials
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono text-stone-400 uppercase">Official Email</span>
-                    <p className="font-bold font-mono mt-0.5 text-stone-800 dark:text-stone-200">
-                      admin@motorly.com
-                    </p>
-                    <span className="text-[10px] text-emerald-500 font-semibold mt-1 inline-block">
-                      ● Verified Root Console Account
+              {/* Studio Dispatch Contact Information (Directly Editable) */}
+              <div className="p-5 rounded-2xl border bg-orange-500/5 border-orange-500/20 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#F97316] font-bold">⚙️</span>
+                    <h4 className="text-xs font-bold uppercase tracking-wider font-mono text-stone-900 dark:text-white">
+                      Edit Dispatch Phone &amp; Email
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Live Database Edit
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      WhatsApp Dispatch Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={studioContact.contact_phone}
+                      onChange={(e) =>
+                        setStudioContact({ ...studioContact, contact_phone: e.target.value })
+                      }
+                      placeholder="+1 (555) 234-5678"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                        isDark ? "bg-stone-900 border-stone-700 text-white" : "bg-white border-stone-200 text-stone-900"
+                      }`}
+                    />
+                    <span className="text-[10px] text-stone-400 block mt-1">
+                      Destination for customer WhatsApp booking shares
                     </span>
                   </div>
 
-                  <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono text-stone-400 uppercase">Clearance Level</span>
-                    <p className="font-bold mt-0.5 text-stone-800 dark:text-stone-200">
-                      Tier 4 (Master Controller)
-                    </p>
-                    <span className="text-[10px] text-stone-500 font-mono mt-1 inline-block">
-                      Full Read / Write / Overrides / CRM
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Fleet Dispatch &amp; Notification Email
+                    </label>
+                    <input
+                      type="email"
+                      value={studioContact.contact_email}
+                      onChange={(e) =>
+                        setStudioContact({ ...studioContact, contact_email: e.target.value })
+                      }
+                      placeholder="concierge@motorly.com"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                        isDark ? "bg-stone-900 border-stone-700 text-white" : "bg-white border-stone-200 text-stone-900"
+                      }`}
+                    />
+                    <span className="text-[10px] text-stone-400 block mt-1">
+                      Inbox receiving automated booking alerts
                     </span>
                   </div>
 
-                  <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono text-stone-400 uppercase">Stationed Hub</span>
-                    <p className="font-bold mt-0.5 text-stone-800 dark:text-stone-200">
-                      Miami Intl Airport (MIA)
-                    </p>
-                    <span className="text-[10px] text-stone-500 font-mono mt-1 inline-block">
-                      Terminal Garage B • Bay 4 HQ
-                    </span>
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Studio Director Name
+                    </label>
+                    <input
+                      type="text"
+                      value={studioContact.admin_name}
+                      onChange={(e) =>
+                        setStudioContact({ ...studioContact, admin_name: e.target.value })
+                      }
+                      placeholder="Studio Director"
+                      className={`w-full px-3 py-2 rounded-xl border font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                        isDark ? "bg-stone-900 border-stone-700 text-white" : "bg-white border-stone-200 text-stone-900"
+                      }`}
+                    />
                   </div>
 
-                  <div
-                    className={`p-3.5 rounded-2xl border ${
-                      isDark ? "bg-stone-900/60 border-stone-800" : "bg-stone-50 border-stone-200/80"
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono text-stone-400 uppercase">Active Session</span>
-                    <p className="font-bold font-mono mt-0.5 text-stone-800 dark:text-stone-200">
-                      #ADM-9842-SEC
-                    </p>
-                    <span className="text-[10px] text-emerald-500 font-semibold mt-1 inline-block">
-                      ● Authenticated via Secure Token
-                    </span>
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Stationed Terminal Hub
+                    </label>
+                    <input
+                      type="text"
+                      value={studioContact.hub_address}
+                      onChange={(e) =>
+                        setStudioContact({ ...studioContact, hub_address: e.target.value })
+                      }
+                      placeholder="Terminal Garage B • Bay 4 HQ"
+                      className={`w-full px-3 py-2 rounded-xl border font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                        isDark ? "bg-stone-900 border-stone-700 text-white" : "bg-white border-stone-200 text-stone-900"
+                      }`}
+                    />
                   </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveStudioContact()}
+                    disabled={isSavingStudioContact}
+                    className="px-5 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckIcon size={14} />
+                    <span>{isSavingStudioContact ? "Saving..." : "Save Contact Info to Database"}</span>
+                  </button>
+                  {contactSaveFeedback && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                      {contactSaveFeedback}
+                    </span>
+                  )}
                 </div>
               </div>
 

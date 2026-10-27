@@ -798,13 +798,35 @@ class ApiService {
   }
 
   // --- Reviews & System Settings ---
-  async getSettings(): Promise<{ reviews_enabled: boolean }> {
+  async getSettings(): Promise<{
+    reviews_enabled?: boolean
+    contact_phone?: string
+    contact_email?: string
+    admin_name?: string
+    hub_address?: string
+    support_phone?: string
+    [key: string]: any
+  }> {
     try {
       const res = await this.request("/settings")
-      const data = await this.safeJson(res, { success: true, settings: { reviews_enabled: true } })
-      return data.settings || { reviews_enabled: true }
+      const data = await this.safeJson(res, { success: true, settings: {} })
+      return (
+        data.settings || {
+          reviews_enabled: true,
+          contact_phone: "+1 (555) 234-5678",
+          contact_email: "concierge@motorly.com",
+          admin_name: "Studio Director",
+          hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+        }
+      )
     } catch {
-      return { reviews_enabled: true }
+      return {
+        reviews_enabled: true,
+        contact_phone: "+1 (555) 234-5678",
+        contact_email: "concierge@motorly.com",
+        admin_name: "Studio Director",
+        hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+      }
     }
   }
 
@@ -815,6 +837,22 @@ class ApiService {
         {
           method: "PATCH",
           body: JSON.stringify({ key, value }),
+        },
+        "admin",
+      )
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
+  async updateSettingsBatch(settings: Record<string, any>): Promise<boolean> {
+    try {
+      const res = await this.request(
+        "/settings",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ settings }),
         },
         "admin",
       )

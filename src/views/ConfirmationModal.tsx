@@ -1,6 +1,7 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { Car, BookingState, CustomerInfo } from "../types"
+import { api } from "../services/api"
 import {
   CheckIcon,
   CalendarIcon,
@@ -40,6 +41,15 @@ export default function ConfirmationModal({
 }: ConfirmationModalProps) {
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false)
   const [isEmailPreviewOpen, setIsEmailPreviewOpen] = useState(false)
+  const [studioSettings, setStudioSettings] = useState<{
+    contact_phone?: string
+    contact_email?: string
+    admin_name?: string
+  }>({})
+
+  useEffect(() => {
+    api.getSettings().then((s) => s && setStudioSettings(s)).catch(() => {})
+  }, [])
 
   // Direct Admin link for rapid verification & approval
   const adminApprovalLink =
@@ -86,9 +96,10 @@ ${adminApprovalLink}
     setTimeout(() => setCopiedWhatsApp(false), 3000)
   }
 
-  const whatsappShareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
-    templateMessageText,
-  )}`
+  const cleanPhone = (studioSettings.contact_phone || "").replace(/[^\d]/g, "")
+  const whatsappShareUrl = cleanPhone
+    ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(templateMessageText)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(templateMessageText)}`
 
   return createPortal(
     <div
@@ -347,7 +358,7 @@ ${adminApprovalLink}
                     MOTORLY Dispatch Email Template
                   </h3>
                   <p className="text-[10px] text-stone-400 font-mono">
-                    To: fleet-director@motorly.com &amp; {customer.email}
+                    To: {studioSettings.contact_email || "concierge@motorly.com"} &amp; {customer.email}
                   </p>
                 </div>
               </div>

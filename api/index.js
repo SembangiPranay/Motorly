@@ -42800,7 +42800,13 @@ app.post("/api/upload", async (req, res) => {
 app.get("/api/settings", async (_req, res) => {
 	try {
 		const rows = await db.prepare("SELECT key, value FROM system_settings").all() || [];
-		const settings = { reviews_enabled: true };
+		const settings = {
+			reviews_enabled: true,
+			contact_phone: "+1 (555) 234-5678",
+			contact_email: "concierge@motorly.com",
+			admin_name: "Studio Director",
+			hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport"
+		};
 		for (const r of rows) if (r.key === "reviews_enabled") settings.reviews_enabled = r.value === "true" || r.value === true || r.value === "1";
 		else settings[r.key] = r.value;
 		return res.json({
@@ -42811,25 +42817,33 @@ app.get("/api/settings", async (_req, res) => {
 		console.error("[Settings Fetch Error]", err?.message);
 		return res.json({
 			success: true,
-			settings: { reviews_enabled: true }
+			settings: {
+				reviews_enabled: true,
+				contact_phone: "+1 (555) 234-5678",
+				contact_email: "concierge@motorly.com",
+				admin_name: "Studio Director",
+				hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport"
+			}
 		});
 	}
 });
 app.patch("/api/settings", requireAdmin, async (req, res) => {
 	try {
-		const { key, value } = req.body;
-		if (!key) return res.status(400).json({
+		const { key, value, settings: batchSettings } = req.body;
+		const toUpdate = [];
+		if (batchSettings && typeof batchSettings === "object") {
+			for (const [k, v] of Object.entries(batchSettings)) if (k && v !== void 0 && v !== null) toUpdate.push([k, String(v)]);
+		} else if (key) toUpdate.push([key, String(value ?? "")]);
+		else return res.status(400).json({
 			success: false,
-			error: "Setting key is required."
+			error: "Setting key or settings object is required."
 		});
-		const strVal = String(value);
-		if (db.isSupabase && db.pool) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()", [key, strVal]);
-		else await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(key, strVal);
+		for (const [k, v] of toUpdate) if (db.isSupabase && db.pool) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()", [k, v]);
+		else await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(k, v);
 		return res.json({
 			success: true,
-			message: `Setting '${key}' updated successfully.`,
-			key,
-			value: strVal === "true" ? true : strVal === "false" ? false : strVal
+			message: "Studio settings updated successfully.",
+			updatedCount: toUpdate.length
 		});
 	} catch (err) {
 		console.error("[Settings Update Error]", err?.message);
