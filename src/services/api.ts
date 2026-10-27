@@ -804,6 +804,7 @@ class ApiService {
     contact_email?: string
     admin_name?: string
     hub_address?: string
+    google_maps_url?: string
     support_phone?: string
     [key: string]: any
   }> {
@@ -817,6 +818,7 @@ class ApiService {
           contact_email: "concierge@motorly.com",
           admin_name: "Studio Director",
           hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+          google_maps_url: "",
         }
       )
     } catch {
@@ -826,6 +828,7 @@ class ApiService {
         contact_email: "concierge@motorly.com",
         admin_name: "Studio Director",
         hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+        google_maps_url: "",
       }
     }
   }
@@ -859,6 +862,29 @@ class ApiService {
       return res.ok
     } catch {
       return false
+    }
+  }
+
+  async syncHubLocation(
+    hub_address: string,
+    google_maps_url?: string,
+  ): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await this.request(
+        "/settings/sync-hub",
+        {
+          method: "POST",
+          body: JSON.stringify({ hub_address, google_maps_url }),
+        },
+        "admin",
+      )
+      const data = await this.safeJson(res, { success: false })
+      return {
+        success: res.ok && Boolean(data.success),
+        message: data?.message || "Hub synchronized across all fleet cars.",
+      }
+    } catch (err: any) {
+      return { success: false, message: err?.message || "Failed to sync hub." }
     }
   }
 

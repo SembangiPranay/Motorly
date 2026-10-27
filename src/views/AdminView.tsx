@@ -18,6 +18,8 @@ import type {
 } from "../types"
 import { api } from "../services/api"
 import GarageMapViewer from "../components/GarageMapViewer"
+import { downloadBookingInvoicePng } from "../utils/invoiceGenerator"
+import { getGoogleMapsUrl, openGoogleMaps } from "../utils/maps"
 import {
   getWhatsAppUrls,
   formatInternationalPhoneDisplay,
@@ -87,8 +89,39 @@ export default function AdminView({
     contact_email: "concierge@motorly.com",
     admin_name: "Studio Director",
     hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+    google_maps_url: "",
     support_phone: "+1 (800) 555-MOTOR",
   })
+  const [isSyncingHub, setIsSyncingHub] = useState(false)
+  const [syncHubFeedback, setSyncHubFeedback] = useState<string | null>(null)
+
+  const handleSyncHubToFleet = async () => {
+    if (!studioContact.hub_address) {
+      alert("Please enter a valid hub address first.")
+      return
+    }
+    setIsSyncingHub(true)
+    setSyncHubFeedback(null)
+    try {
+      const res = await api.syncHubLocation(
+        studioContact.hub_address,
+        studioContact.google_maps_url
+      )
+      if (res.success) {
+        const freshCars = await api.getCars().catch(() => null)
+        if (freshCars) setCars(freshCars)
+        setSyncHubFeedback(`✓ Synced to ${cars.length} vehicles!`)
+        notify(`Hub location applied to all ${cars.length} fleet vehicles in database!`)
+        setTimeout(() => setSyncHubFeedback(null), 4000)
+      } else {
+        alert("Failed to sync hub: " + res.message)
+      }
+    } catch (err: any) {
+      alert("Sync failed: " + err.message)
+    } finally {
+      setIsSyncingHub(false)
+    }
+  }
   const [isSavingStudioContact, setIsSavingStudioContact] = useState(false)
   const [contactSaveFeedback, setContactSaveFeedback] = useState<string | null>(null)
 
@@ -846,7 +879,14 @@ export default function AdminView({
       .reduce((sum, c) => sum + c.pricePerDay, 0)
 
     const pendingMating = bookings.filter(
-      (b) => b.status === "Pending Assignment",
+      (b) =>
+        (!b.approvedByAdmin &&
+          b.status !== "Cancelled" &&
+          b.status !== "Completed" &&
+          b.status !== "Checked Out" &&
+          b.status !== "Returned") ||
+        b.status === "Pending Assignment" ||
+        !b.matchedCarId,
     ).length
     const inDrive = bookings.filter((b) => b.status === "Checked Out").length
     const assigned = bookings.filter((b) => b.status === "Assigned").length
@@ -1500,11 +1540,64 @@ export default function AdminView({
     })
   }, [bookings])
 
+  // Dynamic Category Counts for Orders & Dispatch Registry
+  const manifestCounts = useMemo(() => {
+    const isPendingBooking = (b: BookingRecord) =>
+      (!b.approvedByAdmin &&
+        b.status !== "Cancelled" &&
+        b.status !== "Completed" &&
+        b.status !== "Checked Out" &&
+        b.status !== "Returned") ||
+      b.status === "Pending Assignment" ||
+      !b.matchedCarId
+
+    const isConfirmedBooking = (b: BookingRecord) =>
+      !isPendingBooking(b) &&
+      (b.status === "Assigned" || (Boolean(b.approvedByAdmin) && b.status !== "Checked Out" && b.status !== "Returned" && b.status !== "Completed" && b.status !== "Cancelled"))
+
+    return {
+      all: bookings.length,
+      pending: bookings.filter(isPendingBooking).length,
+      confirmed: bookings.filter(isConfirmedBooking).length,
+      active: bookings.filter((b) => b.status === "Checked Out").length,
+      returned: bookings.filter((b) => b.status === "Returned").length,
+      completed: bookings.filter((b) => b.status === "Completed" || b.status === "Cancelled").length,
+    }
+  }, [bookings])
+
   // Filtered reservations with priority ordering (Pending requests first)
   const filteredBookings = useMemo(() => {
+    const isPendingBooking = (b: BookingRecord) =>
+      (!b.approvedByAdmin &&
+        b.status !== "Cancelled" &&
+        b.status !== "Completed" &&
+        b.status !== "Checked Out" &&
+        b.status !== "Returned") ||
+      b.status === "Pending Assignment" ||
+      !b.matchedCarId
+
+    const isConfirmedBooking = (b: BookingRecord) =>
+      !isPendingBooking(b) &&
+      (b.status === "Assigned" || (Boolean(b.approvedByAdmin) && b.status !== "Checked Out" && b.status !== "Returned" && b.status !== "Completed" && b.status !== "Cancelled"))
+
     const list = bookings.filter((b) => {
-      const matchStatus =
-        manifestStatusFilter === "all" || b.status === manifestStatusFilter
+      let matchStatus = false
+      if (manifestStatusFilter === "all") {
+        matchStatus = true
+      } else if (manifestStatusFilter === "needs-car" || manifestStatusFilter === "Pending Assignment") {
+        matchStatus = isPendingBooking(b)
+      } else if (manifestStatusFilter === "confirmed" || manifestStatusFilter === "Assigned") {
+        matchStatus = isConfirmedBooking(b)
+      } else if (manifestStatusFilter === "active" || manifestStatusFilter === "Checked Out") {
+        matchStatus = b.status === "Checked Out"
+      } else if (manifestStatusFilter === "returned" || manifestStatusFilter === "Returned") {
+        matchStatus = b.status === "Returned"
+      } else if (manifestStatusFilter === "completed" || manifestStatusFilter === "Completed") {
+        matchStatus = b.status === "Completed" || b.status === "Cancelled"
+      } else {
+        matchStatus = b.status === manifestStatusFilter
+      }
+
       const query = manifestSearch.toLowerCase().trim()
       const matchSearch =
         !query ||
@@ -1534,12 +1627,7 @@ export default function AdminView({
     }
 
     const getPriority = (b: BookingRecord): number => {
-      const isPending =
-        !b.approvedByAdmin &&
-        b.status !== "Cancelled" &&
-        b.status !== "Completed" &&
-        b.status !== "Checked Out"
-      if (isPending || b.status === "Pending Assignment") return 0
+      if (isPendingBooking(b)) return 0
       if (b.status === "Assigned") return 1
       if (b.status === "Checked Out") return 2
       if (b.status === "Returned") return 3
@@ -2647,30 +2735,74 @@ export default function AdminView({
                   />
                 </div>
 
-                {/* Status Chips */}
+                {/* Status Chips with Live Dynamic Counts */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
                   {[
-                    { id: "all", label: "All Reservations" },
-                    { id: "Pending Assignment", label: "Needs Car" },
-                    { id: "Assigned", label: "Confirmed" },
-                    { id: "Checked Out", label: "Active Trips" },
-                    { id: "Returned", label: "Returned" },
-                    { id: "Completed", label: "Completed" },
-                  ].map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setManifestStatusFilter(s.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                        manifestStatusFilter === s.id
-                          ? "bg-[#F97316] text-white font-bold shadow-xs"
-                          : isDark
-                            ? "bg-stone-900 text-stone-400 hover:text-stone-200 border border-stone-800"
-                            : "bg-stone-50 text-stone-600 hover:text-stone-900 border border-stone-200 hover:bg-stone-100"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+                    { id: "all", label: "All Reservations", count: manifestCounts.all },
+                    {
+                      id: "needs-car",
+                      legacyId: "Pending Assignment",
+                      label: "Needs Car",
+                      count: manifestCounts.pending,
+                      hasBadge: manifestCounts.pending > 0,
+                    },
+                    {
+                      id: "confirmed",
+                      legacyId: "Assigned",
+                      label: "Confirmed",
+                      count: manifestCounts.confirmed,
+                    },
+                    {
+                      id: "active",
+                      legacyId: "Checked Out",
+                      label: "Active Trips",
+                      count: manifestCounts.active,
+                    },
+                    {
+                      id: "returned",
+                      legacyId: "Returned",
+                      label: "Returned",
+                      count: manifestCounts.returned,
+                    },
+                    {
+                      id: "completed",
+                      legacyId: "Completed",
+                      label: "Completed",
+                      count: manifestCounts.completed,
+                    },
+                  ].map((s) => {
+                    const isSelected =
+                      manifestStatusFilter === s.id || manifestStatusFilter === (s as any).legacyId
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setManifestStatusFilter(s.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs ${
+                          isSelected
+                            ? "bg-[#F97316] text-white shadow-md"
+                            : isDark
+                              ? "bg-stone-900 text-stone-300 hover:text-white border border-stone-800 hover:bg-stone-800/80"
+                              : "bg-white text-stone-700 hover:text-stone-950 border border-stone-200 hover:bg-stone-100/80"
+                        }`}
+                      >
+                        <span>{s.label}</span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : s.hasBadge
+                                ? "bg-amber-500 text-stone-950 font-black animate-pulse"
+                                : isDark
+                                  ? "bg-stone-800 text-stone-400"
+                                  : "bg-stone-100 text-stone-600"
+                          }`}
+                        >
+                          {s.count}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -2930,12 +3062,23 @@ export default function AdminView({
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
-                          <LocationIcon
-                            size={12}
-                            className="text-[#F97316]/70 shrink-0"
-                          />
-                          <span className="truncate">{cleanLocation}</span>
+                        <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <LocationIcon
+                              size={12}
+                              className="text-[#F97316]/70 shrink-0"
+                            />
+                            <span className="truncate">{cleanLocation}</span>
+                          </div>
+                          <a
+                            href={getGoogleMapsUrl(cleanLocation, studioContact.google_maps_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 font-bold text-[10px] shrink-0 flex items-center gap-0.5 hover:underline cursor-pointer ml-1"
+                            title="Open location on Google Maps"
+                          >
+                            <span>🗺️ Maps</span>
+                          </a>
                         </div>
                       </div>
 
@@ -3000,14 +3143,28 @@ export default function AdminView({
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setInspectedBooking(b)}
-                          className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition shrink-0 flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Details</span>
-                          <ArrowRightIcon size={12} />
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const matched = cars.find((c) => c.id === b.matchedCarId)
+                              downloadBookingInvoicePng(b, matched, studioContact)
+                            }}
+                            className="px-2 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
+                            title="Download Trip Invoice PNG"
+                          >
+                            <span>📥</span>
+                            <span className="hidden sm:inline">Invoice</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInspectedBooking(b)}
+                            className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition shrink-0 flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Details</span>
+                            <ArrowRightIcon size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -3232,12 +3389,23 @@ export default function AdminView({
                               )}
                             </div>
 
-                            <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
-                              <LocationIcon
-                                size={12}
-                                className="text-[#F97316]/70 shrink-0"
-                              />
-                              <span className="truncate">{cleanLocation}</span>
+                            <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400 pt-1 border-t border-stone-200/40 dark:border-stone-800/60">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <LocationIcon
+                                  size={12}
+                                  className="text-[#F97316]/70 shrink-0"
+                                />
+                                <span className="truncate">{cleanLocation}</span>
+                              </div>
+                              <a
+                                href={getGoogleMapsUrl(cleanLocation, studioContact.google_maps_url)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 font-bold text-[10px] shrink-0 flex items-center gap-0.5 hover:underline cursor-pointer ml-1"
+                                title="Open location on Google Maps"
+                              >
+                                <span>🗺️ Maps</span>
+                              </a>
                             </div>
                           </div>
 
@@ -3302,14 +3470,28 @@ export default function AdminView({
                               )}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => setInspectedBooking(b)}
-                              className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition shrink-0 flex items-center gap-1 cursor-pointer"
-                            >
-                              <span>Details</span>
-                              <ArrowRightIcon size={12} />
-                            </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const matched = cars.find((c) => c.id === b.matchedCarId)
+                                  downloadBookingInvoicePng(b, matched, studioContact)
+                                }}
+                                className="p-1.5 px-2.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
+                                title="Download Trip Invoice PNG"
+                              >
+                                <span>📥</span>
+                                <span>Invoice</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setInspectedBooking(b)}
+                                className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition shrink-0 flex items-center gap-1 cursor-pointer"
+                              >
+                                <span>Details</span>
+                                <ArrowRightIcon size={12} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )
@@ -3790,6 +3972,24 @@ export default function AdminView({
                                     Archived
                                   </span>
                                 )}
+
+                                {/* Trip Invoice PNG Download */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    const matched = cars.find((c) => c.id === b.matchedCarId)
+                                    downloadBookingInvoicePng(b, matched, studioContact)
+                                  }}
+                                  className={`p-1.5 px-2 rounded-lg text-xs font-bold transition border flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                                    isDark
+                                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                                      : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200"
+                                  }`}
+                                  title="Download Official Trip Invoice PNG"
+                                >
+                                  <span>📥</span>
+                                  <span className="hidden xl:inline text-[10px]">Invoice</span>
+                                </button>
 
                                 {/* Secondary Action: Download Driver ID Verification */}
                                 <button
@@ -5684,11 +5884,16 @@ export default function AdminView({
                   </p>
                 </div>
 
-                {/* 4. Stationed Garage / Terminal Hub */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider font-mono text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
-                    <LocationIcon size={14} className="text-sky-500" />
-                    <span>Stationed Hub &amp; Key Handoff Counter</span>
+                {/* 4. Stationed Garage / Terminal Hub & Google Maps Navigation */}
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider font-mono text-stone-700 dark:text-stone-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <LocationIcon size={14} className="text-sky-500" />
+                      <span>Stationed Hub &amp; Key Handoff Counter</span>
+                    </span>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">
+                      ● Active Fleet Hub
+                    </span>
                   </label>
                   <input
                     type="text"
@@ -5703,9 +5908,70 @@ export default function AdminView({
                         : "bg-stone-50/70 border-stone-200 text-stone-900 placeholder-stone-400"
                     }`}
                   />
-                  <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                    Default location where walk-in customers and scheduled pick-up clients meet for vehicle inspection and key handoff.
-                  </p>
+
+                  {/* Google Maps Location Link Field */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span>🗺️</span>
+                        <span>Google Maps Location URL (Direct Pin / Navigation)</span>
+                      </span>
+                      <span className="text-[10px] text-stone-400 font-normal font-mono">
+                        Auto-routes if blank
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={studioContact.google_maps_url || ""}
+                        onChange={(e) =>
+                          setStudioContact({ ...studioContact, google_maps_url: e.target.value })
+                        }
+                        placeholder="https://maps.app.goo.gl/..."
+                        className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs font-mono border transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                          isDark
+                            ? "bg-stone-900 border-stone-700 text-white placeholder-stone-600"
+                            : "bg-white border-stone-200 text-stone-900 placeholder-stone-400"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => openGoogleMaps(studioContact.hub_address, studioContact.google_maps_url)}
+                        className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
+                        title="Open this location in Google Maps"
+                      >
+                        <span>📍</span>
+                        <span>View Maps</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Propagate Hub Location to All Cars */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-xs">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-sky-700 dark:text-sky-300 block">
+                        Propagate Hub Location to All Fleet Cars
+                      </span>
+                      <span className="text-[11px] text-stone-500 dark:text-stone-400 block">
+                        Applies this hub and garage address across all ${cars.length} active vehicles in database.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSyncHubToFleet}
+                      disabled={isSyncingHub}
+                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <span>🔄</span>
+                      <span>{isSyncingHub ? "Syncing to Fleet..." : "Sync Hub to All Cars"}</span>
+                    </button>
+                  </div>
+                  {syncHubFeedback && (
+                    <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-fade-in">
+                      <CheckIcon size={14} />
+                      <span>{syncHubFeedback}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -5817,18 +6083,32 @@ export default function AdminView({
                   </h3>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setInspectedBooking(null)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
-                  isDark
-                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
-                    : "bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 shadow-2xs"
-                }`}
-                title="Close Manifest"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const matched = cars.find((c) => c.id === inspectedBooking.matchedCarId)
+                    downloadBookingInvoicePng(inspectedBooking, matched, studioContact)
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                  title="Download official high-resolution PNG invoice for this trip"
+                >
+                  <span>📥</span>
+                  <span>Download Invoice PNG</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectedBooking(null)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
+                    isDark
+                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
+                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 shadow-2xs"
+                  }`}
+                  title="Close Manifest"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="p-5 sm:p-7 overflow-y-auto space-y-5 flex-1">
@@ -9852,6 +10132,30 @@ export default function AdminView({
                       }
                       placeholder="Terminal Garage B • Bay 4 HQ"
                       className={`w-full px-3 py-2 rounded-xl border font-medium transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                        isDark ? "bg-stone-900 border-stone-700 text-white" : "bg-white border-stone-200 text-stone-900"
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1 flex items-center justify-between">
+                      <span>Google Maps Hub URL</span>
+                      <button
+                        type="button"
+                        onClick={() => openGoogleMaps(studioContact.hub_address, studioContact.google_maps_url)}
+                        className="text-blue-500 hover:underline text-[10px] font-bold"
+                      >
+                        📍 View Map
+                      </button>
+                    </label>
+                    <input
+                      type="url"
+                      value={studioContact.google_maps_url || ""}
+                      onChange={(e) =>
+                        setStudioContact({ ...studioContact, google_maps_url: e.target.value })
+                      }
+                      placeholder="https://maps.app.goo.gl/..."
+                      className={`w-full px-3 py-2 rounded-xl border font-mono text-xs transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                         isDark ? "bg-stone-900 border-stone-700 text-white" : "bg-white border-stone-200 text-stone-900"
                       }`}
                     />

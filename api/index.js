@@ -42805,7 +42805,9 @@ app.get("/api/settings", async (_req, res) => {
 			contact_phone: "+1 (555) 234-5678",
 			contact_email: "concierge@motorly.com",
 			admin_name: "Studio Director",
-			hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport"
+			hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+			google_maps_url: "",
+			support_phone: "+1 (800) 555-MOTOR"
 		};
 		for (const r of rows) if (r.key === "reviews_enabled") settings.reviews_enabled = r.value === "true" || r.value === true || r.value === "1";
 		else settings[r.key] = r.value;
@@ -42850,6 +42852,34 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
 		return res.status(500).json({
 			success: false,
 			error: err?.message || "Failed to update system setting."
+		});
+	}
+});
+app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
+	try {
+		const { hub_address, google_maps_url } = req.body;
+		if (!hub_address || typeof hub_address !== "string") return res.status(400).json({
+			success: false,
+			error: "hub_address is required."
+		});
+		if (db.isSupabase && db.pool) {
+			await db.pool.query("UPDATE cars SET garage_name = $1, garage_address = $1", [hub_address]);
+			await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()", [hub_address]);
+			if (google_maps_url !== void 0) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()", [google_maps_url]);
+		} else {
+			await db.prepare("UPDATE cars SET garage_name = ?, garage_address = ?").run(hub_address, hub_address);
+			await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(hub_address);
+			if (google_maps_url !== void 0) await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(google_maps_url);
+		}
+		return res.json({
+			success: true,
+			message: "Stationed hub location updated and synchronized to all active vehicles in fleet."
+		});
+	} catch (err) {
+		console.error("[Sync Hub Error]", err?.message);
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to sync hub location to fleet."
 		});
 	}
 });
