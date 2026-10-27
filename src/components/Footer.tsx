@@ -111,7 +111,12 @@ export default function Footer({
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Email:</span>
-                <span>garage@motorly.com</span>
+                <a
+                  href="mailto:nanikoushik96@gmail.com?subject=Motorly%20Fleet%20Inquiry"
+                  className="hover:text-white transition-colors underline"
+                >
+                  nanikoushik96@gmail.com
+                </a>
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Hours:</span>

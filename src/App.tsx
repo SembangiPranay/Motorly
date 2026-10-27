@@ -226,6 +226,13 @@ export default function App() {
     totalAmount: number
   } | null>(null)
 
+  useEffect(() => {
+    ;(window as any).__setConfirmedBooking = setConfirmedBooking
+    return () => {
+      delete (window as any).__setConfirmedBooking
+    }
+  }, [])
+
   // Sync with Backend (Supabase PostgreSQL / SQLite fallback) on initial mount
   useEffect(() => {
     async function initData() {

@@ -20,6 +20,7 @@ import { api } from "../services/api"
 import GarageMapViewer from "../components/GarageMapViewer"
 import { downloadBookingInvoicePng } from "../utils/invoiceGenerator"
 import { getGoogleMapsUrl, openGoogleMaps } from "../utils/maps"
+import { getEmailUrls } from "../utils/email"
 import {
   getWhatsAppUrls,
   formatInternationalPhoneDisplay,
@@ -5987,34 +5988,58 @@ export default function AdminView({
                     <span>{isSavingStudioContact ? "Saving to Supabase..." : "Save Contact Settings"}</span>
                   </button>
 
-                  {/* Test WhatsApp triggers (Direct Web & Desktop App) */}
-                  <div className="flex items-center gap-2">
+                  {/* Test Dispatch triggers (WhatsApp Web, WhatsApp App, Gmail, Default Mail) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={getWhatsAppUrls(studioContact.contact_phone, "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!").appUrl}
+                      className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                        isDark
+                          ? "bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-300 border-emerald-800"
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs"
+                      }`}
+                      title="Directly opens WhatsApp Native App on phone or desktop"
+                    >
+                      <span>📱</span>
+                      <span>Test WhatsApp Mobile (App)</span>
+                    </a>
+
                     <a
                       href={getWhatsAppUrls(studioContact.contact_phone, "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!").webUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className={`px-3.5 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
-                        isDark
-                          ? "bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border-emerald-800"
-                          : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
-                      }`}
-                      title="Directly opens WhatsApp Web without landing screen"
-                    >
-                      <span>🌐</span>
-                      <span>Test WhatsApp Web</span>
-                    </a>
-
-                    <a
-                      href={getWhatsAppUrls(studioContact.contact_phone, "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!").appUrl}
-                      className={`px-3.5 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                      className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                         isDark
                           ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
                           : "bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200"
                       }`}
-                      title="Directly opens WhatsApp Native App on PC/Mac or Mobile"
+                      title="Directly opens WhatsApp Web (web.whatsapp.com) without landing screen"
                     >
                       <span>💻</span>
-                      <span>Test WhatsApp App</span>
+                      <span>Test WhatsApp Web</span>
+                    </a>
+
+                    <a
+                      href={getEmailUrls(studioContact.contact_email, "🚗 MOTORLY ATELIER: Email Dispatch Test", "This is a test notification from the MOTORLY Studio Director Console confirming that your email dispatch integration is operating correctly.").gmailUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white border border-red-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      title="Directly opens Gmail compose with test email"
+                    >
+                      <span>🔴</span>
+                      <span>Test Gmail Compose</span>
+                    </a>
+
+                    <a
+                      href={getEmailUrls(studioContact.contact_email, "🚗 MOTORLY ATELIER: Email Dispatch Test", "This is a test notification from the MOTORLY Studio Director Console confirming that your email dispatch integration is operating correctly.").mailtoUrl}
+                      className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                        isDark
+                          ? "bg-blue-950/60 hover:bg-blue-900/70 text-blue-300 border-blue-800"
+                          : "bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-xs"
+                      }`}
+                      title="Opens device's native mail client"
+                    >
+                      <span>✉️</span>
+                      <span>Test Default Mail</span>
                     </a>
                   </div>
                 </div>
