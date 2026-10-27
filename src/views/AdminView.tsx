@@ -19,6 +19,11 @@ import type {
 import { api } from "../services/api"
 import GarageMapViewer from "../components/GarageMapViewer"
 import {
+  getWhatsAppUrls,
+  formatInternationalPhoneDisplay,
+  normalizeWhatsAppPhone,
+} from "../utils/whatsapp"
+import {
   CarIcon,
   PlusIcon,
   SearchIcon,
@@ -5614,6 +5619,13 @@ export default function AdminView({
                         : "bg-stone-50/70 border-stone-200 text-stone-900 placeholder-stone-400"
                     }`}
                   />
+                  {studioContact.contact_phone && (
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                      <span>🌐 WhatsApp routing:</span>
+                      <span className="font-bold">{formatInternationalPhoneDisplay(studioContact.contact_phone)}</span>
+                      <span className="text-[10px] text-stone-400">({normalizeWhatsAppPhone(studioContact.contact_phone)})</span>
+                    </div>
+                  )}
                   <p className="text-[11px] text-stone-500 dark:text-stone-400 leading-normal">
                     When customers submit a booking and click <strong className="text-emerald-600">Share Dispatch on WhatsApp</strong>, the reservation summary and direct admin approval link will be delivered directly to this phone number.
                   </p>
@@ -5709,21 +5721,36 @@ export default function AdminView({
                     <span>{isSavingStudioContact ? "Saving to Supabase..." : "Save Contact Settings"}</span>
                   </button>
 
-                  {/* Test WhatsApp trigger */}
-                  <a
-                    href={`https://api.whatsapp.com/send?phone=${studioContact.contact_phone.replace(/[^\d]/g, "")}&text=${encodeURIComponent("🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`px-4 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
-                      isDark
-                        ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
-                        : "bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200"
-                    }`}
-                    title="Send a quick test message to this phone number via WhatsApp"
-                  >
-                    <span>💬</span>
-                    <span>Test WhatsApp Connection</span>
-                  </a>
+                  {/* Test WhatsApp triggers (Direct Web & Desktop App) */}
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={getWhatsAppUrls(studioContact.contact_phone, "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!").webUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`px-3.5 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                        isDark
+                          ? "bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border-emerald-800"
+                          : "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
+                      }`}
+                      title="Directly opens WhatsApp Web without landing screen"
+                    >
+                      <span>🌐</span>
+                      <span>Test WhatsApp Web</span>
+                    </a>
+
+                    <a
+                      href={getWhatsAppUrls(studioContact.contact_phone, "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!").appUrl}
+                      className={`px-3.5 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                        isDark
+                          ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                          : "bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200"
+                      }`}
+                      title="Directly opens WhatsApp Native App on PC/Mac or Mobile"
+                    >
+                      <span>💻</span>
+                      <span>Test WhatsApp App</span>
+                    </a>
+                  </div>
                 </div>
 
                 {contactSaveFeedback && (
@@ -9769,6 +9796,11 @@ export default function AdminView({
                     <span className="text-[10px] text-stone-400 block mt-1">
                       Destination for customer WhatsApp booking shares
                     </span>
+                    {studioContact.contact_phone && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono block mt-1">
+                        Auto-formatted: {formatInternationalPhoneDisplay(studioContact.contact_phone)} ({normalizeWhatsAppPhone(studioContact.contact_phone)})
+                      </span>
+                    )}
                   </div>
 
                   <div>

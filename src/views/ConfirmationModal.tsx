@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { Car, BookingState, CustomerInfo } from "../types"
 import { api } from "../services/api"
+import { getWhatsAppUrls } from "../utils/whatsapp"
 import {
   CheckIcon,
   CalendarIcon,
@@ -45,10 +46,25 @@ export default function ConfirmationModal({
     contact_phone?: string
     contact_email?: string
     admin_name?: string
-  }>({})
+  }>({
+    contact_phone: "7780740223",
+    contact_email: "nanikoushik96@gmail.com",
+    admin_name: "Studio Director",
+  })
 
   useEffect(() => {
-    api.getSettings().then((s) => s && setStudioSettings(s)).catch(() => {})
+    let isMounted = true
+    api
+      .getSettings()
+      .then((s) => {
+        if (isMounted && s && s.contact_phone) {
+          setStudioSettings((prev) => ({ ...prev, ...s }))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   // Direct Admin link for rapid verification & approval
@@ -96,10 +112,7 @@ ${adminApprovalLink}
     setTimeout(() => setCopiedWhatsApp(false), 3000)
   }
 
-  const cleanPhone = (studioSettings.contact_phone || "").replace(/[^\d]/g, "")
-  const whatsappShareUrl = cleanPhone
-    ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(templateMessageText)}`
-    : `https://api.whatsapp.com/send?text=${encodeURIComponent(templateMessageText)}`
+  const whatsAppUrls = getWhatsAppUrls(studioSettings.contact_phone, templateMessageText)
 
   return createPortal(
     <div
@@ -232,50 +245,75 @@ ${adminApprovalLink}
           </div>
         </div>
 
-        {/* Automated Dispatch Notification Box (WhatsApp & Email Template) */}
+        {/* Automated Dispatch Notification Box (Direct WhatsApp Web & App) */}
         <div className="rounded-2xl border border-stone-200 dark:border-stone-800 p-3.5 space-y-3 bg-stone-50/70 dark:bg-stone-900/40">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
               <span>⚡</span>
-              <span>Dispatched Notification Template</span>
+              <span>Direct WhatsApp Dispatch</span>
             </span>
             <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              Live Link Synced
+              Direct Redirect Active
+            </span>
+          </div>
+
+          {/* Recipient Details & Landing Page Bypass Notice */}
+          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] bg-white/80 dark:bg-stone-800/60 p-2.5 rounded-xl border border-stone-200/80 dark:border-stone-700/60">
+            <div className="flex items-center gap-1.5">
+              <span className="text-emerald-500">📲</span>
+              <span className="text-stone-500 dark:text-stone-400">Dispatch Recipient:</span>
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {whatsAppUrls.displayPhone}
+              </span>
+            </div>
+            <span className="text-[10px] text-stone-400 font-mono">
+              ⚡ Direct to Chat
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {/* WhatsApp Direct Action Button */}
+            {/* Primary: Direct WhatsApp Web link */}
             <a
-              href={whatsappShareUrl}
+              href={whatsAppUrls.webUrl}
               target="_blank"
               rel="noopener noreferrer"
+              data-testid="direct-whatsapp-web-btn"
               className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+              title="Bypasses landing screen and opens directly in WhatsApp Web"
             >
-              <span className="text-sm">📲</span>
-              <span>Send via WhatsApp</span>
+              <span className="text-sm">🌐</span>
+              <span>Open in WhatsApp Web</span>
             </a>
 
+            {/* Direct WhatsApp App protocol link */}
+            <a
+              href={whatsAppUrls.appUrl}
+              data-testid="direct-whatsapp-app-btn"
+              className="w-full py-2.5 px-3 rounded-xl bg-stone-900 hover:bg-black text-white dark:bg-stone-800 dark:hover:bg-stone-700 text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer border border-stone-800 dark:border-stone-700"
+              title="Directly opens WhatsApp Desktop on PC/Mac or WhatsApp App on Phone"
+            >
+              <span className="text-sm">💻</span>
+              <span>Open WhatsApp App</span>
+            </a>
+          </div>
+
+          <div className="flex items-center justify-between pt-0.5 gap-2">
             {/* Copy Template Text */}
             <button
               type="button"
               onClick={handleCopyWhatsApp}
-              className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+              data-testid="copy-whatsapp-template-btn"
+              className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 copiedWhatsApp
                   ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border-emerald-300"
-                  : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 border-stone-200 dark:border-stone-700"
+                  : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700"
               }`}
             >
               <span>{copiedWhatsApp ? "✓" : "📋"}</span>
               <span>{copiedWhatsApp ? "Template Copied!" : "Copy Template Text"}</span>
             </button>
-          </div>
 
-          {/* Email Preview Trigger */}
-          <div className="flex items-center justify-between pt-1 text-xs">
-            <span className="text-[11px] text-stone-500 dark:text-stone-400">
-              ✉️ Official dispatch email generated
-            </span>
+            {/* Email Preview Trigger */}
             <button
               type="button"
               onClick={() => setIsEmailPreviewOpen(true)}
