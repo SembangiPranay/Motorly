@@ -94,7 +94,7 @@ export default function ConfirmationModal({
 • Primary Driver: ${customer.firstName} ${customer.lastName}
 • Phone: ${customer.phone || "Not provided"}
 • Email: ${customer.email}
-• Driver License: ${customer.driverLicenseNum || "On file in verification vault"}
+• Driver License: ${(customer as any).driverLicenseNum || "On file in verification vault"}
 
 *FINANCIAL SUMMARY*
 • Total Rental Amount: $${totalAmount.toFixed(2)} (Payable at hub upon key handoff)
@@ -128,7 +128,7 @@ CLIENT & DRIVER CREDENTIALS:
 • Primary Driver: ${customer.firstName} ${customer.lastName}
 • Direct Phone: ${customer.phone || "Not provided"}
 • Email: ${customer.email}
-• Driver License: ${customer.driverLicenseNum || "On file in verification vault"}
+• Driver License: ${(customer as any).driverLicenseNum || "On file in verification vault"}
 
 FINANCIAL AUDIT:
 • Total Estimated Rental: $${totalAmount.toFixed(2)} (Payable at hub counter upon key handoff)

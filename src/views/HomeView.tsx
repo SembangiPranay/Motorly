@@ -65,7 +65,7 @@ export default function HomeView({
     label: string
     price: string
     image: string
-    carId: string
+    carId?: string
     description: string
   }[] = [
     {

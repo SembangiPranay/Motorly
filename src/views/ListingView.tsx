@@ -146,7 +146,7 @@ export default function ListingView({
           pickupDate: bookingState.pickupDate,
           returnDate: bookingState.returnDate,
         })
-        if (isMounted && freshCars && freshCars.length > 0) {
+        if (isMounted && Array.isArray(freshCars)) {
           setLiveCars(freshCars)
         }
       } catch (err) {
@@ -164,20 +164,24 @@ export default function ListingView({
 
   // Keep liveCars updated if initialCars changes from parent
   useEffect(() => {
-    if (initialCars && initialCars.length > 0) {
-      setLiveCars((prev) => {
-        return initialCars.map((ic) => {
-          const match = prev.find((p) => p.id === ic.id)
-          return match
-            ? {
-                ...ic,
-                isAvailableForDates: match.isAvailableForDates,
-                conflict: match.conflict,
-                statusForDates: match.statusForDates,
-              }
-            : ic
+    if (Array.isArray(initialCars)) {
+      if (initialCars.length === 0) {
+        setLiveCars([])
+      } else {
+        setLiveCars((prev) => {
+          return initialCars.map((ic) => {
+            const match = prev.find((p) => p.id === ic.id)
+            return match
+              ? {
+                  ...ic,
+                  isAvailableForDates: match.isAvailableForDates,
+                  conflict: match.conflict,
+                  statusForDates: match.statusForDates,
+                }
+              : ic
+          })
         })
-      })
+      }
     }
   }, [initialCars])
 

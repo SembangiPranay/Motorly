@@ -44,14 +44,16 @@ export default function CompareView({
   onQuickBook,
   onNavigateListing,
 }: CompareViewProps) {
-  if (cars.length === 0) {
+  if (!cars || cars.length < 2) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
         <h2 className="text-2xl font-bold text-stone-900 font-heading">
-          No Vehicles to Compare
+          {(!cars || cars.length === 0) ? "No Vehicles in Fleet" : "Select at Least 2 Vehicles"}
         </h2>
         <p className="text-stone-500 text-sm">
-          There are currently no vehicles in the fleet catalog to compare.
+          {(!cars || cars.length === 0)
+            ? "There are currently no vehicles in the fleet catalog to compare."
+            : "Vehicle comparison requires at least 2 vehicles to compare side-by-side."}
         </p>
         <button
           onClick={onNavigateListing}
@@ -240,14 +242,14 @@ export default function CompareView({
     // Features
     for (const feat of COMMON_FEATURES) {
       const hasFirst =
-        first.features &&
-        first.features.some((f) =>
+        first?.features &&
+        first?.features.some((f) =>
           f.toLowerCase().includes(feat.key.toLowerCase()),
         )
       const diffFound = activeComparedCars.some((c) => {
         const hasC =
-          c.features &&
-          c.features.some((f) =>
+          c?.features &&
+          c?.features.some((f) =>
             f.toLowerCase().includes(feat.key.toLowerCase()),
           )
         return hasC !== hasFirst
@@ -459,7 +461,7 @@ export default function CompareView({
                     Slot A:
                   </label>
                   <select
-                    value={mobileCars[0].id}
+                    value={mobileCars[0]?.id || ''}
                     onChange={(e) => {
                       const idx = activeComparedCars.findIndex(
                         (c) => c.id === e.target.value,
@@ -480,7 +482,7 @@ export default function CompareView({
                     Slot B:
                   </label>
                   <select
-                    value={mobileCars[1].id}
+                    value={mobileCars[1]?.id || ''}
                     onChange={(e) => {
                       const idx = activeComparedCars.findIndex(
                         (c) => c.id === e.target.value,
@@ -581,8 +583,8 @@ export default function CompareView({
                 <div className="divide-y divide-stone-100 text-xs">
                   {/* Daily Rate */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].pricePerDay !==
-                      mobileCars[1].pricePerDay) && (
+                    mobileCars[0]?.pricePerDay !==
+                      mobileCars[1]?.pricePerDay) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Daily Rate (24 Hours)
@@ -617,8 +619,8 @@ export default function CompareView({
 
                   {/* Hourly Flex Rate */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].pricePerHour !==
-                      mobileCars[1].pricePerHour) && (
+                    mobileCars[0]?.pricePerHour !==
+                      mobileCars[1]?.pricePerHour) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Hourly Flex Rate
@@ -640,8 +642,8 @@ export default function CompareView({
 
                   {/* Weekly Rate */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].pricePerDay !==
-                      mobileCars[1].pricePerDay) && (
+                    mobileCars[0]?.pricePerDay !==
+                      mobileCars[1]?.pricePerDay) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Weekly Rate (7 Days · 10% Off)
@@ -717,8 +719,8 @@ export default function CompareView({
 
                   {/* Baseline Odometer */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].currentOdometer !==
-                      mobileCars[1].currentOdometer) && (
+                    mobileCars[0]?.currentOdometer !==
+                      mobileCars[1]?.currentOdometer) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Current Odometer Reading
@@ -769,7 +771,7 @@ export default function CompareView({
                 <div className="divide-y divide-stone-100 text-xs">
                   {/* Fuel / Powertrain */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].fuelType !== mobileCars[1].fuelType) && (
+                    mobileCars[0]?.fuelType !== mobileCars[1]?.fuelType) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Fuel / Powertrain
@@ -789,7 +791,7 @@ export default function CompareView({
 
                   {/* Fuel Efficiency / Range */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].mileage !== mobileCars[1].mileage) && (
+                    mobileCars[0]?.mileage !== mobileCars[1]?.mileage) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Fuel Economy / Range
@@ -809,7 +811,7 @@ export default function CompareView({
 
                   {/* Seating Capacity */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].seats !== mobileCars[1].seats) && (
+                    mobileCars[0]?.seats !== mobileCars[1]?.seats) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Seating Capacity
@@ -829,7 +831,7 @@ export default function CompareView({
 
                   {/* Luggage Capacity */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].luggage !== mobileCars[1].luggage) && (
+                    mobileCars[0]?.luggage !== mobileCars[1]?.luggage) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Luggage Capacity
@@ -849,8 +851,8 @@ export default function CompareView({
 
                   {/* Transmission */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].transmission !==
-                      mobileCars[1].transmission) && (
+                    mobileCars[0]?.transmission !==
+                      mobileCars[1]?.transmission) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Transmission
@@ -870,7 +872,7 @@ export default function CompareView({
 
                   {/* Model Year */}
                   {(!showOnlyDifferences ||
-                    mobileCars[0].year !== mobileCars[1].year) && (
+                    mobileCars[0]?.year !== mobileCars[1]?.year) && (
                     <div className="p-3">
                       <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider font-mono mb-1.5">
                         Model Year
@@ -901,16 +903,18 @@ export default function CompareView({
 
                 <div className="divide-y divide-stone-100 text-xs">
                   {COMMON_FEATURES.map((feature) => {
-                    const has1 =
-                      mobileCars[0].features &&
-                      mobileCars[0].features.some((f) =>
+                    const has1 = Boolean(
+                      mobileCars[0]?.features &&
+                      mobileCars[0]?.features.some((f) =>
                         f.toLowerCase().includes(feature.key.toLowerCase()),
                       )
-                    const has2 =
-                      mobileCars[1].features &&
-                      mobileCars[1].features.some((f) =>
+                    )
+                    const has2 = Boolean(
+                      mobileCars[1]?.features &&
+                      mobileCars[1]?.features.some((f) =>
                         f.toLowerCase().includes(feature.key.toLowerCase()),
                       )
+                    )
 
                     if (showOnlyDifferences && has1 === has2) return null
 
@@ -1457,8 +1461,8 @@ export default function CompareView({
                     {COMMON_FEATURES.map((feature) => {
                       const hasFeatureList = activeComparedCars.map((c) =>
                         Boolean(
-                          c.features &&
-                            c.features.some((f) =>
+                          c?.features &&
+                            c?.features.some((f) =>
                               f.toLowerCase().includes(
                                 feature.key.toLowerCase(),
                               ),
@@ -1478,8 +1482,8 @@ export default function CompareView({
                           </td>
                           {activeComparedCars.map((c) => {
                             const hasFeature =
-                              c.features &&
-                              c.features.some((f) =>
+                              c?.features &&
+                              c?.features.some((f) =>
                                 f.toLowerCase().includes(
                                   feature.key.toLowerCase(),
                                 ),

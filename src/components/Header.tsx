@@ -205,9 +205,9 @@ export default function Header({
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-xs transition cursor-pointer"
                 >
                   <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px]">
-                    {(currentUser.name || currentUser.firstName || "U").charAt(0)}
+                    {(currentUser.name || "U").charAt(0)}
                   </div>
-                  <span>{(currentUser.name || currentUser.firstName || "User").split(" ")[0]}</span>
+                  <span>{(currentUser.name || "User").split(" ")[0]}</span>
                   <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded font-mono">
                     {currentUser.vipTier || "Member"}
                   </span>

@@ -337,13 +337,11 @@ export default function CheckoutView({
   const pricingResult = useMemo(() => {
     if (!car) {
       return {
+        tier: "daily" as const,
         basePrice: 0,
-        rateType: "Daily",
-        effectiveDailyRate: 0,
-        hourlyRate: 0,
-        days: 0,
-        hours: 0,
-        originalDailyRate: 0,
+        rateApplied: 0,
+        rateLabel: "$0/day",
+        durationText: "0 Days",
       }
     }
     return calculateRentalPrice({

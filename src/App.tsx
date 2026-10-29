@@ -124,63 +124,19 @@ export default function App() {
   const [favorites, setFavorites] = useState<string[]>([])
   const [compareIds, setCompareIds] = useState<string[]>([])
 
-  // Dynamic Fleet State (synced with Supabase Backend with zero static mock fallback)
-  const [cars, setCars] = useState<Car[]>(() => {
-    try {
-      const saved = localStorage.getItem("motorly_cached_cars")
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
-      }
-    } catch {}
-    return []
-  })
+  // Dynamic Fleet State (strictly synced with database)
+  const [cars, setCars] = useState<Car[]>([])
 
-  // Dynamic Bookings State (for car mating / allocation with instant localStorage cache)
-  const [bookings, setBookings] = useState<BookingRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem("motorly_cached_bookings")
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Exclude any obsolete test or mock seed records from older sessions
-          const clean = parsed.filter(
-            (b) =>
-              b &&
-              !b.id?.startsWith("BK-2026") &&
-              !b.id?.startsWith("TEST-") &&
-              !b.id?.startsWith("FSM-") &&
-              !b.id?.startsWith("E2E-") &&
-              !b.id?.startsWith("ADV-") &&
-              !b.id?.startsWith("LEGIT-") &&
-              !b.id?.startsWith("CWK-"),
-          )
-          if (clean.length > 0) return clean
-        }
-      }
-    } catch {}
-    return []
-  })
+  // Dynamic Bookings State (strictly synced with database)
+  const [bookings, setBookings] = useState<BookingRecord[]>([])
 
-  // Keep localStorage cache in sync for instant, flicker-free reloads
+  // Immediately purge any stale client cache from older mock/demo sessions
   useEffect(() => {
     try {
-      if (cars && cars.length > 0) {
-        localStorage.setItem("motorly_cached_cars", JSON.stringify(cars))
-      }
+      localStorage.removeItem("motorly_cached_cars")
+      localStorage.removeItem("motorly_cached_bookings")
     } catch {}
-  }, [cars])
-
-  useEffect(() => {
-    try {
-      if (bookings && bookings.length > 0) {
-        localStorage.setItem(
-          "motorly_cached_bookings",
-          JSON.stringify(bookings),
-        )
-      }
-    } catch {}
-  }, [bookings])
+  }, [])
 
   // Admin Authentication Modal State
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
@@ -254,11 +210,11 @@ export default function App() {
             : Promise.resolve(null),
         ])
 
-        if (remoteCars && remoteCars.length > 0) {
+        if (Array.isArray(remoteCars)) {
           setCars(remoteCars)
           setIsBackendConnected(true)
         }
-        if (remoteBookings && remoteBookings.length > 0) {
+        if (Array.isArray(remoteBookings)) {
           setBookings(remoteBookings)
         }
       } catch (err) {
