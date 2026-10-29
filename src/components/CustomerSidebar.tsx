@@ -1,22 +1,10 @@
-import React, { useState } from "react"
-import type { ViewMode, VehicleType, CustomerUser } from "../types"
-import {
-  CarIcon,
-  ShieldIcon,
-  SparklesIcon,
-  UserIcon,
-  ClockIcon,
-  LocationIcon,
-  ArrowRightIcon,
-} from "./Icons"
+import React from "react"
+import type { ViewMode, CustomerUser } from "../types"
+import { UserIcon } from "./Icons"
 
 interface CustomerSidebarProps {
   currentView: ViewMode
   onNavigate: (view: ViewMode) => void
-  onSelectCategory?: (category: VehicleType | "All") => void
-  onSelectDuration?: (duration: "Hourly" | "Daily" | "Weekly" | "Monthly") => void
-  selectedDuration?: "Hourly" | "Daily" | "Weekly" | "Monthly"
-  selectedCategory?: string
   currentUser?: CustomerUser | null
   onLogoutCustomer?: () => void
   compareCount?: number
@@ -28,10 +16,6 @@ interface CustomerSidebarProps {
 export default function CustomerSidebar({
   currentView,
   onNavigate,
-  onSelectCategory,
-  onSelectDuration,
-  selectedDuration = "Daily",
-  selectedCategory = "All",
   currentUser,
   onLogoutCustomer,
   compareCount = 0,
@@ -39,91 +23,80 @@ export default function CustomerSidebar({
   isOpenMobile = false,
   onCloseMobile,
 }: CustomerSidebarProps) {
-  const categories: { label: string; type: VehicleType | "All"; icon: string }[] = [
-    { label: "All Vehicles", type: "All", icon: "🏎️" },
-    { label: "Sedans", type: "Sedan", icon: "🚗" },
-    { label: "SUVs", type: "SUV", icon: "🚙" },
-    { label: "Luxury", type: "Luxury", icon: "✨" },
-    { label: "Electric", type: "Electric", icon: "⚡" },
-    { label: "Economy", type: "Economy", icon: "🌱" },
-  ]
-
-  const rentalPlans = [
+  const navPortals = [
     {
-      label: "Hourly Sprint",
-      value: "Hourly" as const,
-      badge: "Quick",
-      desc: "3h - 8h errands",
+      id: "home" as ViewMode,
+      label: "Home Overview",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      ),
     },
     {
-      label: "Daily Standard",
-      value: "Daily" as const,
-      badge: "Popular",
-      desc: "Flexible 24-hr",
+      id: "listing" as ViewMode,
+      label: "Fleet Catalog",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 19H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2zM9 9h6M9 13h6" />
+        </svg>
+      ),
     },
-    {
-      label: "Weekly Pass",
-      value: "Weekly" as const,
-      badge: "-15% Off",
-      desc: "7+ days discount",
-    },
-    {
-      label: "Monthly Flex",
-      value: "Monthly" as const,
-      badge: "Save 35%",
-      desc: "30-day lease-free",
-    },
-  ]
-
-  const navItems = [
-    { id: "home" as ViewMode, label: "Home Overview", icon: "🏠" },
-    { id: "listing" as ViewMode, label: "Fleet Catalog", icon: "🚗" },
     {
       id: "compare" as ViewMode,
       label: "Compare Vehicles",
-      icon: "⚖️",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 12h12l3-12H3zM9 10h6" />
+        </svg>
+      ),
       badge: compareCount > 0 ? compareCount : undefined,
     },
     {
       id: "my-bookings" as ViewMode,
       label: "My Reservations",
-      icon: "📋",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      ),
       badge: activeBookingsCount > 0 ? activeBookingsCount : undefined,
     },
-    { id: "about" as ViewMode, label: "About the Garage", icon: "👤" },
-    { id: "contact" as ViewMode, label: "Direct Contact", icon: "📞" },
+    {
+      id: "about" as ViewMode,
+      label: "About MOTORLY",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: "contact" as ViewMode,
+      label: "Direct Contact",
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+      ),
+    },
   ]
 
-  const handleNavClick = (view: ViewMode) => {
+  const handleItemClick = (view: ViewMode) => {
     onNavigate(view)
     if (onCloseMobile) onCloseMobile()
   }
 
-  const handleCategoryClick = (cat: VehicleType | "All") => {
-    if (onSelectCategory) {
-      onSelectCategory(cat)
-    }
-    onNavigate("listing")
-    if (onCloseMobile) onCloseMobile()
-  }
-
-  const handleDurationClick = (dur: "Hourly" | "Daily" | "Weekly" | "Monthly") => {
-    if (onSelectDuration) {
-      onSelectDuration(dur)
-    }
-    if (onCloseMobile) onCloseMobile()
-  }
-
-  const sidebarContent = (
-    <div className="h-full flex flex-col justify-between p-4 sm:p-5 overflow-y-auto selection:bg-orange-500 selection:text-white">
-      {/* Top Header & Branding */}
+  const sidebarBody = (
+    <div className="h-full flex flex-col justify-between p-5 bg-white/95 backdrop-blur-md">
+      {/* Top Branding */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between pb-2 border-b border-stone-200/80">
+        <div className="flex items-center justify-between pb-4 border-b border-stone-200/60">
           <div
-            onClick={() => handleNavClick("home")}
+            onClick={() => handleItemClick("home")}
             className="flex items-center gap-2.5 cursor-pointer select-none group"
           >
-            <div className="w-8 h-7 relative flex items-end">
+            <div className="w-7 h-6 relative flex items-end">
               <svg viewBox="0 0 28 24" fill="none" className="w-full h-full">
                 <path
                   d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z"
@@ -133,11 +106,11 @@ export default function CustomerSidebar({
               </svg>
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-[#17191C] font-heading block leading-none">
+              <span className="text-lg font-black tracking-tight text-[#17191C] font-heading block leading-none">
                 MOTORLY
               </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-stone-400">
-                Garage Fleet &bull; Bay 1
+              <span className="text-[9px] font-light tracking-[0.22em] uppercase text-stone-400 block mt-1">
+                Direct Garage
               </span>
             </div>
           </div>
@@ -145,49 +118,41 @@ export default function CustomerSidebar({
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="lg:hidden p-1.5 rounded-xl hover:bg-stone-200 text-stone-500 transition cursor-pointer"
+              className="lg:hidden p-1.5 rounded-xl hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition cursor-pointer"
             >
               ✕
             </button>
           )}
         </div>
 
-        {/* Quick CTA */}
-        <button
-          type="button"
-          onClick={() => handleNavClick("listing")}
-          className="w-full py-2.5 px-3.5 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-xl text-xs font-extrabold flex items-center justify-between shadow-xs transition group cursor-pointer"
-        >
-          <span>Reserve a Car</span>
-          <ArrowRightIcon size={14} className="group-hover:translate-x-0.5 transition-transform" />
-        </button>
-
-        {/* Primary Navigation Links */}
+        {/* Portals Navigation Only */}
         <div className="space-y-1">
-          <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400 px-2 mb-1.5">
-            Main Portal
-          </div>
-          {navItems.map((item) => {
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-stone-400 px-3 mb-2">
+            Portals
+          </p>
+          {navPortals.map((item) => {
             const isActive = currentView === item.id
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => handleNavClick(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                onClick={() => handleItemClick(item.id)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? "bg-[#17191C] text-white shadow-xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/80"
+                    ? "bg-[#17191C] text-white shadow-xs font-semibold"
+                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/70 font-medium"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-sm">{item.icon}</span>
+                <div className="flex items-center gap-3">
+                  <span className={`${isActive ? "text-[#F97316]" : "text-stone-400"}`}>
+                    {item.icon}
+                  </span>
                   <span>{item.label}</span>
                 </div>
                 {item.badge !== undefined && (
                   <span
-                    className={`text-[10px] px-2 py-0.2 rounded-full font-mono font-bold ${
-                      isActive ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-700"
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isActive ? "bg-[#F97316] text-white" : "bg-orange-100 text-orange-700"
                     }`}
                   >
                     {item.badge}
@@ -197,118 +162,58 @@ export default function CustomerSidebar({
             )
           })}
         </div>
-
-        {/* Vehicle Category Shortcuts */}
-        <div className="space-y-1 pt-2 border-t border-stone-200/80">
-          <div className="flex items-center justify-between px-2 mb-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400">
-              Fleet Categories
-            </span>
-            <span className="text-[9px] text-stone-400 font-medium">Quick Filter</span>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {categories.map((cat) => (
-              <button
-                key={cat.label}
-                type="button"
-                onClick={() => handleCategoryClick(cat.type)}
-                className="flex items-center gap-2 p-2 rounded-xl text-left text-xs font-semibold hover:bg-stone-100 text-stone-700 transition cursor-pointer border border-transparent hover:border-stone-200"
-              >
-                <span>{cat.icon}</span>
-                <span className="truncate">{cat.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Rental Plans / Durations */}
-        <div className="space-y-1.5 pt-2 border-t border-stone-200/80">
-          <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400 px-2 mb-1.5">
-            Rental Tiers
-          </div>
-          <div className="grid grid-cols-1 gap-1.5">
-            {rentalPlans.map((plan) => {
-              const isSelected = selectedDuration === plan.value
-              return (
-                <button
-                  key={plan.value}
-                  type="button"
-                  onClick={() => handleDurationClick(plan.value)}
-                  className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition cursor-pointer border ${
-                    isSelected
-                      ? "bg-orange-50/80 border-orange-300 text-stone-900 font-bold shadow-2xs"
-                      : "bg-white/60 border-stone-200/70 hover:bg-white text-stone-600"
-                  }`}
-                >
-                  <div className="text-left">
-                    <span className="block font-bold">{plan.label}</span>
-                    <span className="text-[10px] text-stone-400 block">{plan.desc}</span>
-                  </div>
-                  <span
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-extrabold ${
-                      isSelected
-                        ? "bg-[#F97316] text-white"
-                        : "bg-stone-100 text-stone-600"
-                    }`}
-                  >
-                    {plan.badge}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
       </div>
 
-      {/* Bottom User Profile Card & Footer Info */}
-      <div className="pt-4 border-t border-stone-200/80 space-y-3">
+      {/* Super-Clean Bottom Area */}
+      <div className="pt-4 border-t border-stone-200/60 space-y-3">
         {currentUser ? (
-          <div className="p-3 bg-white rounded-2xl border border-stone-200 shadow-2xs space-y-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-stone-900 text-white flex items-center justify-center font-bold text-xs">
-                {(currentUser.name || "U").charAt(0)}
+          <div className="flex items-center justify-between px-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center font-bold text-[11px] shrink-0">
+                {(currentUser.name || "U").charAt(0).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-stone-900 truncate">
-                  {currentUser.name}
+              <div className="min-w-0">
+                <p className="font-semibold text-stone-800 text-xs truncate">
+                  {(currentUser.name || "User").split(" ")[0]}
                 </p>
-                <p className="text-[10px] text-stone-500 font-mono truncate">
-                  {currentUser.email}
+                <p className="text-[10px] font-light text-stone-400 truncate">
+                  {currentUser.vipTier || "Member"}
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[11px]">
-              <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] font-bold font-mono">
-                {currentUser.vipTier || "Member"}
-              </span>
-              <button
-                type="button"
-                onClick={onLogoutCustomer}
-                className="text-stone-400 hover:text-red-600 transition cursor-pointer font-semibold text-[10px]"
-              >
-                Sign Out
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onLogoutCustomer}
+              className="text-[11px] text-stone-400 hover:text-red-600 transition cursor-pointer font-medium"
+            >
+              Logout
+            </button>
           </div>
         ) : (
           <button
             type="button"
-            onClick={() => handleNavClick("auth")}
-            className="w-full py-2.5 px-3 bg-white hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-bold border border-stone-200 shadow-2xs flex items-center justify-center gap-2 transition cursor-pointer"
+            onClick={() => handleItemClick("auth")}
+            className="w-full py-2 px-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center gap-2 border border-stone-200/70 transition cursor-pointer"
           >
-            <UserIcon size={14} className="text-stone-600" />
-            <span>Customer Sign In</span>
+            <UserIcon size={14} className="text-stone-400" />
+            <span>Sign In</span>
           </button>
         )}
 
-        {/* Discreet Staff Portal Entry */}
-        <div className="text-center pt-1">
+        <div className="text-center">
           <button
             type="button"
-            onClick={() => handleNavClick("admin")}
-            className="text-[10px] font-mono text-stone-400 hover:text-stone-700 transition cursor-pointer"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.history.pushState(null, "", "/admin")
+              }
+              onNavigate("admin")
+              if (onCloseMobile) onCloseMobile()
+            }}
+            className="text-[10px] text-stone-400 hover:text-stone-700 transition cursor-pointer font-light tracking-wide inline-flex items-center gap-1"
           >
-            Manager Passcode Access &rarr;
+            <span>Manager Portal</span>
+            <span>&rarr;</span>
           </button>
         </div>
       </div>
@@ -317,22 +222,22 @@ export default function CustomerSidebar({
 
   return (
     <>
-      {/* Desktop Persistent Sidebar (fixed on left for desktop viewport) */}
-      <aside className="hidden lg:block w-64 bg-white/90 backdrop-blur-md border-r border-stone-200/80 fixed inset-y-0 left-0 z-30 shadow-xs">
-        {sidebarContent}
+      {/* Desktop Persistent Minimal Sidebar */}
+      <aside className="hidden lg:block w-60 bg-white border-r border-stone-200/60 fixed inset-y-0 left-0 z-30">
+        {sidebarBody}
       </aside>
 
-      {/* Mobile Slide-Out Drawer Overlay */}
+      {/* Mobile Slide-Out Drawer */}
       {isOpenMobile && (
         <div
-          className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-fade-in flex"
+          className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs animate-fade-in flex"
           onClick={onCloseMobile}
         >
           <div
-            className="w-72 max-w-[85vw] h-full bg-[#FAF7F2] shadow-2xl relative animate-slide-right"
+            className="w-64 max-w-[80vw] h-full bg-white shadow-2xl relative animate-slide-right"
             onClick={(e) => e.stopPropagation()}
           >
-            {sidebarContent}
+            {sidebarBody}
           </div>
         </div>
       )}

@@ -47,11 +47,11 @@ export default function ConfirmationModal({
     garage_location: car.garageName || car.garageAddress || car.location || bookingState.pickupLocation || "Main Garage Facility, Bay 1",
   }
 
-  // Direct Admin Review & Approve Link
+  // Direct Admin Review & Approve Link (Dedicated /admin route)
   const adminApprovalLink =
     typeof window !== "undefined"
-      ? `${window.location.origin}/?view=admin&bookingId=${bookingId}`
-      : `https://motorly-ten.vercel.app/?view=admin&bookingId=${bookingId}`
+      ? `${window.location.origin}/admin?bookingId=${bookingId}`
+      : `https://motorly-ten.vercel.app/admin?bookingId=${bookingId}`
 
   // Customer display name
   const customerFullName = `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || (customer as any).name || "Customer"

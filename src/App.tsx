@@ -57,12 +57,18 @@ export default function App() {
     },
   )
 
-  // Current View State with persistent reload restore + deep link routing
+  // Current View State with persistent reload restore + dedicated /admin URL routing
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     try {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get("view") === "admin" || params.get("bookingId")) {
-        return "admin"
+      if (typeof window !== "undefined") {
+        const pathname = window.location.pathname.toLowerCase()
+        if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/admin")) {
+          return "admin"
+        }
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("view") === "admin" || params.get("bookingId")) {
+          return "admin"
+        }
       }
       const saved = localStorage.getItem(
         "motorly_current_view",
@@ -78,6 +84,8 @@ export default function App() {
         "my-bookings",
         "compare",
         "auth",
+        "about",
+        "contact",
       ]
       if (saved && validViews.includes(saved)) {
         return saved
@@ -105,16 +113,38 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search)
-      const bId = params.get("bookingId")
-      const v = params.get("view")
-      if (bId) {
-        setTargetBookingId(bId)
-        setCurrentView("admin")
-      } else if (v === "admin") {
-        setCurrentView("admin")
+      if (typeof window !== "undefined") {
+        const pathname = window.location.pathname.toLowerCase()
+        const params = new URLSearchParams(window.location.search)
+        const bId = params.get("bookingId")
+        if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname.startsWith("/admin")) {
+          setCurrentView("admin")
+          if (bId) setTargetBookingId(bId)
+        } else if (bId) {
+          setTargetBookingId(bId)
+          setCurrentView("admin")
+        } else if (params.get("view") === "admin") {
+          setCurrentView("admin")
+        }
       }
     } catch {}
+  }, [])
+
+  // Listen for browser forward/back buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window === "undefined") return
+      const pathname = window.location.pathname.toLowerCase()
+      if (pathname === "/admin" || pathname.startsWith("/admin")) {
+        setCurrentView("admin")
+        return
+      }
+      const params = new URLSearchParams(window.location.search)
+      const v = (params.get("view") as ViewMode) || "home"
+      setCurrentView(v)
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
   const [authInitialTab, setAuthInitialTab] = useState<"customer" | "admin">(
@@ -343,14 +373,24 @@ export default function App() {
     }
   }
 
-  // Guard navigation to Admin view with backend password authentication
+  // Guard navigation to Admin view with dedicated /admin routing
   const handleNavigate = (view: ViewMode) => {
     if (view === "admin") {
+      if (typeof window !== "undefined") {
+        window.history.pushState(null, "", "/admin")
+      }
       setCurrentView("admin")
     } else if (view === "auth") {
       setAuthReturnView(currentView !== "auth" ? currentView : "home")
       setCurrentView("auth")
     } else {
+      if (typeof window !== "undefined") {
+        if (view === "home") {
+          window.history.pushState(null, "", "/")
+        } else {
+          window.history.pushState(null, "", `/?view=${view}`)
+        }
+      }
       setCurrentView(view)
     }
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -433,26 +473,14 @@ export default function App() {
   return (
     <div
       className={`w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C] ${
-        currentView !== "admin" && currentView !== "auth" ? "lg:pl-64" : ""
+        currentView !== "admin" && currentView !== "auth" ? "lg:pl-60" : ""
       }`}
     >
-      {/* Desktop Persistent Left Sidebar & Mobile Drawer for Storefront Views */}
+      {/* Desktop Persistent Minimal Left Sidebar & Mobile Drawer (Portals Only) */}
       {currentView !== "admin" && currentView !== "auth" && (
         <CustomerSidebar
           currentView={currentView}
           onNavigate={handleNavigate}
-          onSelectCategory={handleSelectCategory}
-          onSelectDuration={handleSelectDuration}
-          selectedDuration={
-            bookingState.rentalPlan === "hourly"
-              ? "Hourly"
-              : bookingState.rentalPlan === "weekly"
-                ? "Weekly"
-                : bookingState.rentalPlan === "monthly"
-                  ? "Monthly"
-                  : "Daily"
-          }
-          selectedCategory={filterState.types[0] || "All"}
           currentUser={currentUser}
           onLogoutCustomer={() => {
             api.logoutCustomer()
@@ -606,11 +634,19 @@ export default function App() {
             bookings={bookings}
             setBookings={setBookings}
             targetBookingId={targetBookingId || undefined}
-            onExitAdmin={() => setCurrentView("home")}
+            onExitAdmin={() => {
+              if (typeof window !== "undefined") {
+                window.history.pushState(null, "", "/")
+              }
+              setCurrentView("home")
+            }}
             onLogoutAdmin={() => {
               api.logoutAdmin()
               setIsAdminAuthenticated(false)
               localStorage.setItem("motorly_current_view", "home")
+              if (typeof window !== "undefined") {
+                window.history.pushState(null, "", "/")
+              }
               setCurrentView("home")
             }}
           />
