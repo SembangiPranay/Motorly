@@ -239,7 +239,7 @@ export default function GarageMapViewer({
 
           {userDistanceMiles !== null && (
             <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 animate-fade-in flex items-center gap-1">
-              📍 {userDistanceMiles} mi from you
+              {userDistanceMiles} mi from you
             </span>
           )}
 
@@ -254,7 +254,7 @@ export default function GarageMapViewer({
                 : "Calculate distance from my current GPS location to this garage"
             }
           >
-            <span>{isLocating ? "Locating..." : "🎯 Locate Me"}</span>
+            <span>{isLocating ? "Locating..." : "Locate Me"}</span>
           </button>
 
           <button
@@ -262,7 +262,7 @@ export default function GarageMapViewer({
             onClick={handleCopy}
             className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 text-[11px] font-semibold transition cursor-pointer"
           >
-            {copied ? "✓ Copied!" : "Copy Address"}
+            {copied ? "Copied!" : "Copy Address"}
           </button>
           <a
             href={googleMapsUrl}

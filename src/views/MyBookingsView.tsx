@@ -525,7 +525,7 @@ export default function MyBookingsView({
             {/* Quick Demo Autofill Chips */}
             <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 mb-6">
               <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
-                ⚡ Demo Quick-Fill Accounts:
+                Demo Quick-Fill Accounts:
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -967,7 +967,7 @@ export default function MyBookingsView({
                               className="text-emerald-600 shrink-0"
                             />
                             <span>
-                              ✓ Rental extension confirmed and appended to your
+                              Rental extension confirmed and appended to your
                               active bill.
                             </span>
                           </div>
@@ -1055,7 +1055,7 @@ export default function MyBookingsView({
                                   {b.pickupDate?.split(" ")[0] ===
                                     b.returnDate?.split(" ")[0] && (
                                     <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded">
-                                      ⚡ Same Day
+                                      Same Day
                                     </span>
                                   )}
                                 </p>
@@ -1073,7 +1073,7 @@ export default function MyBookingsView({
                                 ${b.totalAmount.toFixed(2)}
                               </p>
                               <span className="text-[10px] text-emerald-600 font-medium">
-                                ✓ Taxes & Standard Protection Included
+                                Taxes & Standard Protection Included
                               </span>
                             </div>
 
@@ -1485,7 +1485,7 @@ export default function MyBookingsView({
                 </div>
 
                 <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-[11px] text-stone-600">
-                  💡 <strong>Quotation Flow:</strong> Once you submit, the
+                  <strong>Quotation Flow:</strong> Once you submit, the
                   garage manager will receive your request and reply with an
                   official quotation rate per day / hour / month. You can review
                   and approve it before anything is added to your bill.

@@ -18,6 +18,7 @@ import DateSchedulingModal from "../components/DateSchedulingModal"
 import { calculateRentalPrice } from "../utils/pricing"
 
 import {
+  CarIcon,
   HeartIcon,
   ArrowRightIcon,
   FilterIcon,
@@ -626,14 +627,14 @@ export default function ListingView({
   return (
     <div className="pb-28 animate-fade-in bg-[#FAF7F2] text-stone-900 min-h-screen">
       {/* Top Showroom Header Banner */}
-      <div className="relative bg-white border-b border-stone-200/90 py-5 sm:py-8 px-4 sm:px-6 lg:px-8 xl:px-12 overflow-hidden shadow-xs">
+      <div className="relative bg-white border-b border-stone-200/90 py-3 sm:py-8 px-3 sm:px-6 lg:px-8 xl:px-12 overflow-hidden shadow-xs">
         <div className="relative w-full max-w-[1780px] mx-auto z-10 text-center space-y-2.5 sm:space-y-3.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#F97316] text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest">
+          <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#F97316] text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest">
             <SparklesIcon size={12} />
             <span>Verified Fleet Inventory</span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-heading text-[#17191C]">
+          <h1 className="text-xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-heading text-[#17191C]">
             Find Your Ideal Vehicle
           </h1>
 
@@ -642,10 +643,27 @@ export default function ListingView({
             and garage pickup.
           </p>
 
-          {/* Sleek, Luxury Trip Summary Strip (Tapping opens DateSchedulingModal immediately) */}
+          {/* Mobile Classical 1-Line Minimal Trip Pill */}
           <div
             onClick={() => setIsScheduleModalOpen(true)}
-            className="w-full max-w-3xl mx-auto mt-3 sm:mt-5 bg-stone-50/80 hover:bg-stone-100/90 rounded-2xl p-2.5 sm:p-3.5 text-[#17191C] shadow-xs flex items-center justify-between gap-2.5 sm:gap-4 border border-stone-200/80 hover:border-orange-400 transition-all cursor-pointer group"
+            className="sm:hidden w-full max-w-md mx-auto mt-2.5 bg-stone-50 hover:bg-stone-100 rounded-xl px-3 py-2 text-[#17191C] shadow-2xs flex items-center justify-between border border-stone-200/90 cursor-pointer transition text-xs"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <CalendarIcon size={14} className="text-[#F97316] shrink-0" />
+              <span className="font-bold text-stone-900 truncate">
+                {formatDisplayDate(bookingState.pickupDate)} &rarr; {formatDisplayDate(bookingState.returnDate)}
+              </span>
+              <span className="text-[10px] font-mono text-[#F97316] bg-orange-100 px-1.5 py-0.2 rounded font-bold shrink-0">
+                {isSameDayBooking ? `${sameDayHours}h` : `${tripDurationDays}d`}
+              </span>
+            </div>
+            <span className="text-[11px] font-bold text-[#F97316] shrink-0 ml-2">Change &rarr;</span>
+          </div>
+
+          {/* Desktop Luxury Trip Summary Strip */}
+          <div
+            onClick={() => setIsScheduleModalOpen(true)}
+            className="hidden sm:flex w-full max-w-3xl mx-auto mt-3 sm:mt-5 bg-stone-50/80 hover:bg-stone-100/90 rounded-2xl p-2.5 sm:p-3.5 text-[#17191C] shadow-xs items-center justify-between gap-2.5 sm:gap-4 border border-stone-200/80 hover:border-orange-400 transition-all cursor-pointer group"
           >
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-orange-100/80 text-[#F97316] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -735,7 +753,7 @@ export default function ListingView({
             </div>
 
             {/* Controls Row with smooth no-scrollbar */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scrollbar-none pb-0.5 sm:pb-0 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scrollbar-none pb-0.5 sm:pb-0 w-full sm:w-auto">
               {/* Desktop Filter Toggle */}
               <button
                 type="button"
@@ -788,7 +806,7 @@ export default function ListingView({
                 }`}
                 title="Open Side-by-Side Comparison Studio"
               >
-                <span>⚖️</span>
+                <span className="text-orange-500 font-bold">&#8644;</span>
                 <span className="font-extrabold hidden min-[400px]:inline">
                   Compare
                 </span>
@@ -863,7 +881,7 @@ export default function ListingView({
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
               }`}
             >
-              All Vehicles ({liveCars.length})
+              {liveCars.length > 0 ? `All (${liveCars.length})` : "All Vehicles"}
             </button>
             <button
               onClick={() => handleTypeToggle("SUV")}
@@ -873,7 +891,7 @@ export default function ListingView({
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
               }`}
             >
-              SUVs ({liveCars.filter((c) => c.type === "SUV").length})
+              {liveCars.filter((c) => c.type === "SUV").length > 0 ? `SUVs (${liveCars.filter((c) => c.type === "SUV").length})` : "SUVs"}
             </button>
             <button
               onClick={() => handleTypeToggle("Sedan")}
@@ -883,7 +901,7 @@ export default function ListingView({
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
               }`}
             >
-              Sedans ({liveCars.filter((c) => c.type === "Sedan").length})
+              {liveCars.filter((c) => c.type === "Sedan").length > 0 ? `Sedans (${liveCars.filter((c) => c.type === "Sedan").length})` : "Sedans"}
             </button>
             <button
               onClick={() => handleTypeToggle("Luxury")}
@@ -893,7 +911,7 @@ export default function ListingView({
                   : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-50"
               }`}
             >
-              Luxury ({liveCars.filter((c) => c.type === "Luxury").length})
+              {liveCars.filter((c) => c.type === "Luxury").length > 0 ? `Luxury (${liveCars.filter((c) => c.type === "Luxury").length})` : "Luxury"}
             </button>
             <button
               onClick={() => handleFuelToggle("Hybrid")}
@@ -968,7 +986,7 @@ export default function ListingView({
           {/* Right Main Vehicle Display Section */}
           <main className="flex-1 min-w-0 w-full space-y-4">
             {/* Results Header Counter & Live Status Indicator */}
-            <div className="flex items-center justify-between text-xs text-stone-500 px-1">
+            <div className="hidden sm:flex items-center justify-between text-xs text-stone-500 px-1">
               <span className="font-medium">
                 Showing{" "}
                 <strong className="text-stone-900 font-extrabold">
@@ -996,8 +1014,8 @@ export default function ListingView({
             {/* Empty State */}
             {filteredCars.length === 0 ? (
               <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center space-y-4 shadow-sm">
-                <div className="w-16 h-16 rounded-full bg-orange-100 text-[#F97316] flex items-center justify-center mx-auto text-2xl font-bold">
-                  🚗
+                <div className="w-16 h-16 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center mx-auto border border-orange-200/80 shadow-xs">
+                  <CarIcon size={28} />
                 </div>
                 <h3 className="text-lg font-extrabold text-stone-900 font-heading">
                   No vehicles match your active criteria

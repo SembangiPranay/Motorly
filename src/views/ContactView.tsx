@@ -160,7 +160,7 @@ _Sent via MOTORLY Direct Contact Portal_`
                 pre-clearance directly over WhatsApp.
               </p>
               <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">
-                ⚡ Typical response: Under 5 mins
+                Typical response: Under 5 mins
               </div>
             </div>
             <a

@@ -64,7 +64,7 @@ export default function Footer({
                   onClick={() => onNavigate("compare")}
                   className="text-amber-500 hover:text-amber-400 font-semibold transition-colors flex items-center gap-1.5"
                 >
-                  <span>⚡ Side-by-Side Compare</span>
+                  <span>Side-by-Side Compare</span>
                 </button>
               </li>
             </ul>

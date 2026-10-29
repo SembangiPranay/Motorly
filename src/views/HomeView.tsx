@@ -504,13 +504,13 @@ export default function HomeView({
                   <div className="pt-1.5 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500 font-medium">
                     <span>
                       {selectedDuration === "Hourly" &&
-                        "⚡ City sprint: Same-day return, zero fuel penalty, from $12/hr."}
+                        "City sprint: Same-day return, zero fuel penalty, from $12/hr."}
                       {selectedDuration === "Daily" &&
-                        "★ Standard rental: 250 mi/day included, exact car handoff, from $45/day."}
+                        "Standard rental: 250 mi/day included, exact car handoff, from $45/day."}
                       {selectedDuration === "Weekly" &&
-                        "🏷️ Week vacation: 15% discount applied, unlimited mileage, from $270/wk."}
+                        "Week vacation: 15% discount applied, unlimited mileage, from $270/wk."}
                       {selectedDuration === "Monthly" &&
-                        "💎 Executive flex: Save up to 35%, free monthly swap, zero lease lock-in."}
+                        "Executive flex: Save up to 35%, free monthly swap, zero lease lock-in."}
                     </span>
                   </div>
                 </div>
@@ -621,7 +621,7 @@ export default function HomeView({
                     bookingState.returnDate,
                   ) && (
                     <span className="text-[10px] font-extrabold text-[#F97316] bg-orange-100/80 border border-orange-200 px-1.5 py-0.5 rounded-md">
-                      ⚡ Same-Day Return
+                      Same-Day Return
                     </span>
                   )}
                 </div>
@@ -804,7 +804,7 @@ export default function HomeView({
                     </span>
                     {car.status === "Rented" && (
                       <span className="bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-lg shadow-xs">
-                        🔴 Rented
+                        Rented
                       </span>
                     )}
                   </div>

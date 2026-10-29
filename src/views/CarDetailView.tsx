@@ -442,7 +442,7 @@ export default function CarDetailView({
               <div className="flex gap-6 sm:gap-8 text-sm font-bold overflow-x-auto no-scrollbar">
                 {[
                   { id: "overview", label: "Overview & Specs" },
-                  { id: "garage", label: "📍 Garage & Map Location" },
+                  { id: "garage", label: "Garage & Map Location" },
                   { id: "features", label: "Features & Tech" },
                   { id: "rates", label: "Rental Rates" },
                   ...(reviewsEnabled
@@ -556,7 +556,7 @@ export default function CarDetailView({
                           : car.mileage}
                       </span>
                       <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                        ✓ Odometer Verified
+                        Odometer Verified
                       </p>
                     </div>
                   </div>
@@ -771,12 +771,12 @@ export default function CarDetailView({
                 ) : availabilityCheck.isAvailable ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                    🟢 Available for {bookingState.pickupDate} →{" "}
+                    Available for {bookingState.pickupDate} →{" "}
                     {bookingState.returnDate}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300">
-                    🔴 Reserved / Unavailable for Selected Dates
+                    Reserved / Unavailable for Selected Dates
                   </span>
                 )}
               </div>
@@ -867,7 +867,7 @@ export default function CarDetailView({
                   </div>
                   <span className="text-[11px] font-bold text-[#F97316] bg-orange-100/80 px-2.5 py-1 rounded-lg shrink-0 border border-orange-200">
                     {isSameDayBooking
-                      ? `⚡ ${sameDayHours} Hours`
+                      ? `${sameDayHours} Hours`
                       : `${days} ${days === 1 ? "day" : "days"}`}
                   </span>
                 </div>
@@ -1004,7 +1004,7 @@ export default function CarDetailView({
                 }`}
               >
                 {!availabilityCheck.isAvailable ? (
-                  <span>🚫 Unavailable for Selected Dates</span>
+                  <span>Unavailable for Selected Dates</span>
                 ) : (
                   <>
                     <ZapIcon size={16} />

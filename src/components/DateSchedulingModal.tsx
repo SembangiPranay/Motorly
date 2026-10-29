@@ -357,7 +357,7 @@ export default function DateSchedulingModal({
                   : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
               }`}
             >
-              <span>⚡ Same-Day Rental (Hourly)</span>
+              <span>Same-Day Rental (Hourly)</span>
             </button>
             <button
               type="button"
@@ -375,7 +375,7 @@ export default function DateSchedulingModal({
                   : "text-stone-700 hover:text-stone-900 bg-transparent hover:bg-stone-200/60"
               }`}
             >
-              <span>📅 Multi-Day Rental (1-45 Days)</span>
+              <span>Multi-Day Rental (1-45 Days)</span>
             </button>
           </div>
         </div>
@@ -653,7 +653,7 @@ export default function DateSchedulingModal({
                 </span>
                 {isSameDayBooking && (
                   <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-md">
-                    ⚡ {sameDayHours} Hrs Trip
+                    {sameDayHours} Hrs Trip
                   </span>
                 )}
               </label>
@@ -692,7 +692,7 @@ export default function DateSchedulingModal({
                   : `${rentalDays} ${rentalDays === 1 ? "Day" : "Days"} Total`}
               </span>
               <span className="text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                ✓ Available for Order
+                Available for Order
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-stone-500 font-medium mt-0.5">

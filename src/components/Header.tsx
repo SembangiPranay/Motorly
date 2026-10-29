@@ -407,7 +407,7 @@ export default function Header({
                 }}
                 className="block w-full text-left py-2 font-bold text-[#F97316]"
               >
-                ⚙️ Fleet Admin Portal
+                Fleet Admin Portal
               </button>
             )}
             <div className="pt-2 flex flex-col gap-2">
@@ -522,7 +522,7 @@ export default function Header({
             {authTab === "signin" && (
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-2.5">
                 <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">
-                  ⚡ 1-Click Demo Logins:
+                  1-Click Demo Logins:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   <button

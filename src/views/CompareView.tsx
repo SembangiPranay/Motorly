@@ -720,7 +720,7 @@ export default function CompareView({
                               </div>
                               {isLowest && (
                                 <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded mt-0.5">
-                                  ✓ Best Rate
+                                  Best Rate
                                 </span>
                               )}
                             </div>
@@ -786,7 +786,7 @@ export default function CompareView({
                             key={c.id}
                             className="p-2 rounded-xl bg-emerald-50/60 border border-emerald-100 text-[11px] text-emerald-800 font-semibold"
                           >
-                            ✓ Included ($0 Liability)
+                            Included ($0 Liability)
                           </div>
                         ))}
                       </div>
@@ -863,7 +863,7 @@ export default function CompareView({
                             key={c.id}
                             className="p-2 rounded-xl bg-emerald-50/60 border border-emerald-100 text-[11px] text-emerald-800 font-bold"
                           >
-                            ✓ {c.healthScore || 98}% Certified Clean
+                            {c.healthScore || 98}% Certified Clean
                           </div>
                         ))}
                       </div>
@@ -1412,7 +1412,7 @@ export default function CompareView({
                             key={c.id}
                             className="px-5 py-3 border-l border-stone-100 text-emerald-700 font-bold"
                           >
-                            ✓ {c.healthScore || 98}% Certified Sanitized
+                            {c.healthScore || 98}% Certified Sanitized
                           </td>
                         ))}
                         {activeComparedCars.length < 4 && (

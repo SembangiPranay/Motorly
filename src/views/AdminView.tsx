@@ -61,6 +61,13 @@ import {
   PhoneIcon,
   MailIcon,
   SettingsIcon,
+  AlertTriangleIcon,
+  KeyIcon,
+  FlagIcon,
+  DownloadIcon,
+  CameraIcon,
+  RefreshCwIcon,
+  MonitorIcon,
 } from "../components/Icons"
 
 interface AdminViewProps {
@@ -150,7 +157,7 @@ export default function AdminView({
 
         if (freshCars) setCars(freshCars)
 
-        setSyncHubFeedback(`✓ Synced to ${cars.length} vehicles!`)
+        setSyncHubFeedback(`Synced to ${cars.length} vehicles!`)
 
         notify(
           `Hub location applied to all ${cars.length} fleet vehicles in database!`,
@@ -229,11 +236,11 @@ export default function AdminView({
 
       if (ok) {
         setContactSaveFeedback(
-          "✓ Studio contact details and dispatch numbers saved to Supabase.",
+          "Studio contact details and dispatch numbers saved to Supabase.",
         )
 
         notify(
-          "✓ Studio contact details (Phone & Email) saved to Supabase database.",
+          "Studio contact details (Phone & Email) saved to Supabase database.",
         )
 
         setTimeout(() => setContactSaveFeedback(null), 4000)
@@ -2542,7 +2549,7 @@ export default function AdminView({
 
               badge:
                 stats.pendingMating > 0
-                  ? `⚡ ${stats.pendingMating}`
+                  ? `${stats.pendingMating}`
                   : `${bookings.length}`,
 
               badgeColor:
@@ -2704,20 +2711,35 @@ export default function AdminView({
               : "bg-white/95 border-stone-200/90 shadow-2xs"
           }`}
         >
-          <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-            {/* Left: Mobile Toggle + Universal Search Input */}
-            <div className="flex items-center gap-3 flex-1 max-w-sm">
+          <div className="px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2.5 sm:gap-3">
+            {/* Left: Mobile Brand & Drawer Button */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-sm">
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-xl border border-stone-200 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300 cursor-pointer"
+                className="lg:hidden p-2 rounded-xl border border-stone-200 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 cursor-pointer shrink-0"
                 aria-label="Open Sidebar"
               >
-                ☰
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
               </button>
 
-              {/* Universal Search Input */}
-              <div className="relative w-full">
+              {/* Mobile Branded Logo with Character */}
+              <div className="flex items-center gap-2 lg:hidden select-none">
+                <div className="w-6 h-5 relative flex items-end shrink-0">
+                  <svg viewBox="0 0 28 24" fill="none" className="w-full h-full">
+                    <path d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z" fill="#F97316" />
+                    <path d="M21 22L26 5L24 22H21Z" fill="#EA580C" opacity="0.8" />
+                  </svg>
+                </div>
+                <span className="font-heading font-black text-xs tracking-tight text-stone-900 dark:text-white">
+                  MOTORLY <span className="text-[9px] font-mono font-bold text-[#F97316] uppercase ml-0.5">CONSOLE</span>
+                </span>
+              </div>
+
+              {/* Desktop Universal Search Input */}
+              <div className="relative w-full hidden lg:block">
                 <SearchIcon
                   size={15}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
@@ -2749,23 +2771,23 @@ export default function AdminView({
             </div>
 
             {/* Right: Actions (View Website, Phone/Mail Settings, Profile, Sign Out, Alerts) */}
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              {/* VIEW WEBSITE Button */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
+              {/* VIEW WEBSITE Button (Desktop Only) */}
               <button
                 type="button"
                 onClick={onExitAdmin}
-                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`hidden md:flex px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold border transition items-center gap-1.5 cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
                     : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
                 }`}
                 title="View customer storefront"
               >
-                <span>↗</span>
-                <span className="hidden sm:inline">VIEW WEBSITE</span>
+                <ArrowRightIcon size={12} className="-rotate-45 text-[#F97316]" />
+                <span>VIEW WEBSITE</span>
               </button>
 
-              {/* Quick Phone & Mail Settings Action Button */}
+              {/* Quick Phone & Mail Settings Action Button (Desktop Only) */}
               <button
                 type="button"
                 onClick={() => {
@@ -2773,7 +2795,7 @@ export default function AdminView({
 
                   setIsAdminProfileOpen(true)
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`hidden sm:flex px-3 py-1.5 rounded-xl text-xs font-bold border transition items-center gap-1.5 cursor-pointer ${
                   activeTab === "settings" || isAdminProfileOpen
                     ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
                     : isDark
@@ -2821,11 +2843,11 @@ export default function AdminView({
                 </div>
               </button>
 
-              {/* SIGN OUT Button (Matches Reference Image) */}
+              {/* SIGN OUT Button (Hidden on mobile to eliminate clutter) */}
               <button
                 type="button"
                 onClick={onLogoutAdmin || onExitAdmin}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                className={`hidden sm:flex px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer items-center gap-1.5 ${
                   isDark
                     ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
                     : "bg-white hover:bg-rose-50 text-rose-700 border-stone-200 shadow-2xs"
@@ -2936,7 +2958,7 @@ export default function AdminView({
                                   </span>
                                 </p>
                                 <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-0.5">
-                                  🚗{" "}
+                                  <CarIcon size={14} className="text-[#F97316] inline" />{" "}
                                   {cars.find((c) => c.id === b.matchedCarId)
                                     ?.name ||
                                     b.requestedCategory ||
@@ -2990,7 +3012,7 @@ export default function AdminView({
                 }`}
                 title="Toggle Global Reviews"
               >
-                <span>★</span>
+                <span><SparklesIcon size={12} className="text-amber-500" /></span>
                 <span className="hidden xl:inline">
                   {reviewsEnabled ? "Reviews: ON" : "Reviews: OFF"}
                 </span>
@@ -3007,7 +3029,7 @@ export default function AdminView({
                 }`}
                 title="Toggle Light / Dark Mode"
               >
-                {isDark ? "🌙" : "☀️"}
+                {isDark ? "Dark" : "Light"}
               </button>
             </div>
           </div>
@@ -3144,11 +3166,11 @@ export default function AdminView({
               4 BETTER CARDS OF INFO (Matches Reference Image)
               Top uppercase label + Icon | Bold Value | Detail with dot
               ======================================================== */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {activeTab === "settings" && (
               <>
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3158,7 +3180,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       WHATSAPP DISPATCH NUMBER
                     </p>
-                    <span className="text-emerald-500">💬</span>
+                    <span className="text-emerald-500"><PhoneIcon size={14} /></span>
                   </div>
                   <p className="text-xl sm:text-2xl font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.contact_phone || "Not Configured"}
@@ -3170,7 +3192,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3180,7 +3202,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       DISPATCH NOTIFICATIONS EMAIL
                     </p>
-                    <span className="text-[#F97316]">✉️</span>
+                    <span className="text-[#F97316]"><MailIcon size={14} /></span>
                   </div>
                   <p className="text-base sm:text-lg font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.contact_email || "Not Configured"}
@@ -3192,7 +3214,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3202,7 +3224,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       OPERATING HUB / GARAGE
                     </p>
-                    <span className="text-sky-500">📍</span>
+                    <span className="text-sky-500"><LocationIcon size={14} /></span>
                   </div>
                   <p className="text-base font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.hub_address
@@ -3216,7 +3238,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3226,7 +3248,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       DATABASE STATUS
                     </p>
-                    <span className="text-emerald-500">🛡️</span>
+                    <span className="text-emerald-500"><ShieldIcon size={14} /></span>
                   </div>
                   <p className="text-3xl font-black font-mono my-1 text-emerald-500">
                     LIVE
@@ -3240,7 +3262,7 @@ export default function AdminView({
             {activeTab === "promos" && (
               <>
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3250,9 +3272,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       ACTIVE PRIVILEGES
                     </p>
-                    <span className="text-emerald-500">🏷️</span>
+                    <span className="text-emerald-500"><TagIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {promos.length || 7}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -3262,7 +3284,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3272,9 +3294,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       DISMANTLED CODES
                     </p>
-                    <span className="text-amber-500">⚠️</span>
+                    <span className="text-amber-500"><ShieldIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     1
                   </p>
                   <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
@@ -3284,7 +3306,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3294,7 +3316,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       #1 TOP USED VOUCHER
                     </p>
-                    <span className="text-amber-500">🎗️</span>
+                    <span className="text-amber-500"><TagIcon size={14} /></span>
                   </div>
                   <p className="text-2xl font-black font-mono my-1 text-stone-900 dark:text-white tracking-wider">
                     MOTORLY15
@@ -3305,7 +3327,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3317,7 +3339,7 @@ export default function AdminView({
                     </p>
                     <span className="text-emerald-500">↗</span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     $480
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
@@ -3330,7 +3352,7 @@ export default function AdminView({
             {activeTab === "manifest" && (
               <>
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3340,9 +3362,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       ACTIVE RESERVATIONS
                     </p>
-                    <span className="text-sky-500">🚗</span>
+                    <span className="text-sky-500"><CarIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.rented}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -3352,7 +3374,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3362,7 +3384,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       PENDING APPROVALS &amp; MATING
                     </p>
-                    <span className="text-amber-500">⚡</span>
+                    <span className="text-amber-500"><ZapIcon size={14} /></span>
                   </div>
                   <p
                     className={`text-3xl font-black font-mono my-1 ${
@@ -3380,7 +3402,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3390,9 +3412,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       COMPLETED TRIPS
                     </p>
-                    <span className="text-emerald-500">✓</span>
+                    <span className="text-emerald-500"><CheckIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {bookings.filter((b) => b.status === "Completed").length}
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
@@ -3401,7 +3423,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3413,7 +3435,7 @@ export default function AdminView({
                     </p>
                     <span className="text-emerald-500">↗</span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     ${stats.activeRevenue.toLocaleString()}
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
@@ -3426,7 +3448,7 @@ export default function AdminView({
             {activeTab === "fleet" && (
               <>
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3436,9 +3458,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       REGISTERED FLEET
                     </p>
-                    <span className="text-stone-400">🚗</span>
+                    <span className="text-stone-400"><CarIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.total}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -3448,7 +3470,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3458,9 +3480,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       AVAILABLE IN GARAGE
                     </p>
-                    <span className="text-emerald-500">✓</span>
+                    <span className="text-emerald-500"><CheckIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.available}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -3469,7 +3491,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3479,9 +3501,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       MAINTENANCE &amp; WASH
                     </p>
-                    <span className="text-rose-500">🔧</span>
+                    <span className="text-rose-500"><WrenchIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.maintenance + stats.cleaning}
                   </p>
                   <p className="text-[11px] font-medium text-rose-500">
@@ -3490,7 +3512,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3500,7 +3522,7 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       FLEET UTILIZATION
                     </p>
-                    <span className="text-emerald-500">⚡</span>
+                    <span className="text-emerald-500"><ZapIcon size={14} /></span>
                   </div>
                   <p className="text-3xl font-black font-mono my-1 text-emerald-500">
                     {stats.utilization}%
@@ -3517,7 +3539,7 @@ export default function AdminView({
               activeTab === "maintenance") && (
               <>
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3527,9 +3549,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       TOTAL CLIENT DIRECTORY
                     </p>
-                    <span className="text-stone-400">👤</span>
+                    <span className="text-stone-400"><UserIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {customers.length || 12}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -3539,7 +3561,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3549,9 +3571,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       ACTIVE SERVICES / WORK
                     </p>
-                    <span className="text-amber-500">🔧</span>
+                    <span className="text-amber-500"><WrenchIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {maintenanceLogs.filter((m) => m.status === "In Progress")
                       .length || 1}
                   </p>
@@ -3561,7 +3583,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3571,9 +3593,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       COUNTER SPEED
                     </p>
-                    <span className="text-sky-500">⚡</span>
+                    <span className="text-sky-500"><ZapIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     3.5 Min
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
@@ -3582,7 +3604,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-5 rounded-2xl flex flex-col justify-between min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3592,9 +3614,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       CLIENT SATISFACTION
                     </p>
-                    <span className="text-amber-500">★</span>
+                    <span className="text-amber-500"><SparklesIcon size={14} /></span>
                   </div>
-                  <p className="text-3xl font-black font-mono my-1 text-stone-900 dark:text-white">
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     4.9 / 5.0
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
@@ -3960,7 +3982,7 @@ export default function AdminView({
                           ) : (
                             <div className="flex items-center justify-between w-full">
                               <span className="text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1.5">
-                                <span>⚠️</span>
+                                <AlertTriangleIcon size={13} className="text-amber-500 inline" />
                                 <span>Vehicle unassigned</span>
                               </span>
                               <button
@@ -4002,7 +4024,7 @@ export default function AdminView({
                             {getBookingDurationInfo(b.pickupDate, b.returnDate)
                               .hours < 24 && (
                               <span className="text-[9.5px] font-black text-[#F97316] bg-orange-100/90 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900/60 shrink-0">
-                                ⚡{" "}
+                                <ZapIcon size={13} className="text-[#F97316] inline" />{" "}
                                 {
                                   getBookingDurationInfo(
                                     b.pickupDate,
@@ -4031,7 +4053,7 @@ export default function AdminView({
                               className="text-blue-500 hover:text-blue-600 dark:text-blue-400 font-bold text-[10px] shrink-0 flex items-center gap-0.5 hover:underline cursor-pointer ml-1"
                               title="Open location on Google Maps"
                             >
-                              <span>🗺️ Maps</span>
+                              <span>Maps</span>
                             </a>
                           </div>
                         </div>
@@ -4068,7 +4090,7 @@ export default function AdminView({
                                 onClick={() => handleOpenKeyHandoff(b)}
                                 className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                <span>🔑</span>
+                                <KeyIcon size={12} className="inline text-amber-500" />
                                 <span>Handover Keys</span>
                               </button>
                             )}
@@ -4091,7 +4113,7 @@ export default function AdminView({
                                 onClick={() => handleOpenReturnInspection(b)}
                                 className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                <span>🏁</span>
+                                <FlagIcon size={12} className="inline text-emerald-500" />
                                 <span>Return Check</span>
                               </button>
                             )}
@@ -4114,7 +4136,7 @@ export default function AdminView({
                               className="px-2 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
                               title="Download Trip Invoice PNG"
                             >
-                              <span>📥</span>
+                              <DownloadIcon size={12} className="inline text-sky-500" />
                               <span className="hidden sm:inline">Invoice</span>
                             </button>
                             <button
@@ -4478,7 +4500,7 @@ export default function AdminView({
                                   className="p-1.5 px-2.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
                                   title="Download Trip Invoice PNG"
                                 >
-                                  <span>📥</span>
+                                  <DownloadIcon size={14} />
                                   <span>Invoice</span>
                                 </button>
                                 <button
@@ -4907,7 +4929,7 @@ export default function AdminView({
                                         }`}
                                         title="Customer requested booking extension - click to quote"
                                       >
-                                        🔔 Quote Ext
+                                        Quote Ext
                                       </button>
                                     )}
                                   </div>
@@ -5239,7 +5261,7 @@ export default function AdminView({
                                 />
                                 {c.gallery && c.gallery.length > 1 && (
                                   <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
-                                    <span>📷</span>
+                                    <CameraIcon size={13} className="inline text-stone-500" />
                                     <span>{c.gallery.length}</span>
                                   </span>
                                 )}
@@ -5672,7 +5694,7 @@ export default function AdminView({
                           />
                           {c.gallery && c.gallery.length > 1 && (
                             <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm">
-                              📷 {c.gallery.length}
+                              {c.gallery.length} Photos
                             </span>
                           )}
                         </div>
@@ -5756,11 +5778,11 @@ export default function AdminView({
           )}
 
           {/* ========================================================
-            TAB 3: ⚡ WALK-IN COUNTER DISPATCH (< 60s)
+            TAB 3: WALK-IN COUNTER DISPATCH (< 60s)
             ======================================================== */}
           {activeTab === "walkin" && (
             <section
-              className={`border rounded-2xl p-6 sm:p-8 max-w-4xl mx-auto transition ${
+              className={`border rounded-xl sm:rounded-2xl p-3.5 sm:p-8 max-w-4xl mx-auto transition ${
                 isDark
                   ? "bg-[#17191C] border-stone-800 shadow-2xl text-white"
                   : "bg-white border-stone-200/90 shadow-xs text-stone-900"
@@ -5776,11 +5798,11 @@ export default function AdminView({
                 </div>
                 <div>
                   <h3
-                    className={`text-lg font-black ${
+                    className={`text-base sm:text-lg font-black ${
                       isDark ? "text-white" : "text-stone-900"
                     }`}
                   >
-                    ⚡ Direct Walk-In Rental Booking
+                    Direct Walk-In Rental Booking
                   </h3>
                   <p
                     className={`text-xs mt-0.5 ${
@@ -5793,7 +5815,7 @@ export default function AdminView({
                 </div>
               </div>
 
-              <form onSubmit={handleWalkinSubmit} className="mt-6 space-y-6">
+              <form onSubmit={handleWalkinSubmit} className="mt-4 sm:mt-6 space-y-4 sm:space-y-6">
                 {/* Step 1: Customer Details */}
                 <div>
                   <h4
@@ -5803,7 +5825,7 @@ export default function AdminView({
                   >
                     Step 1: Driver Identification
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 sm:gap-4">
                     <div>
                       <label
                         className={`block text-xs font-semibold mb-1 ${
@@ -6958,7 +6980,7 @@ export default function AdminView({
                     />
                     {studioContact.contact_phone && (
                       <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                        <span>🌐 WhatsApp routing:</span>
+                        <span>WhatsApp routing:</span>
                         <span className="font-bold">
                           {formatInternationalPhoneDisplay(
                             studioContact.contact_phone,
@@ -7074,7 +7096,7 @@ export default function AdminView({
                     <div className="space-y-1.5">
                       <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-300 flex items-center justify-between">
                         <span className="flex items-center gap-1">
-                          <span>🗺️</span>
+                          <LocationIcon size={14} />
                           <span>
                             Google Maps Location URL (Direct Pin / Navigation)
                           </span>
@@ -7111,7 +7133,7 @@ export default function AdminView({
                           className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
                           title="Open this location in Google Maps"
                         >
-                          <span>📍</span>
+                          <LocationIcon size={14} />
                           <span>View Maps</span>
                         </button>
                       </div>
@@ -7134,7 +7156,7 @@ export default function AdminView({
                         disabled={isSyncingHub}
                         className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                       >
-                        <span>🔄</span>
+                        <RefreshCwIcon size={14} />
                         <span>
                           {isSyncingHub
                             ? "Syncing to Fleet..."
@@ -7183,7 +7205,7 @@ export default function AdminView({
                         }`}
                         title="Directly opens WhatsApp Native App on phone or desktop"
                       >
-                        <span>📱</span>
+                        <PhoneIcon size={14} />
                         <span>Test WhatsApp Mobile (App)</span>
                       </a>
 
@@ -7203,7 +7225,7 @@ export default function AdminView({
                         }`}
                         title="Directly opens WhatsApp Web (web.whatsapp.com) without landing screen"
                       >
-                        <span>💻</span>
+                        <MonitorIcon size={14} />
                         <span>Test WhatsApp Web</span>
                       </a>
 
@@ -7239,7 +7261,7 @@ export default function AdminView({
                         }`}
                         title="Opens device's native mail client"
                       >
-                        <span>✉️</span>
+                        <MailIcon size={14} />
                         <span>Test Default Mail</span>
                       </a>
                     </div>
@@ -7520,7 +7542,7 @@ export default function AdminView({
                           : "bg-white text-sky-950 border-sky-200 shadow-2xs"
                       }`}
                     >
-                      🕒 {formatFullDateTime(inspectedBooking.keysHandedAt)}
+                      {formatFullDateTime(inspectedBooking.keysHandedAt)}
                     </span>
                   </div>
                   {inspectedBooking.checklistOut && (
@@ -7636,13 +7658,13 @@ export default function AdminView({
                         {inspectedBooking.pickupDate}
                       </p>
                       <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
-                        🕒 Scheduled Time: {pickupTimeStr}
+                        Scheduled Time: {pickupTimeStr}
                       </p>
                       <p
                         className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
                         title={inspectedBooking.pickupLocation}
                       >
-                        📍 {inspectedBooking.pickupLocation}
+                        {inspectedBooking.pickupLocation}
                       </p>
                     </div>
 
@@ -7668,7 +7690,7 @@ export default function AdminView({
                         className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
                         title={inspectedBooking.returnLocation}
                       >
-                        📍 {inspectedBooking.returnLocation}
+                        {inspectedBooking.returnLocation}
                       </p>
                     </div>
                   </div>
@@ -7722,7 +7744,7 @@ export default function AdminView({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-sm">
-                    🔔 Customer Requested Rental Extension
+                    Customer Requested Rental Extension
                   </span>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 uppercase">
                     Action Required
@@ -7954,7 +7976,7 @@ export default function AdminView({
                       Uploaded Driver License Documents
                     </span>
                     <span className="text-[10px] text-emerald-500 font-bold">
-                      ✓ High-Resolution Real Uploads
+                      High-Resolution Real Uploads
                     </span>
                   </div>
 
@@ -8012,7 +8034,7 @@ export default function AdminView({
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             />
                             <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                              🔍 Click to Zoom
+                              Click to Zoom
                             </div>
                           </div>
                           <div className="flex gap-1.5 pt-1">
@@ -8027,7 +8049,7 @@ export default function AdminView({
                               }
                               className="flex-1 py-1.5 px-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
                             >
-                              📥 Download Front
+                              Download Front
                             </button>
                           </div>
                         </div>
@@ -8098,7 +8120,7 @@ export default function AdminView({
                               }
                               className="flex-1 py-1.5 px-2 rounded-lg bg-stone-800 hover:bg-stone-900 text-white text-[11px] font-bold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
                             >
-                              📥 Download Back
+                              Download Back
                             </button>
                           </div>
                         </div>
@@ -8329,7 +8351,7 @@ export default function AdminView({
                   }`}
                 >
                   <span className="font-bold text-emerald-500">
-                    ✓ Return Vehicle Inspection Audit Completed
+                    Return Vehicle Inspection Audit Completed
                   </span>
                   <p
                     className={`text-[11px] ${
@@ -8814,7 +8836,7 @@ export default function AdminView({
                         className="py-3 px-4 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 dark:hover:bg-orange-950/40 text-[#F97316] border-2 border-dashed border-orange-300 dark:border-orange-500/40 hover:border-orange-500 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-2xs group disabled:opacity-50"
                       >
                         <span className="text-base group-hover:scale-110 transition-transform">
-                          {isUploadingPhotos ? "⏳" : "📷"}
+                          {isUploadingPhotos ? "Uploading..." : "Add Photo"}
                         </span>
                         <span>
                           {isUploadingPhotos
@@ -8918,7 +8940,7 @@ export default function AdminView({
                                     : "bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200"
                               }`}
                             >
-                              {isAlreadyAdded ? "✓ Added" : preset.label}
+                              {isAlreadyAdded ? "Added" : preset.label}
                             </button>
                           )
                         })}
@@ -8978,7 +9000,7 @@ export default function AdminView({
                                   {/* Cover / Position Badge */}
                                   {isCover ? (
                                     <span className="absolute top-2 left-2 bg-[#F97316] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-sm">
-                                      ★ Primary Cover
+                                      Primary Cover
                                     </span>
                                   ) : (
                                     <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md">
@@ -9010,7 +9032,7 @@ export default function AdminView({
                                   {/* Set as Cover / Cover Label */}
                                   {isCover ? (
                                     <span className="text-[10px] font-bold text-[#F97316] flex items-center gap-1">
-                                      ✓ Main Display
+                                      Main Display
                                     </span>
                                   ) : (
                                     <button
@@ -9019,7 +9041,7 @@ export default function AdminView({
                                       className="text-[10px] font-bold text-[#F97316] hover:underline cursor-pointer"
                                       title="Make this photo the primary cover image"
                                     >
-                                      ★ Set as Cover
+                                      Set as Cover
                                     </button>
                                   )}
 
@@ -9944,7 +9966,7 @@ export default function AdminView({
                       {carFormData.type || "Sedan"}
                     </span>
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
-                      <span className="text-amber-500 text-xs">★</span>
+                      <SparklesIcon size={12} className="text-amber-500" />
                       <span className="text-[10px] font-bold text-stone-900">
                         5.0 (New)
                       </span>
@@ -10839,7 +10861,7 @@ export default function AdminView({
                     : "bg-emerald-50 border-emerald-200 text-emerald-800"
                 }`}
               >
-                ⚡ <strong>Clock Start Notice:</strong> Submitting will record
+                <strong>Clock Start Notice:</strong> Submitting will record
                 this exact timestamp, start the customer's live rental timer,
                 and transition this vehicle to <strong>Rented</strong>.
               </div>

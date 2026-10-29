@@ -1044,7 +1044,7 @@ export default function CheckoutView({
                 </div>
               </div>
               <p className="text-[11px] text-stone-500">
-                🔒 Stored securely. Operations Admin will review and provide the
+                Stored securely. Operations Admin will review and provide the
                 green signal for garage pickup.
               </p>
             </div>
@@ -1083,9 +1083,9 @@ export default function CheckoutView({
                   <strong>${totalAmount.toFixed(2)}</strong> at vehicle pickup.
                 </p>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] text-emerald-700 font-semibold">
-                  <span>✓ No credit card required</span>
-                  <span>✓ Manager reviews &amp; accepts request</span>
-                  <span>✓ Free cancellation anytime</span>
+                  <span>• No credit card required</span>
+                  <span>• Manager reviews &amp; accepts request</span>
+                  <span>• Free cancellation anytime</span>
                 </div>
               </div>
             </div>
@@ -1137,7 +1137,7 @@ export default function CheckoutView({
                             Same-Day Rental ({sameDayHours} Hours)
                           </span>
                           <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.2 rounded">
-                            ⚡ Same-Day Return
+                            Same-Day Return
                           </span>
                         </div>
                         <span className="text-gray-700 text-xs font-semibold block mt-0.5">
@@ -1422,7 +1422,7 @@ export default function CheckoutView({
                 {isSubmitting ? (
                   <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : !availabilityCheck.isAvailable ? (
-                  <span>🚫 Unavailable for Selected Dates</span>
+                  <span>Unavailable for Selected Dates</span>
                 ) : (
                   <>
                     <ZapIcon size={16} />
@@ -1437,7 +1437,7 @@ export default function CheckoutView({
 
             {/* Reassurance */}
             <p className="text-[10px] text-gray-500 text-center leading-tight">
-              🔒 No online payment charged. Fleet Manager will review dates and
+              No online payment charged. Fleet Manager will review dates and
               accept your request. Pay upon pickup.
             </p>
           </div>
