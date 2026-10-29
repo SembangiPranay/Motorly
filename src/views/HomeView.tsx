@@ -253,7 +253,7 @@ export default function HomeView({
               </div>
 
               {/* Bold Editorial Headline */}
-              <h1 className="text-5xl sm:text-6xl lg:text-[70px] font-extrabold tracking-[-0.03em] text-[#17191C] leading-[1.04] font-heading">
+              <h1 className="text-4xl sm:text-6xl lg:text-[70px] font-extrabold tracking-[-0.03em] text-[#17191C] leading-[1.06] font-heading">
                 Your next drive <br />
                 <span className="text-[#F97316]">starts here.</span>
               </h1>
@@ -266,13 +266,13 @@ export default function HomeView({
 
               {/* Professional Segmented Duration Switcher & Interactive Tier Spotlight */}
               <div className="pt-2 space-y-3">
-                <div className="inline-flex p-1.5 bg-[#EEF0F2] rounded-2xl gap-1 shadow-inner">
+                <div className="grid grid-cols-4 sm:inline-flex p-1.5 bg-[#EEF0F2] rounded-2xl gap-1 shadow-inner w-full sm:w-auto text-center">
                   {(["Hourly", "Daily", "Weekly", "Monthly"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => handleSelectTier(mode)}
-                      className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
+                      className={`px-2 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer text-center truncate ${
                         selectedDuration === mode
                           ? "bg-white text-[#F97316] font-extrabold shadow-sm"
                           : "text-stone-500 hover:text-stone-900 font-semibold"

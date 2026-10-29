@@ -131,11 +131,11 @@ _MOTORLY | Smarter Car Rentals_`
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-md p-0 sm:p-5 overflow-y-auto animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-[#141518] text-[#17191C] dark:text-stone-100 rounded-3xl max-w-lg w-full max-h-[94vh] overflow-y-auto p-5 sm:p-7 shadow-2xl relative space-y-5 my-auto border border-stone-200 dark:border-stone-800 animate-scale-up"
+        className="bg-white dark:bg-[#141518] text-[#17191C] dark:text-stone-100 sm:rounded-3xl max-w-lg w-full h-full sm:h-auto sm:max-h-[94vh] overflow-y-auto p-5 sm:p-7 shadow-2xl relative space-y-5 border-0 sm:border border-stone-200 dark:border-stone-800 animate-scale-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}

@@ -6058,21 +6058,16 @@ export default function AdminView({
     </div>
 
       {/* ========================================================
-          FULL-PAGE RESERVATION INSPECTION MANIFEST (Bug 5: Full View)
+          FULL-SCREEN RESERVATION INSPECTION MANIFEST
           ======================================================== */}
       {inspectedBooking && (
         <div
-          onClick={() => setInspectedBooking(null)}
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in"
+          className={`fixed inset-0 z-[100] w-screen h-screen flex flex-col overflow-hidden animate-fade-in ${
+            isDark
+              ? "bg-[#14161A] text-white"
+              : "bg-[#FAF7F2] text-stone-900"
+          }`}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-6xl max-h-[94vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden transition cursor-default my-auto ${
-              isDark
-                ? "bg-[#14161A] border-stone-800 text-white"
-                : "bg-white border-stone-200 text-stone-900"
-            }`}
-          >
             {/* Modal Top Header */}
             <div
               className={`p-5 sm:p-6 border-b flex items-center justify-between shrink-0 ${
@@ -6136,7 +6131,7 @@ export default function AdminView({
               </div>
             </div>
 
-            <div className="p-5 sm:p-7 overflow-y-auto space-y-5 flex-1">
+            <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto space-y-6 flex-1 w-full max-w-[1600px] mx-auto">
               {/* Status Banner with Green Signal */}
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -7194,68 +7189,101 @@ export default function AdminView({
                 </button>
               )}
             </div>
-          </div>
         </div>
       )}
 
 
       {/* ========================================================
-          MODAL: ADD / EDIT VEHICLE (Flow A: Fleet, Insurance & Garage Map)
+          FULL-SCREEN VEHICLE STUDIO (Flow A: Fleet, Insurance & Garage Map)
           ======================================================== */}
       {isCarModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fade-in">
+        <div
+          className={`fixed inset-0 z-[100] w-screen h-screen flex flex-col overflow-hidden animate-fade-in ${
+            isDark
+              ? "bg-[#14161A] text-white"
+              : "bg-[#FAF7F2] text-stone-900"
+          }`}
+        >
+          {/* Executive Full-Width Studio Header */}
           <div
-            className={`border rounded-3xl max-w-6xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden transition ${
+            className={`px-4 sm:px-8 py-3.5 sm:py-4 border-b flex items-center justify-between shrink-0 ${
               isDark
-                ? "bg-[#14161A] border-stone-800 text-white"
-                : "bg-white border-stone-200 text-stone-900"
+                ? "border-stone-800 bg-stone-900/60"
+                : "border-stone-200/90 bg-white shadow-2xs"
             }`}
           >
-            {/* Executive Header */}
-            <div
-              className={`px-6 py-4.5 border-b flex items-center justify-between shrink-0 ${
-                isDark
-                  ? "border-stone-800 bg-stone-900/40"
-                  : "border-stone-200/90 bg-stone-50/70"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-[#F97316] border border-orange-500/20 flex items-center justify-center font-black">
-                  <CarIcon size={20} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider">
-                      FLEET MANAGEMENT • GARAGE HUB
-                    </span>
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                      LIVE SYNC
-                    </span>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-black font-heading tracking-tight mt-0.5">
-                    {editingCar
-                      ? `Edit Vehicle: ${editingCar.name}`
-                      : "Add New Vehicle"}
-                  </h3>
-                </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                data-testid="back-car-modal"
+                onClick={() => setIsCarModalOpen(false)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
+                    : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                }`}
+              >
+                <span>&larr;</span>
+                <span>Back</span>
+              </button>
+              <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-[#F97316] border border-orange-500/20 flex items-center justify-center font-black shrink-0">
+                <CarIcon size={18} />
               </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  data-testid="close-car-modal"
-                  onClick={() => setIsCarModalOpen(false)}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition cursor-pointer ${
-                    isDark
-                      ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
-                      : "bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
-                  }`}
-                  title="Close Modal"
-                >
-                  ✕
-                </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider">
+                    FLEET MANAGEMENT • BAY 1
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    LIVE SYNC
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black font-heading tracking-tight">
+                  {editingCar
+                    ? `Edit Vehicle: ${editingCar.name}`
+                    : "Add New Vehicle to Fleet"}
+                </h3>
               </div>
             </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCarModalOpen(false)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                    : "bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const form = document.getElementById("car-studio-form") as HTMLFormElement
+                  if (form) form.requestSubmit()
+                }}
+                className="hidden sm:flex px-4 py-2 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-sm items-center gap-1.5 cursor-pointer font-heading"
+              >
+                <CheckIcon size={14} />
+                <span>{editingCar ? "Save Changes" : "Save & Add to Fleet"}</span>
+              </button>
+              <button
+                type="button"
+                data-testid="close-car-modal"
+                onClick={() => setIsCarModalOpen(false)}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition cursor-pointer ${
+                  isDark
+                    ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                    : "bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
+                }`}
+                title="Close Studio"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
 
             {/* Segmented Top Section Tabs */}
             <div
@@ -7312,10 +7340,11 @@ export default function AdminView({
               })}
             </div>
 
-            {/* Modal Body: Two-Column Studio Layout */}
+            {/* Studio Body: Two-Column Full-Screen Layout */}
             <form
+              id="car-studio-form"
               onSubmit={handleSaveCar}
-              className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+              className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start"
             >
               {/* Left Column (Inputs for Active Tab) */}
               <div className="lg:col-span-7 space-y-5">
@@ -8660,7 +8689,6 @@ export default function AdminView({
                 </div>
               </div>
             </form>
-          </div>
         </div>
       )}
 
