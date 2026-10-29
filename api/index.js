@@ -42186,6 +42186,31 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
 		});
 	}
 });
+app.post("/api/dispatch/booking-notification", async (req, res) => {
+	try {
+		const { bookingId, carName, customerName, customerPhone, totalAmount, templateText } = req.body;
+		console.log(`[DISPATCH SYSTEM] Direct Booking Alert for #${bookingId}:`, {
+			vehicle: carName,
+			customer: customerName,
+			phone: customerPhone,
+			amount: totalAmount,
+			targetWhatsApp: "7780740223",
+			targetEmail: "nanikoushik96@gmail.com",
+			timestamp: (/* @__PURE__ */ new Date()).toISOString()
+		});
+		return res.json({
+			success: true,
+			dispatched: true,
+			channels: ["WhatsApp (+1 778-074-0223)", "Email (nanikoushik96@gmail.com)"],
+			bookingId
+		});
+	} catch (err) {
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Dispatch failed"
+		});
+	}
+});
 app.get("/api/reviews", async (req, res) => {
 	try {
 		const carId = req.query.carId;

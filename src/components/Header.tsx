@@ -18,6 +18,7 @@ interface HeaderProps {
   compareCount?: number
   onLogoutCustomer?: () => void
   isAdminAuthenticated?: boolean
+  onToggleSidebar?: () => void
 }
 
 export default function Header({
@@ -28,6 +29,7 @@ export default function Header({
   compareCount = 0,
   onLogoutCustomer,
   isAdminAuthenticated = false,
+  onToggleSidebar,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showSignInModal, setShowSignInModal] = useState(false)
@@ -169,14 +171,22 @@ export default function Header({
               How It Works
             </button>
             <button
-              onClick={() => setShowAboutModal(true)}
-              className="hidden xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer whitespace-nowrap"
+              onClick={() => onNavigate("about")}
+              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
+                currentView === "about"
+                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  : "text-gray-700 hover:text-[#F97316]"
+              }`}
             >
               About
             </button>
             <button
-              onClick={() => setShowContactModal(true)}
-              className="hidden xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer whitespace-nowrap"
+              onClick={() => onNavigate("contact")}
+              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
+                currentView === "contact"
+                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  : "text-gray-700 hover:text-[#F97316]"
+              }`}
             >
               Contact
             </button>
@@ -324,7 +334,7 @@ export default function Header({
             </button>
             <button
               onClick={() => {
-                setShowAboutModal(true)
+                onNavigate("about")
                 setMobileMenuOpen(false)
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
@@ -333,12 +343,12 @@ export default function Header({
             </button>
             <button
               onClick={() => {
-                setShowContactModal(true)
+                onNavigate("contact")
                 setMobileMenuOpen(false)
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
             >
-              Contact Support
+              Contact Owner
             </button>
             {isAdminAuthenticated && (
               <button

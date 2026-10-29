@@ -43,6 +43,64 @@ function isSameDay(dateA?: string, dateB?: string): boolean {
   )
 }
 
+function advanceDateByDays(baseDateStr: string, daysToAdd: number): string {
+  const parsed = Date.parse(baseDateStr)
+  if (isNaN(parsed)) return baseDateStr
+  const next = new Date(parsed + daysToAdd * 24 * 60 * 60 * 1000)
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  return `${monthNames[next.getMonth()]} ${next.getDate()}, ${next.getFullYear()}`
+}
+
+function advanceTimeByHours(baseTimeStr: string, hoursToAdd: number): string {
+  try {
+    const match = baseTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+    if (!match) return "05:00 PM"
+    let hour = parseInt(match[1], 10)
+    const minutes = match[2]
+    const meridiem = match[3].toUpperCase()
+    if (meridiem === "PM" && hour < 12) hour += 12
+    if (meridiem === "AM" && hour === 12) hour = 0
+    const targetHour = (hour + hoursToAdd) % 24
+    const newMeridiem = targetHour >= 12 ? "PM" : "AM"
+    let displayHour = targetHour % 12
+    if (displayHour === 0) displayHour = 12
+    return `${displayHour.toString().padStart(2, "0")}:${minutes} ${newMeridiem}`
+  } catch {
+    return "05:00 PM"
+  }
+}
+
+interface DurationPreset {
+  label: string
+  pill: string
+  hoursOrDays: number
+  isHourly?: boolean
+  discountBadge?: string
+}
+
+const TIER_PRESETS: Record<"Hourly" | "Daily" | "Weekly" | "Monthly", DurationPreset[]> = {
+  Hourly: [
+    { label: "3 Hours", pill: "3h Sprint", hoursOrDays: 3, isHourly: true },
+    { label: "6 Hours", pill: "6h Half-Day", hoursOrDays: 6, isHourly: true },
+    { label: "8 Hours", pill: "8h Full Day", hoursOrDays: 8, isHourly: true },
+  ],
+  Daily: [
+    { label: "1 Day", pill: "24h Express", hoursOrDays: 1 },
+    { label: "3 Days", pill: "3 Days (Popular)", hoursOrDays: 3 },
+    { label: "5 Days", pill: "5 Days (Workweek)", hoursOrDays: 5 },
+  ],
+  Weekly: [
+    { label: "7 Days", pill: "7 Days", hoursOrDays: 7, discountBadge: "15% Off" },
+    { label: "10 Days", pill: "10 Days", hoursOrDays: 10, discountBadge: "18% Off" },
+    { label: "14 Days", pill: "14 Days", hoursOrDays: 14, discountBadge: "20% Off" },
+  ],
+  Monthly: [
+    { label: "30 Days", pill: "30 Days", hoursOrDays: 30, discountBadge: "Save 35%" },
+    { label: "60 Days", pill: "60 Days", hoursOrDays: 60, discountBadge: "Save 40%" },
+    { label: "90 Days", pill: "90 Days", hoursOrDays: 90, discountBadge: "VIP Flex" },
+  ],
+}
+
 export default function HomeView({
   cars = [],
   bookingState,
@@ -55,6 +113,53 @@ export default function HomeView({
 }: HomeViewProps) {
   const [selectedDuration, setSelectedDuration] =
     useState<"Hourly" | "Daily" | "Weekly" | "Monthly">("Daily")
+  const [activeDurationPill, setActiveDurationPill] = useState<string>("3 Days")
+
+  const handleSelectTier = (tier: "Hourly" | "Daily" | "Weekly" | "Monthly") => {
+    setSelectedDuration(tier)
+    const firstPreset = TIER_PRESETS[tier][1] || TIER_PRESETS[tier][0]
+    setActiveDurationPill(firstPreset.label)
+    if (tier === "Hourly") {
+      const returnTime = advanceTimeByHours(bookingState.pickupTime || "10:00 AM", firstPreset.hoursOrDays)
+      setBookingState((prev) => ({
+        ...prev,
+        rentalPlan: "hourly",
+        rentalDurationDays: 1,
+        returnDate: prev.pickupDate,
+        returnTime,
+      }))
+    } else {
+      const returnDate = advanceDateByDays(bookingState.pickupDate, firstPreset.hoursOrDays)
+      setBookingState((prev) => ({
+        ...prev,
+        rentalPlan: tier.toLowerCase() as BookingState["rentalPlan"],
+        rentalDurationDays: firstPreset.hoursOrDays,
+        returnDate,
+      }))
+    }
+  }
+
+  const handleApplyPreset = (tier: "Hourly" | "Daily" | "Weekly" | "Monthly", preset: DurationPreset) => {
+    setActiveDurationPill(preset.label)
+    if (tier === "Hourly") {
+      const returnTime = advanceTimeByHours(bookingState.pickupTime || "10:00 AM", preset.hoursOrDays)
+      setBookingState((prev) => ({
+        ...prev,
+        rentalPlan: "hourly",
+        rentalDurationDays: 1,
+        returnDate: prev.pickupDate,
+        returnTime,
+      }))
+    } else {
+      const returnDate = advanceDateByDays(bookingState.pickupDate, preset.hoursOrDays)
+      setBookingState((prev) => ({
+        ...prev,
+        rentalPlan: tier.toLowerCase() as BookingState["rentalPlan"],
+        rentalDurationDays: preset.hoursOrDays,
+        returnDate,
+      }))
+    }
+  }
   const [fleetFilter, setFleetFilter] = useState<string>("All")
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
@@ -159,88 +264,75 @@ export default function HomeView({
                 fast manager-approved bookings.
               </p>
 
-              {/* Segmented Duration Switcher */}
-              <div className="pt-2">
+              {/* Professional Segmented Duration Switcher & Interactive Tier Spotlight */}
+              <div className="pt-2 space-y-3">
                 <div className="inline-flex p-1.5 bg-[#EEF0F2] rounded-2xl gap-1 shadow-inner">
-                  {(["Hourly", "Daily", "Weekly", "Monthly"] as const).map(
-                    (mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDuration(mode)
-                          if (mode === "Hourly") {
-                            // Same-day hourly rental: return is on the same day!
-                            setBookingState((prev) => ({
-                              ...prev,
-                              rentalPlan: "hourly",
-                              rentalDurationDays: 1,
-                              returnDate: prev.pickupDate,
-                              pickupTime: prev.pickupTime || "09:00 AM",
-                              returnTime: "05:00 PM",
-                            }))
-                            return
-                          }
-                          const days =
-                            mode === "Daily"
-                              ? 3
-                              : mode === "Weekly"
-                                ? 7
-                                : 30
-
-                          // Advance returnDate based on pickupDate + duration days
-                          let newReturnDate = bookingState.returnDate
-                          const start = Date.parse(bookingState.pickupDate)
-                          if (!isNaN(start)) {
-                            const end = new Date(
-                              start + days * 24 * 60 * 60 * 1000,
-                            )
-                            const monthNames = [
-                              "Jan",
-                              "Feb",
-                              "Mar",
-                              "Apr",
-                              "May",
-                              "Jun",
-                              "Jul",
-                              "Aug",
-                              "Sep",
-                              "Oct",
-                              "Nov",
-                              "Dec",
-                            ]
-                            newReturnDate = `${monthNames[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`
-                          }
-
-                          setBookingState((prev) => ({
-                            ...prev,
-                            rentalPlan:
-                              mode.toLowerCase() as BookingState["rentalPlan"],
-                            rentalDurationDays: days,
-                            returnDate: newReturnDate,
-                          }))
-                        }}
-                        className={`px-5 py-2.5 rounded-xl text-sm transition-all duration-200 ${
-                          selectedDuration === mode
-                            ? "bg-white text-[#F97316] font-bold shadow-sm"
-                            : "text-gray-500 hover:text-gray-900 font-medium"
-                        }`}
-                      >
-                        {mode}
-                      </button>
-                    ),
-                  )}
+                  {(["Hourly", "Daily", "Weekly", "Monthly"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => handleSelectTier(mode)}
+                      className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
+                        selectedDuration === mode
+                          ? "bg-white text-[#F97316] font-extrabold shadow-sm"
+                          : "text-stone-500 hover:text-stone-900 font-semibold"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-[11px] text-gray-400 mt-2 font-medium">
-                  {selectedDuration === "Hourly" &&
-                    "⚡ Short trips and quick errands around town."}
-                  {selectedDuration === "Daily" &&
-                    "★ Standard daily rental for business or personal travel."}
-                  {selectedDuration === "Weekly" &&
-                    "🏷️ Multi-day discount for week-long rentals."}
-                  {selectedDuration === "Monthly" &&
-                    "💎 Extended rental for long-term vehicle needs."}
-                </p>
+
+                {/* Dynamic Tier Quick Duration Pills & Perks */}
+                <div className="p-3 bg-white/70 backdrop-blur-xs rounded-2xl border border-stone-200/70 max-w-lg space-y-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400 mr-1">
+                      Quick Pick:
+                    </span>
+                    {TIER_PRESETS[selectedDuration].map((preset) => {
+                      const isActive = activeDurationPill === preset.label
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => handleApplyPreset(selectedDuration, preset)}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                            isActive
+                              ? "bg-[#17191C] text-white border-[#17191C] shadow-xs"
+                              : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 hover:border-orange-300"
+                          }`}
+                        >
+                          <span>{preset.pill}</span>
+                          {preset.discountBadge && (
+                            <span
+                              className={`text-[9px] font-mono px-1 rounded ${
+                                isActive
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-orange-100 text-orange-700 font-extrabold"
+                              }`}
+                            >
+                              {preset.discountBadge}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Tier Feature Micro-Badge */}
+                  <div className="pt-1.5 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500 font-medium">
+                    <span>
+                      {selectedDuration === "Hourly" &&
+                        "⚡ City sprint: Same-day return, zero fuel penalty, from $12/hr."}
+                      {selectedDuration === "Daily" &&
+                        "★ Standard rental: 250 mi/day included, exact car handoff, from $45/day."}
+                      {selectedDuration === "Weekly" &&
+                        "🏷️ Week vacation: 15% discount applied, unlimited mileage, from $270/wk."}
+                      {selectedDuration === "Monthly" &&
+                        "💎 Executive flex: Save up to 35%, free monthly swap, zero lease lock-in."}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

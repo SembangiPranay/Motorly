@@ -25,6 +25,9 @@ import AdminLoginGate from "./components/AdminLoginGate"
 import MyBookingsView from "./views/MyBookingsView"
 import CompareView from "./views/CompareView"
 import AuthView from "./views/AuthView"
+import AboutView from "./views/AboutView"
+import ContactView from "./views/ContactView"
+import CustomerSidebar from "./components/CustomerSidebar" 
 
 function getUpcomingFormattedDate(daysAhead: number): string {
   const d = new Date()
@@ -168,6 +171,7 @@ export default function App() {
   })
 
   // Confirmed booking modal state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [confirmedBooking, setConfirmedBooking] = useState<{
     bookingId: string
     car: Car
@@ -283,12 +287,45 @@ export default function App() {
     setCurrentView("detail")
   }
 
-  const handleSelectCategory = (category: VehicleType) => {
-    setFilterState((prev) => ({
-      ...prev,
-      types: [category],
-    }))
+  const handleSelectCategory = (category: VehicleType | "All") => {
+    if (category === "All") {
+      setFilterState((prev) => ({
+        ...prev,
+        types: [],
+      }))
+    } else {
+      setFilterState((prev) => ({
+        ...prev,
+        types: [category],
+      }))
+    }
     setCurrentView("listing")
+  }
+
+  const handleSelectDuration = (tier: "Hourly" | "Daily" | "Weekly" | "Monthly") => {
+    if (tier === "Hourly") {
+      setBookingState((prev) => ({
+        ...prev,
+        rentalPlan: "hourly",
+        rentalDurationDays: 1,
+        returnDate: prev.pickupDate,
+      }))
+    } else {
+      const days = tier === "Daily" ? 3 : tier === "Weekly" ? 7 : 30
+      const parsed = Date.parse(bookingState.pickupDate)
+      let newReturnDate = bookingState.returnDate
+      if (!isNaN(parsed)) {
+        const next = new Date(parsed + days * 24 * 60 * 60 * 1000)
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        newReturnDate = `${monthNames[next.getMonth()]} ${next.getDate()}, ${next.getFullYear()}`
+      }
+      setBookingState((prev) => ({
+        ...prev,
+        rentalPlan: tier.toLowerCase() as BookingState["rentalPlan"],
+        rentalDurationDays: days,
+        returnDate: newReturnDate,
+      }))
+    }
   }
 
   // Enforce customer login for booking reservations
@@ -394,7 +431,44 @@ export default function App() {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C]">
+    <div
+      className={`w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C] ${
+        currentView !== "admin" && currentView !== "auth" ? "lg:pl-64" : ""
+      }`}
+    >
+      {/* Desktop Persistent Left Sidebar & Mobile Drawer for Storefront Views */}
+      {currentView !== "admin" && currentView !== "auth" && (
+        <CustomerSidebar
+          currentView={currentView}
+          onNavigate={handleNavigate}
+          onSelectCategory={handleSelectCategory}
+          onSelectDuration={handleSelectDuration}
+          selectedDuration={
+            bookingState.rentalPlan === "hourly"
+              ? "Hourly"
+              : bookingState.rentalPlan === "weekly"
+                ? "Weekly"
+                : bookingState.rentalPlan === "monthly"
+                  ? "Monthly"
+                  : "Daily"
+          }
+          selectedCategory={filterState.types[0] || "All"}
+          currentUser={currentUser}
+          onLogoutCustomer={() => {
+            api.logoutCustomer()
+            setCurrentUser(null)
+          }}
+          compareCount={compareIds.length}
+          activeBookingsCount={
+            bookings.filter(
+              (b) => b.status === "Pending Assignment" || b.status === "Assigned" || b.status === "Checked Out",
+            ).length
+          }
+          isOpenMobile={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Header (hidden in dedicated full-screen admin & auth mode for cleaner layout) */}
       {currentView !== "admin" && currentView !== "auth" && (
         <Header
@@ -404,6 +478,7 @@ export default function App() {
           setCurrentUser={setCurrentUser}
           compareCount={compareIds.length}
           isAdminAuthenticated={isAdminAuthenticated}
+          onToggleSidebar={() => setIsMobileSidebarOpen(true)}
           onLogoutCustomer={() => {
             api.logoutCustomer()
             setCurrentUser(null)
@@ -494,6 +569,16 @@ export default function App() {
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
           />
+        )}
+
+        {/* Dedicated 1-Person Boutique Garage About Page */}
+        {currentView === "about" && (
+          <AboutView onNavigate={handleNavigate} />
+        )}
+
+        {/* Dedicated Direct Garage Owner Contact & Inquiry Page */}
+        {currentView === "contact" && (
+          <ContactView onNavigate={handleNavigate} />
         )}
 
         {/* Dedicated Modern JWT Customer Authentication Page */}

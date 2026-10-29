@@ -241,4 +241,14 @@ export interface PaginatedMaintenanceLogs {
   pagination: MaintenancePagination
 }
 
-export type ViewMode = "home" | "listing" | "detail" | "checkout" | "admin" | "my-bookings" | "compare" | "auth"
+export type ViewMode =
+  | "home"
+  | "listing"
+  | "detail"
+  | "checkout"
+  | "admin"
+  | "my-bookings"
+  | "compare"
+  | "auth"
+  | "about"
+  | "contact"

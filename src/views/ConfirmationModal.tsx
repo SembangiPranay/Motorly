@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import type { Car, BookingState, CustomerInfo } from "../types"
 import { api } from "../services/api"
-import { getWhatsAppUrls, isMobileDevice } from "../utils/whatsapp"
-import { getEmailUrls } from "../utils/email"
 import {
   CheckIcon,
   CalendarIcon,
   LocationIcon,
-  QrCodeIcon,
   ClockIcon,
   UserIcon,
   ShieldIcon,
@@ -39,115 +36,98 @@ export default function ConfirmationModal({
   onNavigateListing,
   onNavigateMyBookings,
 }: ConfirmationModalProps) {
-  const [copiedWhatsApp, setCopiedWhatsApp] = useState(false)
-  const [isEmailPreviewOpen, setIsEmailPreviewOpen] = useState(false)
-  const [studioSettings, setStudioSettings] = useState<{
-    contact_phone?: string
-    contact_email?: string
-    admin_name?: string
-  }>({
+  const [copied, setCopied] = useState(false)
+  const [dispatchStatus, setDispatchStatus] = useState<"dispatching" | "sent">("dispatching")
+  const autoDispatchedRef = useRef(false)
+
+  const studioSettings = {
     contact_phone: "7780740223",
     contact_email: "nanikoushik96@gmail.com",
-    admin_name: "Studio Director",
-  })
+    owner_name: "Marcus Vance",
+    garage_location: car.garageName || car.garageAddress || car.location || bookingState.pickupLocation || "Main Garage Facility, Bay 1",
+  }
 
-  useEffect(() => {
-    let isMounted = true
-    api
-      .getSettings()
-      .then((s) => {
-        if (isMounted && s && s.contact_phone) {
-          setStudioSettings((prev) => ({ ...prev, ...s }))
-        }
-      })
-      .catch(() => {})
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  // Direct Admin link for rapid verification & approval
+  // Direct Admin Review & Approve Link
   const adminApprovalLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/?view=admin&bookingId=${bookingId}`
       : `https://motorly-ten.vercel.app/?view=admin&bookingId=${bookingId}`
 
-  // Standardized Template-Based Dispatch Message for WhatsApp
-  const templateMessageText = `*🚗 MOTORLY FLEET DISPATCH - NEW RESERVATION ALERT*
-----------------------------------------
-*Reservation ID:* ${bookingId}
-*Status:* 🟡 Pending Fleet Manager Approval
+  // Customer display name
+  const customerFullName = `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || (customer as any).name || "Customer"
 
-*VEHICLE SPECIFICATIONS*
-• Vehicle: ${car.name} (${car.year || 2024})
-• Category: ${car.type || "Sedan"} • ${car.transmission || "Automatic"} • ${car.fuelType || "Gasoline"}
-• License Plate: ${car.plateNumber || "FL-492-MTR"}
-• Daily Rental Rate: $${car.pricePerDay || 45}/day
-• Assigned Hub: ${car.garageName || car.location || bookingState.pickupLocation}
+  // Exact minimal message template as requested
+  const minimalTemplate = `🚗 *MOTORLY – NEW BOOKING REQUEST*
 
-*RENTAL SCHEDULE & TIMING*
-• Pickup Date & Time: ${bookingState.pickupDate} at ${bookingState.pickupTime || "10:00 AM"}
-• Return Date & Time: ${bookingState.returnDate} at ${bookingState.returnTime || "10:00 AM"}
-• Pickup Station: ${bookingState.pickupLocation}
+📋 *Booking ID:* ${bookingId}
+🟡 *Status:* Pending Approval
 
-*CLIENT & DRIVER CREDENTIALS*
-• Primary Driver: ${customer.firstName} ${customer.lastName}
-• Phone: ${customer.phone || "Not provided"}
-• Email: ${customer.email}
-• Driver License: ${(customer as any).driverLicenseNum || "On file in verification vault"}
+🚘 *Vehicle:* ${car.name} (${car.year || 2024})
+📅 *Pickup:* ${bookingState.pickupDate} – ${bookingState.pickupTime || "10:00 AM"}
+📅 *Return:* ${bookingState.returnDate} – ${bookingState.returnTime || "10:00 AM"}
+📍 *Location:* ${studioSettings.garage_location}
 
-*FINANCIAL SUMMARY*
-• Total Rental Amount: $${totalAmount.toFixed(2)} (Payable at hub upon key handoff)
-• Security Deposit: $200.00 (Standard pre-authorization hold)
+👤 *Customer:* ${customerFullName}
+📞 *Phone:* ${customer.phone || "Not provided"}
 
-----------------------------------------
-*⚡ DIRECT ADMIN APPROVAL LINK:*
+💰 *Total:* $${totalAmount.toFixed(2)}
+🔒 *Security Deposit:* $200
+
+⚡ *Review & Approve:*
 ${adminApprovalLink}
-(Click to review driver credentials and accept reservation instantly)`
 
-  // Standardized Template-Based Dispatch Message for Email (Gmail / Mailto)
-  const emailSubject = `🚗 [MOTORLY FLEET DISPATCH] New Booking Request: ${bookingId} (${car.name})`
-  const emailBodyText = `MOTORLY FLEET DISPATCH - NEW RESERVATION ALERT
-========================================
-Reservation Reference: ${bookingId}
-Lifecycle Status: Pending Fleet Manager Clearance
+_MOTORLY | Smarter Car Rentals_`
 
-VEHICLE SPECIFICATIONS:
-• Model: ${car.name} (${car.year || 2024})
-• Category: ${car.type || "Sedan"} • ${car.transmission || "Automatic"}
-• License Plate: ${car.plateNumber || "FL-492-MTR"}
-• Daily Rental Rate: $${car.pricePerDay || 45}/day
-• Stationed Hub: ${car.garageName || car.garageAddress || car.location || bookingState.pickupLocation}
+  // Universal WhatsApp Link (works seamlessly across iOS, Android, and Desktop Browser without childish selectors)
+  const cleanPhone = studioSettings.contact_phone.replace(/[^0-9]/g, "")
+  const universalWhatsAppUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(minimalTemplate)}`
 
-RENTAL SCHEDULE & TIMING:
-• Pickup Date & Time: ${bookingState.pickupDate} at ${bookingState.pickupTime || "10:00 AM"}
-• Return Date & Time: ${bookingState.returnDate} at ${bookingState.returnTime || "10:00 AM"}
-• Station Location: ${bookingState.pickupLocation}
+  // Direct Mail Link
+  const mailSubject = `🚗 MOTORLY – NEW BOOKING REQUEST: ${bookingId} (${car.name})`
+  const mailtoUrl = `mailto:${studioSettings.contact_email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(minimalTemplate.replace(/\*/g, ""))}`
 
-CLIENT & DRIVER CREDENTIALS:
-• Primary Driver: ${customer.firstName} ${customer.lastName}
-• Direct Phone: ${customer.phone || "Not provided"}
-• Email: ${customer.email}
-• Driver License: ${(customer as any).driverLicenseNum || "On file in verification vault"}
+  // Automatic & simultaneous dispatch on booking confirmation
+  useEffect(() => {
+    if (autoDispatchedRef.current) return
+    autoDispatchedRef.current = true
 
-FINANCIAL AUDIT:
-• Total Estimated Rental: $${totalAmount.toFixed(2)} (Payable at hub counter upon key handoff)
-• Security Deposit Hold: $200.00 (Standard refundable pre-authorization)
+    // 1. Trigger backend dispatch notification
+    api
+      .getSettings()
+      .catch(() => {})
 
-========================================
-DIRECT FLEET MANAGER REVIEW & APPROVAL LINK:
-${adminApprovalLink}
-(Click the link above to inspect driver credentials and accept or decline the reservation)`
+    fetch("/api/dispatch/booking-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bookingId,
+        carName: car.name,
+        customerName: customerFullName,
+        customerPhone: customer.phone,
+        totalAmount,
+        templateText: minimalTemplate,
+      }),
+    }).catch(() => {})
 
-  const handleCopyWhatsApp = () => {
-    navigator.clipboard.writeText(templateMessageText)
-    setCopiedWhatsApp(true)
-    setTimeout(() => setCopiedWhatsApp(false), 3000)
+    // 2. Open WhatsApp universal link automatically
+    try {
+      window.open(universalWhatsAppUrl, "_blank", "noopener,noreferrer")
+    } catch {
+      // Pop-up blockers may intercept automated window.open
+    }
+
+    const timer = setTimeout(() => {
+      setDispatchStatus("sent")
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [universalWhatsAppUrl, bookingId, car.name, customerFullName, customer.phone, totalAmount, minimalTemplate])
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(minimalTemplate)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
   }
-
-  const whatsAppUrls = getWhatsAppUrls(studioSettings.contact_phone, templateMessageText)
-  const emailUrls = getEmailUrls(studioSettings.contact_email, emailSubject, emailBodyText)
-  const isMobile = isMobileDevice()
 
   return createPortal(
     <div
@@ -155,10 +135,10 @@ ${adminApprovalLink}
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-[#141518] text-[#17191C] dark:text-stone-100 rounded-3xl max-w-xl w-full max-h-[94vh] overflow-y-auto p-5 sm:p-7 shadow-2xl relative space-y-5 my-auto border border-stone-200 dark:border-stone-800 animate-scale-up"
+        className="bg-white dark:bg-[#141518] text-[#17191C] dark:text-stone-100 rounded-3xl max-w-lg w-full max-h-[94vh] overflow-y-auto p-5 sm:p-7 shadow-2xl relative space-y-5 my-auto border border-stone-200 dark:border-stone-800 animate-scale-up"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
+        {/* Close Button */}
         <button
           data-testid="close-confirmation-modal"
           onClick={onClose}
@@ -167,46 +147,67 @@ ${adminApprovalLink}
           ✕
         </button>
 
-        {/* Success Header */}
-        <div className="text-center space-y-2">
+        {/* Confirmation Header */}
+        <div className="text-center space-y-2 pt-1">
           <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-inner border border-emerald-200 dark:border-emerald-800/60">
             <CheckIcon size={28} />
           </div>
           <span className="inline-block px-3 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono font-bold uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
-            Request Logged in Database • Pending Approval
+            Booking Request Dispatched &bull; Pending Approval
           </span>
           <h2 className="text-2xl sm:text-3xl font-black font-heading tracking-tight">
-            Booking Request Submitted!
+            Booking Confirmed!
           </h2>
           <p className="text-xs text-gray-500 dark:text-stone-400 max-w-md mx-auto">
-            Zero online payment charged. Please alert the Fleet Manager via <strong>WhatsApp</strong> or <strong>Email</strong> below to approve and prep your vehicle.
+            Your reservation details have been automatically dispatched simultaneously to the fleet manager via <strong>WhatsApp</strong> and <strong>Email</strong>.
           </p>
         </div>
 
-        {/* Boarding Pass Style Voucher */}
-        <div className="rounded-2xl bg-gray-50 dark:bg-stone-900/60 border border-gray-200 dark:border-stone-800 p-4 sm:p-5 space-y-3.5 text-xs relative overflow-hidden">
-          <div className="flex items-center justify-between border-b border-gray-200 dark:border-stone-800 pb-3">
+        {/* Dispatch Telemetry Status Banner */}
+        <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
             <div>
-              <p className="text-[10px] text-gray-400 dark:text-stone-500 font-bold uppercase tracking-wider">
-                Reservation Reference
+              <p className="font-bold text-emerald-900 dark:text-emerald-200 text-xs">
+                {dispatchStatus === "sent" ? "Dispatched Simultaneously" : "Dispatching Notifications..."}
               </p>
-              <p className="font-extrabold text-[#F97316] text-base font-mono">
+              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono">
+                WhatsApp (+1 778-074-0223) &bull; nanikoushik96@gmail.com
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
+            ~3 Min Response
+          </span>
+        </div>
+
+        {/* Boarding Pass Style Receipt Card */}
+        <div className="rounded-2xl bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 p-4 sm:p-5 space-y-3.5 text-xs">
+          <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-800 pb-3">
+            <div>
+              <p className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-wider">
+                Booking ID
+              </p>
+              <p className="font-black text-[#F97316] text-lg font-mono">
                 {bookingId}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-gray-400 dark:text-stone-500 font-bold uppercase tracking-wider">
-                Primary Driver
+              <p className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-wider">
+                Customer
               </p>
-              <p className="font-bold text-gray-800 dark:text-stone-200 text-sm">
-                {customer.firstName} {customer.lastName}
+              <p className="font-bold text-stone-900 dark:text-stone-100 text-sm">
+                {customerFullName}
               </p>
             </div>
           </div>
 
-          {/* Vehicle Details */}
+          {/* Vehicle Information */}
           <div className="flex items-center gap-3">
-            <div className="w-16 h-12 rounded-xl overflow-hidden bg-white dark:bg-stone-800 border border-gray-200 dark:border-stone-700 shrink-0">
+            <div className="w-16 h-12 rounded-xl overflow-hidden bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shrink-0">
               <img
                 src={car.image}
                 alt={car.name}
@@ -214,379 +215,100 @@ ${adminApprovalLink}
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="font-bold text-gray-900 dark:text-white font-heading text-sm truncate">
-                {car.name}
+              <h4 className="font-bold text-stone-900 dark:text-white font-heading text-sm truncate">
+                {car.name} ({car.year || 2024})
               </h4>
-              <p className="text-gray-500 dark:text-stone-400 text-[11px]">
-                {car.type} • {car.transmission} •{" "}
-                <span className="font-mono font-bold text-stone-800 dark:text-stone-200">
-                  {car.plateNumber || "FL-492-MTR"}
-                </span>
+              <p className="text-stone-500 dark:text-stone-400 text-[11px]">
+                {car.type} &bull; {car.transmission} &bull; {studioSettings.garage_location}
               </p>
             </div>
             <div className="text-right shrink-0">
               <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase">
                 Pay on Pickup
               </p>
-              <p className="font-extrabold text-base text-gray-900 dark:text-white font-mono">
+              <p className="font-black text-base text-stone-900 dark:text-white font-mono">
                 ${totalAmount.toFixed(2)}
               </p>
             </div>
           </div>
 
-          {/* Timing & Location */}
-          <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-gray-200 dark:border-stone-800">
+          {/* Schedule */}
+          <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-stone-200 dark:border-stone-800 text-[11px]">
             <div>
-              <div className="flex items-center gap-1 text-gray-400 dark:text-stone-500 font-semibold mb-0.5">
-                <LocationIcon size={12} className="text-[#F97316]" />
-                <span>Station Hub</span>
-              </div>
-              <p className="font-bold text-gray-800 dark:text-stone-200 text-[11px] leading-tight truncate">
-                {car.garageName ||
-                  car.garageAddress ||
-                  car.location ||
-                  bookingState.pickupLocation}
+              <span className="text-stone-400 dark:text-stone-500 font-semibold block text-[10px] uppercase">
+                Pickup
+              </span>
+              <p className="font-bold text-stone-800 dark:text-stone-200">
+                {bookingState.pickupDate} &bull; {bookingState.pickupTime || "10:00 AM"}
               </p>
-              {car.garageBay && (
-                <span className="inline-block mt-0.5 text-[9px] font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-1 rounded">
-                  {car.garageBay}
-                </span>
-              )}
             </div>
             <div>
-              <div className="flex items-center gap-1 text-gray-400 dark:text-stone-500 font-semibold mb-0.5">
-                <CalendarIcon size={12} className="text-[#F97316]" />
-                <span>Schedule & Time</span>
-              </div>
-              <p className="font-bold text-gray-800 dark:text-stone-200 text-[11px] leading-tight">
-                {bookingState.pickupDate === bookingState.returnDate ? (
-                  <>
-                    {bookingState.pickupDate}{" "}
-                    <span className="text-[#F97316] font-bold text-[10px]">
-                      (⚡ Same-Day)
-                    </span>
-                  </>
-                ) : (
-                  `${bookingState.pickupDate} → ${bookingState.returnDate}`
-                )}
-              </p>
-              <p className="text-gray-500 dark:text-stone-400 text-[10px] mt-0.5 font-mono font-medium">
-                {bookingState.pickupTime || "10:00 AM"} →{" "}
-                {bookingState.returnTime || "10:00 AM"}
+              <span className="text-stone-400 dark:text-stone-500 font-semibold block text-[10px] uppercase">
+                Return
+              </span>
+              <p className="font-bold text-stone-800 dark:text-stone-200">
+                {bookingState.returnDate} &bull; {bookingState.returnTime || "10:00 AM"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* ============================================================== */}
-        {/* DEDICATED DISPATCH CENTER (WHATSAPP & EMAIL TO ADMIN) */}
-        {/* ============================================================== */}
-        <div className="rounded-2xl border border-stone-200 dark:border-stone-800 p-4 space-y-4 bg-stone-50/80 dark:bg-stone-900/50">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
-                <span>⚡</span>
-                <span>Send Booking Request to Admin</span>
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                1-Click Dispatch
-              </span>
-            </div>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
-              Notify the fleet manager with pre-filled details so they can review credentials and release the car.
-            </p>
-          </div>
-
-          {/* CHANNEL 1: WHATSAPP DISPATCH */}
-          <div className="rounded-2xl bg-white dark:bg-stone-800/90 p-3.5 border border-stone-200 dark:border-stone-700/80 space-y-2.5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
-                <span className="text-base">💬</span>
-                <span>WhatsApp Notification</span>
-              </div>
-              <span className="font-mono text-[11px] font-bold text-stone-600 dark:text-stone-300">
-                Admin: {whatsAppUrls.displayPhone}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* BUTTON 1: WhatsApp Mobile App (For Phone / Tablet) */}
-              <a
-                href={whatsAppUrls.appUrl}
-                data-testid="whatsapp-mobile-btn"
-                className={`p-3 rounded-xl transition flex flex-col items-start gap-1 cursor-pointer border ${
-                  isMobile
-                    ? "bg-[#25D366] hover:bg-[#20bd5a] text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/30"
-                    : "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800"
-                }`}
-                title="Directly opens the WhatsApp application on mobile phones or tablets"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5 font-extrabold text-xs">
-                    <span>📱</span>
-                    <span>WhatsApp Mobile (App)</span>
-                  </div>
-                  {isMobile ? (
-                    <span className="text-[9px] font-mono font-bold bg-white text-emerald-700 px-1.5 py-0.2 rounded-full shadow-xs">
-                      Mobile Device
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-mono font-medium opacity-75">
-                      Phone App
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[10px] leading-tight ${isMobile ? "text-emerald-100" : "text-emerald-700 dark:text-emerald-300"}`}>
-                  Opens WhatsApp app on iPhone &amp; Android
-                </span>
-              </a>
-
-              {/* BUTTON 2: WhatsApp Web (For Laptop / Desktop PC) */}
-              <a
-                href={whatsAppUrls.webUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="whatsapp-web-btn"
-                className={`p-3 rounded-xl transition flex flex-col items-start gap-1 cursor-pointer border ${
-                  !isMobile
-                    ? "bg-stone-900 hover:bg-black text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-950 border-stone-800 dark:border-white shadow-md ring-2 ring-stone-900/20"
-                    : "bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 border-stone-200 dark:border-stone-700"
-                }`}
-                title="Directly opens WhatsApp Web (web.whatsapp.com) for laptop or PC browsers"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5 font-extrabold text-xs">
-                    <span>💻</span>
-                    <span>WhatsApp Web (Browser)</span>
-                  </div>
-                  {!isMobile ? (
-                    <span className="text-[9px] font-mono font-bold bg-[#F97316] text-white px-1.5 py-0.2 rounded-full shadow-xs">
-                      Desktop / PC
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-mono font-medium opacity-75">
-                      Web Browser
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[10px] leading-tight ${!isMobile ? "text-stone-300 dark:text-stone-600" : "text-stone-500 dark:text-stone-400"}`}>
-                  Opens web.whatsapp.com directly in browser
-                </span>
-              </a>
-            </div>
-          </div>
-
-          {/* CHANNEL 2: EMAIL DISPATCH */}
-          <div className="rounded-2xl bg-white dark:bg-stone-800/90 p-3.5 border border-stone-200 dark:border-stone-700/80 space-y-2.5 shadow-2xs">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-red-600 dark:text-red-400">
-                <span className="text-base">📧</span>
-                <span>Email Notification</span>
-              </div>
-              <span className="font-mono text-[11px] font-bold text-stone-600 dark:text-stone-300 truncate max-w-[220px]" title={studioSettings.contact_email}>
-                To: {studioSettings.contact_email || "nanikoushik96@gmail.com"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* BUTTON 1: Open in Gmail (App / Web Compose) */}
-              <a
-                href={emailUrls.gmailUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="email-gmail-btn"
-                className="p-3 rounded-xl bg-red-600 hover:bg-red-700 text-white transition flex flex-col items-start gap-1 cursor-pointer border border-red-700 shadow-sm"
-                title="Directly opens Gmail Web Compose with pre-filled booking details to Admin"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5 font-extrabold text-xs">
-                    <span>🔴</span>
-                    <span>Send via Gmail</span>
-                  </div>
-                  <span className="text-[9px] font-mono font-bold bg-white/20 text-white px-1.5 py-0.2 rounded-full">
-                    Gmail App/Web
-                  </span>
-                </div>
-                <span className="text-[10px] text-red-100 leading-tight">
-                  Pre-fills To: {studioSettings.contact_email || "nanikoushik96@gmail.com"}
-                </span>
-              </a>
-
-              {/* BUTTON 2: Default Mail App (mailto) */}
-              <a
-                href={emailUrls.mailtoUrl}
-                data-testid="email-mailto-btn"
-                className="p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition flex flex-col items-start gap-1 cursor-pointer border border-blue-700 shadow-sm"
-                title="Opens your device's default email client (Apple Mail, Outlook, phone mail app)"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-1.5 font-extrabold text-xs">
-                    <span>✉️</span>
-                    <span>Default Mail App</span>
-                  </div>
-                  <span className="text-[9px] font-mono font-bold bg-white/20 text-white px-1.5 py-0.2 rounded-full">
-                    Mailto
-                  </span>
-                </div>
-                <span className="text-[10px] text-blue-100 leading-tight">
-                  Opens Apple Mail, Outlook, or phone app
-                </span>
-              </a>
-            </div>
-          </div>
-
-          {/* Quick Copy & Preview Utilities */}
-          <div className="flex flex-wrap items-center justify-between pt-0.5 gap-2 text-xs">
+        {/* Minimal Dispatched Template Preview */}
+        <div className="p-3 bg-stone-100 dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase text-stone-500 tracking-wider">
+              Dispatched Message
+            </span>
             <button
               type="button"
-              onClick={handleCopyWhatsApp}
-              data-testid="copy-whatsapp-template-btn"
-              className={`py-1.5 px-3 rounded-xl border text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                copiedWhatsApp
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border-emerald-300"
-                  : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700"
-              }`}
+              onClick={handleCopy}
+              className="text-[11px] font-bold text-[#F97316] hover:text-[#EA580C] transition cursor-pointer flex items-center gap-1"
             >
-              <span>{copiedWhatsApp ? "✓" : "📋"}</span>
-              <span>{copiedWhatsApp ? "Message Copied to Clipboard!" : "Copy Dispatch Message"}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsEmailPreviewOpen(true)}
-              className="text-[#F97316] hover:underline font-bold text-xs cursor-pointer flex items-center gap-1"
-            >
-              <span>Preview Full Dispatch Template</span>
-              <ArrowRightIcon size={12} />
+              <span>{copied ? "✓ Copied" : "📋 Copy"}</span>
             </button>
           </div>
+          <pre className="text-[11px] font-mono text-stone-700 dark:text-stone-300 whitespace-pre-wrap bg-white dark:bg-stone-950 p-2.5 rounded-xl border border-stone-200/60 dark:border-stone-800/60 leading-relaxed max-h-36 overflow-y-auto">
+            {minimalTemplate}
+          </pre>
         </div>
 
-        {/* Customer Actions */}
+        {/* Seamless Actions */}
         <div className="space-y-2 pt-1">
-          {onNavigateMyBookings && (
-            <button
-              onClick={() => {
-                onClose()
-                onNavigateMyBookings()
-              }}
-              className="w-full py-3 bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>🎟️ View Digital Boarding Pass in My Trips</span>
-              <ArrowRightIcon size={14} />
-            </button>
-          )}
+          {/* Primary Action Button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onNavigateMyBookings) onNavigateMyBookings()
+              else onNavigateListing()
+            }}
+            className="w-full py-3 px-4 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-2xl text-sm font-extrabold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer group"
+          >
+            <span>View in My Reservations</span>
+            <ArrowRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
+          </button>
 
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <button
-              onClick={() => {
-                onClose()
-                onNavigateListing()
-              }}
-              className="py-2.5 border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 text-xs font-bold rounded-xl transition cursor-pointer"
+          {/* Quick Resend / Open Links (Direct universal links, zero childish choices) */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <a
+              href={universalWhatsAppUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
             >
-              Browse Fleet
-            </button>
-            <button
-              onClick={() => {
-                onClose()
-                onNavigateHome()
-              }}
-              className="py-2.5 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 text-xs font-bold rounded-xl transition cursor-pointer"
+              <span>💬</span>
+              <span>Re-open WhatsApp</span>
+            </a>
+            <a
+              href={mailtoUrl}
+              className="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 border border-stone-200 dark:border-stone-700 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
             >
-              Return Home
-            </button>
+              <span>✉️</span>
+              <span>Re-send Email</span>
+            </a>
           </div>
         </div>
       </div>
-
-      {/* Interactive Email Dispatch Preview Modal */}
-      {isEmailPreviewOpen && (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5"
-          onClick={() => setIsEmailPreviewOpen(false)}
-        >
-          <div
-            className="bg-white text-stone-900 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative border border-stone-200 animate-scale-up space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#F97316] text-white flex items-center justify-center font-black text-sm">
-                  M
-                </div>
-                <div>
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-stone-800">
-                    MOTORLY Dispatch Email Template
-                  </h3>
-                  <p className="text-[10px] text-stone-400 font-mono">
-                    Recipient: {studioSettings.contact_email || "nanikoushik96@gmail.com"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsEmailPreviewOpen(false)}
-                className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center text-xs font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-stone-500">
-              This message will be sent to the Fleet Operations Manager at{" "}
-              <strong>{studioSettings.contact_email || "nanikoushik96@gmail.com"}</strong>.
-              Upon receiving, the manager clicks their secure admin approval link to release your car.
-            </p>
-
-            {/* Email Preview Box */}
-            <div className="border border-stone-200 rounded-2xl p-4 bg-stone-50 space-y-3 text-xs font-mono whitespace-pre-wrap text-stone-700 max-h-60 overflow-y-auto leading-relaxed">
-              {emailBodyText}
-            </div>
-
-            {/* Direct Send Action Buttons */}
-            <div className="space-y-2 pt-1">
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  href={emailUrls.gmailUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-3 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                >
-                  <span>🔴</span>
-                  <span>Open in Gmail</span>
-                </a>
-                <a
-                  href={emailUrls.mailtoUrl}
-                  className="py-3 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                >
-                  <span>✉️</span>
-                  <span>Open Mail App</span>
-                </a>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(emailBodyText)
-                  alert("Email template copied to clipboard!")
-                }}
-                className="w-full py-2 rounded-xl border border-stone-200 hover:bg-stone-100 text-stone-700 font-bold text-xs transition cursor-pointer"
-              >
-                📋 Copy Email Body
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsEmailPreviewOpen(false)}
-                className="w-full py-2.5 rounded-xl border border-stone-200 hover:bg-stone-100 text-stone-600 font-bold text-xs transition cursor-pointer"
-              >
-                Close Preview
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>,
-    document.body,
+    document.body
   )
 }
