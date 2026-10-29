@@ -2340,7 +2340,7 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 app.post(
   "/api/bookings/:id/request-extension",
   requireAuth,
-  async (req, res) => {
+  async (req: express.Request & { user?: JwtUserPayload }, res) => {
     const bookingId = req.params.id
     const { extraDuration, unit, customerNotes } = req.body
 
@@ -2349,6 +2349,20 @@ app.post(
       .get(bookingId)) as any
     if (!booking) {
       return res.status(404).json({ error: "Booking not found." })
+    }
+
+    // RBAC: Verify ownership (Admin or booking owner)
+    const user = req.user
+    if (user?.role !== "admin") {
+      const isOwner =
+        (booking.user_id && booking.user_id === user?.userId) ||
+        (booking.customer_email &&
+          booking.customer_email.toLowerCase() === user?.email.toLowerCase())
+      if (!isOwner) {
+        return res.status(403).json({
+          error: "Access denied. You do not have permission to modify this reservation.",
+        })
+      }
     }
 
     const durationNum = Number(extraDuration) || 1
@@ -2430,7 +2444,7 @@ app.post(
 app.post(
   "/api/bookings/:id/approve-extension",
   requireAuth,
-  async (req, res) => {
+  async (req: express.Request & { user?: JwtUserPayload }, res) => {
     const bookingId = req.params.id
 
     const booking = (await db
@@ -2438,6 +2452,20 @@ app.post(
       .get(bookingId)) as any
     if (!booking) {
       return res.status(404).json({ error: "Booking not found." })
+    }
+
+    // RBAC: Verify ownership (Admin or booking owner)
+    const user = req.user
+    if (user?.role !== "admin") {
+      const isOwner =
+        (booking.user_id && booking.user_id === user?.userId) ||
+        (booking.customer_email &&
+          booking.customer_email.toLowerCase() === user?.email.toLowerCase())
+      if (!isOwner) {
+        return res.status(403).json({
+          error: "Access denied. You do not have permission to approve this extension.",
+        })
+      }
     }
 
     let quote: any = {}
@@ -2513,8 +2541,29 @@ app.post(
 app.post(
   "/api/bookings/:id/decline-extension",
   requireAuth,
-  async (req, res) => {
+  async (req: express.Request & { user?: JwtUserPayload }, res) => {
     const bookingId = req.params.id
+
+    const booking = (await db
+      .prepare("SELECT * FROM bookings WHERE id = ?")
+      .get(bookingId)) as any
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found." })
+    }
+
+    // RBAC: Verify ownership (Admin or booking owner)
+    const user = req.user
+    if (user?.role !== "admin") {
+      const isOwner =
+        (booking.user_id && booking.user_id === user?.userId) ||
+        (booking.customer_email &&
+          booking.customer_email.toLowerCase() === user?.email.toLowerCase())
+      if (!isOwner) {
+        return res.status(403).json({
+          error: "Access denied. You do not have permission to decline this extension.",
+        })
+      }
+    }
 
     await db
       .prepare(`

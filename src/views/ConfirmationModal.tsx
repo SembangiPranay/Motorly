@@ -25,7 +25,6 @@ interface ConfirmationModalProps {
   onClose: () => void
   onNavigateHome: () => void
   onNavigateListing: () => void
-  onNavigateAdmin?: () => void
   onNavigateMyBookings?: () => void
 }
 
@@ -38,7 +37,6 @@ export default function ConfirmationModal({
   onClose,
   onNavigateHome,
   onNavigateListing,
-  onNavigateAdmin,
   onNavigateMyBookings,
 }: ConfirmationModalProps) {
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false)
@@ -499,22 +497,6 @@ ${adminApprovalLink}
               Return Home
             </button>
           </div>
-
-          {/* Staff Demo Shortcut - clearly labeled as staff only */}
-          {onNavigateAdmin && (
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose()
-                  onNavigateAdmin()
-                }}
-                className="text-[11px] text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 underline cursor-pointer"
-              >
-                [Staff Demo Shortcut: Switch to Admin Console]
-              </button>
-            </div>
-          )}
         </div>
       </div>
 

@@ -231,6 +231,23 @@ export default function CarDetailView({
     setTimeout(() => setQuoteMessage(null), 4000)
   }
 
+  if (!car) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className="text-2xl font-black text-stone-900">Vehicle Not Found</h2>
+        <p className="text-stone-500 text-sm max-w-md mx-auto">
+          No vehicle is currently selected or matching this identifier in the database.
+        </p>
+        <button
+          onClick={onNavigateListing}
+          className="px-6 py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-2xl text-xs transition shadow-sm cursor-pointer"
+        >
+          Browse Fleet Catalog →
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-8 pb-32 lg:pb-20">
       {/* Breadcrumbs Navigation */}

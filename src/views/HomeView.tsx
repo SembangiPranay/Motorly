@@ -74,7 +74,6 @@ export default function HomeView({
       price: "From $35/day",
       image:
         "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
-      carId: "toyota-corolla",
       description: "Smart, fuel-efficient daily commuters with great MPG.",
     },
     {
@@ -83,7 +82,6 @@ export default function HomeView({
       price: "From $45/day",
       image:
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
-      carId: "toyota-camry",
       description: "Comfortable, quiet highway cruisers for executive travel.",
     },
     {
@@ -92,7 +90,6 @@ export default function HomeView({
       price: "From $65/day",
       image:
         "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=800&q=80",
-      carId: "honda-crv",
       description:
         "Spacious all-weather crossovers built for family roadtrips.",
     },
@@ -102,7 +99,6 @@ export default function HomeView({
       price: "From $120/day",
       image:
         "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
-      carId: "bmw-3-series",
       description: "Refined German performance and cutting-edge cockpit tech.",
     },
   ]
@@ -492,8 +488,14 @@ export default function HomeView({
         </div>
 
         {/* 4 Cards Grid with 1-Click Quick Booking */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredCars.map((car) => (
+        {featuredCars.length === 0 ? (
+          <div className="py-16 text-center text-stone-500 bg-white rounded-3xl border border-stone-200/80 shadow-xs">
+            <p className="text-base font-bold text-stone-800">No vehicles currently listed in the fleet.</p>
+            <p className="text-xs text-stone-400 mt-1">Check back soon as new vehicles are added to inventory.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredCars.map((car) => (
             <div
               key={car.id}
               className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between group"
@@ -587,7 +589,8 @@ export default function HomeView({
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
 
         {/* Quick Comparison Studio Banner */}
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between p-4 bg-orange-50/80 border border-orange-200/80 rounded-2xl gap-3 shadow-xs">

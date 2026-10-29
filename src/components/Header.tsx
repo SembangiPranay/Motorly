@@ -17,6 +17,7 @@ interface HeaderProps {
   setCurrentUser?: (user: CustomerUser | null) => void
   compareCount?: number
   onLogoutCustomer?: () => void
+  isAdminAuthenticated?: boolean
 }
 
 export default function Header({
@@ -26,14 +27,15 @@ export default function Header({
   setCurrentUser,
   compareCount = 0,
   onLogoutCustomer,
+  isAdminAuthenticated = false,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showSignInModal, setShowSignInModal] = useState(false)
   const [authTab, setAuthTab] = useState<"signin" | "register">("signin")
-  const [authEmail, setAuthEmail] = useState("john.doe@email.com")
-  const [authPassword, setAuthPassword] = useState("pass123")
-  const [authName, setAuthName] = useState("John Doe")
-  const [authPhone, setAuthPhone] = useState("+1 (305) 123-4567")
+  const [authEmail, setAuthEmail] = useState("")
+  const [authPassword, setAuthPassword] = useState("")
+  const [authName, setAuthName] = useState("")
+  const [authPhone, setAuthPhone] = useState("")
   const [authError, setAuthError] = useState<string | null>(null)
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
 
@@ -182,17 +184,19 @@ export default function Header({
 
           {/* Right Action Elements */}
           <div className="hidden lg:flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => onNavigate("admin")}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
-                currentView === "admin"
-                  ? "bg-[#17191C] text-white border-[#17191C]"
-                  : "bg-white hover:bg-orange-50 text-gray-700 hover:text-[#F97316] border-gray-200 shadow-xs"
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-[#F97316] animate-pulse" />
-              <span>Fleet Admin</span>
-            </button>
+            {isAdminAuthenticated && (
+              <button
+                onClick={() => onNavigate("admin")}
+                className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
+                  currentView === "admin"
+                    ? "bg-[#17191C] text-white border-[#17191C]"
+                    : "bg-stone-900 hover:bg-black text-white border-stone-800 shadow-xs"
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Admin Console</span>
+              </button>
+            )}
 
             {currentUser ? (
               <div className="flex items-center gap-2">
@@ -201,9 +205,9 @@ export default function Header({
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-xs transition cursor-pointer"
                 >
                   <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px]">
-                    {currentUser.name.charAt(0)}
+                    {(currentUser.name || currentUser.firstName || "U").charAt(0)}
                   </div>
-                  <span>{currentUser.name.split(" ")[0]}</span>
+                  <span>{(currentUser.name || currentUser.firstName || "User").split(" ")[0]}</span>
                   <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded font-mono">
                     {currentUser.vipTier || "Member"}
                   </span>
@@ -336,15 +340,17 @@ export default function Header({
             >
               Contact Support
             </button>
-            <button
-              onClick={() => {
-                onNavigate("admin")
-                setMobileMenuOpen(false)
-              }}
-              className="block w-full text-left py-2 font-bold text-[#F97316]"
-            >
-              ⚙️ Fleet Admin Portal
-            </button>
+            {isAdminAuthenticated && (
+              <button
+                onClick={() => {
+                  onNavigate("admin")
+                  setMobileMenuOpen(false)
+                }}
+                className="block w-full text-left py-2 font-bold text-[#F97316]"
+              >
+                ⚙️ Fleet Admin Portal
+              </button>
+            )}
             <div className="pt-2 flex flex-col gap-2">
               {currentUser ? (
                 <div className="space-y-2">
@@ -550,22 +556,6 @@ export default function Header({
                     : "Register & Get 15% Off"}
               </button>
             </form>
-
-            <div className="pt-2 text-center">
-              <span className="text-[11px] text-gray-400">
-                Are you a fleet manager? Use{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSignInModal(false)
-                    onNavigate("admin")
-                  }}
-                  className="text-[#F97316] font-bold hover:underline"
-                >
-                  Fleet Operations Console
-                </button>
-              </span>
-            </div>
           </div>
         </div>
       )}

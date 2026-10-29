@@ -128,7 +128,7 @@ export default function Footer({
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
           <p>© 2026 Garage Fleet Management. All rights reserved.</p>
-          <div className="flex space-x-6">
+          <div className="flex space-x-6 items-center">
             <span className="hover:text-gray-400 cursor-pointer">
               Privacy Policy
             </span>
@@ -138,6 +138,12 @@ export default function Footer({
             <span className="hover:text-gray-400 cursor-pointer">
               Garage Policies
             </span>
+            <button
+              onClick={() => onNavigate("admin")}
+              className="text-stone-600 hover:text-stone-400 text-[11px] font-mono transition cursor-pointer"
+            >
+              Staff Portal
+            </button>
           </div>
         </div>
       </div>

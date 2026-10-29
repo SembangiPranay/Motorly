@@ -261,21 +261,13 @@ export default function CheckoutView({
         setPromoStatus(
           `Success: ${res.discountPercent}% discount applied (${res.code})!`,
         )
-      } else if (code === "DRIVE15") {
-        setPromoDiscount(0.15)
-        setPromoStatus("Success: 15% discount applied!")
       } else {
         setPromoDiscount(0)
-        setPromoStatus(res?.message || "Invalid coupon code. Try: DRIVE15")
+        setPromoStatus(res?.message || "Invalid promo code.")
       }
     } catch {
-      if (code === "DRIVE15") {
-        setPromoDiscount(0.15)
-        setPromoStatus("Success: 15% discount applied!")
-      } else {
-        setPromoDiscount(0)
-        setPromoStatus("Invalid coupon code. Try: DRIVE15")
-      }
+      setPromoDiscount(0)
+      setPromoStatus("Failed to validate promo code.")
     }
     setTimeout(() => setPromoStatus(null), 4500)
   }
@@ -343,6 +335,17 @@ export default function CheckoutView({
     return Math.max(0, rHour - pHour)
   }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
   const pricingResult = useMemo(() => {
+    if (!car) {
+      return {
+        basePrice: 0,
+        rateType: "Daily",
+        effectiveDailyRate: 0,
+        hourlyRate: 0,
+        days: 0,
+        hours: 0,
+        originalDailyRate: 0,
+      }
+    }
     return calculateRentalPrice({
       car,
       isSameDay: isSameDayBooking,
@@ -449,6 +452,25 @@ export default function CheckoutView({
       })
       setIsSubmitting(false)
     }, 300)
+  }
+
+  if (!car) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className="text-2xl font-bold text-stone-900 font-heading">
+          No Vehicle Selected
+        </h2>
+        <p className="text-stone-500 text-sm">
+          Please choose a vehicle from our fleet catalog to proceed with reservation checkout.
+        </p>
+        <button
+          onClick={onNavigateListing}
+          className="px-6 py-2.5 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition cursor-pointer text-sm"
+        >
+          Browse Fleet Vehicles
+        </button>
+      </div>
+    )
   }
 
   return (

@@ -286,7 +286,7 @@ export default function AdminView({
 
   const [isMntModalOpen, setIsMntModalOpen] = useState(false)
   const [newMntData, setNewMntData] = useState({
-    carId: cars[0]?.id || "toyota-camry",
+    carId: cars[0]?.id || "",
     serviceType: "Synthetic Oil Change & Inspection",
     cost: 95,
     odometer: 15200,

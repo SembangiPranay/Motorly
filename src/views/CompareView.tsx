@@ -44,6 +44,24 @@ export default function CompareView({
   onQuickBook,
   onNavigateListing,
 }: CompareViewProps) {
+  if (cars.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className="text-2xl font-bold text-stone-900 font-heading">
+          No Vehicles to Compare
+        </h2>
+        <p className="text-stone-500 text-sm">
+          There are currently no vehicles in the fleet catalog to compare.
+        </p>
+        <button
+          onClick={onNavigateListing}
+          className="px-6 py-2.5 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition cursor-pointer text-sm"
+        >
+          Browse Fleet
+        </button>
+      </div>
+    )
+  }
   // Filter toggle: show all specs vs differences only
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false)
 

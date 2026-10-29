@@ -38,3 +38,8 @@ scripts/backups/
 
 .vercel
 .env*
+
+# Python & Pytest artifacts
+__pycache__/
+*.pyc
+.pytest_cache/

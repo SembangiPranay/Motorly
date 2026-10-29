@@ -18,6 +18,10 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:selenium": "python -m pytest tests/selenium",
+    "test:selenium:watch": "python -m pytest tests/selenium --slowmo 400",
+    "test:selenium:turbo": "python -m pytest tests/selenium --slowmo 0",
+    "test:selenium:headless": "python -m pytest tests/selenium --headless --slowmo 0",
     "test:auth": "playwright test e2e/auth_session_invalidation.spec.ts",
     "test:fsm": "playwright test e2e/fsm_booking_lifecycle.spec.ts",
     "format": "oxfmt src server scripts"

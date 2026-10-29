@@ -11,8 +11,6 @@ import type {
   ViewMode,
   CustomerUser,
 } from "./types"
-import { CARS } from "./data/cars"
-import { INITIAL_BOOKINGS } from "./data/initialBookings"
 import { api } from "./services/api"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
@@ -23,6 +21,7 @@ import CheckoutView from "./views/CheckoutView"
 import ConfirmationModal from "./views/ConfirmationModal"
 import AdminView from "./views/AdminView"
 import AdminLoginModal from "./components/AdminLoginModal"
+import AdminLoginGate from "./components/AdminLoginGate"
 import MyBookingsView from "./views/MyBookingsView"
 import CompareView from "./views/CompareView"
 import AuthView from "./views/AuthView"
@@ -120,18 +119,12 @@ export default function App() {
   )
   const [authReturnView, setAuthReturnView] = useState<ViewMode>("home")
   const [selectedCarId, setSelectedCarId] = useState<string>(() => {
-    return localStorage.getItem("motorly_selected_car_id") || "toyota-camry"
+    return localStorage.getItem("motorly_selected_car_id") || ""
   })
-  const [favorites, setFavorites] = useState<string[]>([
-    "toyota-camry",
-    "bmw-3-series",
-  ])
-  const [compareIds, setCompareIds] = useState<string[]>([
-    "toyota-camry",
-    "bmw-3-series",
-  ])
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [compareIds, setCompareIds] = useState<string[]>([])
 
-  // Dynamic Fleet State (synced with Supabase Backend with instant localStorage cache)
+  // Dynamic Fleet State (synced with Supabase Backend with zero static mock fallback)
   const [cars, setCars] = useState<Car[]>(() => {
     try {
       const saved = localStorage.getItem("motorly_cached_cars")
@@ -140,7 +133,7 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed
       }
     } catch {}
-    return CARS
+    return []
   })
 
   // Dynamic Bookings State (for car mating / allocation with instant localStorage cache)
@@ -166,7 +159,7 @@ export default function App() {
         }
       }
     } catch {}
-    return INITIAL_BOOKINGS
+    return []
   })
 
   // Keep localStorage cache in sync for instant, flicker-free reloads
@@ -195,7 +188,7 @@ export default function App() {
 
   // Booking parameters matching reference design with dynamic upcoming dates
   const [bookingState, setBookingState] = useState<BookingState>({
-    carId: "toyota-camry",
+    carId: "",
     pickupLocation: "Main Garage Facility",
     pickupDate: getUpcomingFormattedDate(2),
     pickupTime: "10:00 AM",
@@ -245,12 +238,6 @@ export default function App() {
           localStorage.removeItem("motorly_admin_token")
           localStorage.removeItem("motorly_admin_user")
           setIsAdminAuthenticated(false)
-          // Route to AuthView with admin tab if on admin view
-          if (currentView === "admin") {
-            setAuthInitialTab("admin")
-            setAuthReturnView("admin")
-            setCurrentView("auth")
-          }
         }
 
         // Load customer session if present
@@ -350,12 +337,12 @@ export default function App() {
 
   // Enforce customer login for booking reservations
   const handleProceedToCheckout = (carId?: string) => {
-    if (carId) {
-      setSelectedCarId(carId)
-      setBookingState((prev) => ({ ...prev, carId }))
+    const targetId = carId || selectedCarId
+    if (targetId) {
+      setSelectedCarId(targetId)
+      setBookingState((prev) => ({ ...prev, carId: targetId }))
     }
     if (!currentUser) {
-      setAuthInitialTab("customer")
       setAuthReturnView("checkout")
       setCurrentView("auth")
     } else {
@@ -366,15 +353,8 @@ export default function App() {
   // Guard navigation to Admin view with backend password authentication
   const handleNavigate = (view: ViewMode) => {
     if (view === "admin") {
-      if (isAdminAuthenticated) {
-        setCurrentView("admin")
-      } else {
-        setAuthInitialTab("admin")
-        setAuthReturnView("admin")
-        setCurrentView("auth")
-      }
+      setCurrentView("admin")
     } else if (view === "auth") {
-      setAuthInitialTab("customer")
       setAuthReturnView(currentView !== "auth" ? currentView : "home")
       setCurrentView("auth")
     } else {
@@ -391,9 +371,14 @@ export default function App() {
     bookingId: string
   }) => {
     if (!currentUser) {
-      setAuthInitialTab("customer")
       setAuthReturnView("checkout")
       setCurrentView("auth")
+      return
+    }
+
+    if (!activeCar) {
+      alert("No vehicle selected. Please select a vehicle from our fleet catalog.")
+      setCurrentView("listing")
       return
     }
 
@@ -462,6 +447,7 @@ export default function App() {
           currentUser={currentUser}
           setCurrentUser={setCurrentUser}
           compareCount={compareIds.length}
+          isAdminAuthenticated={isAdminAuthenticated}
           onLogoutCustomer={() => {
             api.logoutCustomer()
             setCurrentUser(null)
@@ -554,23 +540,17 @@ export default function App() {
           />
         )}
 
-        {/* Dedicated Modern JWT Authentication Page */}
+        {/* Dedicated Modern JWT Customer Authentication Page */}
         {currentView === "auth" && (
           <AuthView
-            initialTab={authInitialTab}
-            onSuccess={(role, user) => {
-              if (role === "admin") {
-                setIsAdminAuthenticated(true)
-                setCurrentView("admin")
-                api.getBookings().then((b) => b && setBookings(b)).catch(() => {})
-              } else {
-                if (user) setCurrentUser(user)
-                setCurrentView(
-                  authReturnView === "admin"
-                    ? "my-bookings"
-                    : authReturnView || "my-bookings",
-                )
-              }
+            initialMode="signin"
+            onSuccess={(_role, user) => {
+              if (user) setCurrentUser(user)
+              setCurrentView(
+                authReturnView === "admin"
+                  ? "my-bookings"
+                  : authReturnView || "my-bookings",
+              )
             }}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
@@ -595,19 +575,14 @@ export default function App() {
           />
         )}
 
-        {/* Fallback Auth view if in admin view without authenticated session */}
+        {/* Isolated Secure Executive Staff Gate */}
         {currentView === "admin" && !isAdminAuthenticated && (
-          <AuthView
-            initialTab="admin"
-            onSuccess={(role) => {
-              if (role === "admin") {
-                setIsAdminAuthenticated(true)
-                setCurrentView("admin")
-                api.getBookings().then((b) => b && setBookings(b)).catch(() => {})
-              }
+          <AdminLoginGate
+            onSuccess={() => {
+              setIsAdminAuthenticated(true)
+              api.getBookings().then((b) => b && setBookings(b)).catch(() => {})
             }}
             onNavigateHome={() => setCurrentView("home")}
-            onNavigateListing={() => setCurrentView("listing")}
           />
         )}
       </main>
@@ -633,13 +608,6 @@ export default function App() {
           onNavigateListing={() => {
             setConfirmedBooking(null)
             setCurrentView("listing")
-          }}
-          onNavigateAdmin={() => {
-            const bId = confirmedBooking.bookingId
-            setConfirmedBooking(null)
-            setTargetBookingId(bId)
-            setIsAdminAuthenticated(true)
-            setCurrentView("admin")
           }}
           onNavigateMyBookings={() => {
             setConfirmedBooking(null)

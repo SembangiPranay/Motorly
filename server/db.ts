@@ -906,45 +906,13 @@ function initSqliteTables() {
     } catch {}
   }
 
-  // Seed Vehicles if empty
-  const countRow = sqlite
-    .prepare("SELECT COUNT(*) as count FROM vehicles")
-    .get() as { count: number }
-  if (countRow.count === 0) {
-    seedVehicles()
-  }
-
-  // Seed Bookings if empty
-  const bookingCountRow = sqlite
-    .prepare("SELECT COUNT(*) as count FROM bookings")
-    .get() as { count: number }
-  if (bookingCountRow.count === 0) {
-    seedBookings()
-  }
-
-  // Seed Users if empty
-  const userCountRow = sqlite
-    .prepare("SELECT COUNT(*) as count FROM users")
-    .get() as { count: number }
-  if (userCountRow.count === 0) {
-    seedUsers()
-  }
-
-  // Seed Promos if empty
-  const promoCountRow = sqlite
-    .prepare("SELECT COUNT(*) as count FROM promo_codes")
-    .get() as { count: number }
-  if (promoCountRow.count === 0) {
-    seedPromos()
-  }
-
-  // Seed Maintenance if empty
-  const mntCountRow = sqlite
-    .prepare("SELECT COUNT(*) as count FROM maintenance_logs")
-    .get() as { count: number }
-  if (mntCountRow.count === 0) {
-    seedMaintenance()
-  }
+  // Automatic mock data seeding permanently disabled per user configuration:
+  // Database remains completely fresh and pristine with zero hardcoded / mock records.
+  // seedVehicles()
+  // seedBookings()
+  // seedUsers()
+  // seedPromos()
+  // seedMaintenance()
 
   console.log(`[DB] Local SQLite mirror initialized successfully at ${dbPath}`)
 }
