@@ -24,7 +24,7 @@ function roundRect(
   y: number,
   w: number,
   h: number,
-  r: number
+  r: number,
 ) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -41,7 +41,7 @@ function roundRect(
 export async function generateBookingInvoicePng(
   booking: BookingRecord,
   car?: Car,
-  settings?: InvoiceSettings
+  settings?: InvoiceSettings,
 ): Promise<string> {
   const canvas = document.createElement("canvas")
   canvas.width = 1200
@@ -105,7 +105,9 @@ export async function generateBookingInvoicePng(
 
   // Status Badge Pill
   const isApproved = Boolean(booking.approvedByAdmin)
-  let statusText = isApproved ? "CONFIRMED & DISPATCHED" : "PENDING FLEET REVIEW"
+  let statusText = isApproved
+    ? "CONFIRMED & DISPATCHED"
+    : "PENDING FLEET REVIEW"
   let badgeBg = isApproved ? "#065F46" : "#92400E"
   let badgeFg = isApproved ? "#34D399" : "#FBBF24"
 
@@ -159,7 +161,11 @@ export async function generateBookingInvoicePng(
   ctx.fillText("Primary Driver:", 55, cardY + 75)
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 15px system-ui, sans-serif"
-  ctx.fillText(`${booking.customer.firstName} ${booking.customer.lastName}`, 180, cardY + 75)
+  ctx.fillText(
+    `${booking.customer.firstName} ${booking.customer.lastName}`,
+    180,
+    cardY + 75,
+  )
 
   ctx.font = "500 13px system-ui, sans-serif"
   ctx.fillStyle = "#78716C"
@@ -180,14 +186,22 @@ export async function generateBookingInvoicePng(
   ctx.fillText("Driver License:", 55, cardY + 180)
   ctx.fillStyle = "#0284C7"
   ctx.font = "bold 14px monospace"
-  ctx.fillText(booking.driver?.licenseNumber || "FL-D89102-VAULT", 180, cardY + 180)
+  ctx.fillText(
+    booking.driver?.licenseNumber || "FL-D89102-VAULT",
+    180,
+    cardY + 180,
+  )
 
   ctx.font = "500 13px system-ui, sans-serif"
   ctx.fillStyle = "#78716C"
   ctx.fillText("License State/Exp:", 55, cardY + 215)
   ctx.fillStyle = "#1C1917"
   ctx.font = "600 13px system-ui, sans-serif"
-  ctx.fillText(`${booking.driver?.licenseState || "Florida"} • Expiry: ${booking.driver?.licenseExpiry || "12/2030"}`, 180, cardY + 215)
+  ctx.fillText(
+    `${booking.driver?.licenseState || "Florida"} • Expiry: ${booking.driver?.licenseExpiry || "12/2030"}`,
+    180,
+    cardY + 215,
+  )
 
   // Card Right: Assigned Vehicle Specifications
   ctx.fillStyle = "#FFFFFF"
@@ -204,7 +218,11 @@ export async function generateBookingInvoicePng(
   ctx.textAlign = "left"
   ctx.fillText("ASSIGNED VEHICLE SPECIFICATIONS", 640, cardY + 35)
 
-  const vehicleName = car?.name || booking.matchedCarId || booking.requestedCategory || "Fleet Rental Vehicle"
+  const vehicleName =
+    car?.name ||
+    booking.matchedCarId ||
+    booking.requestedCategory ||
+    "Fleet Rental Vehicle"
   ctx.font = "500 13px system-ui, sans-serif"
   ctx.fillStyle = "#78716C"
   ctx.fillText("Vehicle Model:", 640, cardY + 75)
@@ -217,7 +235,11 @@ export async function generateBookingInvoicePng(
   ctx.fillText("Vehicle Category:", 640, cardY + 110)
   ctx.fillStyle = "#1C1917"
   ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText(`${car?.type || booking.requestedCategory || "Luxury Sedan"} • ${car?.transmission || "Automatic"}`, 765, cardY + 110)
+  ctx.fillText(
+    `${car?.type || booking.requestedCategory || "Luxury Sedan"} • ${car?.transmission || "Automatic"}`,
+    765,
+    cardY + 110,
+  )
 
   ctx.font = "500 13px system-ui, sans-serif"
   ctx.fillStyle = "#78716C"
@@ -238,7 +260,11 @@ export async function generateBookingInvoicePng(
   ctx.fillText("Garage Bay Hub:", 640, cardY + 215)
   ctx.fillStyle = "#059669"
   ctx.font = "bold 13px monospace"
-  ctx.fillText(`${car?.garageName || booking.pickupLocation || settings?.hub_address || "Terminal Garage B • Bay 4 HQ"}`, 765, cardY + 215)
+  ctx.fillText(
+    `${car?.garageName || booking.pickupLocation || settings?.hub_address || "Terminal Garage B • Bay 4 HQ"}`,
+    765,
+    cardY + 215,
+  )
 
   // ========================================================
   // 3. SCHEDULE & DISPATCH TIMING CARD
@@ -295,8 +321,16 @@ export async function generateBookingInvoicePng(
   ctx.fillText("STATIONED DISPATCH HUB", 825, schedY + 80)
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 13px system-ui, sans-serif"
-  const hubName = booking.pickupLocation || car?.garageName || settings?.hub_address || "Terminal Garage B • Bay 4 HQ"
-  ctx.fillText(hubName.length > 30 ? hubName.slice(0, 30) + "..." : hubName, 825, schedY + 105)
+  const hubName =
+    booking.pickupLocation ||
+    car?.garageName ||
+    settings?.hub_address ||
+    "Terminal Garage B • Bay 4 HQ"
+  ctx.fillText(
+    hubName.length > 30 ? hubName.slice(0, 30) + "..." : hubName,
+    825,
+    schedY + 105,
+  )
   ctx.font = "600 11px monospace"
   ctx.fillStyle = "#F97316"
   ctx.fillText("Google Maps Directions Synced", 825, schedY + 130)
@@ -398,7 +432,11 @@ export async function generateBookingInvoicePng(
   ctx.fillText("TOTAL RENTAL AMOUNT DUE UPON KEY HANDOFF", 85, finY + 310)
   ctx.font = "500 12px system-ui, sans-serif"
   ctx.fillStyle = "#78716C"
-  ctx.fillText("Payment Method: Hub Counter (Card / Cash / Contactless)", 85, finY + 345)
+  ctx.fillText(
+    "Payment Method: Hub Counter (Card / Cash / Contactless)",
+    85,
+    finY + 345,
+  )
 
   ctx.textAlign = "right"
   ctx.fillStyle = "#F97316"
@@ -436,11 +474,33 @@ export async function generateBookingInvoicePng(
 
   ctx.font = "500 13px system-ui, sans-serif"
   ctx.fillStyle = "#57534E"
-  ctx.fillText(`Approving Authority: ${settings?.admin_name || "Studio Director • Fleet Operations"}`, 80, authY + 130)
-  ctx.fillText(`Audit Status: ${isApproved ? "VERIFIED & SIGNED OFF" : "AWAITING MANAGER APPROVAL"}`, 80, authY + 160)
-  ctx.fillText(`Dispatch Station: ${settings?.hub_address || "Terminal Garage B • Miami Airport"}`, 80, authY + 190)
-  ctx.fillText(`WhatsApp Hotline: ${settings?.contact_phone || "+91 77807 40223"}`, 80, authY + 220)
-  ctx.fillText(`Dispatch Email: ${settings?.contact_email || "nanikoushik96@gmail.com"}`, 80, authY + 250)
+  ctx.fillText(
+    `Approving Authority: ${settings?.admin_name || "Studio Director • Fleet Operations"}`,
+    80,
+    authY + 130,
+  )
+  ctx.fillText(
+    `Audit Status: ${
+      isApproved ? "VERIFIED & SIGNED OFF" : "AWAITING MANAGER APPROVAL"
+    }`,
+    80,
+    authY + 160,
+  )
+  ctx.fillText(
+    `Dispatch Station: ${settings?.hub_address || "Terminal Garage B • Miami Airport"}`,
+    80,
+    authY + 190,
+  )
+  ctx.fillText(
+    `WhatsApp Hotline: ${settings?.contact_phone || "+91 77807 40223"}`,
+    80,
+    authY + 220,
+  )
+  ctx.fillText(
+    `Dispatch Email: ${settings?.contact_email || "nanikoushik96@gmail.com"}`,
+    80,
+    authY + 250,
+  )
 
   // Right Security Box
   ctx.fillStyle = "#141518"
@@ -453,7 +513,11 @@ export async function generateBookingInvoicePng(
 
   ctx.fillStyle = "#E7E5E4"
   ctx.font = "12px monospace"
-  ctx.fillText(`SHA-256 MANIFEST: ${booking.id}-VERIFIED-AUDIT-MOTORLY`, 610, authY + 130)
+  ctx.fillText(
+    `SHA-256 MANIFEST: ${booking.id}-VERIFIED-AUDIT-MOTORLY`,
+    610,
+    authY + 130,
+  )
   ctx.fillText(`CLIENT IDENTIFIER: ${booking.customer.email}`, 610, authY + 160)
   ctx.fillText(`TIMESTAMP: ${new Date().toISOString()}`, 610, authY + 190)
 
@@ -468,14 +532,14 @@ export async function generateBookingInvoicePng(
   ctx.fillText(
     "Motorly Atelier Fleet Management Inc. • 24/7 Roadside & Hub Dispatch • Keep this invoice for vehicle key exchange.",
     600,
-    authY + 340
+    authY + 340,
   )
   ctx.font = "bold 11px monospace"
   ctx.fillStyle = "#78716C"
   ctx.fillText(
     `CONFIDENTIAL DOCUMENT • GENERATED BY MOTORLY ENTERPRISE STUDIO • RESERVATION ID: ${booking.id}`,
     600,
-    authY + 375
+    authY + 375,
   )
 
   return canvas.toDataURL("image/png")
@@ -487,7 +551,7 @@ export async function generateBookingInvoicePng(
 export async function downloadBookingInvoicePng(
   booking: BookingRecord,
   car?: Car,
-  settings?: InvoiceSettings
+  settings?: InvoiceSettings,
 ): Promise<void> {
   const dataUrl = await generateBookingInvoicePng(booking, car, settings)
   const link = document.createElement("a")

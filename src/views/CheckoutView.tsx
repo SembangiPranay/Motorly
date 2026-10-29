@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react"
+
 import type {
   Car,
   BookingState,
@@ -8,9 +9,13 @@ import type {
   CustomerUser,
   ViewMode,
 } from "../types"
+
 import { api } from "../services/api"
+
 import DateSchedulingModal from "../components/DateSchedulingModal"
+
 import { calculateRentalPrice } from "../utils/pricing"
+
 import {
   ShieldIcon,
   CardIcon,
@@ -26,177 +31,267 @@ import {
 
 interface CheckoutViewProps {
   car: Car
+
   bookingState: BookingState
+
   setBookingState: React.Dispatch<React.SetStateAction<BookingState>>
+
   currentUser?: CustomerUser | null
+
   onNavigateAuth?: (returnView: ViewMode) => void
+
   onConfirmBooking: (bookingDetails: {
     customer: CustomerInfo
+
     driver: DriverInfo
+
     payment: PaymentInfo
+
     totalAmount: number
+
     bookingId: string
   }) => void
+
   onNavigateHome: () => void
+
   onNavigateListing: () => void
 }
 
 export default function CheckoutView({
   car,
+
   bookingState,
+
   setBookingState,
+
   currentUser,
+
   onNavigateAuth,
+
   onConfirmBooking,
+
   onNavigateHome,
+
   onNavigateListing,
 }: CheckoutViewProps) {
   // Helper to compress uploaded image before storing/sending
+
   const compressImage = (
     file: File,
+
     maxDim = 1200,
+
     quality = 0.8,
   ): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader()
+
       reader.onload = (e) => {
         const img = new Image()
+
         img.onload = () => {
           let width = img.width
+
           let height = img.height
+
           if (width > maxDim || height > maxDim) {
             if (width > height) {
               height = Math.round((height * maxDim) / width)
+
               width = maxDim
             } else {
               width = Math.round((width * maxDim) / height)
+
               height = maxDim
             }
           }
+
           const canvas = document.createElement("canvas")
+
           canvas.width = width
+
           canvas.height = height
+
           const ctx = canvas.getContext("2d")
+
           if (ctx) {
             ctx.drawImage(img, 0, 0, width, height)
+
             resolve(canvas.toDataURL("image/jpeg", quality))
           } else {
             resolve(e.target?.result as string || "")
           }
         }
+
         img.onerror = () => resolve(e.target?.result as string || "")
+
         img.src = e.target?.result as string || ""
       }
+
       reader.onerror = () => resolve("")
+
       reader.readAsDataURL(file)
     })
   }
 
   // Form States - Initialize from authenticated customer
+
   const [customer, setCustomer] = useState<CustomerInfo>(() => {
     const parts = (currentUser?.name || "").trim().split(" ")
+
     return {
       firstName: parts[0] || "",
+
       lastName: parts.slice(1).join(" ") || "",
+
       email: currentUser?.email || "",
+
       phone: currentUser?.phone || "",
     }
   })
 
   const [driver, setDriver] = useState<DriverInfo>({
     dateOfBirth: "",
+
     licenseNumber: "",
+
     licenseState: "",
+
     licenseExpiry: "",
+
     licenseFileName: "",
+
     licenseBackFileName: "",
   })
 
   const [payment, setPayment] = useState<PaymentInfo>({
     method: "pickup",
+
     cardNumber: "",
+
     expiryDate: "",
+
     cvv: "",
+
     cardHolderName: "Pay at Hub",
   })
 
   const [uploadedFile, setUploadedFile] = useState<string>("")
+
   const [uploadedBackFile, setUploadedBackFile] = useState<string>("")
+
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+
   const [uploadedFrontDataUrl, setUploadedFrontDataUrl] =
     useState<string | null>(null)
+
   const [uploadedBackDataUrl, setUploadedBackDataUrl] = useState<string | null>(
     null,
   )
+
   const [isUploading, setIsUploading] = useState<boolean>(false)
+
   const [promoCode, setPromoCode] = useState<string>("")
+
   const [promoDiscount, setPromoDiscount] = useState<number>(0)
+
   const [promoStatus, setPromoStatus] = useState<string | null>(null)
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
+
     conflict: any
+
     loading: boolean
   }>({
     isAvailable: true,
+
     conflict: null,
+
     loading: false,
   })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
   const fileBackInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     ;(window as any).__setIsScheduleModalOpen = setIsScheduleModalOpen
+
     return () => {
       delete (window as any).__setIsScheduleModalOpen
     }
   }, [])
 
   // Populate form from authenticated customer user profile
+
   useEffect(() => {
     if (currentUser) {
       const parts = (currentUser.name || "").trim().split(" ")
+
       const first = parts[0] || ""
+
       const last = parts.slice(1).join(" ") || ""
+
       setCustomer((prev) => ({
         ...prev,
+
         firstName: first || prev.firstName,
+
         lastName: last || prev.lastName,
+
         email: currentUser.email || prev.email,
+
         phone: currentUser.phone || prev.phone,
       }))
+
       if (currentUser.driverLicenseNum) {
         setDriver((prev) => ({
           ...prev,
+
           licenseNumber: currentUser.driverLicenseNum || prev.licenseNumber,
+
           licenseState: currentUser.driverLicenseState || prev.licenseState,
+
           licenseExpiry: currentUser.driverLicenseExpiry || prev.licenseExpiry,
         }))
       }
+
       setPayment((prev) => ({
         ...prev,
+
         cardHolderName: currentUser.name || prev.cardHolderName,
       }))
     }
   }, [currentUser])
 
   // Double Booking Prevention: Check vehicle availability for active dates
+
   useEffect(() => {
     let isCancelled = false
+
     async function verifyAvailability() {
       if (!car?.id) return
+
       setAvailabilityCheck((prev) => ({ ...prev, loading: true }))
+
       try {
         const res = await api.checkCarAvailability(
           car.id,
+
           bookingState.pickupDate,
+
           bookingState.returnDate,
         )
+
         if (!isCancelled) {
           setAvailabilityCheck({
             isAvailable: Boolean(res.isAvailable),
+
             conflict: res.conflict,
+
             loading: false,
           })
         }
@@ -204,13 +299,17 @@ export default function CheckoutView({
         if (!isCancelled) {
           setAvailabilityCheck({
             isAvailable: true,
+
             conflict: null,
+
             loading: false,
           })
         }
       }
     }
+
     verifyAvailability()
+
     return () => {
       isCancelled = true
     }
@@ -218,22 +317,29 @@ export default function CheckoutView({
 
   const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
+
     isBack = false,
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+
       setIsUploading(true)
+
       try {
         const compressedDataUrl = await compressImage(file, 1200, 0.8)
+
         if (isBack) {
           setUploadedBackFile(file.name)
+
           setUploadedBackDataUrl(compressedDataUrl)
         } else {
           setUploadedFile(file.name)
+
           setUploadedFrontDataUrl(compressedDataUrl)
         }
       } catch (err) {
         console.warn("Image compression failed, using fallback", err)
+
         if (isBack) {
           setUploadedBackFile(file.name)
         } else {
@@ -247,70 +353,93 @@ export default function CheckoutView({
 
   const handleApplyPromo = async () => {
     const code = promoCode.trim().toUpperCase()
+
     if (!code) {
       setPromoDiscount(0)
+
       setPromoStatus("Please enter a promo code.")
+
       return
     }
 
     try {
       const res = await api.validatePromo(code)
+
       if (res && res.valid) {
         const discountFraction = (res.discountPercent || 15) / 100
+
         setPromoDiscount(discountFraction)
+
         setPromoStatus(
           `Success: ${res.discountPercent}% discount applied (${res.code})!`,
         )
       } else {
         setPromoDiscount(0)
+
         setPromoStatus(res?.message || "Invalid promo code.")
       }
     } catch {
       setPromoDiscount(0)
+
       setPromoStatus("Failed to validate promo code.")
     }
+
     setTimeout(() => setPromoStatus(null), 4500)
   }
 
   // Calculations matching reference design with promo support and live date math
+
   const maxDobStr = useMemo(() => {
     const d = new Date()
+
     d.setFullYear(d.getFullYear() - 21)
+
     return d.toISOString().split("T")[0]
   }, [])
 
   const minExpiryStr = useMemo(() => {
     try {
       const parsed = Date.parse(bookingState.returnDate)
+
       if (!isNaN(parsed)) {
         return new Date(parsed).toISOString().split("T")[0]
       }
     } catch {}
+
     return new Date().toISOString().split("T")[0]
   }, [bookingState.returnDate])
 
   const days = useMemo(() => {
     try {
       const start = Date.parse(bookingState.pickupDate)
+
       const end = Date.parse(bookingState.returnDate)
+
       if (!isNaN(start) && !isNaN(end) && end > start) {
         return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
       }
     } catch {}
+
     return bookingState.rentalDurationDays || 3
   }, [
     bookingState.pickupDate,
+
     bookingState.returnDate,
+
     bookingState.rentalDurationDays,
   ])
 
   const isSameDayBooking = useMemo(() => {
     if (!bookingState.pickupDate || !bookingState.returnDate) return false
+
     const p = new Date(bookingState.pickupDate)
+
     const r = new Date(bookingState.returnDate)
+
     if (isNaN(p.getTime()) || isNaN(r.getTime())) {
       return bookingState.pickupDate.trim() === bookingState.returnDate.trim()
     }
+
     return (
       p.getFullYear() === r.getFullYear() &&
       p.getMonth() === r.getMonth() &&
@@ -320,92 +449,141 @@ export default function CheckoutView({
 
   const sameDayHours = useMemo(() => {
     if (!isSameDayBooking) return 0
+
     const parseHour = (t?: string): number => {
       if (!t) return 10
+
       const parts = t.split(" ")
+
       const time = parts[0] || "10:00"
+
       const modifier = parts[1] || "AM"
+
       let [h] = time.split(":").map(Number)
+
       if (modifier === "PM" && h < 12) h += 12
+
       if (modifier === "AM" && h === 12) h = 0
+
       return h
     }
+
     const pHour = parseHour(bookingState.pickupTime)
+
     const rHour = parseHour(bookingState.returnTime)
+
     return Math.max(0, rHour - pHour)
   }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
+
   const pricingResult = useMemo(() => {
     if (!car) {
       return {
         tier: "daily" as const,
+
         basePrice: 0,
+
         rateApplied: 0,
+
         rateLabel: "$0/day",
+
         durationText: "0 Days",
       }
     }
+
     return calculateRentalPrice({
       car,
+
       isSameDay: isSameDayBooking,
+
       sameDayHours,
+
       days,
     })
   }, [car, isSameDayBooking, sameDayHours, days])
+
   const rawRentalTotal = pricingResult.basePrice
+
   const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
+
   const taxesAndFees = Number((discountedRentalTotal * 0.18).toFixed(2))
+
   const totalAmount = Number((discountedRentalTotal + taxesAndFees).toFixed(2))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!currentUser) {
       onNavigateAuth?.("checkout")
+
       return
     }
 
     // Validation 1: Past pickup date
+
     const pickupParsed = Date.parse(bookingState.pickupDate)
+
     if (!isNaN(pickupParsed) && pickupParsed < Date.now() - 15 * 60 * 1000) {
       alert("Pickup date cannot be in the past. Please select a future date.")
+
       return
     }
 
     // Validation 2: Driver Minimum Age (21+)
+
     if (driver.dateOfBirth) {
       const dobParsed = Date.parse(driver.dateOfBirth)
+
       if (isNaN(dobParsed)) {
         alert("Please enter a valid date of birth.")
+
         return
       }
+
       const refDate = !isNaN(pickupParsed) ? new Date(pickupParsed) : new Date()
+
       const bDate = new Date(dobParsed)
+
       let age = refDate.getFullYear() - bDate.getFullYear()
+
       const m = refDate.getMonth() - bDate.getMonth()
+
       if (m < 0 || (m === 0 && refDate.getDate() < bDate.getDate())) age--
+
       if (age < 21) {
         alert(
           `Driver must be at least 21 years old to rent a vehicle. (Calculated age: ${age} years old)`,
         )
+
         return
       }
     }
 
     // Validation 3: Driver License Expiry
+
     if (driver.licenseExpiry) {
       const expiryParsed = Date.parse(driver.licenseExpiry)
+
       if (isNaN(expiryParsed)) {
         alert("Please enter a valid driver's license expiration date.")
+
         return
       }
+
       if (expiryParsed <= Date.now()) {
-        alert("Driver's license is expired. Please provide a valid, unexpired license.")
+        alert(
+          "Driver's license is expired. Please provide a valid, unexpired license.",
+        )
+
         return
       }
+
       const returnParsed = Date.parse(bookingState.returnDate)
+
       if (!isNaN(returnParsed) && expiryParsed < returnParsed) {
         alert(
           "Driver's license expires before the rental return date. A license valid for the full trip duration is required.",
         )
+
         return
       }
     }
@@ -414,40 +592,61 @@ export default function CheckoutView({
       alert(
         `Double Booking Conflict: ${car.name} is reserved from ${availabilityCheck.conflict?.pickupDate} to ${availabilityCheck.conflict?.returnDate}. Please choose different dates or select another vehicle.`,
       )
+
       return
     }
+
     setIsSubmitting(true)
+
     const randomId = "MTR-" + Math.floor(100000 + Math.random() * 900000)
 
     const cleanEmail = (currentUser?.email || customer.email || "")
+
       .trim()
+
       .toLowerCase()
+
     const nameParts = (
       currentUser?.name || `${customer.firstName} ${customer.lastName}`
     )
+
       .trim()
+
       .split(" ")
+
     const finalCustomer: CustomerInfo = {
       firstName: customer.firstName || nameParts[0] || "Customer",
+
       lastName: customer.lastName || nameParts.slice(1).join(" ") || "Renter",
+
       email: cleanEmail,
+
       phone: customer.phone || currentUser?.phone || "+1 (555) 019-9000",
     }
 
     setTimeout(() => {
       onConfirmBooking({
         customer: finalCustomer,
+
         driver: {
           ...driver,
+
           licenseFileName: uploadedFile,
+
           licenseBackFileName: uploadedBackFile,
+
           licensePhotoFront: uploadedFrontDataUrl || undefined,
+
           licensePhotoBack: uploadedBackDataUrl || undefined,
         },
+
         payment,
+
         totalAmount,
+
         bookingId: randomId,
       })
+
       setIsSubmitting(false)
     }, 300)
   }
@@ -459,7 +658,8 @@ export default function CheckoutView({
           No Vehicle Selected
         </h2>
         <p className="text-stone-500 text-sm">
-          Please choose a vehicle from our fleet catalog to proceed with reservation checkout.
+          Please choose a vehicle from our fleet catalog to proceed with
+          reservation checkout.
         </p>
         <button
           onClick={onNavigateListing}
@@ -649,8 +849,13 @@ export default function CheckoutView({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-                  <span>Date of Birth (21+ Only) <span className="text-red-500">*</span></span>
-                  <span className="text-[10px] text-gray-400 font-normal">Must be 21+</span>
+                  <span>
+                    Date of Birth (21+ Only){" "}
+                    <span className="text-red-500">*</span>
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-normal">
+                    Must be 21+
+                  </span>
                 </label>
                 <input
                   type="date"
@@ -697,8 +902,13 @@ export default function CheckoutView({
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-                  <span>License Expiration Date <span className="text-red-500">*</span></span>
-                  <span className="text-[10px] text-gray-400 font-normal">Valid through trip</span>
+                  <span>
+                    License Expiration Date{" "}
+                    <span className="text-red-500">*</span>
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-normal">
+                    Valid through trip
+                  </span>
                 </label>
                 <input
                   type="date"
@@ -931,10 +1141,18 @@ export default function CheckoutView({
                           </span>
                         </div>
                         <span className="text-gray-700 text-xs font-semibold block mt-0.5">
-                          Date: <span className="text-stone-900 font-bold">{bookingState.pickupDate}</span>
+                          Date:{" "}
+                          <span className="text-stone-900 font-bold">
+                            {bookingState.pickupDate}
+                          </span>
                         </span>
                         <span className="text-stone-500 text-[11px] block mt-0.5">
-                          Schedule: <strong className="text-stone-800">{bookingState.pickupTime} → {bookingState.returnTime}</strong> (Return to garage today)
+                          Schedule:{" "}
+                          <strong className="text-stone-800">
+                            {bookingState.pickupTime} →{" "}
+                            {bookingState.returnTime}
+                          </strong>{" "}
+                          (Return to garage today)
                         </span>
                       </>
                     ) : (
@@ -943,8 +1161,9 @@ export default function CheckoutView({
                           Dates ({days} {days === 1 ? "Day" : "Days"} Duration)
                         </span>
                         <span className="text-gray-500 text-xs">
-                          {bookingState.pickupDate} ({bookingState.pickupTime}) →{" "}
-                          {bookingState.returnDate} ({bookingState.returnTime})
+                          {bookingState.pickupDate} ({bookingState.pickupTime})
+                          → {bookingState.returnDate} ({bookingState.returnTime}
+                          )
                         </span>
                       </>
                     )}
@@ -955,6 +1174,7 @@ export default function CheckoutView({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
+
                     setIsScheduleModalOpen(true)
                   }}
                   className="text-[11px] font-bold text-[#F97316] hover:underline shrink-0 cursor-pointer"
@@ -1147,7 +1367,9 @@ export default function CheckoutView({
                     ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
                     : pricingResult.tier === "monthly"
                       ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : `Vehicle Rental ($${car.pricePerDay} × ${days} ${days === 1 ? "day" : "days"})`}
+                      : `Vehicle Rental ($${car.pricePerDay} × ${days} ${
+                          days === 1 ? "day" : "days"
+                        })`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   ${rawRentalTotal.toFixed(2)}
@@ -1246,6 +1468,7 @@ export default function CheckoutView({
             type="button"
             onClick={() => {
               const btn = document.getElementById("confirm-booking-btn")
+
               if (btn) btn.click()
             }}
             disabled={isSubmitting || !availabilityCheck.isAvailable}
@@ -1273,6 +1496,7 @@ export default function CheckoutView({
         onApply={(data) => {
           setBookingState((prev) => ({
             ...prev,
+
             ...data,
           }))
         }}

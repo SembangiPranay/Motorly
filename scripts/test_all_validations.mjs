@@ -9,7 +9,10 @@ async function run() {
   const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "admin@motorly.com", password: ADMIN_PASSWORD }),
+    body: JSON.stringify({
+      email: "admin@motorly.com",
+      password: ADMIN_PASSWORD,
+    }),
   })
   const { token } = await loginRes.json()
   const authHeaders = {
@@ -50,14 +53,18 @@ async function run() {
     const dataPast = await resPast.json()
     console.log("  Status:", resPast.status, "| Error:", dataPast.error)
     if (resPast.status !== 400 || !dataPast.error?.includes("past")) {
-      throw new Error(`Failed Test 1: Expected 400 with past date error, got: ${resPast.status} ${JSON.stringify(dataPast)}`)
+      throw new Error(
+        `Failed Test 1: Expected 400 with past date error, got: ${resPast.status} ${JSON.stringify(dataPast)}`,
+      )
     }
     console.log("  ✅ Past-date booking rejected successfully.")
 
     // -------------------------------------------------------------
     // Test 2: Same-Day / Hourly Rental (Valid 5 hours)
     // -------------------------------------------------------------
-    console.log("\n[Test 2] Same-Day Rental (Valid 5 Hours: 10:00 AM to 03:00 PM)...")
+    console.log(
+      "\n[Test 2] Same-Day Rental (Valid 5 Hours: 10:00 AM to 03:00 PM)...",
+    )
     const testIdSameDay = `TEST-SAMEDAY-${Date.now().toString(36)}`
     const resSameDay = await fetch(`${BASE_URL}/api/bookings`, {
       method: "POST",
@@ -73,9 +80,18 @@ async function run() {
       }),
     })
     const dataSameDay = await resSameDay.json()
-    console.log("  Status:", resSameDay.status, "| Booking ID:", dataSameDay.id, "| Status:", dataSameDay.status)
+    console.log(
+      "  Status:",
+      resSameDay.status,
+      "| Booking ID:",
+      dataSameDay.id,
+      "| Status:",
+      dataSameDay.status,
+    )
     if (resSameDay.status !== 201) {
-      throw new Error(`Failed Test 2: Expected 201 for 5-hour same-day booking, got: ${resSameDay.status} ${JSON.stringify(dataSameDay)}`)
+      throw new Error(
+        `Failed Test 2: Expected 201 for 5-hour same-day booking, got: ${resSameDay.status} ${JSON.stringify(dataSameDay)}`,
+      )
     }
     createdIds.push(testIdSameDay)
     console.log("  ✅ Same-day 5-hour rental created successfully.")
@@ -83,7 +99,9 @@ async function run() {
     // -------------------------------------------------------------
     // Test 3: Same-Day Rental (Too Short: < 3 Hours)
     // -------------------------------------------------------------
-    console.log("\n[Test 3] Same-Day Rental Too Short (< 3 Hours: 10:00 AM to 11:30 AM)...")
+    console.log(
+      "\n[Test 3] Same-Day Rental Too Short (< 3 Hours: 10:00 AM to 11:30 AM)...",
+    )
     const resTooShort = await fetch(`${BASE_URL}/api/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,15 +115,22 @@ async function run() {
     })
     const dataTooShort = await resTooShort.json()
     console.log("  Status:", resTooShort.status, "| Error:", dataTooShort.error)
-    if (resTooShort.status !== 400 || !dataTooShort.error?.includes("3 hours")) {
-      throw new Error(`Failed Test 3: Expected 400 minimum duration error, got: ${resTooShort.status} ${JSON.stringify(dataTooShort)}`)
+    if (
+      resTooShort.status !== 400 ||
+      !dataTooShort.error?.includes("3 hours")
+    ) {
+      throw new Error(
+        `Failed Test 3: Expected 400 minimum duration error, got: ${resTooShort.status} ${JSON.stringify(dataTooShort)}`,
+      )
     }
     console.log("  ✅ Sub-3-hour booking rejected successfully.")
 
     // -------------------------------------------------------------
     // Test 4: Maximum Rental Duration (Exceeding 45 Days)
     // -------------------------------------------------------------
-    console.log("\n[Test 4] Maximum Rental Duration Ceiling (Exceeding 45 Days)...")
+    console.log(
+      "\n[Test 4] Maximum Rental Duration Ceiling (Exceeding 45 Days)...",
+    )
     const resTooLong = await fetch(`${BASE_URL}/api/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -120,14 +145,18 @@ async function run() {
     const dataTooLong = await resTooLong.json()
     console.log("  Status:", resTooLong.status, "| Error:", dataTooLong.error)
     if (resTooLong.status !== 400 || !dataTooLong.error?.includes("45 days")) {
-      throw new Error(`Failed Test 4: Expected 400 max duration error, got: ${resTooLong.status} ${JSON.stringify(dataTooLong)}`)
+      throw new Error(
+        `Failed Test 4: Expected 400 max duration error, got: ${resTooLong.status} ${JSON.stringify(dataTooLong)}`,
+      )
     }
     console.log("  ✅ >45-day booking rejected successfully.")
 
     // -------------------------------------------------------------
     // Test 5: Driver Minimum Age (Under 21)
     // -------------------------------------------------------------
-    console.log("\n[Test 5] Driver Minimum Age Enforcement (Under 21: Age 18)...")
+    console.log(
+      "\n[Test 5] Driver Minimum Age Enforcement (Under 21: Age 18)...",
+    )
     const resYoung = await fetch(`${BASE_URL}/api/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,7 +174,9 @@ async function run() {
     const dataYoung = await resYoung.json()
     console.log("  Status:", resYoung.status, "| Error:", dataYoung.error)
     if (resYoung.status !== 400 || !dataYoung.error?.includes("21 years old")) {
-      throw new Error(`Failed Test 5: Expected 400 age guard error, got: ${resYoung.status} ${JSON.stringify(dataYoung)}`)
+      throw new Error(
+        `Failed Test 5: Expected 400 age guard error, got: ${resYoung.status} ${JSON.stringify(dataYoung)}`,
+      )
     }
     console.log("  ✅ Under-21 driver rejected successfully.")
 
@@ -170,7 +201,9 @@ async function run() {
     const dataExpired = await resExpired.json()
     console.log("  Status:", resExpired.status, "| Error:", dataExpired.error)
     if (resExpired.status !== 400 || !dataExpired.error?.includes("expired")) {
-      throw new Error(`Failed Test 6: Expected 400 expired license error, got: ${resExpired.status} ${JSON.stringify(dataExpired)}`)
+      throw new Error(
+        `Failed Test 6: Expected 400 expired license error, got: ${resExpired.status} ${JSON.stringify(dataExpired)}`,
+      )
     }
     console.log("  ✅ Expired license rejected successfully.")
 
@@ -193,16 +226,28 @@ async function run() {
       }),
     })
     const dataMidTrip = await resExpiringMidTrip.json()
-    console.log("  Status:", resExpiringMidTrip.status, "| Error:", dataMidTrip.error)
-    if (resExpiringMidTrip.status !== 400 || !dataMidTrip.error?.includes("before the scheduled rental return date")) {
-      throw new Error(`Failed Test 7: Expected 400 mid-trip expiry error, got: ${resExpiringMidTrip.status} ${JSON.stringify(dataMidTrip)}`)
+    console.log(
+      "  Status:",
+      resExpiringMidTrip.status,
+      "| Error:",
+      dataMidTrip.error,
+    )
+    if (
+      resExpiringMidTrip.status !== 400 ||
+      !dataMidTrip.error?.includes("before the scheduled rental return date")
+    ) {
+      throw new Error(
+        `Failed Test 7: Expected 400 mid-trip expiry error, got: ${resExpiringMidTrip.status} ${JSON.stringify(dataMidTrip)}`,
+      )
     }
     console.log("  ✅ License expiring mid-trip rejected successfully.")
 
     // -------------------------------------------------------------
     // Test 8: Invalid Customer Contact Info
     // -------------------------------------------------------------
-    console.log("\n[Test 8] Invalid Customer Contact Details (Malformed Email)...")
+    console.log(
+      "\n[Test 8] Invalid Customer Contact Details (Malformed Email)...",
+    )
     const resBadEmail = await fetch(`${BASE_URL}/api/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -221,7 +266,9 @@ async function run() {
     const dataBadEmail = await resBadEmail.json()
     console.log("  Status:", resBadEmail.status, "| Error:", dataBadEmail.error)
     if (resBadEmail.status !== 400 || !dataBadEmail.error?.includes("email")) {
-      throw new Error(`Failed Test 8: Expected 400 email error, got: ${resBadEmail.status} ${JSON.stringify(dataBadEmail)}`)
+      throw new Error(
+        `Failed Test 8: Expected 400 email error, got: ${resBadEmail.status} ${JSON.stringify(dataBadEmail)}`,
+      )
     }
     console.log("  ✅ Malformed contact info rejected successfully.")
 
@@ -235,7 +282,10 @@ async function run() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: testIdValid,
-        customer: { ...baseCustomer, email: `full-valid-${Date.now()}@test.org` },
+        customer: {
+          ...baseCustomer,
+          email: `full-valid-${Date.now()}@test.org`,
+        },
         driver: baseDriver,
         pickupDate: "2026-11-10 10:00",
         returnDate: "2026-11-14 18:00",
@@ -244,15 +294,26 @@ async function run() {
       }),
     })
     const dataValid = await resValid.json()
-    console.log("  Status:", resValid.status, "| Booking ID:", dataValid.id, "| Status:", dataValid.status)
+    console.log(
+      "  Status:",
+      resValid.status,
+      "| Booking ID:",
+      dataValid.id,
+      "| Status:",
+      dataValid.status,
+    )
     if (resValid.status !== 201) {
-      throw new Error(`Failed Test 9: Expected 201 valid booking, got: ${resValid.status} ${JSON.stringify(dataValid)}`)
+      throw new Error(
+        `Failed Test 9: Expected 201 valid booking, got: ${resValid.status} ${JSON.stringify(dataValid)}`,
+      )
     }
     createdIds.push(testIdValid)
-    console.log("  ✅ Fully valid booking accepted with status:", dataValid.status)
+    console.log(
+      "  ✅ Fully valid booking accepted with status:",
+      dataValid.status,
+    )
 
     console.log("\n🎉 ALL 9 BOOKING VALIDATION TESTS PASSED WITH 100% SUCCESS!")
-
   } finally {
     console.log("\nCleaning up test bookings:", createdIds)
     for (const id of createdIds) {

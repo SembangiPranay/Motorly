@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react"
+
 import { createPortal } from "react-dom"
+
 import type {
   Car,
   FilterState,
@@ -8,9 +10,13 @@ import type {
   Transmission,
   FuelType,
 } from "../types"
+
 import { api } from "../services/api"
+
 import DateSchedulingModal from "../components/DateSchedulingModal"
+
 import { calculateRentalPrice } from "../utils/pricing"
+
 import {
   HeartIcon,
   ArrowRightIcon,
@@ -31,87 +37,136 @@ import {
 
 interface ListingViewProps {
   cars: Car[]
+
   bookingState: BookingState
+
   setBookingState: React.Dispatch<React.SetStateAction<BookingState>>
+
   filterState: FilterState
+
   setFilterState: React.Dispatch<React.SetStateAction<FilterState>>
+
   favorites: string[]
+
   onToggleFavorite: (id: string) => void
+
   compareIds?: string[]
+
   setCompareIds?: React.Dispatch<React.SetStateAction<string[]>>
+
   onNavigateCompare?: () => void
+
   onSelectCar: (carId: string) => void
+
   onQuickBook?: (carId: string) => void
 }
 
 function formatDisplayDate(dateStr?: string) {
   if (!dateStr) return ""
+
   try {
     const parts = dateStr.split("-")
+
     if (parts.length === 3) {
       const year = parseInt(parts[0], 10)
+
       const month = parseInt(parts[1], 10) - 1
+
       const day = parseInt(parts[2], 10)
+
       const d = new Date(year, month, day)
+
       if (!isNaN(d.getTime())) {
         return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
       }
     }
   } catch {}
+
   return dateStr
 }
 
 export default function ListingView({
   cars: initialCars,
+
   bookingState,
+
   setBookingState,
+
   filterState,
+
   setFilterState,
+
   favorites,
+
   onToggleFavorite,
+
   compareIds: propCompareIds,
+
   setCompareIds: propSetCompareIds,
+
   onNavigateCompare,
+
   onSelectCar,
+
   onQuickBook,
 }: ListingViewProps) {
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
+
   const [desktopFilterOpen, setDesktopFilterOpen] = useState(true)
+
   const [searchQuery, setSearchQuery] = useState("")
+
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+
   const [internalCompareIds, setInternalCompareIds] = useState<string[]>([])
+
   const compareIds = propCompareIds ?? internalCompareIds
+
   const setCompareIds = propSetCompareIds ?? setInternalCompareIds
+
   const [isCompareOpen, setIsCompareOpen] = useState(false)
+
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
 
   // Live Backend Synced Fleet State
+
   const [liveCars, setLiveCars] = useState<Car[]>(initialCars)
+
   const [backendSyncing, setBackendSyncing] = useState(false)
 
   // Calculate exact days between pickup and return dates dynamically
+
   const tripDurationDays = useMemo(() => {
     try {
       const start = Date.parse(bookingState.pickupDate)
+
       const end = Date.parse(bookingState.returnDate)
+
       if (!isNaN(start) && !isNaN(end) && end > start) {
         return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
       }
     } catch {}
+
     return bookingState.rentalDurationDays || 3
   }, [
     bookingState.pickupDate,
+
     bookingState.returnDate,
+
     bookingState.rentalDurationDays,
   ])
 
   const isSameDayBooking = useMemo(() => {
     if (!bookingState.pickupDate || !bookingState.returnDate) return false
+
     const p = new Date(bookingState.pickupDate)
+
     const r = new Date(bookingState.returnDate)
+
     if (isNaN(p.getTime()) || isNaN(r.getTime())) {
       return bookingState.pickupDate.trim() === bookingState.returnDate.trim()
     }
+
     return (
       p.getFullYear() === r.getFullYear() &&
       p.getMonth() === r.getMonth() &&
@@ -121,31 +176,47 @@ export default function ListingView({
 
   const sameDayHours = useMemo(() => {
     if (!isSameDayBooking) return 0
+
     const parseHour = (t?: string): number => {
       if (!t) return 10
+
       const parts = t.split(" ")
+
       const time = parts[0] || "10:00"
+
       const modifier = parts[1] || "AM"
+
       let [h] = time.split(":").map(Number)
+
       if (modifier === "PM" && h < 12) h += 12
+
       if (modifier === "AM" && h === 12) h = 0
+
       return h
     }
+
     const pHour = parseHour(bookingState.pickupTime)
+
     const rHour = parseHour(bookingState.returnTime)
+
     return Math.max(0, rHour - pHour)
   }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
 
   // Synchronize with backend availability on mount and when dates change
+
   useEffect(() => {
     let isMounted = true
+
     async function syncBackendAvailability() {
       setBackendSyncing(true)
+
       try {
         const freshCars = await api.getCars({
           pickupDate: bookingState.pickupDate,
+
           returnDate: bookingState.returnDate,
         })
+
         if (isMounted && Array.isArray(freshCars)) {
           setLiveCars(freshCars)
         }
@@ -157,12 +228,14 @@ export default function ListingView({
     }
 
     syncBackendAvailability()
+
     return () => {
       isMounted = false
     }
   }, [bookingState.pickupDate, bookingState.returnDate])
 
   // Keep liveCars updated if initialCars changes from parent
+
   useEffect(() => {
     if (Array.isArray(initialCars)) {
       if (initialCars.length === 0) {
@@ -171,11 +244,15 @@ export default function ListingView({
         setLiveCars((prev) => {
           return initialCars.map((ic) => {
             const match = prev.find((p) => p.id === ic.id)
+
             return match
               ? {
                   ...ic,
+
                   isAvailableForDates: match.isAvailableForDates,
+
                   conflict: match.conflict,
+
                   statusForDates: match.statusForDates,
                 }
               : ic
@@ -186,77 +263,106 @@ export default function ListingView({
   }, [initialCars])
 
   // Filter & Sort calculation
+
   const filteredCars = useMemo(() => {
     return liveCars
+
       .filter((car) => {
         // Text Search
+
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase()
+
           const matchName = car.name.toLowerCase().includes(q)
+
           const matchBrand = car.brand.toLowerCase().includes(q)
+
           const matchType = car.type.toLowerCase().includes(q)
+
           const matchLocation = (
             car.garageName ||
             car.garageAddress ||
             car.location ||
             ""
           )
+
             .toLowerCase()
+
             .includes(q)
+
           if (!matchName && !matchBrand && !matchType && !matchLocation)
             return false
         }
 
         // Vehicle Type filter
+
         if (
           filterState.types.length > 0 &&
           !filterState.types.includes(car.type)
         ) {
           return false
         }
+
         // Price filter
+
         if (car.pricePerDay > filterState.maxPrice) {
           return false
         }
+
         // Transmission filter
+
         if (
           filterState.transmissions.length > 0 &&
           !filterState.transmissions.includes(car.transmission)
         ) {
           return false
         }
+
         // Fuel Type filter
+
         if (
           filterState.fuelTypes.length > 0 &&
           !filterState.fuelTypes.includes(car.fuelType)
         ) {
           return false
         }
+
         // Seats filter
+
         if (filterState.seats.length > 0) {
           const matchSeat = filterState.seats.some((s) => {
             if (s === 6) return car.seats >= 6
+
             return car.seats === s
           })
+
           if (!matchSeat) return false
         }
+
         // Features filter
+
         if (filterState.features.length > 0) {
           const hasAllFeatures = filterState.features.every((f) =>
-            car.features.some((cf) =>
+            (car.features || []).some((cf) =>
               cf.toLowerCase().includes(f.toLowerCase()),
             ),
           )
+
           if (!hasAllFeatures) return false
         }
+
         return true
       })
+
       .sort((a, b) => {
         if (filterState.sortBy === "price-asc")
           return a.pricePerDay - b.pricePerDay
+
         if (filterState.sortBy === "price-desc")
           return b.pricePerDay - a.pricePerDay
+
         if (filterState.sortBy === "rating") return b.rating - a.rating
+
         return 0 // recommended
       })
   }, [liveCars, filterState, searchQuery])
@@ -273,8 +379,10 @@ export default function ListingView({
   const handleTypeToggle = (type: VehicleType) => {
     setFilterState((prev) => {
       const exists = prev.types.includes(type)
+
       return {
         ...prev,
+
         types: exists
           ? prev.types.filter((t) => t !== type)
           : [...prev.types, type],
@@ -285,8 +393,10 @@ export default function ListingView({
   const handleTransmissionToggle = (trans: Transmission) => {
     setFilterState((prev) => {
       const exists = prev.transmissions.includes(trans)
+
       return {
         ...prev,
+
         transmissions: exists
           ? prev.transmissions.filter((t) => t !== trans)
           : [...prev.transmissions, trans],
@@ -297,8 +407,10 @@ export default function ListingView({
   const handleFuelToggle = (fuel: FuelType) => {
     setFilterState((prev) => {
       const exists = prev.fuelTypes.includes(fuel)
+
       return {
         ...prev,
+
         fuelTypes: exists
           ? prev.fuelTypes.filter((f) => f !== fuel)
           : [...prev.fuelTypes, fuel],
@@ -309,8 +421,10 @@ export default function ListingView({
   const handleSeatToggle = (seats: number) => {
     setFilterState((prev) => {
       const exists = prev.seats.includes(seats)
+
       return {
         ...prev,
+
         seats: exists
           ? prev.seats.filter((s) => s !== seats)
           : [...prev.seats, seats],
@@ -320,13 +434,20 @@ export default function ListingView({
 
   const clearAllFilters = () => {
     setSearchQuery("")
+
     setFilterState({
       types: [],
+
       maxPrice: 500,
+
       transmissions: [],
+
       fuelTypes: [],
+
       seats: [],
+
       features: [],
+
       sortBy: "recommended",
     })
   }
@@ -344,6 +465,7 @@ export default function ListingView({
   const comparedCars = liveCars.filter((c) => compareIds.includes(c.id))
 
   // Shared Filter Controls (Used in Desktop Sidebar & Mobile Bottom Sheet Drawer)
+
   const renderFilterControls = () => (
     <div className="space-y-6">
       {/* Vehicle Type */}
@@ -355,7 +477,9 @@ export default function ListingView({
           {(["Economy", "Sedan", "SUV", "Luxury", "Van"] as VehicleType[]).map(
             (type) => {
               const count = liveCars.filter((c) => c.type === type).length
+
               const checked = filterState.types.includes(type)
+
               return (
                 <label
                   key={type}
@@ -401,6 +525,7 @@ export default function ListingView({
           onChange={(e) =>
             setFilterState((prev) => ({
               ...prev,
+
               maxPrice: Number(e.target.value),
             }))
           }
@@ -477,6 +602,7 @@ export default function ListingView({
         <div className="grid grid-cols-4 gap-2">
           {[2, 4, 5, 6].map((seatNum) => {
             const isChecked = filterState.seats.includes(seatNum)
+
             return (
               <button
                 key={seatNum}
@@ -549,7 +675,9 @@ export default function ListingView({
                   <span className="text-[10px] sm:text-xs font-bold text-[#F97316] bg-orange-100 px-2 py-0.5 rounded-md border border-orange-200">
                     {isSameDayBooking
                       ? `⚡ Same-Day (${sameDayHours} Hours)`
-                      : `${tripDurationDays} ${tripDurationDays === 1 ? "day" : "days"}`}
+                      : `${tripDurationDays} ${
+                          tripDurationDays === 1 ? "day" : "days"
+                        }`}
                   </span>
                 </div>
 
@@ -567,6 +695,7 @@ export default function ListingView({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
+
                 setIsScheduleModalOpen(true)
               }}
               className="px-3 sm:px-4 py-2 bg-white group-hover:bg-[#F97316] text-stone-700 group-hover:text-white border border-stone-200 group-hover:border-[#F97316] text-xs font-bold rounded-xl transition-all ml-auto shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
@@ -681,6 +810,7 @@ export default function ListingView({
                   onChange={(e) =>
                     setFilterState((prev) => ({
                       ...prev,
+
                       sortBy: e.target.value as FilterState["sortBy"],
                     }))
                   }
@@ -785,6 +915,7 @@ export default function ListingView({
               onClick={() =>
                 setFilterState((prev) => ({
                   ...prev,
+
                   maxPrice: prev.maxPrice <= 60 ? 500 : 60,
                 }))
               }
@@ -884,6 +1015,7 @@ export default function ListingView({
               </div>
             ) : viewMode === "grid" ? (
               /* GRID VIEW: High-Impact Visual Showcase */
+
               <div
                 className={`grid gap-5 sm:gap-6 ${
                   desktopFilterOpen
@@ -893,16 +1025,23 @@ export default function ListingView({
               >
                 {filteredCars.map((car) => {
                   const isFav = favorites.includes(car.id)
+
                   const isCompared = compareIds.includes(car.id)
+
                   const pricing = calculateRentalPrice({
                     car,
+
                     isSameDay: isSameDayBooking,
+
                     sameDayHours,
+
                     days: tripDurationDays,
                   })
+
                   const tripTotal = pricing.basePrice
 
                   // Dynamic conflict & availability check against requested dates
+
                   const isRentedOrConflicted =
                     car.status === "Rented" ||
                     car.statusForDates === "Reserved" ||
@@ -959,6 +1098,7 @@ export default function ListingView({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation()
+
                               toggleCompare(car.id)
                             }}
                             title={
@@ -979,6 +1119,7 @@ export default function ListingView({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation()
+
                               onToggleFavorite(car.id)
                             }}
                             title={
@@ -1103,7 +1244,10 @@ export default function ListingView({
                                   /day
                                 </span>
                                 <span className="text-[11px] text-stone-400 font-medium ml-1">
-                                  (${car.pricePerHour}/hr • ${car.pricePerMonth || Math.round(car.pricePerDay * 22)}/mo)
+                                  (${car.pricePerHour}/hr • $
+                                  {car.pricePerMonth ||
+                                    Math.round(car.pricePerDay * 22)}
+                                  /mo)
                                 </span>
                               </div>
                               <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
@@ -1156,14 +1300,19 @@ export default function ListingView({
               </div>
             ) : (
               /* LIST VIEW: High-Density Studio Rows */
+
               <div className="space-y-4">
                 {filteredCars.map((car) => {
                   const pricing = calculateRentalPrice({
                     car,
+
                     isSameDay: isSameDayBooking,
+
                     sameDayHours,
+
                     days: tripDurationDays,
                   })
+
                   const tripTotal = pricing.basePrice
 
                   const isRentedOrConflicted =
@@ -1278,7 +1427,7 @@ export default function ListingView({
 
                         {/* Top Features */}
                         <div className="flex flex-wrap gap-2 text-[11px] text-stone-500 pt-1">
-                          {car.features.slice(0, 4).map((f) => (
+                          {(car.features || []).slice(0, 4).map((f) => (
                             <span
                               key={f}
                               className="flex items-center gap-1 text-stone-600 font-medium"
@@ -1300,7 +1449,10 @@ export default function ListingView({
                             </span>
                           </div>
                           <div className="text-[11px] text-stone-400 font-medium">
-                            ${car.pricePerHour || 8}/hr • ${car.pricePerMonth || Math.round(car.pricePerDay * 22)}/mo
+                            ${car.pricePerHour || 8}/hr • $
+                            {car.pricePerMonth ||
+                              Math.round(car.pricePerDay * 22)}
+                            /mo
                           </div>
                           <div className="text-[11px] font-bold text-emerald-700 mt-0.5">
                             ${tripTotal} total • {pricing.durationText}
@@ -1449,6 +1601,7 @@ export default function ListingView({
               </div>
             </div>
           </div>,
+
           document.body,
         )}
 
@@ -1478,6 +1631,7 @@ export default function ListingView({
                     <button
                       onClick={() => {
                         setIsCompareOpen(false)
+
                         onNavigateCompare()
                       }}
                       className="text-xs font-bold text-[#F97316] hover:text-orange-700 flex items-center gap-1 mr-2 px-3 py-1.5 rounded-lg bg-orange-50 border border-orange-200 transition cursor-pointer"
@@ -1504,6 +1658,7 @@ export default function ListingView({
                     <button
                       onClick={() => {
                         setIsCompareOpen(false)
+
                         onNavigateCompare()
                       }}
                       className="px-4 py-2 bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
@@ -1558,6 +1713,7 @@ export default function ListingView({
                       <button
                         onClick={() => {
                           setIsCompareOpen(false)
+
                           if (onQuickBook) onQuickBook(car.id)
                           else onSelectCar(car.id)
                         }}
@@ -1571,6 +1727,7 @@ export default function ListingView({
               )}
             </div>
           </div>,
+
           document.body,
         )}
 
@@ -1586,6 +1743,7 @@ export default function ListingView({
         onApply={(data) => {
           setBookingState((prev) => ({
             ...prev,
+
             ...data,
           }))
         }}

@@ -346,7 +346,9 @@ export default function DateSchedulingModal({
                 setTripMode("same-day")
                 setSelectedReturn(new Date(selectedPickup))
                 if (returnHour < pickupHour + 3) {
-                  setReturnTime(formatHourToTimeStr(Math.min(22, pickupHour + 8)))
+                  setReturnTime(
+                    formatHourToTimeStr(Math.min(22, pickupHour + 8)),
+                  )
                 }
               }}
               className={`py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
@@ -386,7 +388,12 @@ export default function DateSchedulingModal({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                   <ClockIcon size={14} className="text-[#F97316]" />
-                  <span>Same-Day Rental Hours: <span className="text-[#F97316]">{sameDayHours} Hours Total</span></span>
+                  <span>
+                    Same-Day Rental Hours:{" "}
+                    <span className="text-[#F97316]">
+                      {sameDayHours} Hours Total
+                    </span>
+                  </span>
                 </span>
                 <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
                   Min 3 Hrs • Return by {returnTime}
@@ -495,180 +502,183 @@ export default function DateSchedulingModal({
             </div>
           )}
 
-        {/* Interactive Month Calendar */}
-        <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80 space-y-3">
-          {/* Month Navigation Row */}
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              disabled={isCurrentMonthOrPast}
-              onClick={handlePrevMonth}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs ${
-                isCurrentMonthOrPast
-                  ? "opacity-30 cursor-not-allowed bg-stone-100 border-stone-200 text-stone-400"
-                  : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100 cursor-pointer"
-              }`}
-            >
-              ← Prev
-            </button>
-            <h4 className="text-sm font-extrabold text-stone-900 font-heading">
-              {FULL_MONTHS[month]} {year}
-            </h4>
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-xs font-bold transition cursor-pointer shadow-xs"
-            >
-              Next →
-            </button>
-          </div>
+          {/* Interactive Month Calendar */}
+          <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80 space-y-3">
+            {/* Month Navigation Row */}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                disabled={isCurrentMonthOrPast}
+                onClick={handlePrevMonth}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs ${
+                  isCurrentMonthOrPast
+                    ? "opacity-30 cursor-not-allowed bg-stone-100 border-stone-200 text-stone-400"
+                    : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100 cursor-pointer"
+                }`}
+              >
+                ← Prev
+              </button>
+              <h4 className="text-sm font-extrabold text-stone-900 font-heading">
+                {FULL_MONTHS[month]} {year}
+              </h4>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-xs font-bold transition cursor-pointer shadow-xs"
+              >
+                Next →
+              </button>
+            </div>
 
-          {/* Weekday Headers */}
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-stone-400 py-1">
-            <span>Su</span>
-            <span>Mo</span>
-            <span>Tu</span>
-            <span>We</span>
-            <span>Th</span>
-            <span>Fr</span>
-            <span>Sa</span>
-          </div>
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-stone-400 py-1">
+              <span>Su</span>
+              <span>Mo</span>
+              <span>Tu</span>
+              <span>We</span>
+              <span>Th</span>
+              <span>Fr</span>
+              <span>Sa</span>
+            </div>
 
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold">
-            {/* Empty offset padding for days before the 1st */}
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} className="h-9" />
-            ))}
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold">
+              {/* Empty offset padding for days before the 1st */}
+              {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                <div key={`empty-${i}`} className="h-9" />
+              ))}
 
-            {/* Days of Month */}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1
-              const thisDate = new Date(year, month, day)
-              const isPast = thisDate < today
-              const isPickup = isSameDay(thisDate, selectedPickup)
-              const isReturn = isSameDay(thisDate, selectedReturn)
-              const isInRange =
-                thisDate > selectedPickup && thisDate < selectedReturn
+              {/* Days of Month */}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1
+                const thisDate = new Date(year, month, day)
+                const isPast = thisDate < today
+                const isPickup = isSameDay(thisDate, selectedPickup)
+                const isReturn = isSameDay(thisDate, selectedReturn)
+                const isInRange =
+                  thisDate > selectedPickup && thisDate < selectedReturn
 
-              if (isPast) {
+                if (isPast) {
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      disabled
+                      className="h-9 w-full rounded-xl flex items-center justify-center opacity-25 cursor-not-allowed bg-stone-100/60 text-stone-400 font-medium"
+                      title="Past dates are unavailable"
+                    >
+                      <span className="text-xs">{day}</span>
+                    </button>
+                  )
+                }
+
+                let style =
+                  "bg-white hover:bg-orange-50 text-stone-800 border border-transparent"
+                if (isPickup || isReturn) {
+                  style =
+                    "bg-[#F97316] text-white font-extrabold shadow-sm scale-105 z-10"
+                } else if (isInRange) {
+                  style = "bg-orange-100/80 text-[#C2410C] font-bold"
+                }
+
                 return (
                   <button
                     key={day}
                     type="button"
-                    disabled
-                    className="h-9 w-full rounded-xl flex items-center justify-center opacity-25 cursor-not-allowed bg-stone-100/60 text-stone-400 font-medium"
-                    title="Past dates are unavailable"
+                    onClick={() => handleDayClick(day)}
+                    className={`h-9 w-full rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${style}`}
                   >
                     <span className="text-xs">{day}</span>
+                    {isPickup && isReturn ? (
+                      <span className="text-[7.5px] font-black uppercase tracking-tighter leading-none -mt-0.5">
+                        Same Day
+                      </span>
+                    ) : isPickup ? (
+                      <span className="text-[8px] font-black uppercase tracking-tighter leading-none -mt-0.5">
+                        Pickup
+                      </span>
+                    ) : isReturn ? (
+                      <span className="text-[8px] font-black uppercase tracking-tighter leading-none -mt-0.5">
+                        Return
+                      </span>
+                    ) : null}
                   </button>
                 )
-              }
-
-              let style =
-                "bg-white hover:bg-orange-50 text-stone-800 border border-transparent"
-              if (isPickup || isReturn) {
-                style =
-                  "bg-[#F97316] text-white font-extrabold shadow-sm scale-105 z-10"
-              } else if (isInRange) {
-                style = "bg-orange-100/80 text-[#C2410C] font-bold"
-              }
-
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => handleDayClick(day)}
-                  className={`h-9 w-full rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${style}`}
-                >
-                  <span className="text-xs">{day}</span>
-                  {isPickup && isReturn ? (
-                    <span className="text-[7.5px] font-black uppercase tracking-tighter leading-none -mt-0.5">
-                      Same Day
-                    </span>
-                  ) : isPickup ? (
-                    <span className="text-[8px] font-black uppercase tracking-tighter leading-none -mt-0.5">
-                      Pickup
-                    </span>
-                  ) : isReturn ? (
-                    <span className="text-[8px] font-black uppercase tracking-tighter leading-none -mt-0.5">
-                      Return
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Pickup & Return Time Selectors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          <div className="bg-stone-50 rounded-2xl p-3 border border-stone-200/80 space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1">
-              <ClockIcon size={12} className="text-[#F97316]" />
-              <span>Pickup Time ({formatDateStr(selectedPickup)})</span>
-            </label>
-            <select
-              value={pickupTime}
-              onChange={(e) => {
-                const newPickupTime = e.target.value
-                setPickupTime(newPickupTime)
-                if (isSameDayBooking) {
-                  const newPickupHour = parseHourFromTimeStr(newPickupTime)
-                  if (returnHour < newPickupHour + 3) {
-                    const newReturnHour = Math.min(22, Math.max(newPickupHour + 4, 17))
-                    setReturnTime(formatHourToTimeStr(newReturnHour))
-                  }
-                }
-              }}
-              className="w-full text-xs font-bold text-stone-900 bg-white border border-stone-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs"
-            >
-              {TIME_OPTIONS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="bg-stone-50 rounded-2xl p-3 border border-stone-200/80 space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center justify-between">
-              <span className="flex items-center gap-1">
-                <ClockIcon size={12} className="text-[#F97316]" />
-                <span>
-                  {isSameDayBooking
-                    ? `Return Time (Same-Day • ${formatDateStr(selectedReturn)})`
-                    : `Return Time (${formatDateStr(selectedReturn)})`}
-                </span>
-              </span>
-              {isSameDayBooking && (
-                <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-md">
-                  ⚡ {sameDayHours} Hrs Trip
-                </span>
-              )}
-            </label>
-            <select
-              value={returnTime}
-              onChange={(e) => setReturnTime(e.target.value)}
-              className="w-full text-xs font-bold text-stone-900 bg-white border border-stone-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs"
-            >
-              {TIME_OPTIONS.map((t) => {
-                const tHour = parseHourFromTimeStr(t)
-                const isTooEarlyForSameDay =
-                  isSameDayBooking && tHour < pickupHour + 3
-                return (
-                  <option
-                    key={t}
-                    value={t}
-                    disabled={isTooEarlyForSameDay}
-                    className={isTooEarlyForSameDay ? "text-stone-300" : ""}
-                  >
-                    {t} {isTooEarlyForSameDay ? "(Min 3 hrs required)" : ""}
-                  </option>
-                )
               })}
-            </select>
+            </div>
           </div>
+
+          {/* Pickup & Return Time Selectors */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="bg-stone-50 rounded-2xl p-3 border border-stone-200/80 space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1">
+                <ClockIcon size={12} className="text-[#F97316]" />
+                <span>Pickup Time ({formatDateStr(selectedPickup)})</span>
+              </label>
+              <select
+                value={pickupTime}
+                onChange={(e) => {
+                  const newPickupTime = e.target.value
+                  setPickupTime(newPickupTime)
+                  if (isSameDayBooking) {
+                    const newPickupHour = parseHourFromTimeStr(newPickupTime)
+                    if (returnHour < newPickupHour + 3) {
+                      const newReturnHour = Math.min(
+                        22,
+                        Math.max(newPickupHour + 4, 17),
+                      )
+                      setReturnTime(formatHourToTimeStr(newReturnHour))
+                    }
+                  }
+                }}
+                className="w-full text-xs font-bold text-stone-900 bg-white border border-stone-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs"
+              >
+                {TIME_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-stone-50 rounded-2xl p-3 border border-stone-200/80 space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <ClockIcon size={12} className="text-[#F97316]" />
+                  <span>
+                    {isSameDayBooking
+                      ? `Return Time (Same-Day • ${formatDateStr(selectedReturn)})`
+                      : `Return Time (${formatDateStr(selectedReturn)})`}
+                  </span>
+                </span>
+                {isSameDayBooking && (
+                  <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-md">
+                    ⚡ {sameDayHours} Hrs Trip
+                  </span>
+                )}
+              </label>
+              <select
+                value={returnTime}
+                onChange={(e) => setReturnTime(e.target.value)}
+                className="w-full text-xs font-bold text-stone-900 bg-white border border-stone-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer shadow-xs"
+              >
+                {TIME_OPTIONS.map((t) => {
+                  const tHour = parseHourFromTimeStr(t)
+                  const isTooEarlyForSameDay =
+                    isSameDayBooking && tHour < pickupHour + 3
+                  return (
+                    <option
+                      key={t}
+                      value={t}
+                      disabled={isTooEarlyForSameDay}
+                      className={isTooEarlyForSameDay ? "text-stone-300" : ""}
+                    >
+                      {t} {isTooEarlyForSameDay ? "(Min 3 hrs required)" : ""}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
           </div>
         </div>
 

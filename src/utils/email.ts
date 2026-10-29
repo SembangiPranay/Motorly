@@ -22,7 +22,7 @@ export interface EmailUrls {
 export function getEmailUrls(
   recipientEmail?: string | null,
   subject: string = "",
-  body: string = ""
+  body: string = "",
 ): EmailUrls {
   const recipient = (recipientEmail || "nanikoushik96@gmail.com").trim()
   const encodedTo = encodeURIComponent(recipient)
@@ -51,7 +51,7 @@ export function openEmailDirect(
   recipientEmail?: string | null,
   subject: string = "",
   body: string = "",
-  mode: "gmail" | "mailto" | "auto" = "auto"
+  mode: "gmail" | "mailto" | "auto" = "auto",
 ): void {
   const urls = getEmailUrls(recipientEmail, subject, body)
 
@@ -66,7 +66,10 @@ export function openEmailDirect(
   }
 
   // Auto mode: on mobile, try mailto to trigger Gmail/Mail app directly; on desktop open Gmail compose
-  if (typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+  if (
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  ) {
     window.location.href = urls.mailtoUrl
   } else {
     window.open(urls.gmailUrl, "_blank", "noopener,noreferrer")

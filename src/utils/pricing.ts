@@ -21,9 +21,11 @@ export function calculateRentalPrice(params: {
 }): PricingCalculationResult {
   const { car, isSameDay, sameDayHours = 8, days } = params
 
-  const effectiveHourlyRate = car.pricePerHour || Math.max(5, Math.round(car.pricePerDay / 7))
+  const effectiveHourlyRate =
+    car.pricePerHour || Math.max(5, Math.round(car.pricePerDay / 7))
   const effectiveDailyRate = car.pricePerDay || 50
-  const effectiveMonthlyRate = car.pricePerMonth || getDefaultMonthlyPrice(effectiveDailyRate)
+  const effectiveMonthlyRate =
+    car.pricePerMonth || getDefaultMonthlyPrice(effectiveDailyRate)
 
   if (isSameDay) {
     const hours = Math.max(3, sameDayHours)
@@ -40,7 +42,9 @@ export function calculateRentalPrice(params: {
   if (days >= 30) {
     const months = Math.floor(days / 30)
     const remainderDays = days % 30
-    const basePrice = Math.round(months * effectiveMonthlyRate + remainderDays * effectiveDailyRate)
+    const basePrice = Math.round(
+      months * effectiveMonthlyRate + remainderDays * effectiveDailyRate,
+    )
     const standardDailyCost = days * effectiveDailyRate
     const savings = standardDailyCost - basePrice
 
@@ -49,8 +53,11 @@ export function calculateRentalPrice(params: {
       basePrice,
       rateApplied: effectiveMonthlyRate,
       rateLabel: `$${effectiveMonthlyRate}/mo`,
-      durationText: `${days} Days (${months} Mo${remainderDays > 0 ? ` + ${remainderDays}d` : ""})`,
-      savingsText: savings > 0 ? `Save $${savings.toLocaleString()} vs daily` : undefined,
+      durationText: `${days} Days (${months} Mo${
+        remainderDays > 0 ? ` + ${remainderDays}d` : ""
+      })`,
+      savingsText:
+        savings > 0 ? `Save $${savings.toLocaleString()} vs daily` : undefined,
     }
   }
 

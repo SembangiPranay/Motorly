@@ -418,7 +418,10 @@ export default function MyBookingsView({
             type="button"
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200 text-stone-800 text-xs sm:text-sm font-bold transition shadow-2xs cursor-pointer group"
           >
-            <HomeIcon size={16} className="text-orange-500 group-hover:scale-110 transition-transform" />
+            <HomeIcon
+              size={16}
+              className="text-orange-500 group-hover:scale-110 transition-transform"
+            />
             <span>Home</span>
           </button>
           <div className="flex items-center gap-2">
@@ -804,7 +807,8 @@ export default function MyBookingsView({
                                   </span>
                                 </div>
                               </div>
-                              {(b.status === "Checked Out" || b.keysHandedAt) && (
+                              {(b.status === "Checked Out" ||
+                                b.keysHandedAt) && (
                                 <div className="mt-3 pt-3 border-t border-emerald-100 flex items-center justify-between text-xs font-medium text-emerald-800">
                                   <span className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -1048,7 +1052,8 @@ export default function MyBookingsView({
                                 </p>
                                 <p className="text-stone-700 font-mono font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
                                   <span>{b.returnDate}</span>
-                                  {b.pickupDate?.split(" ")[0] === b.returnDate?.split(" ")[0] && (
+                                  {b.pickupDate?.split(" ")[0] ===
+                                    b.returnDate?.split(" ")[0] && (
                                     <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded">
                                       ⚡ Same Day
                                     </span>
@@ -1157,9 +1162,12 @@ export default function MyBookingsView({
                                 {b.id}
                               </td>
                               <td className="px-5 py-3 text-stone-600 font-mono">
-                                {b.pickupDate?.split(" ")[0] === b.returnDate?.split(" ")[0] ? (
+                                {b.pickupDate?.split(" ")[0] ===
+                                b.returnDate?.split(" ")[0] ? (
                                   <span className="flex items-center gap-1.5 flex-wrap">
-                                    <span>{b.pickupDate} → {b.returnDate}</span>
+                                    <span>
+                                      {b.pickupDate} → {b.returnDate}
+                                    </span>
                                     <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded">
                                       ⚡ Same Day
                                     </span>

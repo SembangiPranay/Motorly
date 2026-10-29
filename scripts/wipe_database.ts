@@ -34,22 +34,28 @@ export async function wipeDatabase(preserveAdmin = true) {
     // Delete all customer users, preserve or re-create root admin
     try {
       await db.prepare("DELETE FROM users WHERE role != 'admin'").run()
-      const existingAdmin = (await db.prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1").get()) as any
+      const existingAdmin = (await db
+        .prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1")
+        .get()) as any
       if (!existingAdmin) {
         const hash = await bcrypt.hash("0709", 10)
-        await db.prepare(`
+        await db
+          .prepare(`
           INSERT INTO users (id, email, password_hash, name, phone, role, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          "usr_admin",
-          "admin@motorly.com",
-          hash,
-          "Fleet Operations Admin",
-          "+1 (555) 019-9000",
-          "admin",
-          new Date().toISOString()
+        `)
+          .run(
+            "usr_admin",
+            "admin@motorly.com",
+            hash,
+            "Fleet Operations Admin",
+            "+1 (555) 019-9000",
+            "admin",
+            new Date().toISOString(),
+          )
+        console.log(
+          "[ADMIN] Root admin account initialized (admin@motorly.com / pass: 0709).",
         )
-        console.log("[ADMIN] Root admin account initialized (admin@motorly.com / pass: 0709).")
       } else {
         console.log("[ADMIN] Existing root admin account preserved.")
       }
@@ -60,18 +66,32 @@ export async function wipeDatabase(preserveAdmin = true) {
   } else {
     try {
       await db.prepare("DELETE FROM users").run()
-      console.log("[CLEARED] Table 'users' wiped completely (0 users remaining).")
+      console.log(
+        "[CLEARED] Table 'users' wiped completely (0 users remaining).",
+      )
     } catch (err: any) {
       console.error("[ERROR] Failed wiping users table:", err.message)
     }
   }
 
   console.log("\n--- VERIFYING CLEAN STATE ---")
-  const allTables = ["vehicles", "bookings", "users", "customer_sessions", "admin_sessions", "promo_codes", "maintenance_logs"]
+  const allTables = [
+    "vehicles",
+    "bookings",
+    "users",
+    "customer_sessions",
+    "admin_sessions",
+    "promo_codes",
+    "maintenance_logs",
+  ]
   for (const t of allTables) {
     try {
-      const res = (await db.prepare(`SELECT COUNT(*) as count FROM ${t}`).get()) as any
-      console.log(`  • ${t.padEnd(20)}: ${res.count ?? res[0]?.count ?? 0} rows`)
+      const res = (await db
+        .prepare(`SELECT COUNT(*) as count FROM ${t}`)
+        .get()) as any
+      console.log(
+        `  • ${t.padEnd(20)}: ${res.count ?? res[0]?.count ?? 0} rows`,
+      )
     } catch (err: any) {
       console.log(`  • ${t.padEnd(20)}: Error reading count (${err.message})`)
     }
@@ -81,9 +101,11 @@ export async function wipeDatabase(preserveAdmin = true) {
 
 // Check CLI argument
 const preserve = !process.argv.includes("--wipe-all-users")
-wipeDatabase(preserve).then(() => {
-  process.exit(0)
-}).catch((e) => {
-  console.error("Wipe failed:", e)
-  process.exit(1)
-})
+wipeDatabase(preserve)
+  .then(() => {
+    process.exit(0)
+  })
+  .catch((e) => {
+    console.error("Wipe failed:", e)
+    process.exit(1)
+  })

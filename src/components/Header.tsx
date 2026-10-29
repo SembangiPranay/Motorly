@@ -1,6 +1,9 @@
 import React, { useState } from "react"
+
 import type { ViewMode, CustomerUser } from "../types"
+
 import { api } from "../services/api"
+
 import {
   ArrowRightIcon,
   UserIcon,
@@ -12,52 +15,83 @@ import {
 
 interface HeaderProps {
   currentView: ViewMode
+
   onNavigate: (view: ViewMode) => void
+
   currentUser?: CustomerUser | null
+
   setCurrentUser?: (user: CustomerUser | null) => void
+
   compareCount?: number
+
   onLogoutCustomer?: () => void
+
   isAdminAuthenticated?: boolean
+
   onToggleSidebar?: () => void
 }
 
 export default function Header({
   currentView,
+
   onNavigate,
+
   currentUser,
+
   setCurrentUser,
+
   compareCount = 0,
+
   onLogoutCustomer,
+
   isAdminAuthenticated = false,
+
   onToggleSidebar,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   const [showSignInModal, setShowSignInModal] = useState(false)
+
   const [authTab, setAuthTab] = useState<"signin" | "register">("signin")
+
   const [authEmail, setAuthEmail] = useState("")
+
   const [authPassword, setAuthPassword] = useState("")
+
   const [authName, setAuthName] = useState("")
+
   const [authPhone, setAuthPhone] = useState("")
+
   const [authError, setAuthError] = useState<string | null>(null)
+
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
 
   const [showAboutModal, setShowAboutModal] = useState(false)
+
   const [showContactModal, setShowContactModal] = useState(false)
+
   const [contactSuccess, setContactSuccess] = useState(false)
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     setAuthError(null)
+
     setIsSubmittingAuth(true)
+
     try {
       if (authTab === "signin") {
         const res = await api.loginCustomer({
           email: authEmail,
+
           password: authPassword,
         })
+
         if (res.success && res.user) {
           if (setCurrentUser) setCurrentUser(res.user)
+
           setShowSignInModal(false)
+
           onNavigate("my-bookings")
         } else {
           setAuthError(res.message || "Invalid credentials.")
@@ -65,13 +99,19 @@ export default function Header({
       } else {
         const res = await api.registerCustomer({
           email: authEmail,
+
           password: authPassword,
+
           name: authName,
+
           phone: authPhone,
         })
+
         if (res.success && res.user) {
           if (setCurrentUser) setCurrentUser(res.user)
+
           setShowSignInModal(false)
+
           onNavigate("my-bookings")
         } else {
           setAuthError(res.message || "Registration failed.")
@@ -161,8 +201,10 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("home")
+
                 setTimeout(() => {
                   const el = document.getElementById("how-it-works")
+
                   if (el) el.scrollIntoView({ behavior: "smooth" })
                 }, 100)
               }}
@@ -291,6 +333,7 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("home")
+
                 setMobileMenuOpen(false)
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
@@ -300,6 +343,7 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("listing")
+
                 setMobileMenuOpen(false)
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
@@ -309,6 +353,7 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("compare")
+
                 setMobileMenuOpen(false)
               }}
               className="w-full text-left py-2 font-medium text-gray-700 flex items-center justify-between"
@@ -323,6 +368,7 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("my-bookings")
+
                 setMobileMenuOpen(false)
               }}
               className="w-full text-left py-2 font-medium text-gray-700 flex items-center justify-between"
@@ -335,6 +381,7 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("about")
+
                 setMobileMenuOpen(false)
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
@@ -344,6 +391,7 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("contact")
+
                 setMobileMenuOpen(false)
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
@@ -354,6 +402,7 @@ export default function Header({
               <button
                 onClick={() => {
                   onNavigate("admin")
+
                   setMobileMenuOpen(false)
                 }}
                 className="block w-full text-left py-2 font-bold text-[#F97316]"
@@ -385,6 +434,7 @@ export default function Header({
                   <button
                     onClick={() => {
                       if (onLogoutCustomer) onLogoutCustomer()
+
                       setMobileMenuOpen(false)
                     }}
                     className="w-full h-11 text-center font-bold text-xs text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition"
@@ -396,6 +446,7 @@ export default function Header({
                 <button
                   onClick={() => {
                     onNavigate("auth")
+
                     setMobileMenuOpen(false)
                   }}
                   className="w-full h-11 text-center font-bold text-xs border border-gray-300 rounded-xl bg-white text-stone-800 hover:bg-stone-50 transition shadow-xs"
@@ -406,6 +457,7 @@ export default function Header({
               <button
                 onClick={() => {
                   onNavigate("listing")
+
                   setMobileMenuOpen(false)
                 }}
                 className="w-full h-11 text-center font-bold text-xs text-white bg-[#F97316] hover:bg-[#EA580C] rounded-xl shadow-md transition"
@@ -477,6 +529,7 @@ export default function Header({
                     type="button"
                     onClick={() => {
                       setAuthEmail("john.doe@email.com")
+
                       setAuthPassword("pass123")
                     }}
                     className="px-2 py-0.5 rounded bg-white border border-stone-200 text-[11px] font-medium text-stone-700 hover:border-orange-500 transition"
@@ -487,6 +540,7 @@ export default function Header({
                     type="button"
                     onClick={() => {
                       setAuthEmail("david.c@techventure.io")
+
                       setAuthPassword("pass123")
                     }}
                     className="px-2 py-0.5 rounded bg-white border border-stone-200 text-[11px] font-medium text-stone-700 hover:border-orange-500 transition"
@@ -613,6 +667,7 @@ export default function Header({
             <button
               onClick={() => {
                 setShowAboutModal(false)
+
                 onNavigate("listing")
               }}
               className="w-full py-3 bg-[#17191C] hover:bg-black text-white text-xs font-bold rounded-xl transition-colors shadow"
@@ -630,6 +685,7 @@ export default function Header({
             <button
               onClick={() => {
                 setShowContactModal(false)
+
                 setContactSuccess(false)
               }}
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100"
@@ -661,6 +717,7 @@ export default function Header({
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
+
                   setContactSuccess(true)
                 }}
                 className="space-y-3"

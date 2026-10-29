@@ -31,7 +31,9 @@ export default function AdminLoginModal({
         setPassword("")
         onSuccess()
       } else {
-        setError(res.message || "Invalid administrator credentials. Access denied.")
+        setError(
+          res.message || "Invalid administrator credentials. Access denied.",
+        )
       }
     } catch {
       setError("Network error connecting to backend.")

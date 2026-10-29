@@ -829,7 +829,11 @@ export function MailIcon({ size = 20, className = "", ...props }: IconProps) {
   )
 }
 
-export function SettingsIcon({ size = 20, className = "", ...props }: IconProps) {
+export function SettingsIcon({
+  size = 20,
+  className = "",
+  ...props
+}: IconProps) {
   return (
     <svg
       width={size}

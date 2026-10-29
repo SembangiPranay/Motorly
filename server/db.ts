@@ -38,7 +38,10 @@ if (!isProduction) {
       sqliteInstance = new sqliteMod.DatabaseSync(dbPath)
     }
   } catch (e: any) {
-    console.warn("[DB] Local SQLite initialization skipped/disabled:", e?.message)
+    console.warn(
+      "[DB] Local SQLite initialization skipped/disabled:",
+      e?.message,
+    )
   }
 }
 
@@ -154,7 +157,9 @@ export interface DbExecutor {
   prepare(sql: string): {
     all: (...params: any[]) => Promise<any[]>
     get: (...params: any[]) => Promise<any>
-    run: (...params: any[]) => Promise<{
+    run: (
+      ...params: any[]
+    ) => Promise<{
       changes: number
       rowCount: number
     }>
@@ -447,7 +452,9 @@ export async function initDatabase() {
   // First, attempt direct connection to Supabase PostgreSQL (Universal AWS pooler port 6543)
   console.log("[DB] Connecting to Supabase PostgreSQL...")
   try {
-    const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL].filter(Boolean)
+    const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL].filter(
+      Boolean,
+    )
     let connected = false
 
     for (const connStr of candidateUrls) {

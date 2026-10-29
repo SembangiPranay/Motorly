@@ -10,7 +10,10 @@ async function run() {
   const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "admin@motorly.com", password: ADMIN_PASSWORD }),
+    body: JSON.stringify({
+      email: "admin@motorly.com",
+      password: ADMIN_PASSWORD,
+    }),
   })
   const loginData = await loginRes.json()
   if (!loginData.token) {
@@ -48,11 +51,21 @@ async function run() {
     body: JSON.stringify(bookingPayload),
   })
   const createData = await createRes.json()
-  const createdBooking = createData.booking || (createData.id ? createData : null)
+  const createdBooking =
+    createData.booking || (createData.id ? createData : null)
   if (!createdBooking) {
-    throw new Error(`Failed to create test booking: ${JSON.stringify(createData)}`)
+    throw new Error(
+      `Failed to create test booking: ${JSON.stringify(createData)}`,
+    )
   }
-  console.log("1. Created Pending Review booking:", createdBooking.id, "Status:", createdBooking.status, "Approved:", createdBooking.approvedByAdmin)
+  console.log(
+    "1. Created Pending Review booking:",
+    createdBooking.id,
+    "Status:",
+    createdBooking.status,
+    "Approved:",
+    createdBooking.approvedByAdmin,
+  )
 
   try {
     // 3. Admin Accepts the Request (POST /api/bookings/:id/accept)
@@ -64,7 +77,10 @@ async function run() {
     console.log("2. Admin Accept Response:", acceptData.message)
     console.log("   Updated Booking Status:", acceptData.booking.status)
     console.log("   Approved by Admin:", acceptData.booking.approvedByAdmin)
-    console.log("   Matched Car ID:", acceptData.booking.matchedCarId || "None (Pending Assignment)")
+    console.log(
+      "   Matched Car ID:",
+      acceptData.booking.matchedCarId || "None (Pending Assignment)",
+    )
 
     // 4. Assert invariants
     if (acceptData.booking.status === "Cancelled") {
@@ -73,13 +89,20 @@ async function run() {
     if (!acceptData.booking.approvedByAdmin) {
       throw new Error("CRITICAL FAILURE: approvedByAdmin is false!")
     }
-    if (acceptData.booking.status !== "Assigned" && acceptData.booking.status !== "Pending Assignment") {
+    if (
+      acceptData.booking.status !== "Assigned" &&
+      acceptData.booking.status !== "Pending Assignment"
+    ) {
       throw new Error(`Unexpected status: ${acceptData.booking.status}`)
     }
 
     // 5. Simulate AdminView badge logic
     const b = acceptData.booking
-    const isPendingReview = !b.approvedByAdmin && (b.status === "Pending Assignment" || b.status === "Draft" || b.status === "Reserved")
+    const isPendingReview =
+      !b.approvedByAdmin &&
+      (b.status === "Pending Assignment" ||
+        b.status === "Draft" ||
+        b.status === "Reserved")
     let badgeText = ""
     if (isPendingReview) {
       badgeText = "Pending Review"
@@ -118,35 +141,55 @@ async function run() {
       body: JSON.stringify(bookingPayload2),
     })
     const createData2 = await createRes2.json()
-    console.log("5. Created Unmateable category booking response:", JSON.stringify(createData2))
-    const acceptRes2 = await fetch(`${BASE_URL}/api/bookings/${testId2}/accept`, {
-      method: "POST",
-      headers: authHeaders,
-    })
+    console.log(
+      "5. Created Unmateable category booking response:",
+      JSON.stringify(createData2),
+    )
+    const acceptRes2 = await fetch(
+      `${BASE_URL}/api/bookings/${testId2}/accept`,
+      {
+        method: "POST",
+        headers: authHeaders,
+      },
+    )
     const acceptData2 = await acceptRes2.json()
     console.log("6. Admin Accept Response JSON:", JSON.stringify(acceptData2))
     console.log("   Admin Accept Response:", acceptData2.message)
     console.log("   Updated Booking Status:", acceptData2.booking.status)
     console.log("   Approved by Admin:", acceptData2.booking.approvedByAdmin)
-    console.log("   Matched Car ID:", acceptData2.booking.matchedCarId || "None (Pending Assignment)")
+    console.log(
+      "   Matched Car ID:",
+      acceptData2.booking.matchedCarId || "None (Pending Assignment)",
+    )
 
     const b2 = acceptData2.booking
-    const isPendingReview2 = !b2.approvedByAdmin && (b2.status === "Pending Assignment" || b2.status === "Draft" || b2.status === "Reserved")
+    const isPendingReview2 =
+      !b2.approvedByAdmin &&
+      (b2.status === "Pending Assignment" ||
+        b2.status === "Draft" ||
+        b2.status === "Reserved")
     let badgeText2 = ""
     if (isPendingReview2) {
       badgeText2 = "Pending Review"
     } else if (b2.status === "Assigned") {
       badgeText2 = "Confirmed (Ready)"
     } else if (b2.status === "Pending Assignment") {
-      badgeText2 = b2.approvedByAdmin ? "Approved (Assign Car)" : "Pending Mating"
+      badgeText2 = b2.approvedByAdmin
+        ? "Approved (Assign Car)"
+        : "Pending Mating"
     } else if (b2.status === "Cancelled") {
       badgeText2 = "Declined"
     } else {
       badgeText2 = b2.status
     }
-    console.log("7. Simulated AdminView Badge Text for Unassigned Approved:", badgeText2)
+    console.log(
+      "7. Simulated AdminView Badge Text for Unassigned Approved:",
+      badgeText2,
+    )
     if (badgeText2 === "Declined") {
-      throw new Error("CRITICAL FAILURE: Unassigned approved booking badge resolved to Declined!")
+      throw new Error(
+        "CRITICAL FAILURE: Unassigned approved booking badge resolved to Declined!",
+      )
     }
     console.log("✅ UNASSIGNED APPROVAL VERIFIED: Badge is", badgeText2)
 
@@ -154,7 +197,6 @@ async function run() {
       method: "DELETE",
       headers: authHeaders,
     }).catch(() => {})
-
   } finally {
     // Cleanup test record
     await fetch(`${BASE_URL}/api/bookings/${testId}`, {

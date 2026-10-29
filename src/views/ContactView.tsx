@@ -28,7 +28,8 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
 
   const ownerPhone = "+1 (555) 123-4567"
   const ownerEmail = "nanikoushik96@gmail.com"
-  const garageAddress = "Main Garage Facility, Bay 1 Handoff Station, Miami, FL 33101"
+  const garageAddress =
+    "Main Garage Facility, Bay 1 Handoff Station, Miami, FL 33101"
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,7 +93,9 @@ _Sent via MOTORLY Direct Contact Portal_`
             Home
           </button>
           <span>&gt;</span>
-          <span className="text-stone-900 font-bold">Contact &amp; Bay Location</span>
+          <span className="text-stone-900 font-bold">
+            Contact &amp; Bay Location
+          </span>
         </nav>
       </div>
 
@@ -108,8 +111,9 @@ _Sent via MOTORLY Direct Contact Portal_`
             <span className="text-[#F97316]">Person Who Holds Your Keys.</span>
           </h1>
           <p className="text-base text-stone-600 leading-relaxed">
-            No automated phone trees. No offshore ticket queues. When you reach out to MOTORLY, 
-            you are speaking directly with the garage owner who personally services and prepares your vehicle.
+            No automated phone trees. No offshore ticket queues. When you reach
+            out to MOTORLY, you are speaking directly with the garage owner who
+            personally services and prepares your vehicle.
           </p>
         </div>
       </section>
@@ -127,7 +131,8 @@ _Sent via MOTORLY Direct Contact Portal_`
                 Direct Cellular Phone
               </h3>
               <p className="text-xs text-stone-500 leading-relaxed">
-                Direct mobile line to the garage manager for urgent bookings, airport flight delay updates, or inquiries.
+                Direct mobile line to the garage manager for urgent bookings,
+                airport flight delay updates, or inquiries.
               </p>
               <div className="text-base font-extrabold text-stone-900 font-mono">
                 {ownerPhone}
@@ -151,7 +156,8 @@ _Sent via MOTORLY Direct Contact Portal_`
                 Instant WhatsApp Chat
               </h3>
               <p className="text-xs text-stone-500 leading-relaxed">
-                Send vehicle photos, custom dates, or driver license pre-clearance directly over WhatsApp.
+                Send vehicle photos, custom dates, or driver license
+                pre-clearance directly over WhatsApp.
               </p>
               <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">
                 ⚡ Typical response: Under 5 mins
@@ -177,7 +183,8 @@ _Sent via MOTORLY Direct Contact Portal_`
                 Priority Email Inbox
               </h3>
               <p className="text-xs text-stone-500 leading-relaxed">
-                Send corporate travel invoices, long-term flex lease inquiries, or special vehicle requests.
+                Send corporate travel invoices, long-term flex lease inquiries,
+                or special vehicle requests.
               </p>
               <div className="text-xs font-mono font-bold text-stone-800 break-all">
                 {ownerEmail}
@@ -207,7 +214,8 @@ _Sent via MOTORLY Direct Contact Portal_`
                   Garage Bay 1 Location
                 </h3>
                 <p className="text-xs text-stone-500 mt-1">
-                  All vehicle handoffs and returns take place directly at our dedicated private facility.
+                  All vehicle handoffs and returns take place directly at our
+                  dedicated private facility.
                 </p>
               </div>
 
@@ -217,12 +225,15 @@ _Sent via MOTORLY Direct Contact Portal_`
                     <LocationIcon size={16} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-stone-900">Physical Facility Address</h4>
+                    <h4 className="text-xs font-bold text-stone-900">
+                      Physical Facility Address
+                    </h4>
                     <p className="text-xs text-stone-600 mt-0.5 leading-relaxed font-mono">
                       {garageAddress}
                     </p>
                     <p className="text-[11px] text-stone-400 mt-0.5">
-                      Enter Gate B &bull; Drive straight to Bay 1 inspection staging
+                      Enter Gate B &bull; Drive straight to Bay 1 inspection
+                      staging
                     </p>
                   </div>
                 </div>
@@ -232,10 +243,20 @@ _Sent via MOTORLY Direct Contact Portal_`
                     <ClockIcon size={16} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-stone-900">Operating Bay Hours</h4>
+                    <h4 className="text-xs font-bold text-stone-900">
+                      Operating Bay Hours
+                    </h4>
                     <div className="text-xs text-stone-600 space-y-0.5 mt-1">
-                      <p><strong className="text-stone-800">Monday – Saturday:</strong> 8:00 AM – 8:00 PM</p>
-                      <p><strong className="text-stone-800">Sunday:</strong> 9:00 AM – 6:00 PM</p>
+                      <p>
+                        <strong className="text-stone-800">
+                          Monday – Saturday:
+                        </strong>{" "}
+                        8:00 AM – 8:00 PM
+                      </p>
+                      <p>
+                        <strong className="text-stone-800">Sunday:</strong> 9:00
+                        AM – 6:00 PM
+                      </p>
                       <p className="text-[11px] text-emerald-700 font-bold pt-1">
                         &bull; 24/7 Roadside Assistance for all active rentals
                       </p>
@@ -248,9 +269,13 @@ _Sent via MOTORLY Direct Contact Portal_`
                     <ShieldIcon size={16} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-stone-900">Handoff Process (Under 3 Mins)</h4>
+                    <h4 className="text-xs font-bold text-stone-900">
+                      Handoff Process (Under 3 Mins)
+                    </h4>
                     <p className="text-xs text-stone-600 mt-0.5 leading-relaxed">
-                      1. Park in customer bay &bull; 2. 60-second visual walkaround with the owner &bull; 3. Collect keys and drive off.
+                      1. Park in customer bay &bull; 2. 60-second visual
+                      walkaround with the owner &bull; 3. Collect keys and drive
+                      off.
                     </p>
                   </div>
                 </div>
@@ -260,18 +285,28 @@ _Sent via MOTORLY Direct Contact Portal_`
             {/* Quick Map Visual Staging Card */}
             <div className="rounded-3xl overflow-hidden border border-stone-200/90 shadow-sm bg-stone-900 p-6 text-white space-y-3 relative">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-orange-400 font-mono">GPS Coordinates</span>
-                <span className="text-[10px] bg-stone-800 px-2 py-0.5 rounded text-stone-300">Miami Central</span>
+                <span className="text-xs font-bold text-orange-400 font-mono">
+                  GPS Coordinates
+                </span>
+                <span className="text-[10px] bg-stone-800 px-2 py-0.5 rounded text-stone-300">
+                  Miami Central
+                </span>
               </div>
-              <h4 className="text-lg font-bold font-heading">Need Directions or Airport Pickup?</h4>
+              <h4 className="text-lg font-bold font-heading">
+                Need Directions or Airport Pickup?
+              </h4>
               <p className="text-xs text-stone-300 leading-relaxed">
-                If you are arriving at Miami International Airport (MIA), our facility is a quick 8-minute ride. 
-                Contact the manager in advance to stage your vehicle ready at the curb.
+                If you are arriving at Miami International Airport (MIA), our
+                facility is a quick 8-minute ride. Contact the manager in
+                advance to stage your vehicle ready at the curb.
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  window.open(`https://maps.google.com/?q=${encodeURIComponent(garageAddress)}`, "_blank")
+                  window.open(
+                    `https://maps.google.com/?q=${encodeURIComponent(garageAddress)}`,
+                    "_blank",
+                  )
                 }}
                 className="w-full py-2.5 bg-white text-stone-900 hover:bg-stone-100 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
               >
@@ -289,8 +324,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                   Send a Direct Message to the Manager
                 </h3>
                 <p className="text-xs text-stone-500 mt-1">
-                  Have a custom question, need special booking dates, or want to check vehicle availability? 
-                  Fill in the details below and we will get back to you immediately.
+                  Have a custom question, need special booking dates, or want to
+                  check vehicle availability? Fill in the details below and we
+                  will get back to you immediately.
                 </p>
               </div>
 
@@ -303,8 +339,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                     Inquiry Dispatched Successfully!
                   </h4>
                   <p className="text-xs text-emerald-700 leading-relaxed max-w-md mx-auto">
-                    Your message has been sent to the garage manager via WhatsApp and priority email. 
-                    Marcus will contact you shortly to confirm availability and discuss your request.
+                    Your message has been sent to the garage manager via
+                    WhatsApp and priority email. Marcus will contact you shortly
+                    to confirm availability and discuss your request.
                   </p>
                   <button
                     type="button"
@@ -335,7 +372,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                         type="text"
                         required
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
                         placeholder="e.g. Alex Mercer"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                       />
@@ -349,7 +388,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                         type="tel"
                         required
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, phone: e.target.value })
+                        }
                         placeholder="+1 (305) 555-0199"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                       />
@@ -365,7 +406,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                         type="email"
                         required
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
                         placeholder="alex@example.com"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                       />
@@ -378,7 +421,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                       <input
                         type="text"
                         value={formData.dates}
-                        onChange={(e) => setFormData({ ...formData, dates: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, dates: e.target.value })
+                        }
                         placeholder="e.g. Nov 5 - Nov 9, 2026"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                       />
@@ -392,7 +437,12 @@ _Sent via MOTORLY Direct Contact Portal_`
                     <input
                       type="text"
                       value={formData.preferredVehicle}
-                      onChange={(e) => setFormData({ ...formData, preferredVehicle: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          preferredVehicle: e.target.value,
+                        })
+                      }
                       placeholder="e.g. Premium SUV, Sedan, or specific model"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                     />
@@ -406,7 +456,9 @@ _Sent via MOTORLY Direct Contact Portal_`
                       required
                       rows={4}
                       value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, message: e.target.value })
+                      }
                       placeholder="Tell us about your trip, flight details, or specific vehicle preferences..."
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50/50"
                     />
@@ -451,7 +503,11 @@ _Sent via MOTORLY Direct Contact Portal_`
                   className="w-full py-4 px-5 text-left flex items-center justify-between gap-4 font-bold text-sm text-stone-900 hover:text-orange-600 transition cursor-pointer"
                 >
                   <span>{faq.q}</span>
-                  <span className={`text-base font-mono transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                  <span
+                    className={`text-base font-mono transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  >
                     ▼
                   </span>
                 </button>

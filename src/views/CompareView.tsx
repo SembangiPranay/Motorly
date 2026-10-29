@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react"
+
 import type { Car } from "../types"
+
 import {
   CarIcon,
   CheckIcon,
@@ -22,36 +24,51 @@ import {
 
 interface CompareViewProps {
   cars: Car[]
+
   compareIds: string[]
+
   setCompareIds: React.Dispatch<React.SetStateAction<string[]>>
+
   onSelectCar: (carId: string) => void
+
   onQuickBook: (carId: string) => void
+
   onNavigateHome: () => void
+
   onNavigateListing: () => void
 }
 
 interface CommonFeature {
   name: string
+
   key: string
+
   category?: string
 }
 
 export default function CompareView({
   cars,
+
   compareIds,
+
   setCompareIds,
+
   onSelectCar,
+
   onQuickBook,
+
   onNavigateListing,
 }: CompareViewProps) {
   if (!cars || cars.length < 2) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
         <h2 className="text-2xl font-bold text-stone-900 font-heading">
-          {(!cars || cars.length === 0) ? "No Vehicles in Fleet" : "Select at Least 2 Vehicles"}
+          {!cars || cars.length === 0
+            ? "No Vehicles in Fleet"
+            : "Select at Least 2 Vehicles"}
         </h2>
         <p className="text-stone-500 text-sm">
-          {(!cars || cars.length === 0)
+          {!cars || cars.length === 0
             ? "There are currently no vehicles in the fleet catalog to compare."
             : "Vehicle comparison requires at least 2 vehicles to compare side-by-side."}
         </p>
@@ -64,70 +81,103 @@ export default function CompareView({
       </div>
     )
   }
+
   // Filter toggle: show all specs vs differences only
+
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false)
 
   // Active category filter tab
+
   const [activeTab, setActiveTab] =
     useState<"all" | "pricing" | "specs" | "garage" | "features">("all")
 
   // Modal for swapping / selecting a vehicle cleanly without native select clipping
+
   const [swapModalState, setSwapModalState] = useState<{
     isOpen: boolean
+
     targetCarId?: string // If swapping an existing car
+
     isAdding?: boolean // If adding a new car slot
   }>({ isOpen: false })
 
   // Search filter inside the swap modal
+
   const [modalSearchQuery, setModalSearchQuery] = useState("")
 
   // On mobile, if > 2 cars are selected, allow user to pick which 2 cars are shown head-to-head
+
   const [mobilePairIndex, setMobilePairIndex] = useState<[number, number]>([
     0, 1,
   ])
 
   // Get active cars list, fallback to 2-3 cars if empty
+
   const activeComparedCars = useMemo(() => {
-    const valid = cars.filter((c) => compareIds.includes(c.id))
+    const valid = (cars || []).filter(
+      (c) => Boolean(c) && compareIds.includes(c.id),
+    )
+
     if (valid.length >= 2) return valid
+
     if (valid.length === 1) {
-      const other = cars.find((c) => c.id !== valid[0].id)
+      const other = (cars || []).find((c) => Boolean(c) && c.id !== valid[0].id)
+
       return other ? [valid[0], other] : valid
     }
-    return cars.slice(0, 2)
+
+    return (cars || []).filter(Boolean).slice(0, 2)
   }, [cars, compareIds])
 
   // Mobile focused pair
+
   const mobileCars = useMemo(() => {
-    if (activeComparedCars.length <= 2) return activeComparedCars
+    if (activeComparedCars.length <= 2)
+      return activeComparedCars.filter(Boolean)
+
     const idx1 = Math.min(mobilePairIndex[0], activeComparedCars.length - 1)
+
     let idx2 = Math.min(mobilePairIndex[1], activeComparedCars.length - 1)
+
     if (idx1 === idx2) {
       idx2 = (idx1 + 1) % activeComparedCars.length
     }
-    return [activeComparedCars[idx1], activeComparedCars[idx2]]
+
+    return [activeComparedCars[idx1], activeComparedCars[idx2]].filter(Boolean)
   }, [activeComparedCars, mobilePairIndex])
 
   // Presets
+
   const presets = [
     {
       name: "Luxury Sport Sedans",
+
       badge: "Sport",
+
       ids: ["bmw-3-series", "mercedes-c-class"],
     },
+
     {
       name: "Executive & Electric",
+
       badge: "EV",
+
       ids: ["tesla-model-3", "porsche-taycan"],
     },
+
     {
       name: "Premium SUVs",
+
       badge: "SUV",
+
       ids: ["audi-q5", "porsche-macan", "toyota-highlander"],
     },
+
     {
       name: "Value & City",
+
       badge: "Economy",
+
       ids: ["toyota-camry", "honda-crv"],
     },
   ]
@@ -141,36 +191,45 @@ export default function CompareView({
           c.brand.toLowerCase().includes(p),
       ),
     )
+
     if (matched.length >= 2) {
       setCompareIds(matched.map((m) => m.id))
     } else {
       setCompareIds(cars.slice(0, 2).map((c) => c.id))
     }
+
     setMobilePairIndex([0, 1])
   }
 
   const handleRemoveCar = (carId: string) => {
     if (activeComparedCars.length <= 2) {
       const remainingCar = activeComparedCars.find((c) => c.id !== carId)
+
       const replacement = cars.find(
         (c) => c.id !== carId && c.id !== remainingCar?.id,
       )
+
       if (remainingCar && replacement) {
         setCompareIds([remainingCar.id, replacement.id])
       }
+
       return
     }
+
     setCompareIds((prev) => prev.filter((id) => id !== carId))
   }
 
   const handleSwapCar = (oldCarId: string, newCarId: string) => {
     setCompareIds((prev) => {
       const filtered = prev.filter((id) => id !== oldCarId)
+
       if (!filtered.includes(newCarId)) {
         return [...filtered, newCarId]
       }
+
       return filtered
     })
+
     setSwapModalState({ isOpen: false })
   }
 
@@ -178,84 +237,129 @@ export default function CompareView({
     if (!compareIds.includes(newCarId) && compareIds.length < 4) {
       setCompareIds((prev) => [...prev, newCarId])
     }
+
     setSwapModalState({ isOpen: false })
   }
 
   // Feature matrix checklist
+
   const COMMON_FEATURES: CommonFeature[] = [
     { name: "Apple CarPlay & Android Auto", key: "CarPlay" },
+
     { name: "Bluetooth Audio & Handsfree", key: "Bluetooth" },
+
     { name: "Backup Camera & Park Assist", key: "Backup Camera" },
+
     { name: "Built-in GPS Navigation", key: "Navigation" },
+
     { name: "Leather / Premium Seating", key: "Leather" },
+
     { name: "Panoramic Sunroof", key: "Sunroof" },
+
     { name: "Adaptive Cruise Control", key: "Adaptive Cruise" },
+
     { name: "Heated Front Seats", key: "Heated" },
+
     { name: "Keyless Push-Button Start", key: "Keyless" },
+
     { name: "Blind Spot Monitoring", key: "Blind Spot" },
+
     { name: "Wireless Phone Charger", key: "Wireless" },
   ]
 
   // Head-to-Head calculations
+
   const priceWinner = useMemo(() => {
     if (activeComparedCars.length < 2) return null
+
     let lowest = activeComparedCars[0]
+
     let highest = activeComparedCars[0]
+
     for (const car of activeComparedCars) {
       if (car.pricePerDay < lowest.pricePerDay) lowest = car
+
       if (car.pricePerDay > highest.pricePerDay) highest = car
     }
+
     const diff = highest.pricePerDay - lowest.pricePerDay
+
     const percent = Math.round((diff / highest.pricePerDay) * 100)
+
     return { lowest, highest, diff, percent }
   }, [activeComparedCars])
 
   // Count total differences
+
   const differenceMetricsCount = useMemo(() => {
     if (activeComparedCars.length < 2) return 0
+
     let count = 0
+
     const first = activeComparedCars[0]
+
     // Price
+
     if (activeComparedCars.some((c) => c.pricePerDay !== first.pricePerDay))
       count++
+
     // Hourly
+
     if (activeComparedCars.some((c) => c.pricePerHour !== first.pricePerHour))
       count++
+
     // Fuel
+
     if (activeComparedCars.some((c) => c.fuelType !== first.fuelType)) count++
+
     // Transmission
+
     if (activeComparedCars.some((c) => c.transmission !== first.transmission))
       count++
+
     // Mileage
+
     if (activeComparedCars.some((c) => c.mileage !== first.mileage)) count++
+
     // Seats
+
     if (activeComparedCars.some((c) => c.seats !== first.seats)) count++
+
     // Luggage
+
     if (activeComparedCars.some((c) => c.luggage !== first.luggage)) count++
+
     // Garage
+
     if (
       activeComparedCars.some(
         (c) => (c.garageName || "Hub") !== (first.garageName || "Hub"),
       )
     )
       count++
+
     // Features
+
     for (const feat of COMMON_FEATURES) {
       const hasFirst =
         first?.features &&
         first?.features.some((f) =>
           f.toLowerCase().includes(feat.key.toLowerCase()),
         )
+
       const diffFound = activeComparedCars.some((c) => {
         const hasC =
           c?.features &&
           c?.features.some((f) =>
             f.toLowerCase().includes(feat.key.toLowerCase()),
           )
+
         return hasC !== hasFirst
       })
+
       if (diffFound) count++
     }
+
     return count
   }, [activeComparedCars, COMMON_FEATURES])
 
@@ -330,6 +434,7 @@ export default function CompareView({
                           c.model.toLowerCase().includes(id),
                       ),
                     )
+
                   return (
                     <button
                       key={p.name}
@@ -358,9 +463,13 @@ export default function CompareView({
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
               {[
                 { id: "all", label: "All Specs" },
+
                 { id: "pricing", label: "Rates & Protection" },
+
                 { id: "specs", label: "Performance & Space" },
+
                 { id: "garage", label: "Garage Hub Location" },
+
                 { id: "features", label: "Amenities" },
               ].map((tab) => (
                 <button
@@ -461,11 +570,12 @@ export default function CompareView({
                     Slot A:
                   </label>
                   <select
-                    value={mobileCars[0]?.id || ''}
+                    value={mobileCars[0]?.id || ""}
                     onChange={(e) => {
                       const idx = activeComparedCars.findIndex(
                         (c) => c.id === e.target.value,
                       )
+
                       if (idx !== -1) setMobilePairIndex(([_, b]) => [idx, b])
                     }}
                     className="w-full text-xs font-bold py-1.5 px-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800"
@@ -482,11 +592,12 @@ export default function CompareView({
                     Slot B:
                   </label>
                   <select
-                    value={mobileCars[1]?.id || ''}
+                    value={mobileCars[1]?.id || ""}
                     onChange={(e) => {
                       const idx = activeComparedCars.findIndex(
                         (c) => c.id === e.target.value,
                       )
+
                       if (idx !== -1) setMobilePairIndex(([a, _]) => [a, idx])
                     }}
                     className="w-full text-xs font-bold py-1.5 px-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800"
@@ -521,6 +632,7 @@ export default function CompareView({
                       onClick={() =>
                         setSwapModalState({
                           isOpen: true,
+
                           targetCarId: car.id,
                         })
                       }
@@ -593,6 +705,7 @@ export default function CompareView({
                         {mobileCars.map((c) => {
                           const isLowest =
                             priceWinner && priceWinner.lowest.id === c.id
+
                           return (
                             <div
                               key={c.id}
@@ -905,15 +1018,16 @@ export default function CompareView({
                   {COMMON_FEATURES.map((feature) => {
                     const has1 = Boolean(
                       mobileCars[0]?.features &&
-                      mobileCars[0]?.features.some((f) =>
-                        f.toLowerCase().includes(feature.key.toLowerCase()),
-                      )
+                        mobileCars[0]?.features.some((f) =>
+                          f.toLowerCase().includes(feature.key.toLowerCase()),
+                        ),
                     )
+
                     const has2 = Boolean(
                       mobileCars[1]?.features &&
-                      mobileCars[1]?.features.some((f) =>
-                        f.toLowerCase().includes(feature.key.toLowerCase()),
-                      )
+                        mobileCars[1]?.features.some((f) =>
+                          f.toLowerCase().includes(feature.key.toLowerCase()),
+                        ),
                     )
 
                     if (showOnlyDifferences && has1 === has2) return null
@@ -994,6 +1108,7 @@ export default function CompareView({
                   {activeComparedCars.map((car) => {
                     const isLowest =
                       priceWinner && priceWinner.lowest.id === car.id
+
                     return (
                       <th
                         key={car.id}
@@ -1006,6 +1121,7 @@ export default function CompareView({
                               onClick={() =>
                                 setSwapModalState({
                                   isOpen: true,
+
                                   targetCarId: car.id,
                                 })
                               }
@@ -1139,6 +1255,7 @@ export default function CompareView({
                         {activeComparedCars.map((c) => {
                           const isLowest =
                             priceWinner && priceWinner.lowest.id === c.id
+
                           return (
                             <td
                               key={c.id}
@@ -1469,6 +1586,7 @@ export default function CompareView({
                             ),
                         ),
                       )
+
                       const isIdentical = hasFeatureList.every(
                         (val) => val === hasFeatureList[0],
                       )
@@ -1488,6 +1606,7 @@ export default function CompareView({
                                   feature.key.toLowerCase(),
                                 ),
                               )
+
                             return (
                               <td
                                 key={c.id}
@@ -1564,23 +1683,33 @@ export default function CompareView({
             {/* Cars List */}
             <div className="flex-1 overflow-y-auto divide-y divide-stone-100 pr-1 space-y-1">
               {cars
+
                 .filter((c) => {
                   const matchQuery =
                     !modalSearchQuery ||
                     c.name
+
                       .toLowerCase()
+
                       .includes(modalSearchQuery.toLowerCase()) ||
                     c.brand
+
                       .toLowerCase()
+
                       .includes(modalSearchQuery.toLowerCase()) ||
                     c.type
+
                       .toLowerCase()
+
                       .includes(modalSearchQuery.toLowerCase())
+
                   const notAlreadyCompared = swapModalState.isAdding
                     ? !compareIds.includes(c.id)
                     : c.id !== swapModalState.targetCarId
+
                   return matchQuery && notAlreadyCompared
                 })
+
                 .map((c) => (
                   <button
                     key={c.id}

@@ -26,7 +26,9 @@ export default function AuthView({
   onNavigateListing,
 }: AuthViewProps) {
   // Customer mode: "signin" vs "register"
-  const [customerMode, setCustomerMode] = useState<"signin" | "register">(initialMode)
+  const [customerMode, setCustomerMode] = useState<"signin" | "register">(
+    initialMode,
+  )
 
   // Form Fields - Customer
   const [email, setEmail] = useState("")
@@ -183,7 +185,8 @@ export default function AuthView({
                     Guaranteed Exact Models
                   </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Drive the exact vehicle you reserved. No downgrade substitutions.
+                    Drive the exact vehicle you reserved. No downgrade
+                    substitutions.
                   </p>
                 </div>
               </div>
@@ -211,7 +214,8 @@ export default function AuthView({
                     Direct Garage Pickup
                   </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Vehicle inspection and personal key handoff directly at the garage bay.
+                    Vehicle inspection and personal key handoff directly at the
+                    garage bay.
                   </p>
                 </div>
               </div>
@@ -223,7 +227,9 @@ export default function AuthView({
                 {"★".repeat(5)}
               </div>
               <p className="text-xs text-stone-200 italic leading-relaxed">
-                "MOTORLY makes car rental effortless. Reserved my vehicle online, walked to the garage, and drove off in minutes with zero paperwork delays."
+                "MOTORLY makes car rental effortless. Reserved my vehicle
+                online, walked to the garage, and drove off in minutes with zero
+                paperwork delays."
               </p>
               <div className="text-[11px] font-semibold text-stone-400">
                 &mdash; Verified Customer Review
@@ -248,7 +254,10 @@ export default function AuthView({
 
                 {successMessage && (
                   <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold flex items-center gap-2.5">
-                    <CheckIcon size={18} className="text-emerald-600 shrink-0" />
+                    <CheckIcon
+                      size={18}
+                      className="text-emerald-600 shrink-0"
+                    />
                     <span>{successMessage}</span>
                   </div>
                 )}
@@ -257,7 +266,9 @@ export default function AuthView({
                 <div className="flex items-center justify-between border-b border-stone-200 pb-4">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight font-heading">
-                      {customerMode === "signin" ? "Welcome Back" : "Create Account"}
+                      {customerMode === "signin"
+                        ? "Welcome Back"
+                        : "Create Account"}
                     </h2>
                     <p className="text-xs text-stone-500 mt-0.5">
                       {customerMode === "signin"
@@ -397,17 +408,23 @@ export default function AuthView({
                           />
                           <div
                             className={`flex-1 h-full rounded-full transition-all ${
-                              passStrength >= 2 ? "bg-amber-500" : "bg-stone-200"
+                              passStrength >= 2
+                                ? "bg-amber-500"
+                                : "bg-stone-200"
                             }`}
                           />
                           <div
                             className={`flex-1 h-full rounded-full transition-all ${
-                              passStrength >= 3 ? "bg-emerald-500" : "bg-stone-200"
+                              passStrength >= 3
+                                ? "bg-emerald-500"
+                                : "bg-stone-200"
                             }`}
                           />
                           <div
                             className={`flex-1 h-full rounded-full transition-all ${
-                              passStrength >= 4 ? "bg-emerald-600" : "bg-stone-200"
+                              passStrength >= 4
+                                ? "bg-emerald-600"
+                                : "bg-stone-200"
                             }`}
                           />
                         </div>
@@ -540,7 +557,8 @@ export default function AuthView({
             {forgotSent ? (
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold space-y-1">
                 <div>
-                  ✓ Password reset instructions sent to <strong>{forgotEmail}</strong>.
+                  ✓ Password reset instructions sent to{" "}
+                  <strong>{forgotEmail}</strong>.
                 </div>
               </div>
             ) : (

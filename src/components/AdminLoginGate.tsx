@@ -26,7 +26,9 @@ export default function AdminLoginGate({
         setPassword("")
         onSuccess()
       } else {
-        setError(res.message || "Invalid administrator credentials. Access denied.")
+        setError(
+          res.message || "Invalid administrator credentials. Access denied.",
+        )
       }
     } catch {
       setError("Network error connecting to fleet authorization server.")
@@ -49,7 +51,8 @@ export default function AdminLoginGate({
             Fleet Operations Console
           </h2>
           <p className="text-xs text-stone-400 leading-relaxed max-w-xs mx-auto">
-            Authorized fleet managers only. Enter the master security credential to decrypt telemetry and booking dispatch.
+            Authorized fleet managers only. Enter the master security credential
+            to decrypt telemetry and booking dispatch.
           </p>
         </div>
 

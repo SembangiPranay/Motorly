@@ -37,14 +37,21 @@ export default function ConfirmationModal({
   onNavigateMyBookings,
 }: ConfirmationModalProps) {
   const [copied, setCopied] = useState(false)
-  const [dispatchStatus, setDispatchStatus] = useState<"dispatching" | "sent">("dispatching")
+  const [dispatchStatus, setDispatchStatus] = useState<"dispatching" | "sent">(
+    "dispatching",
+  )
   const autoDispatchedRef = useRef(false)
 
   const studioSettings = {
     contact_phone: "7780740223",
     contact_email: "nanikoushik96@gmail.com",
     owner_name: "Marcus Vance",
-    garage_location: car.garageName || car.garageAddress || car.location || bookingState.pickupLocation || "Main Garage Facility, Bay 1",
+    garage_location:
+      car.garageName ||
+      car.garageAddress ||
+      car.location ||
+      bookingState.pickupLocation ||
+      "Main Garage Facility, Bay 1",
   }
 
   // Direct Admin Review & Approve Link (Dedicated /admin route)
@@ -54,7 +61,10 @@ export default function ConfirmationModal({
       : `https://motorly-ten.vercel.app/admin?bookingId=${bookingId}`
 
   // Customer display name
-  const customerFullName = `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || (customer as any).name || "Customer"
+  const customerFullName =
+    `${customer.firstName || ""} ${customer.lastName || ""}`.trim() ||
+    (customer as any).name ||
+    "Customer"
 
   // Exact minimal message template as requested
   const minimalTemplate = `🚗 *MOTORLY – NEW BOOKING REQUEST*
@@ -92,9 +102,7 @@ _MOTORLY | Smarter Car Rentals_`
     autoDispatchedRef.current = true
 
     // 1. Trigger backend dispatch notification
-    api
-      .getSettings()
-      .catch(() => {})
+    api.getSettings().catch(() => {})
 
     fetch("/api/dispatch/booking-notification", {
       method: "POST",
@@ -121,7 +129,15 @@ _MOTORLY | Smarter Car Rentals_`
     }, 800)
 
     return () => clearTimeout(timer)
-  }, [universalWhatsAppUrl, bookingId, car.name, customerFullName, customer.phone, totalAmount, minimalTemplate])
+  }, [
+    universalWhatsAppUrl,
+    bookingId,
+    car.name,
+    customerFullName,
+    customer.phone,
+    totalAmount,
+    minimalTemplate,
+  ])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(minimalTemplate)
@@ -159,7 +175,9 @@ _MOTORLY | Smarter Car Rentals_`
             Booking Confirmed!
           </h2>
           <p className="text-xs text-gray-500 dark:text-stone-400 max-w-md mx-auto">
-            Your reservation details have been automatically dispatched simultaneously to the fleet manager via <strong>WhatsApp</strong> and <strong>Email</strong>.
+            Your reservation details have been automatically dispatched
+            simultaneously to the fleet manager via <strong>WhatsApp</strong>{" "}
+            and <strong>Email</strong>.
           </p>
         </div>
 
@@ -172,7 +190,9 @@ _MOTORLY | Smarter Car Rentals_`
             </span>
             <div>
               <p className="font-bold text-emerald-900 dark:text-emerald-200 text-xs">
-                {dispatchStatus === "sent" ? "Dispatched Simultaneously" : "Dispatching Notifications..."}
+                {dispatchStatus === "sent"
+                  ? "Dispatched Simultaneously"
+                  : "Dispatching Notifications..."}
               </p>
               <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono">
                 WhatsApp (+1 778-074-0223) &bull; nanikoushik96@gmail.com
@@ -219,7 +239,8 @@ _MOTORLY | Smarter Car Rentals_`
                 {car.name} ({car.year || 2024})
               </h4>
               <p className="text-stone-500 dark:text-stone-400 text-[11px]">
-                {car.type} &bull; {car.transmission} &bull; {studioSettings.garage_location}
+                {car.type} &bull; {car.transmission} &bull;{" "}
+                {studioSettings.garage_location}
               </p>
             </div>
             <div className="text-right shrink-0">
@@ -239,7 +260,8 @@ _MOTORLY | Smarter Car Rentals_`
                 Pickup
               </span>
               <p className="font-bold text-stone-800 dark:text-stone-200">
-                {bookingState.pickupDate} &bull; {bookingState.pickupTime || "10:00 AM"}
+                {bookingState.pickupDate} &bull;{" "}
+                {bookingState.pickupTime || "10:00 AM"}
               </p>
             </div>
             <div>
@@ -247,7 +269,8 @@ _MOTORLY | Smarter Car Rentals_`
                 Return
               </span>
               <p className="font-bold text-stone-800 dark:text-stone-200">
-                {bookingState.returnDate} &bull; {bookingState.returnTime || "10:00 AM"}
+                {bookingState.returnDate} &bull;{" "}
+                {bookingState.returnTime || "10:00 AM"}
               </p>
             </div>
           </div>
@@ -284,7 +307,10 @@ _MOTORLY | Smarter Car Rentals_`
             className="w-full py-3 px-4 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-2xl text-sm font-extrabold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer group"
           >
             <span>View in My Reservations</span>
-            <ArrowRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
+            <ArrowRightIcon
+              size={16}
+              className="group-hover:translate-x-1 transition-transform"
+            />
           </button>
 
           {/* Quick Resend / Open Links (Direct universal links, zero childish choices) */}
@@ -309,6 +335,6 @@ _MOTORLY | Smarter Car Rentals_`
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }

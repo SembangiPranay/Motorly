@@ -11,29 +11,81 @@ import type {
   BookingStatus,
 } from "../types"
 
+export interface CarPricingUpdate {
+  pricePerHour: number
+  pricePerDay: number
+  pricePerMonth: number
+}
+
+export interface CarPricingResponse {
+  success: boolean
+  message: string
+  car: Car
+}
+
+export interface SyncHubResponse {
+  success: boolean
+  message?: string
+}
+
+export interface SubmitReviewResponse {
+  success: boolean
+  message?: string
+  review?: any
+  car?: any
+}
+
 // Base API endpoints - supports relative proxy or direct backend port
 const PRIMARY_BASE = "/api"
 const FALLBACK_BASE = "http://localhost:3001/api"
 
 class ApiService {
-  private getHeaders(role?: "admin" | "customer"): Record<string, string> {
+  private getHeaders(
+    role?: "admin" | "customer",
+    endpoint?: string,
+    method?: string,
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     }
     const adminToken = localStorage.getItem("motorly_admin_token")
     const customerToken = localStorage.getItem("motorly_customer_token")
 
-    if (role === "customer") {
-      if (customerToken) {
-        headers["Authorization"] = `Bearer ${customerToken}`
-      }
-    } else if (role === "admin") {
+    const isAdminPath =
+      typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/admin") ||
+        window.location.search.includes("view=admin"))
+
+    const isAdminEndpoint =
+      role === "admin" ||
+      endpoint?.startsWith("/maintenance") ||
+      endpoint?.startsWith("/analytics") ||
+      endpoint?.startsWith("/finance") ||
+      endpoint?.startsWith("/audit-logs") ||
+      endpoint?.startsWith("/settings") ||
+      endpoint?.startsWith("/admin") ||
+      (endpoint?.startsWith("/cars") && method && method !== "GET") ||
+      (endpoint?.startsWith("/bookings/") &&
+        (endpoint.includes("/approve") ||
+          endpoint.includes("/decline") ||
+          endpoint.includes("/handover-keys") ||
+          endpoint.includes("/return-inspection") ||
+          endpoint.includes("/cancel-admin") ||
+          endpoint.includes("/accept")))
+
+    if (isAdminEndpoint || (isAdminPath && adminToken)) {
       if (adminToken) {
         headers["Authorization"] = `Bearer ${adminToken}`
       }
-    } else {
-      // Default: if customer token exists and no explicit admin role requested, use customer token; otherwise admin token
+    } else if (role === "customer") {
       if (customerToken) {
+        headers["Authorization"] = `Bearer ${customerToken}`
+      }
+    } else {
+      // Default: if admin token exists and no explicit customer request, prefer admin token if in admin mode or no customer token
+      if (adminToken && !customerToken) {
+        headers["Authorization"] = `Bearer ${adminToken}`
+      } else if (customerToken) {
         headers["Authorization"] = `Bearer ${customerToken}`
       } else if (adminToken) {
         headers["Authorization"] = `Bearer ${adminToken}`
@@ -107,8 +159,8 @@ class ApiService {
     role?: "admin" | "customer",
   ): Promise<Response> {
     const mergedHeaders = {
-      ...this.getHeaders(role),
-      ...((options.headers as Record<string, string>) || {}),
+      ...this.getHeaders(role, endpoint, options.method),
+      ...(options.headers as Record<string, string> || {}),
     }
     const config: RequestInit = {
       ...options,
@@ -396,40 +448,56 @@ class ApiService {
   }
 
   async createCar(car: Partial<Car>): Promise<Car> {
-    const res = await this.request("/cars", {
-      method: "POST",
-      body: JSON.stringify(car),
-    })
+    const res = await this.request(
+      "/cars",
+      {
+        method: "POST",
+        body: JSON.stringify(car),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to create vehicle")
     return res.json()
   }
 
   async updateCar(id: string, car: Partial<Car>): Promise<Car> {
-    const res = await this.request(`/cars/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(car),
-    })
+    const res = await this.request(
+      `/cars/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(car),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to update vehicle")
     return res.json()
   }
 
   async updateCarStatus(id: string, status: CarStatus): Promise<Car> {
-    const res = await this.request(`/cars/${id}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    })
+    const res = await this.request(
+      `/cars/${id}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to update vehicle status")
     return res.json()
   }
 
   async updateCarPricing(
     id: string,
-    pricing: { pricePerHour: number; pricePerDay: number; pricePerMonth: number },
-  ): Promise<{ success: boolean; message: string; car: Car }> {
-    const res = await this.request(`/cars/${id}/pricing`, {
-      method: "PATCH",
-      body: JSON.stringify(pricing),
-    })
+    pricing: CarPricingUpdate,
+  ): Promise<CarPricingResponse> {
+    const res = await this.request(
+      `/cars/${id}/pricing`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(pricing),
+      },
+      "admin",
+    )
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.error || "Failed to update vehicle pricing")
@@ -438,9 +506,13 @@ class ApiService {
   }
 
   async deleteCar(id: string): Promise<boolean> {
-    const res = await this.request(`/cars/${id}`, {
-      method: "DELETE",
-    })
+    const res = await this.request(
+      `/cars/${id}`,
+      {
+        method: "DELETE",
+      },
+      "admin",
+    )
     return res.ok
   }
 
@@ -785,7 +857,11 @@ class ApiService {
     )
     if (!res.ok) {
       const errData = await this.safeJson(res, {})
-      throw new Error(errData?.error || errData?.message || "Failed to dispatch counter reservation")
+      throw new Error(
+        errData?.error ||
+          errData?.message ||
+          "Failed to dispatch counter reservation",
+      )
     }
     return res.json()
   }
@@ -809,7 +885,7 @@ class ApiService {
     [key: string]: any
   }> {
     try {
-      const res = await this.request("/settings")
+      const res = await this.request("/settings", {}, "admin")
       const data = await this.safeJson(res, { success: true, settings: {} })
       return (
         data.settings || {
@@ -868,7 +944,7 @@ class ApiService {
   async syncHubLocation(
     hub_address: string,
     google_maps_url?: string,
-  ): Promise<{ success: boolean; message?: string }> {
+  ): Promise<SyncHubResponse> {
     try {
       const res = await this.request(
         "/settings/sync-hub",
@@ -906,7 +982,7 @@ class ApiService {
     customerEmail?: string
     rating: number
     comment: string
-  }): Promise<{ success: boolean; message?: string; review?: any; car?: any }> {
+  }): Promise<SubmitReviewResponse> {
     const res = await this.request(
       "/reviews",
       {
@@ -1009,7 +1085,7 @@ class ApiService {
     if (params?.all) query.set("all", "true")
 
     const queryString = query.toString() ? `?${query.toString()}` : ""
-    const res = await this.request(`/maintenance${queryString}`)
+    const res = await this.request(`/maintenance${queryString}`, {}, "admin")
     if (!res.ok) throw new Error("Failed to fetch maintenance logs")
     const json = await res.json()
 
@@ -1039,10 +1115,14 @@ class ApiService {
     technicianNotes: string
     setVehicleStatus?: string
   }): Promise<MaintenanceLog> {
-    const res = await this.request("/maintenance", {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      "/maintenance",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to create maintenance work order")
     return res.json()
   }
@@ -1051,10 +1131,14 @@ class ApiService {
     id: string,
     status: string,
   ): Promise<MaintenanceLog> {
-    const res = await this.request(`/maintenance/${id}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    })
+    const res = await this.request(
+      `/maintenance/${id}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to update maintenance status")
     return res.json()
   }

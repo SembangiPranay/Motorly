@@ -46,23 +46,37 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </h1>
 
             <p className="text-base sm:text-lg text-stone-600 leading-relaxed max-w-2xl">
-              MOTORLY was built as the direct antithesis to corporate airport car rental agencies. 
-              We are an independent, single-operator garage fleet where every vehicle is personally owned, 
-              meticulously inspected, and handed over to you directly by the owner in under 3 minutes.
+              MOTORLY was built as the direct antithesis to corporate airport
+              car rental agencies. We are an independent, single-operator garage
+              fleet where every vehicle is personally owned, meticulously
+              inspected, and handed over to you directly by the owner in under 3
+              minutes.
             </p>
 
             <div className="grid grid-cols-3 gap-4 pt-2 max-w-lg">
               <div className="p-3.5 bg-white rounded-2xl border border-stone-200/80 shadow-2xs">
-                <div className="text-2xl font-black text-[#F97316] font-heading">3 Min</div>
-                <div className="text-[11px] text-stone-500 font-medium mt-0.5">Average Bay Handoff</div>
+                <div className="text-2xl font-black text-[#F97316] font-heading">
+                  3 Min
+                </div>
+                <div className="text-[11px] text-stone-500 font-medium mt-0.5">
+                  Average Bay Handoff
+                </div>
               </div>
               <div className="p-3.5 bg-white rounded-2xl border border-stone-200/80 shadow-2xs">
-                <div className="text-2xl font-black text-emerald-600 font-heading">100%</div>
-                <div className="text-[11px] text-stone-500 font-medium mt-0.5">Exact Car Guarantee</div>
+                <div className="text-2xl font-black text-emerald-600 font-heading">
+                  100%
+                </div>
+                <div className="text-[11px] text-stone-500 font-medium mt-0.5">
+                  Exact Car Guarantee
+                </div>
               </div>
               <div className="p-3.5 bg-white rounded-2xl border border-stone-200/80 shadow-2xs">
-                <div className="text-2xl font-black text-stone-900 font-heading">$0</div>
-                <div className="text-[11px] text-stone-500 font-medium mt-0.5">Hidden Airport Fees</div>
+                <div className="text-2xl font-black text-stone-900 font-heading">
+                  $0
+                </div>
+                <div className="text-[11px] text-stone-500 font-medium mt-0.5">
+                  Hidden Airport Fees
+                </div>
               </div>
             </div>
           </div>
@@ -79,8 +93,13 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-600 text-white text-[10px] font-mono font-bold uppercase tracking-wider inline-block">
                   Main Bay Facility
                 </span>
-                <h3 className="text-base font-bold font-heading">Direct Bay 1 Key Exchange</h3>
-                <p className="text-xs text-stone-300">Clean, climate-controlled inspection bay with dedicated owner walkaround.</p>
+                <h3 className="text-base font-bold font-heading">
+                  Direct Bay 1 Key Exchange
+                </h3>
+                <p className="text-xs text-stone-300">
+                  Clean, climate-controlled inspection bay with dedicated owner
+                  walkaround.
+                </p>
               </div>
             </div>
           </div>
@@ -94,8 +113,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             Why Rent from an Independent Garage?
           </h2>
           <p className="text-sm text-stone-500">
-            Big rental corporations treat you like a barcode in a 50-person terminal line. 
-            Here is how renting from a dedicated owner makes all the difference.
+            Big rental corporations treat you like a barcode in a 50-person
+            terminal line. Here is how renting from a dedicated owner makes all
+            the difference.
           </p>
         </div>
 
@@ -104,7 +124,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-stone-200 bg-stone-50/80 text-stone-600 font-heading">
-                  <th className="py-4 px-6 font-bold">Rental Experience Feature</th>
+                  <th className="py-4 px-6 font-bold">
+                    Rental Experience Feature
+                  </th>
                   <th className="py-4 px-6 font-extrabold text-[#F97316] bg-orange-50/50">
                     MOTORLY (Independent Owner)
                   </th>
@@ -115,50 +137,94 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               </thead>
               <tbody className="divide-y divide-stone-100">
                 <tr>
-                  <td className="py-4 px-6 font-bold text-stone-900">Vehicle Selection</td>
+                  <td className="py-4 px-6 font-bold text-stone-900">
+                    Vehicle Selection
+                  </td>
                   <td className="py-4 px-6 bg-orange-50/30 text-emerald-700 font-bold flex items-center gap-2">
-                    <CheckIcon size={16} className="text-emerald-600 shrink-0" />
-                    <span>Exact model guaranteed. The photos you see are the exact car you get.</span>
+                    <CheckIcon
+                      size={16}
+                      className="text-emerald-600 shrink-0"
+                    />
+                    <span>
+                      Exact model guaranteed. The photos you see are the exact
+                      car you get.
+                    </span>
                   </td>
                   <td className="py-4 px-6 text-stone-500">
-                    "Or similar" disclaimer. Frequent downgrades to whatever is left in the lot.
+                    "Or similar" disclaimer. Frequent downgrades to whatever is
+                    left in the lot.
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 font-bold text-stone-900">Pickup Speed</td>
+                  <td className="py-4 px-6 font-bold text-stone-900">
+                    Pickup Speed
+                  </td>
                   <td className="py-4 px-6 bg-orange-50/30 text-emerald-700 font-bold flex items-center gap-2">
-                    <CheckIcon size={16} className="text-emerald-600 shrink-0" />
-                    <span>Under 3 minutes. Meet the owner at the bay, inspect, and take the keys.</span>
+                    <CheckIcon
+                      size={16}
+                      className="text-emerald-600 shrink-0"
+                    />
+                    <span>
+                      Under 3 minutes. Meet the owner at the bay, inspect, and
+                      take the keys.
+                    </span>
                   </td>
                   <td className="py-4 px-6 text-stone-500">
-                    30–60 minute terminal queues, aggressive counter upsells, and slow paperwork.
+                    30–60 minute terminal queues, aggressive counter upsells,
+                    and slow paperwork.
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 font-bold text-stone-900">Pricing &amp; Transparency</td>
+                  <td className="py-4 px-6 font-bold text-stone-900">
+                    Pricing &amp; Transparency
+                  </td>
                   <td className="py-4 px-6 bg-orange-50/30 text-emerald-700 font-bold flex items-center gap-2">
-                    <CheckIcon size={16} className="text-emerald-600 shrink-0" />
-                    <span>Total quoted is total paid upon pickup. Zero surprise fees or credit holds.</span>
+                    <CheckIcon
+                      size={16}
+                      className="text-emerald-600 shrink-0"
+                    />
+                    <span>
+                      Total quoted is total paid upon pickup. Zero surprise fees
+                      or credit holds.
+                    </span>
                   </td>
                   <td className="py-4 px-6 text-stone-500">
-                    Airport concession fees, energy recovery fees, and unexpected toll charges.
+                    Airport concession fees, energy recovery fees, and
+                    unexpected toll charges.
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 font-bold text-stone-900">Vehicle Cleanliness &amp; Care</td>
+                  <td className="py-4 px-6 font-bold text-stone-900">
+                    Vehicle Cleanliness &amp; Care
+                  </td>
                   <td className="py-4 px-6 bg-orange-50/30 text-emerald-700 font-bold flex items-center gap-2">
-                    <CheckIcon size={16} className="text-emerald-600 shrink-0" />
-                    <span>Personally detailed, sanitized, and mechanically checked by the owner.</span>
+                    <CheckIcon
+                      size={16}
+                      className="text-emerald-600 shrink-0"
+                    />
+                    <span>
+                      Personally detailed, sanitized, and mechanically checked
+                      by the owner.
+                    </span>
                   </td>
                   <td className="py-4 px-6 text-stone-500">
-                    Rushed 2-minute automated car washes, lingering odors, and neglected wiper blades.
+                    Rushed 2-minute automated car washes, lingering odors, and
+                    neglected wiper blades.
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 font-bold text-stone-900">Customer Support</td>
+                  <td className="py-4 px-6 font-bold text-stone-900">
+                    Customer Support
+                  </td>
                   <td className="py-4 px-6 bg-orange-50/30 text-emerald-700 font-bold flex items-center gap-2">
-                    <CheckIcon size={16} className="text-emerald-600 shrink-0" />
-                    <span>Direct cellular &amp; WhatsApp phone line to the owner. Instant response.</span>
+                    <CheckIcon
+                      size={16}
+                      className="text-emerald-600 shrink-0"
+                    />
+                    <span>
+                      Direct cellular &amp; WhatsApp phone line to the owner.
+                      Instant response.
+                    </span>
                   </td>
                   <td className="py-4 px-6 text-stone-500">
                     Offshore call center phone trees with 45-minute hold times.
@@ -190,8 +256,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               100% Guaranteed Exact Model
             </h3>
             <p className="text-xs sm:text-sm text-stone-500 leading-relaxed">
-              When you reserve a Honda Civic or a Porsche Panamera, that is the exact vehicle waiting for you. 
-              We never play the "or similar vehicle" substitution trick.
+              When you reserve a Honda Civic or a Porsche Panamera, that is the
+              exact vehicle waiting for you. We never play the "or similar
+              vehicle" substitution trick.
             </p>
           </div>
 
@@ -203,8 +270,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               Pay Upon Vehicle Pickup
             </h3>
             <p className="text-xs sm:text-sm text-stone-500 leading-relaxed">
-              No online credit card pre-charges or advance lock-ins. You inspect the vehicle in person, 
-              verify its pristine condition, and pay directly upon key handoff.
+              No online credit card pre-charges or advance lock-ins. You inspect
+              the vehicle in person, verify its pristine condition, and pay
+              directly upon key handoff.
             </p>
           </div>
 
@@ -216,8 +284,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               Direct Garage Manager Service
             </h3>
             <p className="text-xs sm:text-sm text-stone-500 leading-relaxed">
-              You deal directly with the person who owns the fleet. Any question, custom schedule adjustment, 
-              or flight delay is handled immediately via direct phone or WhatsApp.
+              You deal directly with the person who owns the fleet. Any
+              question, custom schedule adjustment, or flight delay is handled
+              immediately via direct phone or WhatsApp.
             </p>
           </div>
 
@@ -229,8 +298,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               Cleanliness &amp; Safety First
             </h3>
             <p className="text-xs sm:text-sm text-stone-500 leading-relaxed">
-              Every car goes through a multi-point inspection before release: tire pressures, synthetic oils, 
-              brake wear, interior sanitization, and full exterior detailing.
+              Every car goes through a multi-point inspection before release:
+              tire pressures, synthetic oils, brake wear, interior sanitization,
+              and full exterior detailing.
             </p>
           </div>
 
@@ -242,8 +312,9 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               Flexible Rental Durations
             </h3>
             <p className="text-xs sm:text-sm text-stone-500 leading-relaxed">
-              Whether you need a car for 3 hours to attend an executive client meeting, 
-              a weekend getaway, or a multi-month flexible subscription, we have custom rates designed for you.
+              Whether you need a car for 3 hours to attend an executive client
+              meeting, a weekend getaway, or a multi-month flexible
+              subscription, we have custom rates designed for you.
             </p>
           </div>
 
@@ -252,9 +323,12 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               <span className="text-[10px] font-mono font-bold uppercase text-orange-400">
                 Ready to Experience It?
               </span>
-              <h3 className="text-xl font-bold font-heading mt-1">Browse Available Fleet</h3>
+              <h3 className="text-xl font-bold font-heading mt-1">
+                Browse Available Fleet
+              </h3>
               <p className="text-xs text-stone-300 mt-2 leading-relaxed">
-                Check our live certified inventory and submit a reservation request in seconds.
+                Check our live certified inventory and submit a reservation
+                request in seconds.
               </p>
             </div>
             <button
@@ -277,27 +351,36 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
                 M
               </div>
               <div>
-                <h3 className="text-xl font-extrabold text-stone-900 font-heading">Marcus Vance</h3>
-                <p className="text-xs text-[#F97316] font-bold">Owner &amp; Fleet Director</p>
+                <h3 className="text-xl font-extrabold text-stone-900 font-heading">
+                  Marcus Vance
+                </h3>
+                <p className="text-xs text-[#F97316] font-bold">
+                  Owner &amp; Fleet Director
+                </p>
               </div>
               <p className="text-xs text-stone-500 max-w-xs leading-relaxed">
-                12+ years of automotive management and private fleet operations. Personally guarantees every reservation.
+                12+ years of automotive management and private fleet operations.
+                Personally guarantees every reservation.
               </p>
             </div>
 
             <div className="lg:col-span-8 border-t lg:border-t-0 lg:border-l border-stone-200 pt-6 lg:pt-0 lg:pl-10 space-y-5">
               <h3 className="text-2xl font-black text-stone-900 font-heading">
-                "When you rent from me, my reputation is on the line with every key turn."
+                "When you rent from me, my reputation is on the line with every
+                key turn."
               </h3>
               <p className="text-sm text-stone-600 leading-relaxed">
-                I started this garage because I was tired of corporate car rental bait-and-switch tactics. 
-                When people travel for business or a family vacation, the last thing they need is counter hostility, 
-                surprise insurance hard-sells, or finding out the vehicle they reserved isn't on the lot.
+                I started this garage because I was tired of corporate car
+                rental bait-and-switch tactics. When people travel for business
+                or a family vacation, the last thing they need is counter
+                hostility, surprise insurance hard-sells, or finding out the
+                vehicle they reserved isn't on the lot.
               </p>
               <p className="text-sm text-stone-600 leading-relaxed">
-                Every vehicle in my garage is serviced on an aggressive preventative schedule. 
-                When you land or arrive at our facility, your car is staged in Bay 1, spotless, filled with fuel, 
-                and ready for you to drive off in minutes.
+                Every vehicle in my garage is serviced on an aggressive
+                preventative schedule. When you land or arrive at our facility,
+                your car is staged in Bay 1, spotless, filled with fuel, and
+                ready for you to drive off in minutes.
               </p>
 
               <div className="flex flex-wrap items-center gap-4 pt-2">

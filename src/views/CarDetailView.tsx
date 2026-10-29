@@ -234,9 +234,12 @@ export default function CarDetailView({
   if (!car) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-black text-stone-900">Vehicle Not Found</h2>
+        <h2 className="text-2xl font-black text-stone-900">
+          Vehicle Not Found
+        </h2>
         <p className="text-stone-500 text-sm max-w-md mx-auto">
-          No vehicle is currently selected or matching this identifier in the database.
+          No vehicle is currently selected or matching this identifier in the
+          database.
         </p>
         <button
           onClick={onNavigateListing}
@@ -590,7 +593,7 @@ export default function CarDetailView({
                   each rental.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {car.features.map((feature) => (
+                  {(car.features || []).map((feature) => (
                     <div
                       key={feature}
                       className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100"
@@ -840,16 +843,23 @@ export default function CarDetailView({
                             </span>
                           </div>
                           <div className="text-stone-600 text-[11px] font-medium mt-0.5">
-                            Schedule: <strong className="text-stone-900">{bookingState.pickupTime} → {bookingState.returnTime}</strong> ({sameDayHours} Hours)
+                            Schedule:{" "}
+                            <strong className="text-stone-900">
+                              {bookingState.pickupTime} →{" "}
+                              {bookingState.returnTime}
+                            </strong>{" "}
+                            ({sameDayHours} Hours)
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="font-bold text-stone-900">
-                            {bookingState.pickupDate} ({bookingState.pickupTime})
+                            {bookingState.pickupDate} ({bookingState.pickupTime}
+                            )
                           </div>
                           <div className="text-stone-500 text-[11px]">
-                            to {bookingState.returnDate} ({bookingState.returnTime})
+                            to {bookingState.returnDate} (
+                            {bookingState.returnTime})
                           </div>
                         </>
                       )}
@@ -908,7 +918,9 @@ export default function CarDetailView({
                     ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
                     : pricingResult.tier === "monthly"
                       ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : `Base ($${car.pricePerDay} × ${days} ${days === 1 ? "day" : "days"})`}
+                      : `Base ($${car.pricePerDay} × ${days} ${
+                          days === 1 ? "day" : "days"
+                        })`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   ${baseRental.toFixed(2)}

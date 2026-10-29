@@ -25,7 +25,9 @@ let stagingUrl
 try {
   stagingUrl = new URL(STAGING_DB_URL)
 } catch {
-  console.error("\n[FATAL TEST SAFETY ERROR] STAGING_DATABASE_URL is not a valid URL.\n")
+  console.error(
+    "\n[FATAL TEST SAFETY ERROR] STAGING_DATABASE_URL is not a valid URL.\n",
+  )
   process.exit(1)
 }
 
@@ -49,8 +51,7 @@ if (!ADMIN_PASSWORD) {
 const pool = new Pool({
   connectionString: STAGING_DB_URL,
   ssl: {
-    rejectUnauthorized:
-      process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
+    rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true",
   },
   connectionTimeoutMillis: 15000,
 })
@@ -74,15 +75,21 @@ async function runTests() {
   console.log("=======================================================\n")
 
   // --- 0. Positive Staging Database Handshake ---
-  console.log("--- 0. Verifying Test Runner and Server Staging Database Alignment ---")
+  console.log(
+    "--- 0. Verifying Test Runner and Server Staging Database Alignment ---",
+  )
   const healthRes = await fetch(`${API_BASE}/health`).catch((err) => {
-    console.error(`  [ABORT] Cannot reach server at ${API_BASE}/health: ${err.message}`)
+    console.error(
+      `  [ABORT] Cannot reach server at ${API_BASE}/health: ${err.message}`,
+    )
     process.exit(1)
   })
   const health = await healthRes.json()
 
   if (health.environment === "production") {
-    console.error("  [ABORT] Server reports environment: 'production'. Aborting before any writes.")
+    console.error(
+      "  [ABORT] Server reports environment: 'production'. Aborting before any writes.",
+    )
     process.exit(1)
   }
 
@@ -91,7 +98,11 @@ async function runTests() {
   const runnerDbHost = stagingUrl.host
   const runnerDbName = stagingUrl.pathname.replace(/^\//, "")
 
-  if (!serverDbHost || serverDbHost !== runnerDbHost || serverDbName !== runnerDbName) {
+  if (
+    !serverDbHost ||
+    serverDbHost !== runnerDbHost ||
+    serverDbName !== runnerDbName
+  ) {
     console.error(
       `  [ABORT] Target Database Mismatch!\n` +
         `    Server Database:      ${serverDbHost || "unknown"}/${serverDbName || "unknown"}\n` +

@@ -40318,15 +40318,33 @@ function formatCarRow(row) {
 		pricePerHour: Number(row.price_per_hour),
 		pricePerMonth: row.price_per_month != null && !isNaN(Number(row.price_per_month)) ? Number(row.price_per_month) : Math.round(Number(row.price_per_day) * 22),
 		image: row.image,
-		gallery: typeof row.gallery === "string" ? JSON.parse(row.gallery || "[]") : row.gallery,
-		rating: row.rating,
-		reviewsCount: row.reviews_count,
-		seats: row.seats,
-		transmission: row.transmission,
-		fuelType: row.fuel_type,
-		mileage: row.mileage,
-		luggage: row.luggage,
-		features: typeof row.features === "string" ? JSON.parse(row.features || "[]") : row.features,
+		gallery: (() => {
+			if (Array.isArray(row.gallery)) return row.gallery;
+			if (typeof row.gallery === "string") try {
+				const parsed = JSON.parse(row.gallery);
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+			return [];
+		})(),
+		rating: Number(row.rating) || 5,
+		reviewsCount: Number(row.reviews_count) || 0,
+		seats: Number(row.seats) || 5,
+		transmission: row.transmission || "Automatic",
+		fuelType: row.fuel_type || "Gasoline",
+		mileage: row.mileage || "32 MPG",
+		luggage: row.luggage || "2 Bags",
+		features: (() => {
+			if (Array.isArray(row.features)) return row.features;
+			if (typeof row.features === "string") try {
+				const parsed = JSON.parse(row.features);
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+			return [];
+		})(),
 		description: row.description,
 		isPopular: Boolean(row.is_popular),
 		status: row.status,

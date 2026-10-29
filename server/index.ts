@@ -101,7 +101,9 @@ async function reconcileDatabaseInvariants() {
     // 4. Invariant: Ensure all admin accounts in database have bcrypt salted password hashes
     try {
       const adminUsers = await db
-        .prepare("SELECT id, email, password_hash FROM users WHERE role = 'admin'")
+        .prepare(
+          "SELECT id, email, password_hash FROM users WHERE role = 'admin'",
+        )
         .all()
         .catch(() => [])
       for (const u of adminUsers) {
@@ -115,7 +117,9 @@ async function reconcileDatabaseInvariants() {
             .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
             .run(secureHash, u.id)
             .catch(() => {})
-          console.log(`[DB Reconciliation] Upgraded plain-text password for admin ${u.email} to bcrypt hash`)
+          console.log(
+            `[DB Reconciliation] Upgraded plain-text password for admin ${u.email} to bcrypt hash`,
+          )
         }
       }
     } catch (passErr: any) {
@@ -140,13 +144,25 @@ interface LoginAttemptRecord {
 }
 const loginRateLimitStore = new Map<string, LoginAttemptRecord>()
 
-function checkLoginRateLimit(ip: string, maxAttempts = 10, windowMs = 15 * 60 * 1000): { allowed: boolean; retryAfter?: number } {
+interface LoginRateLimitResult {
+  allowed: boolean
+  retryAfter?: number
+}
+
+function checkLoginRateLimit(
+  ip: string,
+  maxAttempts = 10,
+  windowMs = 15 * 60 * 1000,
+): LoginRateLimitResult {
   const now = Date.now()
   const rec = loginRateLimitStore.get(ip)
   if (!rec) return { allowed: true }
 
   if (rec.lockedUntil && now < rec.lockedUntil) {
-    return { allowed: false, retryAfter: Math.ceil((rec.lockedUntil - now) / 1000) }
+    return {
+      allowed: false,
+      retryAfter: Math.ceil((rec.lockedUntil - now) / 1000),
+    }
   }
 
   if (now - rec.firstAttempt > windowMs) {
@@ -162,7 +178,11 @@ function checkLoginRateLimit(ip: string, maxAttempts = 10, windowMs = 15 * 60 * 
   return { allowed: true }
 }
 
-function recordFailedLoginAttempt(ip: string, maxAttempts = 10, windowMs = 15 * 60 * 1000) {
+function recordFailedLoginAttempt(
+  ip: string,
+  maxAttempts = 10,
+  windowMs = 15 * 60 * 1000,
+) {
   const now = Date.now()
   const rec = loginRateLimitStore.get(ip) || { count: 0, firstAttempt: now }
   if (now - rec.firstAttempt > windowMs) {
@@ -261,21 +281,37 @@ function formatCarRow(row: any) {
         ? Number(row.price_per_month)
         : Math.round(Number(row.price_per_day) * 22),
     image: row.image,
-    gallery:
-      typeof row.gallery === "string"
-        ? JSON.parse(row.gallery || "[]")
-        : row.gallery,
-    rating: row.rating,
-    reviewsCount: row.reviews_count,
-    seats: row.seats,
-    transmission: row.transmission,
-    fuelType: row.fuel_type,
-    mileage: row.mileage,
-    luggage: row.luggage,
-    features:
-      typeof row.features === "string"
-        ? JSON.parse(row.features || "[]")
-        : row.features,
+    gallery: (() => {
+      if (Array.isArray(row.gallery)) return row.gallery
+      if (typeof row.gallery === "string") {
+        try {
+          const parsed = JSON.parse(row.gallery)
+          return Array.isArray(parsed) ? parsed : []
+        } catch {
+          return []
+        }
+      }
+      return []
+    })(),
+    rating: Number(row.rating) || 5.0,
+    reviewsCount: Number(row.reviews_count) || 0,
+    seats: Number(row.seats) || 5,
+    transmission: row.transmission || "Automatic",
+    fuelType: row.fuel_type || "Gasoline",
+    mileage: row.mileage || "32 MPG",
+    luggage: row.luggage || "2 Bags",
+    features: (() => {
+      if (Array.isArray(row.features)) return row.features
+      if (typeof row.features === "string") {
+        try {
+          const parsed = JSON.parse(row.features)
+          return Array.isArray(parsed) ? parsed : []
+        } catch {
+          return []
+        }
+      }
+      return []
+    })(),
     description: row.description,
     isPopular: Boolean(row.is_popular),
     status: row.status,
@@ -641,14 +677,17 @@ app.post("/api/auth/login", async (req, res) => {
       ? "SELECT * FROM users WHERE email = ? AND role = 'admin'"
       : "SELECT * FROM users WHERE role = 'admin' LIMIT 1"
     const params = email ? [email.trim().toLowerCase()] : []
-    const dbAdminUser = ((await db.prepare(query).get(...params)) as any)
+    const dbAdminUser = (await db.prepare(query).get(...params)) as any
 
     if (dbAdminUser && dbAdminUser.password_hash) {
       if (
         dbAdminUser.password_hash.startsWith("$2a$") ||
         dbAdminUser.password_hash.startsWith("$2b$")
       ) {
-        isAuthenticated = await bcrypt.compare(password, dbAdminUser.password_hash)
+        isAuthenticated = await bcrypt.compare(
+          password,
+          dbAdminUser.password_hash,
+        )
       } else {
         // Upgrade any legacy hash in place
         if (password === dbAdminUser.password_hash) {
@@ -1197,7 +1236,8 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       car.type || "Sedan",
       Number(car.pricePerDay) || 50,
       Number(car.pricePerHour) || 7,
-      Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22),
+      Number(car.pricePerMonth) ||
+        Math.round((Number(car.pricePerDay) || 50) * 22),
       car.image ||
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
       galleryJson,
@@ -1309,7 +1349,9 @@ app.patch("/api/cars/:id/pricing", requireAdmin, async (req, res) => {
   const carId = req.params.id
 
   const existing = await db
-    .prepare("SELECT id, price_per_day, price_per_hour, price_per_month FROM vehicles WHERE id = ?")
+    .prepare(
+      "SELECT id, price_per_day, price_per_hour, price_per_month FROM vehicles WHERE id = ?",
+    )
     .get(carId)
   if (!existing) {
     return res.status(404).json({ error: "Vehicle not found." })
@@ -1326,14 +1368,20 @@ app.patch("/api/cars/:id/pricing", requireAdmin, async (req, res) => {
   const newPricePerMonth =
     pricePerMonth !== undefined && !isNaN(Number(pricePerMonth))
       ? Number(pricePerMonth)
-      : (existing.price_per_month ? Number(existing.price_per_month) : Math.round(newPricePerDay * 22))
+      : existing.price_per_month
+        ? Number(existing.price_per_month)
+        : Math.round(newPricePerDay * 22)
 
   if (newPricePerHour <= 0 || newPricePerDay <= 0 || newPricePerMonth <= 0) {
-    return res.status(400).json({ error: "Prices must be positive numbers greater than 0." })
+    return res
+      .status(400)
+      .json({ error: "Prices must be positive numbers greater than 0." })
   }
 
   await db
-    .prepare("UPDATE vehicles SET price_per_hour = ?, price_per_day = ?, price_per_month = ? WHERE id = ?")
+    .prepare(
+      "UPDATE vehicles SET price_per_hour = ?, price_per_day = ?, price_per_month = ? WHERE id = ?",
+    )
     .run(newPricePerHour, newPricePerDay, newPricePerMonth, carId)
 
   const updated = await db
@@ -1457,7 +1505,8 @@ function parseDateRangeStrict(
       start,
       end,
       valid: false,
-      error: "Return date and time must be strictly after pickup date and time.",
+      error:
+        "Return date and time must be strictly after pickup date and time.",
     }
   }
 
@@ -1508,7 +1557,9 @@ function parseDateRangeStrict(
 }
 
 // Validates customer contact details
-function validateCustomerContact(customer: any): {
+function validateCustomerContact(
+  customer: any,
+): {
   valid: boolean
   error?: string
 } {
@@ -1528,7 +1579,10 @@ function validateCustomerContact(customer: any): {
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!email || !emailRegex.test(email)) {
-    return { valid: false, error: "A valid customer email address is required." }
+    return {
+      valid: false,
+      error: "A valid customer email address is required.",
+    }
   }
   if (!phone || phone.replace(/\D/g, "").length < 7) {
     return {
@@ -1539,12 +1593,17 @@ function validateCustomerContact(customer: any): {
   return { valid: true }
 }
 
+interface DriverValidationResult {
+  valid: boolean
+  error?: string
+}
+
 // Validates driver license expiration and minimum age (21+)
 function validateDriverInfo(
   driver: any,
   pickupTimestamp: number,
   returnTimestamp: number,
-): { valid: boolean; error?: string } {
+): DriverValidationResult {
   if (!driver) return { valid: true }
 
   // 1. License Expiry Check
@@ -1897,11 +1956,11 @@ app.post(
             if (conflict) {
               const err = new Error(
                 conflict.conflictingBookingId &&
-                conflict.conflictingBookingId !== "INVALID_DATES" &&
-                conflict.conflictingBookingId !== "DB_FAILSAFE"
+                  conflict.conflictingBookingId !== "INVALID_DATES" &&
+                  conflict.conflictingBookingId !== "DB_FAILSAFE"
                   ? `Double Booking Conflict: This vehicle is already reserved for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}) under reservation ${conflict.conflictingBookingId}. Please select another car or change your rental dates.`
                   : conflict.reason ||
-                    "Double Booking Conflict: Vehicle is unavailable for selected dates.",
+                      "Double Booking Conflict: Vehicle is unavailable for selected dates.",
               ) as any
               err.statusCode = 409
               throw err
@@ -1964,7 +2023,9 @@ app.post(
               id,
               b.customer?.firstName || "Guest",
               b.customer?.lastName || "Customer",
-              (b.customer?.email || "customer@example.com").trim().toLowerCase(),
+              (b.customer?.email || "customer@example.com")
+                .trim()
+                .toLowerCase(),
               b.customer?.phone || "+1 (555) 000-0000",
               b.driver?.dateOfBirth || null,
               b.driver?.licenseNumber || null,
@@ -2218,7 +2279,11 @@ const handleManagerApproval = async (
 
   return res.json({
     success: true,
-    message: `Reservation ${bookingId} accepted by fleet manager.${matchedCarId ? " Vehicle assigned and ready for pickup!" : " Please assign a vehicle."}`,
+    message: `Reservation ${bookingId} accepted by fleet manager.${
+      matchedCarId
+        ? " Vehicle assigned and ready for pickup!"
+        : " Please assign a vehicle."
+    }`,
     booking: formatBookingRow(updatedBooking),
   })
 }
@@ -2360,7 +2425,8 @@ app.post(
           booking.customer_email.toLowerCase() === user?.email.toLowerCase())
       if (!isOwner) {
         return res.status(403).json({
-          error: "Access denied. You do not have permission to modify this reservation.",
+          error:
+            "Access denied. You do not have permission to modify this reservation.",
         })
       }
     }
@@ -2463,7 +2529,8 @@ app.post(
           booking.customer_email.toLowerCase() === user?.email.toLowerCase())
       if (!isOwner) {
         return res.status(403).json({
-          error: "Access denied. You do not have permission to approve this extension.",
+          error:
+            "Access denied. You do not have permission to approve this extension.",
         })
       }
     }
@@ -2560,7 +2627,8 @@ app.post(
           booking.customer_email.toLowerCase() === user?.email.toLowerCase())
       if (!isOwner) {
         return res.status(403).json({
-          error: "Access denied. You do not have permission to decline this extension.",
+          error:
+            "Access denied. You do not have permission to decline this extension.",
         })
       }
     }
@@ -2723,11 +2791,11 @@ app.post("/api/bookings/:id/mate", requireAdmin, async (req, res) => {
       if (conflict) {
         const err = new Error(
           conflict.conflictingBookingId &&
-          conflict.conflictingBookingId !== "INVALID_DATES" &&
-          conflict.conflictingBookingId !== "DB_FAILSAFE"
+            conflict.conflictingBookingId !== "INVALID_DATES" &&
+            conflict.conflictingBookingId !== "DB_FAILSAFE"
             ? `Conflict: Vehicle is already mated to reservation ${conflict.conflictingBookingId} (${conflict.customerName}) for overlapping dates (${conflict.pickupDate} – ${conflict.returnDate}).`
             : conflict.reason ||
-              "Conflict: Vehicle is unavailable for the selected dates.",
+                "Conflict: Vehicle is unavailable for the selected dates.",
         ) as any
         err.statusCode = 409
         throw err
@@ -3499,7 +3567,10 @@ app.post("/api/upload", async (req, res) => {
 
 app.get("/api/settings", async (_req, res) => {
   try {
-    const rows = ((await db.prepare("SELECT key, value FROM system_settings").all()) as any[]) || []
+    const rows =
+      (await db
+        .prepare("SELECT key, value FROM system_settings")
+        .all()) as any[] || []
     const settings: Record<string, any> = {
       reviews_enabled: true,
       contact_phone: "+1 (555) 234-5678",
@@ -3511,7 +3582,8 @@ app.get("/api/settings", async (_req, res) => {
     }
     for (const r of rows) {
       if (r.key === "reviews_enabled") {
-        settings.reviews_enabled = r.value === "true" || r.value === true || r.value === "1"
+        settings.reviews_enabled =
+          r.value === "true" || r.value === true || r.value === "1"
       } else {
         settings[r.key] = r.value
       }
@@ -3546,19 +3618,24 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
     } else if (key) {
       toUpdate.push([key, String(value ?? "")])
     } else {
-      return res.status(400).json({ success: false, error: "Setting key or settings object is required." })
+      return res.status(400).json({
+        success: false,
+        error: "Setting key or settings object is required.",
+      })
     }
 
     for (const [k, v] of toUpdate) {
       if (db.isSupabase && db.pool) {
         await db.pool.query(
           "INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()",
-          [k, v]
+          [k, v],
         )
       } else {
-        await db.prepare(
-          "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP"
-        ).run(k, v)
+        await db
+          .prepare(
+            "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+          )
+          .run(k, v)
       }
     }
 
@@ -3569,7 +3646,10 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
     })
   } catch (err: any) {
     console.error("[Settings Update Error]", err?.message)
-    return res.status(500).json({ success: false, error: err?.message || "Failed to update system setting." })
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to update system setting.",
+    })
   }
 })
 
@@ -3577,47 +3657,69 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
   try {
     const { hub_address, google_maps_url } = req.body
     if (!hub_address || typeof hub_address !== "string") {
-      return res.status(400).json({ success: false, error: "hub_address is required." })
+      return res
+        .status(400)
+        .json({ success: false, error: "hub_address is required." })
     }
 
     if (db.isSupabase && db.pool) {
-      await db.pool.query("UPDATE cars SET garage_name = $1, garage_address = $1", [hub_address])
+      await db.pool.query(
+        "UPDATE cars SET garage_name = $1, garage_address = $1",
+        [hub_address],
+      )
       await db.pool.query(
         "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
-        [hub_address]
+        [hub_address],
       )
       if (google_maps_url !== undefined) {
         await db.pool.query(
           "INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
-          [google_maps_url]
+          [google_maps_url],
         )
       }
     } else {
-      await db.prepare("UPDATE cars SET garage_name = ?, garage_address = ?").run(hub_address, hub_address)
-      await db.prepare(
-        "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP"
-      ).run(hub_address)
+      await db
+        .prepare("UPDATE cars SET garage_name = ?, garage_address = ?")
+        .run(hub_address, hub_address)
+      await db
+        .prepare(
+          "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+        )
+        .run(hub_address)
       if (google_maps_url !== undefined) {
-        await db.prepare(
-          "INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP"
-        ).run(google_maps_url)
+        await db
+          .prepare(
+            "INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+          )
+          .run(google_maps_url)
       }
     }
 
     return res.json({
       success: true,
-      message: "Stationed hub location updated and synchronized to all active vehicles in fleet.",
+      message:
+        "Stationed hub location updated and synchronized to all active vehicles in fleet.",
     })
   } catch (err: any) {
     console.error("[Sync Hub Error]", err?.message)
-    return res.status(500).json({ success: false, error: err?.message || "Failed to sync hub location to fleet." })
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to sync hub location to fleet.",
+    })
   }
 })
 
 // Simultaneous Dispatch Notification Endpoint (Zero Childish Friction)
 app.post("/api/dispatch/booking-notification", async (req, res) => {
   try {
-    const { bookingId, carName, customerName, customerPhone, totalAmount, templateText } = req.body
+    const {
+      bookingId,
+      carName,
+      customerName,
+      customerPhone,
+      totalAmount,
+      templateText,
+    } = req.body
     console.log(`[DISPATCH SYSTEM] Direct Booking Alert for #${bookingId}:`, {
       vehicle: carName,
       customer: customerName,
@@ -3630,11 +3732,16 @@ app.post("/api/dispatch/booking-notification", async (req, res) => {
     return res.json({
       success: true,
       dispatched: true,
-      channels: ["WhatsApp (+1 778-074-0223)", "Email (nanikoushik96@gmail.com)"],
+      channels: [
+        "WhatsApp (+1 778-074-0223)",
+        "Email (nanikoushik96@gmail.com)",
+      ],
       bookingId,
     })
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err?.message || "Dispatch failed" })
+    return res
+      .status(500)
+      .json({ success: false, error: err?.message || "Dispatch failed" })
   }
 })
 
@@ -3649,11 +3756,21 @@ app.get("/api/reviews", async (req, res) => {
     let rows: any[] = []
 
     if (carId) {
-      rows = (await db.prepare("SELECT * FROM reviews WHERE car_id = ? ORDER BY created_at DESC").all(carId)) as any[]
+      rows = ((await db
+        .prepare(
+          "SELECT * FROM reviews WHERE car_id = ? ORDER BY created_at DESC",
+        )
+        .all(carId)) as any[])
     } else if (bookingId) {
-      rows = (await db.prepare("SELECT * FROM reviews WHERE booking_id = ? ORDER BY created_at DESC").all(bookingId)) as any[]
+      rows = ((await db
+        .prepare(
+          "SELECT * FROM reviews WHERE booking_id = ? ORDER BY created_at DESC",
+        )
+        .all(bookingId)) as any[])
     } else {
-      rows = (await db.prepare("SELECT * FROM reviews ORDER BY created_at DESC LIMIT 50").all()) as any[]
+      rows = ((await db
+        .prepare("SELECT * FROM reviews ORDER BY created_at DESC LIMIT 50")
+        .all()) as any[])
     }
 
     const reviews = (rows || []).map((r) => ({
@@ -3677,8 +3794,14 @@ app.get("/api/reviews", async (req, res) => {
 app.post("/api/reviews", async (req, res) => {
   try {
     // Check if review system is globally enabled
-    const settingRow = ((await db.prepare("SELECT value FROM system_settings WHERE key = 'reviews_enabled'").get()) as any)
-    const isEnabled = settingRow ? settingRow.value === "true" || settingRow.value === "1" : true
+    const settingRow = (await db
+      .prepare(
+        "SELECT value FROM system_settings WHERE key = 'reviews_enabled'",
+      )
+      .get()) as any
+    const isEnabled = settingRow
+      ? settingRow.value === "true" || settingRow.value === "1"
+      : true
     if (!isEnabled) {
       return res.status(403).json({
         success: false,
@@ -3686,13 +3809,20 @@ app.post("/api/reviews", async (req, res) => {
       })
     }
 
-    const { carId, bookingId, customerName, customerEmail, rating, comment } = req.body
+    const { carId, bookingId, customerName, customerEmail, rating, comment } =
+      req.body
     if (!carId) {
-      return res.status(400).json({ success: false, error: "carId is required to submit a review." })
+      return res.status(400).json({
+        success: false,
+        error: "carId is required to submit a review.",
+      })
     }
     const numRating = parseInt(String(rating), 10)
     if (isNaN(numRating) || numRating < 1 || numRating > 5) {
-      return res.status(400).json({ success: false, error: "Rating must be an integer between 1 and 5 stars." })
+      return res.status(400).json({
+        success: false,
+        error: "Rating must be an integer between 1 and 5 stars.",
+      })
     }
 
     const reviewId = `REV-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`
@@ -3700,25 +3830,36 @@ app.post("/api/reviews", async (req, res) => {
     const reviewerEmail = String(customerEmail || "").trim()
     const reviewComment = String(comment || "").trim()
 
-    await db.prepare(`
+    await db
+      .prepare(`
       INSERT INTO reviews (id, car_id, booking_id, customer_name, customer_email, rating, comment, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).run(
-      reviewId,
-      carId,
-      bookingId || null,
-      reviewerName,
-      reviewerEmail || null,
-      numRating,
-      reviewComment || null,
-    )
+    `)
+      .run(
+        reviewId,
+        carId,
+        bookingId || null,
+        reviewerName,
+        reviewerEmail || null,
+        numRating,
+        reviewComment || null,
+      )
 
     // Recalculate average rating & review count for car
-    const statsRow = ((await db.prepare("SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE car_id = ?").get(carId)) as any)
-    const avgRating = statsRow?.avg_rating ? Math.round(Number(statsRow.avg_rating) * 10) / 10 : numRating
+    const statsRow = (await db
+      .prepare(
+        "SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE car_id = ?",
+      )
+      .get(carId)) as any
+    const avgRating = statsRow?.avg_rating
+      ? Math.round(Number(statsRow.avg_rating) * 10) / 10
+      : numRating
     const count = Number(statsRow?.count) || 1
 
-    await db.prepare("UPDATE vehicles SET rating = ?, reviews_count = ? WHERE id = ?").run(avgRating, count, carId).catch(() => {})
+    await db
+      .prepare("UPDATE vehicles SET rating = ?, reviews_count = ? WHERE id = ?")
+      .run(avgRating, count, carId)
+      .catch(() => {})
 
     return res.json({
       success: true,
@@ -3740,7 +3881,10 @@ app.post("/api/reviews", async (req, res) => {
     })
   } catch (err: any) {
     console.error("[Review Submission Error]", err?.message)
-    return res.status(500).json({ success: false, error: err?.message || "Failed to submit review." })
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to submit review.",
+    })
   }
 })
 
@@ -3768,7 +3912,9 @@ if (process.env.VERCEL !== "1" && !process.env.NOW_REGION) {
   app.listen(PORT, () => {
     console.log(`[Backend] MOTORLY Server running on port ${PORT}`)
     console.log(
-      `[Backend] Admin authentication initialized (${isProduction ? "production mode" : "development mode"})`,
+      `[Backend] Admin authentication initialized (${
+        isProduction ? "production mode" : "development mode"
+      })`,
     )
     console.log(
       `[Backend] API Endpoints ready at http://localhost:${PORT}/api/`,

@@ -93,13 +93,18 @@ export function formatInternationalPhoneDisplay(phone?: string | null): string {
  */
 export function isMobileDevice(): boolean {
   if (typeof navigator === "undefined") return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  )
 }
 
 /**
  * Builds direct WhatsApp URLs that bypass intermediate landing pages.
  */
-export function getWhatsAppUrls(rawPhone?: string | null, message: string = ""): WhatsAppUrls {
+export function getWhatsAppUrls(
+  rawPhone?: string | null,
+  message: string = "",
+): WhatsAppUrls {
   const normalizedPhone = normalizeWhatsAppPhone(rawPhone)
   const displayPhone = formatInternationalPhoneDisplay(rawPhone)
   const encodedText = encodeURIComponent(message)
@@ -135,7 +140,7 @@ export function getWhatsAppUrls(rawPhone?: string | null, message: string = ""):
 export function openWhatsAppDirect(
   rawPhone?: string | null,
   message: string = "",
-  mode: "web" | "app" | "auto" = "auto"
+  mode: "web" | "app" | "auto" = "auto",
 ): void {
   const urls = getWhatsAppUrls(rawPhone, message)
 

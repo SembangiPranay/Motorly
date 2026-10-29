@@ -1,6 +1,9 @@
 import React, { useState } from "react"
+
 import type { Car, BookingState, VehicleType } from "../types"
+
 import DateSchedulingModal from "../components/DateSchedulingModal"
+
 import {
   CarIcon,
   CalendarIcon,
@@ -22,20 +25,32 @@ const DEFAULT_FALLBACK_IMAGE =
 
 interface HomeViewProps {
   cars?: Car[]
+
   bookingState: BookingState
+
   setBookingState: React.Dispatch<React.SetStateAction<BookingState>>
+
   onSearch: () => void
+
   onSelectCategory: (category: VehicleType) => void
+
   onSelectCar: (carId: string) => void
+
   onQuickBook?: (carId: string) => void
+
   onNavigateCompare?: () => void
 }
 
 function isSameDay(dateA?: string, dateB?: string): boolean {
   if (!dateA || !dateB) return false
+
   const a = new Date(dateA)
+
   const b = new Date(dateB)
-  if (isNaN(a.getTime()) || isNaN(b.getTime())) return dateA.trim() === dateB.trim()
+
+  if (isNaN(a.getTime()) || isNaN(b.getTime()))
+    return dateA.trim() === dateB.trim()
+
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
@@ -45,25 +60,53 @@ function isSameDay(dateA?: string, dateB?: string): boolean {
 
 function advanceDateByDays(baseDateStr: string, daysToAdd: number): string {
   const parsed = Date.parse(baseDateStr)
+
   if (isNaN(parsed)) return baseDateStr
+
   const next = new Date(parsed + daysToAdd * 24 * 60 * 60 * 1000)
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ]
+
   return `${monthNames[next.getMonth()]} ${next.getDate()}, ${next.getFullYear()}`
 }
 
 function advanceTimeByHours(baseTimeStr: string, hoursToAdd: number): string {
   try {
     const match = baseTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+
     if (!match) return "05:00 PM"
+
     let hour = parseInt(match[1], 10)
+
     const minutes = match[2]
+
     const meridiem = match[3].toUpperCase()
+
     if (meridiem === "PM" && hour < 12) hour += 12
+
     if (meridiem === "AM" && hour === 12) hour = 0
+
     const targetHour = (hour + hoursToAdd) % 24
+
     const newMeridiem = targetHour >= 12 ? "PM" : "AM"
+
     let displayHour = targetHour % 12
+
     if (displayHour === 0) displayHour = 12
+
     return `${displayHour.toString().padStart(2, "0")}:${minutes} ${newMeridiem}`
   } catch {
     return "05:00 PM"
@@ -72,166 +115,299 @@ function advanceTimeByHours(baseTimeStr: string, hoursToAdd: number): string {
 
 interface DurationPreset {
   label: string
+
   pill: string
+
   hoursOrDays: number
+
   isHourly?: boolean
+
   discountBadge?: string
 }
 
-const TIER_PRESETS: Record<"Hourly" | "Daily" | "Weekly" | "Monthly", DurationPreset[]> = {
-  Hourly: [
-    { label: "3 Hours", pill: "3h Sprint", hoursOrDays: 3, isHourly: true },
-    { label: "6 Hours", pill: "6h Half-Day", hoursOrDays: 6, isHourly: true },
-    { label: "8 Hours", pill: "8h Full Day", hoursOrDays: 8, isHourly: true },
-  ],
-  Daily: [
-    { label: "1 Day", pill: "24h Express", hoursOrDays: 1 },
-    { label: "3 Days", pill: "3 Days (Popular)", hoursOrDays: 3 },
-    { label: "5 Days", pill: "5 Days (Workweek)", hoursOrDays: 5 },
-  ],
-  Weekly: [
-    { label: "7 Days", pill: "7 Days", hoursOrDays: 7, discountBadge: "15% Off" },
-    { label: "10 Days", pill: "10 Days", hoursOrDays: 10, discountBadge: "18% Off" },
-    { label: "14 Days", pill: "14 Days", hoursOrDays: 14, discountBadge: "20% Off" },
-  ],
-  Monthly: [
-    { label: "30 Days", pill: "30 Days", hoursOrDays: 30, discountBadge: "Save 35%" },
-    { label: "60 Days", pill: "60 Days", hoursOrDays: 60, discountBadge: "Save 40%" },
-    { label: "90 Days", pill: "90 Days", hoursOrDays: 90, discountBadge: "VIP Flex" },
-  ],
-}
+const TIER_PRESETS: Record<"Hourly" | "Daily" | "Weekly" | "Monthly", DurationPreset[]> =
+  {
+    Hourly: [
+      { label: "3 Hours", pill: "3h Sprint", hoursOrDays: 3, isHourly: true },
+
+      { label: "6 Hours", pill: "6h Half-Day", hoursOrDays: 6, isHourly: true },
+
+      { label: "8 Hours", pill: "8h Full Day", hoursOrDays: 8, isHourly: true },
+    ],
+
+    Daily: [
+      { label: "1 Day", pill: "24h Express", hoursOrDays: 1 },
+
+      { label: "3 Days", pill: "3 Days (Popular)", hoursOrDays: 3 },
+
+      { label: "5 Days", pill: "5 Days (Workweek)", hoursOrDays: 5 },
+    ],
+
+    Weekly: [
+      {
+        label: "7 Days",
+        pill: "7 Days",
+        hoursOrDays: 7,
+        discountBadge: "15% Off",
+      },
+
+      {
+        label: "10 Days",
+        pill: "10 Days",
+        hoursOrDays: 10,
+        discountBadge: "18% Off",
+      },
+
+      {
+        label: "14 Days",
+        pill: "14 Days",
+        hoursOrDays: 14,
+        discountBadge: "20% Off",
+      },
+    ],
+
+    Monthly: [
+      {
+        label: "30 Days",
+        pill: "30 Days",
+        hoursOrDays: 30,
+        discountBadge: "Save 35%",
+      },
+
+      {
+        label: "60 Days",
+        pill: "60 Days",
+        hoursOrDays: 60,
+        discountBadge: "Save 40%",
+      },
+
+      {
+        label: "90 Days",
+        pill: "90 Days",
+        hoursOrDays: 90,
+        discountBadge: "VIP Flex",
+      },
+    ],
+  }
 
 export default function HomeView({
   cars = [],
+
   bookingState,
+
   setBookingState,
+
   onSearch,
+
   onSelectCategory,
+
   onSelectCar,
+
   onQuickBook,
+
   onNavigateCompare,
 }: HomeViewProps) {
   const [selectedDuration, setSelectedDuration] =
     useState<"Hourly" | "Daily" | "Weekly" | "Monthly">("Daily")
+
   const [activeDurationPill, setActiveDurationPill] = useState<string>("3 Days")
 
-  const handleSelectTier = (tier: "Hourly" | "Daily" | "Weekly" | "Monthly") => {
+  const handleSelectTier = (
+    tier: "Hourly" | "Daily" | "Weekly" | "Monthly",
+  ) => {
     setSelectedDuration(tier)
+
     const firstPreset = TIER_PRESETS[tier][1] || TIER_PRESETS[tier][0]
+
     setActiveDurationPill(firstPreset.label)
+
     if (tier === "Hourly") {
-      const returnTime = advanceTimeByHours(bookingState.pickupTime || "10:00 AM", firstPreset.hoursOrDays)
+      const returnTime = advanceTimeByHours(
+        bookingState.pickupTime || "10:00 AM",
+        firstPreset.hoursOrDays,
+      )
+
       setBookingState((prev) => ({
         ...prev,
+
         rentalPlan: "hourly",
+
         rentalDurationDays: 1,
+
         returnDate: prev.pickupDate,
+
         returnTime,
       }))
     } else {
-      const returnDate = advanceDateByDays(bookingState.pickupDate, firstPreset.hoursOrDays)
+      const returnDate = advanceDateByDays(
+        bookingState.pickupDate,
+        firstPreset.hoursOrDays,
+      )
+
       setBookingState((prev) => ({
         ...prev,
+
         rentalPlan: tier.toLowerCase() as BookingState["rentalPlan"],
+
         rentalDurationDays: firstPreset.hoursOrDays,
+
         returnDate,
       }))
     }
   }
 
-  const handleApplyPreset = (tier: "Hourly" | "Daily" | "Weekly" | "Monthly", preset: DurationPreset) => {
+  const handleApplyPreset = (
+    tier: "Hourly" | "Daily" | "Weekly" | "Monthly",
+    preset: DurationPreset,
+  ) => {
     setActiveDurationPill(preset.label)
+
     if (tier === "Hourly") {
-      const returnTime = advanceTimeByHours(bookingState.pickupTime || "10:00 AM", preset.hoursOrDays)
+      const returnTime = advanceTimeByHours(
+        bookingState.pickupTime || "10:00 AM",
+        preset.hoursOrDays,
+      )
+
       setBookingState((prev) => ({
         ...prev,
+
         rentalPlan: "hourly",
+
         rentalDurationDays: 1,
+
         returnDate: prev.pickupDate,
+
         returnTime,
       }))
     } else {
-      const returnDate = advanceDateByDays(bookingState.pickupDate, preset.hoursOrDays)
+      const returnDate = advanceDateByDays(
+        bookingState.pickupDate,
+        preset.hoursOrDays,
+      )
+
       setBookingState((prev) => ({
         ...prev,
+
         rentalPlan: tier.toLowerCase() as BookingState["rentalPlan"],
+
         rentalDurationDays: preset.hoursOrDays,
+
         returnDate,
       }))
     }
   }
+
   const [fleetFilter, setFleetFilter] = useState<string>("All")
+
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0)
+
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
 
   // Quick category cards
+
   const fleetCategories: {
     type: VehicleType
+
     label: string
+
     price: string
+
     image: string
+
     carId?: string
+
     description: string
   }[] = [
     {
       type: "Economy",
+
       label: "Economy",
+
       price: "From $35/day",
+
       image:
         "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
+
       description: "Smart, fuel-efficient daily commuters with great MPG.",
     },
+
     {
       type: "Sedan",
+
       label: "Sedan",
+
       price: "From $45/day",
+
       image:
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
+
       description: "Comfortable, quiet highway cruisers for executive travel.",
     },
+
     {
       type: "SUV",
+
       label: "SUV",
+
       price: "From $65/day",
+
       image:
         "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=800&q=80",
+
       description:
         "Spacious all-weather crossovers built for family roadtrips.",
     },
+
     {
       type: "Luxury",
+
       label: "Luxury",
+
       price: "From $120/day",
+
       image:
         "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
+
       description: "Refined German performance and cutting-edge cockpit tech.",
     },
   ]
 
   // Featured vehicles from live fleet
+
   const featuredCars = (cars.length > 0 ? cars : [])
+
     .filter((car) => {
       if (fleetFilter === "All") return true
+
       return car.type === fleetFilter
     })
+
     .slice(0, 4)
 
   // FAQ Items
+
   const faqItems = [
     {
       q: "How do I request a vehicle from the garage?",
+
       a: "Browse the available fleet, choose your preferred vehicle, and submit your rental dates along with your contact information. The garage manager reviews and confirms your request promptly.",
     },
+
     {
       q: "When and how do I pay?",
+
       a: "No online payment or advance deposit is required. You simply pay directly at the garage when you inspect the vehicle and collect the keys.",
     },
+
     {
       q: "What documents do I need to bring?",
+
       a: "Please bring a valid driver's license and a government-issued photo ID upon vehicle pickup at the garage.",
     },
+
     {
       q: "Where do I pick up and return the car?",
+
       a: "All pickups and returns occur directly at our garage facility. The manager inspects the car with you at pickup and drop-off.",
     },
   ]
@@ -267,20 +443,22 @@ export default function HomeView({
               {/* Professional Segmented Duration Switcher & Interactive Tier Spotlight */}
               <div className="pt-2 space-y-3">
                 <div className="grid grid-cols-4 sm:inline-flex p-1.5 bg-[#EEF0F2] rounded-2xl gap-1 shadow-inner w-full sm:w-auto text-center">
-                  {(["Hourly", "Daily", "Weekly", "Monthly"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => handleSelectTier(mode)}
-                      className={`px-2 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer text-center truncate ${
-                        selectedDuration === mode
-                          ? "bg-white text-[#F97316] font-extrabold shadow-sm"
-                          : "text-stone-500 hover:text-stone-900 font-semibold"
-                      }`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
+                  {(["Hourly", "Daily", "Weekly", "Monthly"] as const).map(
+                    (mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => handleSelectTier(mode)}
+                        className={`px-2 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer text-center truncate ${
+                          selectedDuration === mode
+                            ? "bg-white text-[#F97316] font-extrabold shadow-sm"
+                            : "text-stone-500 hover:text-stone-900 font-semibold"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ),
+                  )}
                 </div>
 
                 {/* Dynamic Tier Quick Duration Pills & Perks */}
@@ -291,11 +469,14 @@ export default function HomeView({
                     </span>
                     {TIER_PRESETS[selectedDuration].map((preset) => {
                       const isActive = activeDurationPill === preset.label
+
                       return (
                         <button
                           key={preset.label}
                           type="button"
-                          onClick={() => handleApplyPreset(selectedDuration, preset)}
+                          onClick={() =>
+                            handleApplyPreset(selectedDuration, preset)
+                          }
                           className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
                             isActive
                               ? "bg-[#17191C] text-white border-[#17191C] shadow-xs"
@@ -435,7 +616,10 @@ export default function HomeView({
                   <label className="block text-xs font-bold text-gray-900">
                     Return Date &amp; Time
                   </label>
-                  {isSameDay(bookingState.pickupDate, bookingState.returnDate) && (
+                  {isSameDay(
+                    bookingState.pickupDate,
+                    bookingState.returnDate,
+                  ) && (
                     <span className="text-[10px] font-extrabold text-[#F97316] bg-orange-100/80 border border-orange-200 px-1.5 py-0.5 rounded-md">
                       ⚡ Same-Day Return
                     </span>
@@ -452,7 +636,10 @@ export default function HomeView({
                   <div className="flex-1 flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-bold text-stone-900">
                       {bookingState.returnDate}
-                      {isSameDay(bookingState.pickupDate, bookingState.returnDate) && (
+                      {isSameDay(
+                        bookingState.pickupDate,
+                        bookingState.returnDate,
+                      ) && (
                         <span className="ml-1 text-[10px] font-bold text-[#F97316]">
                           (Same Day)
                         </span>
@@ -582,105 +769,112 @@ export default function HomeView({
         {/* 4 Cards Grid with 1-Click Quick Booking */}
         {featuredCars.length === 0 ? (
           <div className="py-16 text-center text-stone-500 bg-white rounded-3xl border border-stone-200/80 shadow-xs">
-            <p className="text-base font-bold text-stone-800">No vehicles currently listed in the fleet.</p>
-            <p className="text-xs text-stone-400 mt-1">Check back soon as new vehicles are added to inventory.</p>
+            <p className="text-base font-bold text-stone-800">
+              No vehicles currently listed in the fleet.
+            </p>
+            <p className="text-xs text-stone-400 mt-1">
+              Check back soon as new vehicles are added to inventory.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredCars.map((car) => (
-            <div
-              key={car.id}
-              className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between group"
-            >
-              {/* Image & Badges */}
               <div
-                className="relative h-48 bg-gray-50 overflow-hidden cursor-pointer"
-                onClick={() => onSelectCar(car.id)}
+                key={car.id}
+                className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between group"
               >
-                <img
-                  src={car.image}
-                  alt={car.name}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null
-                    e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
-                  }}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="bg-[#17191C]/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                    {car.type}
-                  </span>
-                  {car.status === "Rented" && (
-                    <span className="bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-lg shadow-xs">
-                      🔴 Rented
+                {/* Image & Badges */}
+                <div
+                  className="relative h-48 bg-gray-50 overflow-hidden cursor-pointer"
+                  onClick={() => onSelectCar(car.id)}
+                >
+                  <img
+                    src={car.image}
+                    alt={car.name}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null
+
+                      e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                    <span className="bg-[#17191C]/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                      {car.type}
                     </span>
-                  )}
-                </div>
-                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
-                  <StarIcon size={12} filled className="text-amber-500" />
-                  <span className="text-[11px] font-bold text-gray-800">
-                    {car.rating}
-                  </span>
-                </div>
-              </div>
-
-              {/* Car Info */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <h3
-                    onClick={() => onSelectCar(car.id)}
-                    className="text-lg font-bold text-[#17191C] font-heading hover:text-[#F97316] transition-colors cursor-pointer"
-                  >
-                    {car.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                    <span>{car.transmission}</span>
-                    <span>•</span>
-                    <span>{car.fuelType}</span>
-                    <span>•</span>
-                    <span>{car.seats} Seats</span>
-                  </p>
+                    {car.status === "Rented" && (
+                      <span className="bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-lg shadow-xs">
+                        🔴 Rented
+                      </span>
+                    )}
+                  </div>
+                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
+                    <StarIcon size={12} filled className="text-amber-500" />
+                    <span className="text-[11px] font-bold text-gray-800">
+                      {car.rating}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                {/* Car Info */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div>
-                    <span className="text-xl font-black text-[#17191C] font-heading">
-                      ${car.pricePerDay}
-                    </span>
-                    <span className="text-[11px] text-gray-400"> /day</span>
+                    <h3
+                      onClick={() => onSelectCar(car.id)}
+                      className="text-lg font-bold text-[#17191C] font-heading hover:text-[#F97316] transition-colors cursor-pointer"
+                    >
+                      {car.name}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                      <span>{car.transmission}</span>
+                      <span>•</span>
+                      <span>{car.fuelType}</span>
+                      <span>•</span>
+                      <span>{car.seats} Seats</span>
+                    </p>
                   </div>
 
-                  {/* 1-Click Fast Actions */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => onSelectCar(car.id)}
-                      className="px-3 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold transition-colors"
-                      title="Inspect Specifications"
-                    >
-                      Details
-                    </button>
-                    <button
-                      disabled={car.status === "Rented"}
-                      onClick={() => {
-                        if (car.status !== "Rented") {
-                          if (onQuickBook) onQuickBook(car.id)
-                          else onSelectCar(car.id)
-                        }
-                      }}
-                      className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1 group/btn ${
-                        car.status === "Rented"
-                          ? "bg-stone-200 text-stone-500 cursor-not-allowed"
-                          : "bg-[#F97316] hover:bg-[#EA580C] text-white"
-                      }`}
-                    >
-                      <ZapIcon size={13} />
-                      <span>{car.status === "Rented" ? "Rented" : "Book"}</span>
-                    </button>
+                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-xl font-black text-[#17191C] font-heading">
+                        ${car.pricePerDay}
+                      </span>
+                      <span className="text-[11px] text-gray-400"> /day</span>
+                    </div>
+
+                    {/* 1-Click Fast Actions */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => onSelectCar(car.id)}
+                        className="px-3 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold transition-colors"
+                        title="Inspect Specifications"
+                      >
+                        Details
+                      </button>
+                      <button
+                        disabled={car.status === "Rented"}
+                        onClick={() => {
+                          if (car.status !== "Rented") {
+                            if (onQuickBook) onQuickBook(car.id)
+                            else onSelectCar(car.id)
+                          }
+                        }}
+                        className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1 group/btn ${
+                          car.status === "Rented"
+                            ? "bg-stone-200 text-stone-500 cursor-not-allowed"
+                            : "bg-[#F97316] hover:bg-[#EA580C] text-white"
+                        }`}
+                      >
+                        <ZapIcon size={13} />
+                        <span>
+                          {car.status === "Rented" ? "Rented" : "Book"}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         )}
 
@@ -764,6 +958,7 @@ export default function HomeView({
                   alt={cat.label}
                   onError={(e) => {
                     e.currentTarget.onerror = null
+
                     e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
                   }}
                   className="w-full h-full object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500"
@@ -863,6 +1058,7 @@ export default function HomeView({
         <div className="space-y-3">
           {faqItems.map((item, idx) => {
             const isOpen = expandedFaq === idx
+
             return (
               <div
                 key={idx}
@@ -905,8 +1101,10 @@ export default function HomeView({
         onApply={(data) => {
           setBookingState((prev) => ({
             ...prev,
+
             ...data,
           }))
+
           onSearch()
         }}
       />

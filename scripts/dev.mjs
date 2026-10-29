@@ -7,7 +7,9 @@ const RESET = "\x1b[0m"
 const BOLD = "\x1b[1m"
 const RED = "\x1b[31m"
 
-console.log(`${BOLD}${CYAN}=== MOTORLY Full-Stack Dev Engine Starting ===${RESET}`)
+console.log(
+  `${BOLD}${CYAN}=== MOTORLY Full-Stack Dev Engine Starting ===${RESET}`,
+)
 
 // 1. Start Backend API Server
 const serverProc = spawn("node", ["api/index.js"], {
@@ -45,7 +47,9 @@ viteErr.on("line", (line) => {
 
 // Clean process termination handler
 function cleanup() {
-  console.log(`\n${BOLD}Shutting down full-stack development servers...${RESET}`)
+  console.log(
+    `\n${BOLD}Shutting down full-stack development servers...${RESET}`,
+  )
   try {
     serverProc.kill("SIGTERM")
   } catch {}
