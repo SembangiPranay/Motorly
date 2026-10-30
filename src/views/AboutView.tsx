@@ -82,7 +82,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
           </div>
 
           <div className="lg:col-span-5 relative">
-            <div className="rounded-3xl overflow-hidden shadow-2xl border border-stone-200 bg-stone-900 relative aspect-4/3 group">
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-stone-200 bg-stone-900 relative aspect-4/3 group">
               <img
                 src="https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80"
                 alt="Garage fleet facility and pristine vehicles"
@@ -119,7 +119,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-xl border border-stone-200/90 shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
@@ -248,7 +248,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center font-bold text-xl">
               1
             </div>
@@ -262,7 +262,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">
               2
             </div>
@@ -276,7 +276,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">
               3
             </div>
@@ -290,7 +290,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">
               4
             </div>
@@ -304,7 +304,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xl">
               5
             </div>
@@ -318,7 +318,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </p>
           </div>
 
-          <div className="bg-gradient-to-br from-stone-900 to-stone-800 text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col justify-between space-y-4">
+          <div className="bg-gradient-to-br from-stone-900 to-stone-800 text-white rounded-xl p-6 sm:p-8 shadow-xl flex flex-col justify-between space-y-4">
             <div>
               <span className="text-[10px] font-mono font-bold uppercase text-orange-400">
                 Ready to Experience It?
@@ -344,7 +344,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
 
       {/* Owner Profile & Facility Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white rounded-3xl border border-stone-200/90 shadow-xl p-8 sm:p-12">
+        <div className="bg-white rounded-xl border border-stone-200/90 shadow-xl p-8 sm:p-12">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-4 flex flex-col items-center text-center space-y-3">
               <div className="w-28 h-28 rounded-full bg-stone-900 text-white flex items-center justify-center text-4xl font-extrabold shadow-lg border-4 border-orange-100">

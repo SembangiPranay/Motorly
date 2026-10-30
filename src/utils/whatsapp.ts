@@ -13,6 +13,8 @@ export interface WhatsAppUrls {
   webUrl: string
   appUrl: string
   universalUrl: string
+  smartUrl: string
+  isMobile: boolean
 }
 
 /**
@@ -89,17 +91,50 @@ export function formatInternationalPhoneDisplay(phone?: string | null): string {
 }
 
 /**
- * Detects whether the current client is a mobile device or desktop browser.
+ * Multi-tiered detection: accurately detects whether the current client is
+ * a mobile handheld device (iOS/Android) or a Laptop/Desktop browser.
+ *
+ * Checks:
+ * 1. User Agent regex (iPhone, Android, Mobile, etc.)
+ * 2. Modern iPadOS detection (iPads reporting as MacIntel with touch points)
+ * 3. Primary pointer coarse check (touchscreen phones vs mouse/trackpad laptop)
  */
 export function isMobileDevice(): boolean {
-  if (typeof navigator === "undefined") return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent,
-  )
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false
+  }
+
+  const ua =
+    navigator.userAgent || navigator.vendor || (window as any).opera || ""
+
+  // 1. Mobile User-Agent matching
+  const isMobileUA =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS|Windows Phone/i.test(
+      ua,
+    )
+  if (isMobileUA) return true
+
+  // 2. Modern iPadOS heuristic (reports as MacIntel platform with multi-touch points)
+  if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) {
+    return true
+  }
+
+  // 3. Pointer media query check: coarse touchscreen device with mobile viewport
+  if (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches &&
+    !window.matchMedia("(hover: hover)").matches &&
+    window.innerWidth <= 840
+  ) {
+    return true
+  }
+
+  return false
 }
 
 /**
- * Builds direct WhatsApp URLs that bypass intermediate landing pages.
+ * Builds direct WhatsApp URLs that bypass intermediate landing pages and
+ * prevents forcing the WhatsApp Desktop App on laptops.
  */
 export function getWhatsAppUrls(
   rawPhone?: string | null,
@@ -108,21 +143,28 @@ export function getWhatsAppUrls(
   const normalizedPhone = normalizeWhatsAppPhone(rawPhone)
   const displayPhone = formatInternationalPhoneDisplay(rawPhone)
   const encodedText = encodeURIComponent(message)
+  const isMobile = isMobileDevice()
 
-  // Direct WhatsApp Web URL (bypasses api.whatsapp.com landing screen on desktop)
+  // 1. Direct WhatsApp Web URL
+  // On Laptop/Desktop: opens WhatsApp directly in the browser tab (zero desktop app prompts!)
   const webUrl = normalizedPhone
     ? `https://web.whatsapp.com/send?phone=${normalizedPhone}&text=${encodedText}`
     : `https://web.whatsapp.com/send?text=${encodedText}`
 
-  // Direct Native App URL protocol (triggers WhatsApp Desktop on PC/Mac or WhatsApp App on phone)
+  // 2. Direct Native App URL protocol
+  // Opens WhatsApp App on Mobile (or WhatsApp Desktop on PC/Mac if user explicitly wants app)
   const appUrl = normalizedPhone
     ? `whatsapp://send?phone=${normalizedPhone}&text=${encodedText}`
     : `whatsapp://send?text=${encodedText}`
 
-  // Universal wa.me URL
+  // 3. Universal api.whatsapp.com / wa.me URL
+  // Best suited for Mobile OS deep-linking
   const universalUrl = normalizedPhone
-    ? `https://wa.me/${normalizedPhone}?text=${encodedText}`
-    : `https://wa.me/?text=${encodedText}`
+    ? `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encodedText}`
+    : `https://api.whatsapp.com/send?text=${encodedText}`
+
+  // 4. Smart URL: Automatically routes to WhatsApp Web on Laptop/Desktop, and to WhatsApp App on Mobile
+  const smartUrl = isMobile ? universalUrl : webUrl
 
   return {
     phone: rawPhone || "",
@@ -131,7 +173,21 @@ export function getWhatsAppUrls(
     webUrl,
     appUrl,
     universalUrl,
+    smartUrl,
+    isMobile,
   }
+}
+
+/**
+ * Returns the optimal smart URL for the user's active device:
+ * - On Laptop / Desktop (Web): returns web.whatsapp.com (in-browser, no desktop app required)
+ * - On Mobile (iOS / Android): returns api.whatsapp.com (opens native phone app)
+ */
+export function getSmartWhatsAppUrl(
+  rawPhone?: string | null,
+  message: string = "",
+): string {
+  return getWhatsAppUrls(rawPhone, message).smartUrl
 }
 
 /**
@@ -140,28 +196,25 @@ export function getWhatsAppUrls(
 export function openWhatsAppDirect(
   rawPhone?: string | null,
   message: string = "",
-  mode: "web" | "app" | "auto" = "auto",
-): void {
+  mode: "auto" | "web" | "app" = "auto",
+): Window | null {
   const urls = getWhatsAppUrls(rawPhone, message)
 
   if (mode === "app") {
-    // Direct native protocol
     window.location.href = urls.appUrl
-    return
+    return null
   }
 
   if (mode === "web") {
-    // Direct WhatsApp Web tab
-    window.open(urls.webUrl, "_blank", "noopener,noreferrer")
-    return
+    return window.open(urls.webUrl, "_blank", "noopener,noreferrer")
   }
 
   // Auto mode:
-  // If on mobile device, native app URL opens the app directly
-  if (isMobileDevice()) {
-    window.location.href = urls.appUrl
+  if (urls.isMobile) {
+    // Mobile device: open native app or universal redirect
+    return window.open(urls.universalUrl, "_blank", "noopener,noreferrer")
   } else {
-    // On desktop, directly open WhatsApp Web tab
-    window.open(urls.webUrl, "_blank", "noopener,noreferrer")
+    // Laptop / Desktop: directly open WhatsApp Web tab (bypasses WhatsApp Desktop app prompt)
+    return window.open(urls.webUrl, "_blank", "noopener,noreferrer")
   }
 }

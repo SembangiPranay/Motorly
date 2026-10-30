@@ -11,7 +11,10 @@ import {
   ShieldIcon,
   ArrowRightIcon,
   CarIcon,
+  PhoneIcon,
+  MailIcon,
 } from "../components/Icons"
+import { getWhatsAppUrls, isMobileDevice } from "../utils/whatsapp"
 
 interface ConfirmationModalProps {
   bookingId: string
@@ -88,12 +91,18 @@ ${adminApprovalLink}
 
 _MOTORLY | Smarter Car Rentals_`
 
-  // Universal WhatsApp Link (works seamlessly across iOS, Android, and Desktop Browser without childish selectors)
-  const cleanPhone = studioSettings.contact_phone.replace(/[^0-9]/g, "")
-  const universalWhatsAppUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(minimalTemplate)}`
+  // Smart device-adaptive WhatsApp routing:
+  // - On Mobile: routes to native WhatsApp mobile app (api.whatsapp.com)
+  // - On Laptop / Desktop (Web): routes directly to WhatsApp Web in browser tab (bypasses WhatsApp Desktop app prompt)
+  const isMobile = isMobileDevice()
+  const whatsappUrls = getWhatsAppUrls(
+    studioSettings.contact_phone,
+    minimalTemplate,
+  )
+  const primaryWhatsAppUrl = whatsappUrls.smartUrl
 
   // Direct Mail Link
-  const mailSubject = `🚗 MOTORLY – NEW BOOKING REQUEST: ${bookingId} (${car.name})`
+  const mailSubject = `MOTORLY – NEW BOOKING REQUEST: ${bookingId} (${car.name})`
   const mailtoUrl = `mailto:${studioSettings.contact_email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(minimalTemplate.replace(/\*/g, ""))}`
 
   // Automatic & simultaneous dispatch on booking confirmation
@@ -117,9 +126,9 @@ _MOTORLY | Smarter Car Rentals_`
       }),
     }).catch(() => {})
 
-    // 2. Open WhatsApp universal link automatically
+    // 2. Open WhatsApp smart link automatically (Web on laptop, App on phone)
     try {
-      window.open(universalWhatsAppUrl, "_blank", "noopener,noreferrer")
+      window.open(primaryWhatsAppUrl, "_blank", "noopener,noreferrer")
     } catch {
       // Pop-up blockers may intercept automated window.open
     }
@@ -130,7 +139,7 @@ _MOTORLY | Smarter Car Rentals_`
 
     return () => clearTimeout(timer)
   }, [
-    universalWhatsAppUrl,
+    primaryWhatsAppUrl,
     bookingId,
     car.name,
     customerFullName,
@@ -304,7 +313,7 @@ _MOTORLY | Smarter Car Rentals_`
               if (onNavigateMyBookings) onNavigateMyBookings()
               else onNavigateListing()
             }}
-            className="w-full py-3 px-4 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-2xl text-sm font-extrabold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer group"
+            className="w-full py-3 px-4 bg-[#F97316] hover:bg-[#EA580C] text-white rounded-xl text-sm font-extrabold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer group"
           >
             <span>View in My Reservations</span>
             <ArrowRightIcon
@@ -313,24 +322,38 @@ _MOTORLY | Smarter Car Rentals_`
             />
           </button>
 
-          {/* Quick Resend / Open Links (Direct universal links, zero childish choices) */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <a
-              href={universalWhatsAppUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-            >
-              <span>💬</span>
-              <span>Re-open WhatsApp</span>
-            </a>
-            <a
-              href={mailtoUrl}
-              className="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 border border-stone-200 dark:border-stone-700 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-            >
-              <span>✉️</span>
-              <span>Re-send Email</span>
-            </a>
+          {/* Quick Resend / Open Links */}
+          <div className="space-y-2 text-xs">
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={primaryWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+              >
+                <PhoneIcon size={14} className="text-emerald-600 dark:text-emerald-400" />
+                <span>{isMobile ? "Open WhatsApp" : "Open WhatsApp Web"}</span>
+              </a>
+              <a
+                href={mailtoUrl}
+                className="py-2.5 px-3 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 border border-stone-200 dark:border-stone-700 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+              >
+                <MailIcon size={14} className="text-stone-600 dark:text-stone-400" />
+                <span>Re-send Email</span>
+              </a>
+            </div>
+
+            {!isMobile && (
+              <div className="text-center pt-1">
+                <a
+                  href={whatsappUrls.appUrl}
+                  className="text-[11px] text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 underline transition"
+                  title="Launch installed WhatsApp Desktop application"
+                >
+                  Have the Windows/Mac app? Open in WhatsApp Desktop App
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>

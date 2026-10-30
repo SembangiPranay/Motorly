@@ -8,7 +8,10 @@ import {
   SparklesIcon,
   ShieldIcon,
   CarIcon,
+  PhoneIcon,
+  MailIcon,
 } from "../components/Icons"
+import { getWhatsAppUrls, isMobileDevice } from "../utils/whatsapp"
 
 interface ContactViewProps {
   onNavigate: (view: ViewMode) => void
@@ -36,25 +39,27 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
     setSubmitted(true)
 
     // Automatically construct formatted WhatsApp inquiry
-    const inquiryText = `🚗 *MOTORLY – RENTAL INQUIRY*
+    const inquiryText = `MOTORLY – RENTAL INQUIRY
 ----------------------------------------
-*From:* ${formData.name}
-*Phone:* ${formData.phone || "Not provided"}
-*Email:* ${formData.email}
-*Preferred Dates:* ${formData.dates || "Flexible"}
-*Preferred Vehicle:* ${formData.preferredVehicle || "Any available"}
+From: ${formData.name}
+Phone: ${formData.phone || "Not provided"}
+Email: ${formData.email}
+Preferred Dates: ${formData.dates || "Flexible"}
+Preferred Vehicle: ${formData.preferredVehicle || "Any available"}
 
-*Message:*
+Message:
 ${formData.message}
 
-_Sent via MOTORLY Direct Contact Portal_`
+Sent via MOTORLY Direct Contact Portal`
 
-    const cleanPhone = ownerPhone.replace(/[^\d]/g, "")
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(inquiryText)}`
+    // Smart device-adaptive WhatsApp routing:
+    // Opens WhatsApp Web on Laptop/Desktop, and WhatsApp App on Mobile
+    const isMobile = isMobileDevice()
+    const urls = getWhatsAppUrls(ownerPhone, inquiryText)
+    const targetUrl = isMobile ? urls.universalUrl : urls.webUrl
 
-    // Open WhatsApp in new tab for direct conversation
     try {
-      window.open(whatsappUrl, "_blank")
+      window.open(targetUrl, "_blank", "noopener,noreferrer")
     } catch {}
   }
 
@@ -122,10 +127,10 @@ _Sent via MOTORLY Direct Contact Portal_`
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1: Direct Phone */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center text-xl font-bold">
-                📞
+              <div className="w-12 h-12 rounded-xl bg-orange-50 text-[#F97316] flex items-center justify-center font-bold">
+                <PhoneIcon size={22} className="text-[#F97316]" />
               </div>
               <h3 className="text-lg font-bold text-stone-900 font-heading">
                 Direct Cellular Phone
@@ -140,17 +145,17 @@ _Sent via MOTORLY Direct Contact Portal_`
             </div>
             <a
               href={`tel:${ownerPhone.replace(/[^\d]/g, "")}`}
-              className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#F97316] font-bold text-xs rounded-xl border border-orange-200 text-center transition block cursor-pointer"
+              className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#F97316] font-bold text-xs rounded-lg border border-orange-200 text-center transition block cursor-pointer"
             >
               Call Manager Directly
             </a>
           </div>
 
           {/* Card 2: WhatsApp Chat */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
-                💬
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <PhoneIcon size={22} className="text-emerald-600" />
               </div>
               <h3 className="text-lg font-bold text-stone-900 font-heading">
                 Instant WhatsApp Chat
@@ -164,20 +169,25 @@ _Sent via MOTORLY Direct Contact Portal_`
               </div>
             </div>
             <a
-              href={`https://api.whatsapp.com/send?phone=${ownerPhone.replace(/[^\d]/g, "")}&text=${encodeURIComponent("Hello! I am interested in renting a car from MOTORLY.")}`}
+              href={
+                getWhatsAppUrls(
+                  ownerPhone,
+                  "Hello! I am interested in renting a car from MOTORLY.",
+                ).smartUrl
+              }
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl text-center transition block cursor-pointer shadow-xs"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg text-center transition block cursor-pointer shadow-xs"
             >
-              Open Direct WhatsApp
+              {isMobileDevice() ? "Open WhatsApp App" : "Open WhatsApp Web"}
             </a>
           </div>
 
           {/* Card 3: Priority Email */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-4 flex flex-col justify-between">
             <div className="space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-stone-100 text-stone-800 flex items-center justify-center text-xl font-bold">
-                ✉️
+              <div className="w-12 h-12 rounded-xl bg-stone-100 text-stone-800 flex items-center justify-center font-bold">
+                <MailIcon size={22} className="text-stone-800" />
               </div>
               <h3 className="text-lg font-bold text-stone-900 font-heading">
                 Priority Email Inbox
@@ -205,7 +215,7 @@ _Sent via MOTORLY Direct Contact Portal_`
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Left Column: Garage Facility Location & Hours */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-6">
+            <div className="bg-white rounded-xl p-6 sm:p-8 border border-stone-200/90 shadow-sm space-y-6">
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-orange-600">
                   Key Handoff Facility
@@ -283,7 +293,7 @@ _Sent via MOTORLY Direct Contact Portal_`
             </div>
 
             {/* Quick Map Visual Staging Card */}
-            <div className="rounded-3xl overflow-hidden border border-stone-200/90 shadow-sm bg-stone-900 p-6 text-white space-y-3 relative">
+            <div className="rounded-xl overflow-hidden border border-stone-200/90 shadow-sm bg-stone-900 p-6 text-white space-y-3 relative">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-orange-400 font-mono">
                   GPS Coordinates
@@ -318,7 +328,7 @@ _Sent via MOTORLY Direct Contact Portal_`
 
           {/* Right Column: Direct Interactive Inquiry Form */}
           <div className="lg:col-span-7">
-            <div className="bg-white rounded-3xl p-6 sm:p-10 border border-stone-200/90 shadow-xl space-y-6">
+            <div className="bg-white rounded-xl p-6 sm:p-10 border border-stone-200/90 shadow-xl space-y-6">
               <div>
                 <h3 className="text-2xl font-black text-stone-900 font-heading">
                   Send a Direct Message to the Manager
