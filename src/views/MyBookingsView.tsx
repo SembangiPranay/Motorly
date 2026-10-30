@@ -21,6 +21,7 @@ interface MyBookingsViewProps {
   currentUser: CustomerUser | null
   setCurrentUser: (user: CustomerUser | null) => void
   allBookings?: BookingRecord[]
+  onBookingsChange?: (bookings: BookingRecord[]) => void
   onNavigateHome: () => void
   onNavigateListing: () => void
 }
@@ -30,6 +31,7 @@ export default function MyBookingsView({
   currentUser,
   setCurrentUser,
   allBookings,
+  onBookingsChange,
   onNavigateHome,
   onNavigateListing,
 }: MyBookingsViewProps) {
@@ -169,11 +171,13 @@ export default function MyBookingsView({
         customerNotes: extensionReason,
       })
       if (res.success) {
-        setBookings((prev) =>
-          prev.map((b) =>
+        setBookings((prev) => {
+          const updated = prev.map((b) =>
             b.id === selectedBookingForExtension.id ? res.booking : b,
-          ),
-        )
+          )
+          onBookingsChange?.(updated)
+          return updated
+        })
         setIsExtensionModalOpen(false)
         showActionSuccess(
           `Extension request (+${extensionDuration} ${extensionUnit}) submitted to garage manager! You will receive a quotation shortly.`,
@@ -191,9 +195,11 @@ export default function MyBookingsView({
     try {
       const res = await api.approveExtension(bookingId)
       if (res.success) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === bookingId ? res.booking : b)),
-        )
+        setBookings((prev) => {
+          const updated = prev.map((b) => (b.id === bookingId ? res.booking : b))
+          onBookingsChange?.(updated)
+          return updated
+        })
         showActionSuccess(
           "Extension approved! Quotation amount added to your bill and return date extended.",
         )
@@ -210,15 +216,32 @@ export default function MyBookingsView({
     try {
       const res = await api.declineExtension(bookingId)
       if (res.success) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === bookingId ? res.booking : b)),
-        )
+        setBookings((prev) => {
+          const updated = prev.map((b) => (b.id === bookingId ? res.booking : b))
+          onBookingsChange?.(updated)
+          return updated
+        })
         showActionSuccess("Extension quotation declined.")
       }
     } catch (err: any) {
       alert("Failed to decline quotation: " + err.message)
     }
   }
+
+  // Real-time polling to ensure customer immediately receives manager quotations
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible" && currentUser?.email) {
+        api.getCustomerBookings(currentUser.email).then((fresh) => {
+          if (Array.isArray(fresh) && fresh.length > 0) {
+            setBookings(fresh)
+            onBookingsChange?.(fresh)
+          }
+        }).catch(() => {})
+      }
+    }, 6000)
+    return () => clearInterval(pollInterval)
+  }, [currentUser?.email])
 
   // Fetch bookings when user changes, on mount, or when allBookings updates
   useEffect(() => {
@@ -871,16 +894,16 @@ export default function MyBookingsView({
                         {/* Flow F: Extension Request Card & Quotation Notification */}
                         {(b.extensionStatus === "Pending" ||
                           b.extensionStatus === "Requested") && (
-                          <div className="mx-6 mt-3 p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs flex items-center justify-between gap-3">
+                          <div className="mx-3 sm:mx-6 mt-3 p-3 sm:p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs flex items-center justify-between gap-2.5">
                             <div>
                               <span className="font-bold text-amber-900 flex items-center gap-1.5">
                                 <ClockIcon
                                   size={14}
-                                  className="text-amber-600"
+                                  className="text-amber-600 shrink-0"
                                 />
                                 Extension Request Submitted (+
-                                {b.extensionRequest?.durationValue}{" "}
-                                {b.extensionRequest?.durationUnit})
+                                {b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1}{" "}
+                                {b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"})
                               </span>
                               <p className="text-stone-600 text-[11px] mt-0.5">
                                 The garage manager has received your request and
@@ -888,32 +911,31 @@ export default function MyBookingsView({
                                 period.
                               </p>
                             </div>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase shrink-0">
                               Quotation Pending
                             </span>
                           </div>
                         )}
 
                         {b.extensionStatus === "Quoted" && b.extensionQuote && (
-                          <div className="mx-6 mt-3 p-4 rounded-2xl bg-sky-50 border-2 border-sky-300 text-xs shadow-sm">
+                          <div className="mx-3 sm:mx-6 mt-3 p-3.5 sm:p-4 rounded-xl bg-sky-50 border-2 border-sky-300 text-xs shadow-sm">
                             <div className="flex items-center justify-between mb-2">
                               <span className="font-black text-sky-950 uppercase tracking-wide text-xs flex items-center gap-1.5">
                                 <SparklesIcon
                                   size={14}
-                                  className="text-sky-600"
+                                  className="text-sky-600 shrink-0"
                                 />
-                                Extension Quotation Received from Garage
-                                Manager!
+                                Extension Quotation Received!
                               </span>
-                              <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded border border-sky-200">
-                                Awaiting Your Approval
+                              <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded border border-sky-200 shrink-0">
+                                Awaiting Approval
                               </span>
                             </div>
                             <p className="text-stone-700 mb-2">
                               You requested an extension of{" "}
                               <strong>
-                                +{b.extensionQuote.durationValue}{" "}
-                                {b.extensionQuote.durationUnit}
+                                +{b.extensionQuote.durationValue ?? b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1}{" "}
+                                {b.extensionQuote.durationUnit ?? b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"}
                               </strong>
                               . The manager has provided this official quote:
                             </p>
@@ -939,20 +961,20 @@ export default function MyBookingsView({
                               </div>
                               {b.extensionQuote.notes && (
                                 <p className="text-[11px] text-stone-500 italic pt-1 font-sans">
-                                  Note from Hub: "{b.extensionQuote.notes}"
+                                  Note from Hub: &quot;{b.extensionQuote.notes}&quot;
                                 </p>
                               )}
                             </div>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApproveExtension(b.id)}
-                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5"
+                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                <CheckIcon size={14} /> Approve & Add to Bill
+                                <CheckIcon size={14} /> Approve & Extend Trip
                               </button>
                               <button
                                 onClick={() => handleDeclineExtension(b.id)}
-                                className="py-2.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-semibold text-xs transition"
+                                className="py-2.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-semibold text-xs transition cursor-pointer"
                               >
                                 Decline
                               </button>
@@ -961,7 +983,7 @@ export default function MyBookingsView({
                         )}
 
                         {b.extensionStatus === "Approved" && (
-                          <div className="mx-6 mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                          <div className="mx-3 sm:mx-6 mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
                             <CheckIcon
                               size={14}
                               className="text-emerald-600 shrink-0"
@@ -974,7 +996,7 @@ export default function MyBookingsView({
                         )}
 
                         {/* Card Body */}
-                        <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
                           {/* Car Preview / Mated Details */}
                           <div className="lg:col-span-5 flex gap-5 items-center">
                             <div className="w-32 h-24 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 shrink-0">

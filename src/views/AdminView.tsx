@@ -1793,6 +1793,40 @@ export default function AdminView({
     }
   }, [bookings, cars])
 
+  // Live auto-polling to immediately detect customer extension requests & status transitions
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        api
+          .getBookings()
+          .then((fresh) => {
+            if (Array.isArray(fresh) && fresh.length > 0) {
+              setBookings(fresh)
+            }
+          })
+          .catch(() => {})
+      }
+    }, 6000)
+
+    const handleWindowFocus = () => {
+      api
+        .getBookings()
+        .then((fresh) => {
+          if (Array.isArray(fresh) && fresh.length > 0) {
+            setBookings(fresh)
+          }
+        })
+        .catch(() => {})
+    }
+
+    window.addEventListener("focus", handleWindowFocus)
+
+    return () => {
+      clearInterval(pollInterval)
+      window.removeEventListener("focus", handleWindowFocus)
+    }
+  }, [])
+
   // --- WALK-IN COUNTER DISPATCH ---
 
   const handleWalkinSubmit = async (e: React.FormEvent) => {
@@ -2270,6 +2304,10 @@ export default function AdminView({
           b.status !== "Completed" &&
           b.status !== "Cancelled"))
 
+    const extensionRequests = bookings.filter(
+      (b) => b.extensionStatus === "Requested" || b.extensionStatus === "Pending",
+    ).length
+
     return {
       all: bookings.length,
 
@@ -2278,6 +2316,8 @@ export default function AdminView({
       confirmed: bookings.filter(isConfirmedBooking).length,
 
       active: bookings.filter((b) => b.status === "Checked Out").length,
+
+      extensions: extensionRequests,
 
       returned: bookings.filter((b) => b.status === "Returned").length,
 
@@ -2328,6 +2368,12 @@ export default function AdminView({
         manifestStatusFilter === "Checked Out"
       ) {
         matchStatus = b.status === "Checked Out"
+      } else if (manifestStatusFilter === "extensions") {
+        matchStatus =
+          b.extensionStatus === "Requested" ||
+          b.extensionStatus === "Pending" ||
+          b.extensionStatus === "Quoted" ||
+          b.extensionStatus === "Approved"
       } else if (
         manifestStatusFilter === "returned" ||
         manifestStatusFilter === "Returned"
@@ -2357,15 +2403,11 @@ export default function AdminView({
     })
 
     // Action priority:
-
+    // -1: Pending extension request from active driver (critical timely response)
     // 0: Pending review / unassigned / needs car (highest priority actions)
-
     // 1: Confirmed (Assigned - ready for customer pickup)
-
     // 2: Active trips (Checked Out - on the road)
-
     // 3: Returned (Awaiting check-in inspection)
-
     // 4: Completed & Cancelled (Archived history)
 
     const parseBookingTime = (t?: string): number => {
@@ -2385,6 +2427,8 @@ export default function AdminView({
     }
 
     const getPriority = (b: BookingRecord): number => {
+      if (b.extensionStatus === "Requested" || b.extensionStatus === "Pending") return -1
+
       if (isPendingBooking(b)) return 0
 
       if (b.status === "Assigned") return 1
@@ -3062,7 +3106,7 @@ export default function AdminView({
         </header>
 
         {/* Main Workspace Area */}
-        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-2 sm:px-6 lg:px-8 py-2.5 sm:py-6 space-y-3 sm:space-y-6">
           {/* Toast Alert */}
           {notification && (
             <div
@@ -3378,7 +3422,7 @@ export default function AdminView({
             {activeTab === "manifest" && (
               <>
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-2.5 sm:p-5 rounded-xl flex flex-col justify-between min-h-[64px] sm:min-h-[110px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3393,14 +3437,14 @@ export default function AdminView({
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.rented}
                   </p>
-                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <p className="hidden sm:flex text-[11px] font-medium text-emerald-600 dark:text-emerald-400 items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                     On road &amp; in service
                   </p>
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-2.5 sm:p-5 rounded-xl flex flex-col justify-between min-h-[64px] sm:min-h-[110px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3408,27 +3452,36 @@ export default function AdminView({
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
-                      PENDING APPROVALS &amp; MATING
+                      PENDING &amp; EXTENSIONS
                     </p>
                     <span className="text-amber-500"><ZapIcon size={14} /></span>
                   </div>
-                  <p
-                    className={`text-3xl font-black font-mono my-1 ${
-                      stats.pendingMating > 0
-                        ? "text-amber-500"
-                        : "text-stone-900 dark:text-white"
-                    }`}
-                  >
-                    {stats.pendingMating}
-                  </p>
-                  <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                  <div className="flex items-baseline gap-2 my-0.5 sm:my-1">
+                    <p
+                      className={`text-xl sm:text-3xl font-black font-mono ${
+                        stats.pendingMating > 0 || manifestCounts.extensions > 0
+                          ? "text-amber-500"
+                          : "text-stone-900 dark:text-white"
+                      }`}
+                    >
+                      {stats.pendingMating + manifestCounts.extensions}
+                    </p>
+                    {manifestCounts.extensions > 0 && (
+                      <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse">
+                        +{manifestCounts.extensions} Ext
+                      </span>
+                    )}
+                  </div>
+                  <p className="hidden sm:flex text-[11px] font-medium text-amber-600 dark:text-amber-400 items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-                    Awaiting manager clearance
+                    {manifestCounts.extensions > 0
+                      ? `${manifestCounts.extensions} extension requests pending`
+                      : "Awaiting manager clearance"}
                   </p>
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-2.5 sm:p-5 rounded-xl flex flex-col justify-between min-h-[64px] sm:min-h-[110px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3443,13 +3496,13 @@ export default function AdminView({
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {bookings.filter((b) => b.status === "Completed").length}
                   </p>
-                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                  <p className="hidden sm:block text-[11px] font-medium text-stone-500 dark:text-stone-400">
                     Successfully returned &amp; audited
                   </p>
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-2.5 sm:p-5 rounded-xl flex flex-col justify-between min-h-[64px] sm:min-h-[110px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3464,7 +3517,7 @@ export default function AdminView({
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     ${stats.activeRevenue.toLocaleString()}
                   </p>
-                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                  <p className="hidden sm:block text-[11px] font-medium text-stone-500 dark:text-stone-400">
                     From active reservation contracts
                   </p>
                 </div>
@@ -3658,7 +3711,7 @@ export default function AdminView({
             ======================================================== */}
           {activeTab === "manifest" && (
             <section
-              className={`border rounded-2xl overflow-hidden transition ${
+              className={`border rounded-xl sm:rounded-2xl overflow-hidden transition ${
                 isDark
                   ? "bg-[#17191C] border-stone-800 shadow-xl"
                   : "bg-white border-stone-200/90 shadow-xs"
@@ -3666,24 +3719,24 @@ export default function AdminView({
             >
               {/* Manifest Toolbar */}
               <div
-                className={`p-4 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                className={`p-2.5 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4 ${
                   isDark
                     ? "border-stone-800 bg-[#17191C]"
                     : "border-stone-200/80 bg-white"
                 }`}
               >
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Search */}
-                  <div className="relative w-full sm:w-72">
+                {/* Search Bar + Walk-In Button on Mobile */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <div className="relative flex-1 md:w-72">
                     <SearchIcon
-                      size={16}
+                      size={15}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
                     />
                     <input
                       type="text"
                       value={manifestSearch}
                       onChange={(e) => setManifestSearch(e.target.value)}
-                      placeholder="Search ID, customer, license..."
+                      placeholder="Search ID, customer, phone..."
                       className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
                         isDark
                           ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
@@ -3692,106 +3745,110 @@ export default function AdminView({
                     />
                   </div>
 
-                  {/* Status Chips with Live Dynamic Counts */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
-                    {[
-                      {
-                        id: "all",
-                        label: "All Reservations",
-                        count: manifestCounts.all,
-                      },
+                  {/* Direct Walk-In button visible on Mobile next to Search */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("walkin")}
+                    className={`md:hidden shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      isDark
+                        ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs"
+                    }`}
+                  >
+                    <ZapIcon size={14} />
+                    <span>+ Walk-In</span>
+                  </button>
+                </div>
 
-                      {
-                        id: "needs-car",
+                {/* Status Chips with Live Dynamic Counts */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs py-0.5 w-full md:w-auto">
+                  {[
+                    {
+                      id: "all",
+                      label: "All Reservations",
+                      count: manifestCounts.all,
+                    },
+                    {
+                      id: "extensions",
+                      label: "Extensions",
+                      count: manifestCounts.extensions,
+                      hasBadge: manifestCounts.extensions > 0,
+                      isAmber: true,
+                    },
+                    {
+                      id: "needs-car",
+                      legacyId: "Pending Assignment",
+                      label: "Needs Car",
+                      count: manifestCounts.pending,
+                      hasBadge: manifestCounts.pending > 0,
+                    },
+                    {
+                      id: "confirmed",
+                      legacyId: "Assigned",
+                      label: "Confirmed",
+                      count: manifestCounts.confirmed,
+                    },
+                    {
+                      id: "active",
+                      legacyId: "Checked Out",
+                      label: "Active Trips",
+                      count: manifestCounts.active,
+                    },
+                    {
+                      id: "returned",
+                      legacyId: "Returned",
+                      label: "Returned",
+                      count: manifestCounts.returned,
+                    },
+                    {
+                      id: "completed",
+                      legacyId: "Completed",
+                      label: "Completed",
+                      count: manifestCounts.completed,
+                    },
+                  ].map((s) => {
+                    const isSelected =
+                      manifestStatusFilter === s.id ||
+                      manifestStatusFilter === (s as any).legacyId
 
-                        legacyId: "Pending Assignment",
-
-                        label: "Needs Car",
-
-                        count: manifestCounts.pending,
-
-                        hasBadge: manifestCounts.pending > 0,
-                      },
-
-                      {
-                        id: "confirmed",
-
-                        legacyId: "Assigned",
-
-                        label: "Confirmed",
-
-                        count: manifestCounts.confirmed,
-                      },
-
-                      {
-                        id: "active",
-
-                        legacyId: "Checked Out",
-
-                        label: "Active Trips",
-
-                        count: manifestCounts.active,
-                      },
-
-                      {
-                        id: "returned",
-
-                        legacyId: "Returned",
-
-                        label: "Returned",
-
-                        count: manifestCounts.returned,
-                      },
-
-                      {
-                        id: "completed",
-
-                        legacyId: "Completed",
-
-                        label: "Completed",
-
-                        count: manifestCounts.completed,
-                      },
-                    ].map((s) => {
-                      const isSelected =
-                        manifestStatusFilter === s.id ||
-                        manifestStatusFilter === (s as any).legacyId
-
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => setManifestStatusFilter(s.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs ${
-                            isSelected
-                              ? "bg-[#F97316] text-white shadow-md"
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setManifestStatusFilter(s.id)}
+                        className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs ${
+                          isSelected
+                            ? "bg-[#F97316] text-white shadow-md"
+                            : (s as any).isAmber && (s as any).count > 0
+                              ? isDark
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                : "bg-amber-50 text-amber-800 border border-amber-300"
                               : isDark
                                 ? "bg-stone-900 text-stone-300 hover:text-white border border-stone-800 hover:bg-stone-800/80"
                                 : "bg-white text-stone-700 hover:text-stone-950 border border-stone-200 hover:bg-stone-100/80"
+                        }`}
+                      >
+                        <span>{s.label}</span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : s.hasBadge
+                                ? "bg-amber-500 text-stone-950 font-black animate-pulse"
+                                : isDark
+                                  ? "bg-stone-800 text-stone-400"
+                                  : "bg-stone-100 text-stone-600"
                           }`}
                         >
-                          <span>{s.label}</span>
-                          <span
-                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black ${
-                              isSelected
-                                ? "bg-white/20 text-white"
-                                : s.hasBadge
-                                  ? "bg-amber-500 text-stone-950 font-black animate-pulse"
-                                  : isDark
-                                    ? "bg-stone-800 text-stone-400"
-                                    : "bg-stone-100 text-stone-600"
-                            }`}
-                          >
-                            {s.count}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
+                          {s.count}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
 
-                {/* Right tools */}
-                <div className="flex items-center gap-2">
+                {/* Right tools (Desktop) */}
+                <div className="hidden md:flex items-center gap-2 shrink-0">
                   {/* Desktop View Switcher: Cards vs Table */}
                   <div className="hidden lg:flex items-center p-1 bg-stone-100 dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800">
                     <button
@@ -3834,7 +3891,7 @@ export default function AdminView({
               </div>
 
               {/* Mobile Cards Container (< lg screens) */}
-              <div className="block lg:hidden p-3.5 space-y-3.5">
+              <div className="block lg:hidden p-2 sm:p-3.5 space-y-2.5 sm:space-y-3.5">
                 {filteredBookings.length === 0 ? (
                   <div
                     className={`py-12 text-center text-xs ${
@@ -3878,7 +3935,7 @@ export default function AdminView({
                       <div
                         key={b.id}
                         onClick={() => setInspectedBooking(b)}
-                        className={`group p-4 rounded-2xl border transition-all duration-200 cursor-pointer space-y-3 shadow-2xs hover:shadow-md ${
+                        className={`group p-3 sm:p-4 rounded-xl border transition-all duration-200 cursor-pointer space-y-2.5 shadow-2xs hover:shadow-md ${
                           isDark
                             ? "bg-stone-900/90 border-stone-800 hover:border-orange-500/50"
                             : "bg-white border-stone-200/90 hover:border-orange-400 hover:bg-orange-50/10"
@@ -3952,6 +4009,64 @@ export default function AdminView({
                             </span>
                           </div>
                         </div>
+
+                        {/* Flow F: Extension Request Alert Banner on Card */}
+                        {(b.extensionStatus === "Requested" || b.extensionStatus === "Pending") && (
+                          <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-pulse">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ClockIcon size={14} className="text-amber-600 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="font-bold text-[11px] leading-tight">
+                                  Extension Requested: +{b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1} {b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"}
+                                </p>
+                                {b.extensionRequest?.customerNotes && (
+                                  <p className="text-[10px] text-amber-700 dark:text-amber-300 truncate">
+                                    &quot;{b.extensionRequest.customerNotes}&quot;
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenExtensionQuote(b)
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-[10px] shrink-0 shadow-xs cursor-pointer"
+                            >
+                              Quote
+                            </button>
+                          </div>
+                        )}
+                        {b.extensionStatus === "Quoted" && (
+                          <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200 text-[11px] flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="font-bold flex items-center gap-1">
+                                <SparklesIcon size={13} className="text-sky-500 shrink-0" />
+                                Quoted: ${b.extensionQuote?.totalQuotedAmount} ({b.extensionQuote?.rateAmount}/{b.extensionQuote?.rateType})
+                              </span>
+                              <span className="text-[10px] text-stone-500 dark:text-stone-400 block truncate">
+                                Awaiting customer approval in app
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenExtensionQuote(b)
+                              }}
+                              className="px-2 py-0.5 rounded text-[10px] font-bold border border-sky-400 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer shrink-0"
+                            >
+                              Re-Quote
+                            </button>
+                          </div>
+                        )}
+                        {b.extensionStatus === "Approved" && (
+                          <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1.5">
+                            <CheckIcon size={12} className="text-emerald-500 shrink-0" />
+                            <span>Extension Approved (+{b.extensionRequest?.durationValue ?? 1} {b.extensionRequest?.durationUnit ?? "days"}) • Extended to {b.returnDate}</span>
+                          </div>
+                        )}
 
                         {/* Customer Profile Row */}
                         <div className="flex items-center justify-between gap-2.5 pt-0.5">
@@ -4133,16 +4248,42 @@ export default function AdminView({
                                 </button>
                               )}
 
-                            {b.status === "Checked Out" && (
+                            {/* Flow F: Quote Extension Button */}
+                            {(b.extensionStatus === "Requested" ||
+                              b.extensionStatus === "Pending") && (
                               <button
                                 type="button"
-                                onClick={() => handleOpenReturnInspection(b)}
-                                className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                onClick={() => handleOpenExtensionQuote(b)}
+                                className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
                               >
-                                <FlagIcon size={12} className="inline text-emerald-500" />
-                                <span>Return Check</span>
+                                <ZapIcon size={13} />
+                                <span>Quote Extension</span>
                               </button>
                             )}
+
+                            {b.extensionStatus === "Quoted" && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenExtensionQuote(b)}
+                                className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <SparklesIcon size={13} />
+                                <span>Modify Quote</span>
+                              </button>
+                            )}
+
+                            {b.status === "Checked Out" &&
+                              b.extensionStatus !== "Requested" &&
+                              b.extensionStatus !== "Pending" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenReturnInspection(b)}
+                                  className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <FlagIcon size={12} className="inline text-emerald-500" />
+                                  <span>Return Check</span>
+                                </button>
+                              )}
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -4309,6 +4450,64 @@ export default function AdminView({
                               </div>
                             </div>
 
+                            {/* Flow F: Extension Request Alert Banner on Card */}
+                            {(b.extensionStatus === "Requested" || b.extensionStatus === "Pending") && (
+                              <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-pulse">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <ClockIcon size={14} className="text-amber-600 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-[11px] leading-tight">
+                                      Extension Requested: +{b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1} {b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"}
+                                    </p>
+                                    {b.extensionRequest?.customerNotes && (
+                                      <p className="text-[10px] text-amber-700 dark:text-amber-300 truncate">
+                                        &quot;{b.extensionRequest.customerNotes}&quot;
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenExtensionQuote(b)
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-[10px] shrink-0 shadow-xs cursor-pointer"
+                                >
+                                  Quote
+                                </button>
+                              </div>
+                            )}
+                            {b.extensionStatus === "Quoted" && (
+                              <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200 text-[11px] flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <span className="font-bold flex items-center gap-1">
+                                    <SparklesIcon size={13} className="text-sky-500 shrink-0" />
+                                    Quoted: ${b.extensionQuote?.totalQuotedAmount} ({b.extensionQuote?.rateAmount}/{b.extensionQuote?.rateType})
+                                  </span>
+                                  <span className="text-[10px] text-stone-500 dark:text-stone-400 block truncate">
+                                    Awaiting customer approval in app
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenExtensionQuote(b)
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold border border-sky-400 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer shrink-0"
+                                >
+                                  Re-Quote
+                                </button>
+                              </div>
+                            )}
+                            {b.extensionStatus === "Approved" && (
+                              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1.5">
+                                <CheckIcon size={12} className="text-emerald-500 shrink-0" />
+                                <span>Extension Approved (+{b.extensionRequest?.durationValue ?? 1} {b.extensionRequest?.durationUnit ?? "days"}) • Extended to {b.returnDate}</span>
+                              </div>
+                            )}
+
                             {/* Customer Profile Row */}
                             <div className="flex items-center justify-between gap-2.5 pt-0.5">
                               <div className="flex items-center gap-2.5 min-w-0">
@@ -4365,7 +4564,7 @@ export default function AdminView({
                               ) : (
                                 <div className="flex items-center justify-between w-full">
                                   <span className="text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1.5">
-                                    <span>⚠️</span>
+                                    <AlertTriangleIcon size={13} className="text-amber-500 inline" />
                                     <span>Vehicle unassigned</span>
                                   </span>
                                   <button
@@ -4409,7 +4608,7 @@ export default function AdminView({
                                   b.returnDate,
                                 ).hours < 24 && (
                                   <span className="text-[9.5px] font-black text-[#F97316] bg-orange-100/90 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900/60 shrink-0">
-                                    ⚡{" "}
+                                    <ZapIcon size={11} className="inline text-[#F97316]" />{" "}
                                     {
                                       getBookingDurationInfo(
                                         b.pickupDate,
@@ -4440,7 +4639,7 @@ export default function AdminView({
                                   className="text-blue-500 hover:text-blue-600 dark:text-blue-400 font-bold text-[10px] shrink-0 flex items-center gap-0.5 hover:underline cursor-pointer ml-1"
                                   title="Open location on Google Maps"
                                 >
-                                  <span>🗺️ Maps</span>
+                                  <span>Maps</span>
                                 </a>
                               </div>
                             </div>
@@ -4490,23 +4689,49 @@ export default function AdminView({
                                       onClick={() => handleOpenKeyHandoff(b)}
                                       className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                                     >
-                                      <span>🔑</span>
+                                      <KeyIcon size={12} className="inline text-amber-500" />
                                       <span>Handover Keys</span>
                                     </button>
                                   )}
 
-                                {b.status === "Checked Out" && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleOpenReturnInspection(b)
-                                    }
-                                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                  >
-                                    <span>🏁</span>
-                                    <span>Return Check</span>
-                                  </button>
-                                )}
+                                 {/* Flow F: Quote Extension CTA in Desktop Cards */}
+                                 {(b.extensionStatus === "Requested" ||
+                                   b.extensionStatus === "Pending") && (
+                                   <button
+                                     type="button"
+                                      onClick={() => handleOpenExtensionQuote(b)}
+                                     className="px-3.5 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
+                                   >
+                                     <ZapIcon size={13} />
+                                     <span>Quote Extension</span>
+                                   </button>
+                                 )}
+
+                                 {b.extensionStatus === "Quoted" && (
+                                   <button
+                                     type="button"
+                                     onClick={() => handleOpenExtensionQuote(b)}
+                                     className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                   >
+                                     <SparklesIcon size={13} />
+                                     <span>Modify Quote</span>
+                                   </button>
+                                 )}
+
+                                 {b.status === "Checked Out" &&
+                                   b.extensionStatus !== "Requested" &&
+                                   b.extensionStatus !== "Pending" && (
+                                     <button
+                                       type="button"
+                                       onClick={() =>
+                                         handleOpenReturnInspection(b)
+                                       }
+                                       className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                     >
+                                       <FlagIcon size={12} className="inline text-emerald-500" />
+                                       <span>Return Check</span>
+                                     </button>
+                                   )}
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
@@ -8718,16 +8943,15 @@ export default function AdminView({
                         Model Year
                       </label>
                       <input
-                        type="number"
-                        step="1"
+                        type="text"
+                        inputMode="numeric"
                         placeholder="2024"
                         value={carFormData.year ?? ""}
-                        onWheel={(e) => e.currentTarget.blur()}
                         onChange={(e) => {
-                          const val = e.target.value
+                          const val = e.target.value.replace(/[^0-9]/g, "")
                           setCarFormData({
                             ...carFormData,
-                            year: val === "" ? ("" as any) : Number(val),
+                            year: val === "" ? ("" as any) : val,
                           })
                         }}
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -9166,16 +9390,15 @@ export default function AdminView({
                         Seating Capacity
                       </label>
                       <input
-                        type="number"
-                        step="1"
+                        type="text"
+                        inputMode="numeric"
                         placeholder="5"
                         value={carFormData.seats ?? ""}
-                        onWheel={(e) => e.currentTarget.blur()}
                         onChange={(e) => {
-                          const val = e.target.value
+                          const val = e.target.value.replace(/[^0-9]/g, "")
                           setCarFormData({
                             ...carFormData,
-                            seats: val === "" ? ("" as any) : Number(val),
+                            seats: val === "" ? ("" as any) : val,
                           })
                         }}
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -9282,16 +9505,15 @@ export default function AdminView({
                           $
                         </span>
                         <input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="55"
                           value={carFormData.pricePerDay ?? ""}
-                          onWheel={(e) => e.currentTarget.blur()}
                           onChange={(e) => {
-                            const val = e.target.value
+                            const val = e.target.value.replace(/[^0-9.]/g, "")
                             setCarFormData({
                               ...carFormData,
-                              pricePerDay: val === "" ? ("" as any) : Number(val),
+                              pricePerDay: val === "" ? ("" as any) : val,
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-black transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -9323,16 +9545,15 @@ export default function AdminView({
                           $
                         </span>
                         <input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="8"
                           value={carFormData.pricePerHour ?? ""}
-                          onWheel={(e) => e.currentTarget.blur()}
                           onChange={(e) => {
-                            const val = e.target.value
+                            const val = e.target.value.replace(/[^0-9.]/g, "")
                             setCarFormData({
                               ...carFormData,
-                              pricePerHour: val === "" ? ("" as any) : Number(val),
+                              pricePerHour: val === "" ? ("" as any) : val,
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -9377,16 +9598,15 @@ export default function AdminView({
                           $
                         </span>
                         <input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="1210"
-                          onWheel={(e) => e.currentTarget.blur()}
                           value={carFormData.pricePerMonth ?? ""}
                           onChange={(e) => {
-                            const val = e.target.value
+                            const val = e.target.value.replace(/[^0-9.]/g, "")
                             setCarFormData({
                               ...carFormData,
-                              pricePerMonth: val === "" ? ("" as any) : Number(val),
+                              pricePerMonth: val === "" ? ("" as any) : val,
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${

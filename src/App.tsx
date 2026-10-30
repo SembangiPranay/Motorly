@@ -807,6 +807,7 @@ export default function App() {
             currentUser={currentUser}
             setCurrentUser={setCurrentUser}
             allBookings={bookings}
+            onBookingsChange={setBookings}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
           />

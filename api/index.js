@@ -41517,7 +41517,10 @@ app.post("/api/bookings/:id/request-extension", requireAuth, async (req, res) =>
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	const user = req.user;
 	if (user?.role !== "admin") {
-		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase())) return res.status(403).json({ error: "Access denied. You do not have permission to modify this reservation." });
+		const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : "";
+		const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : "";
+		const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean);
+		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase() || phoneMatches)) return res.status(403).json({ error: "Access denied. You do not have permission to modify this reservation." });
 	}
 	const durationNum = Number(extraDuration) || 1;
 	const unitStr = unit || "days";
@@ -41544,11 +41547,18 @@ app.post("/api/bookings/:id/request-extension", requireAuth, async (req, res) =>
 app.post("/api/bookings/:id/quote-extension", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
 	const { rateType, rateAmount, totalQuotedAmount, adminNotes } = req.body;
-	if (!await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) return res.status(404).json({ error: "Booking not found." });
+	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	let extReq = {};
+	try {
+		if (booking.extension_request) extReq = JSON.parse(booking.extension_request);
+	} catch {}
 	const quoteObj = {
 		rateType: rateType || "day",
 		rateAmount: Number(rateAmount) || 55,
 		totalQuotedAmount: Number(totalQuotedAmount) || 55,
+		durationValue: extReq.extraDuration ?? extReq.durationValue ?? 1,
+		durationUnit: extReq.unit ?? extReq.durationUnit ?? "days",
 		adminNotes: adminNotes || "Standard fleet rate extension quotation.",
 		quotedAt: (/* @__PURE__ */ new Date()).toISOString()
 	};
@@ -41571,7 +41581,10 @@ app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) =>
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	const user = req.user;
 	if (user?.role !== "admin") {
-		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase())) return res.status(403).json({ error: "Access denied. You do not have permission to approve this extension." });
+		const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : "";
+		const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : "";
+		const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean);
+		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase() || phoneMatches)) return res.status(403).json({ error: "Access denied. You do not have permission to approve this extension." });
 	}
 	let quote = {};
 	try {
@@ -41591,11 +41604,13 @@ app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) =>
 	if (unit === "hours") newReturnTimestamp += extraDuration * 3600 * 1e3;
 	else if (unit === "months") newReturnTimestamp += extraDuration * 30 * 86400 * 1e3;
 	else newReturnTimestamp += extraDuration * 86400 * 1e3;
-	const newReturnDateStr = new Date(newReturnTimestamp).toLocaleDateString("en-US", {
+	const origTimeMatch = (booking.return_date || "").match(/\d{1,2}:\d{2}\s*(?:AM|PM)?/i);
+	const timeSuffix = origTimeMatch ? ` ${origTimeMatch[0]}` : "";
+	const newReturnDateStr = `${new Date(newReturnTimestamp).toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
 		year: "numeric"
-	});
+	})}${timeSuffix}`;
 	const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}Extended (+${quote.rateType || "period"}: +$${additionalCost})`;
 	await db.prepare(`
     UPDATE bookings SET
@@ -41618,7 +41633,10 @@ app.post("/api/bookings/:id/decline-extension", requireAuth, async (req, res) =>
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	const user = req.user;
 	if (user?.role !== "admin") {
-		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase())) return res.status(403).json({ error: "Access denied. You do not have permission to decline this extension." });
+		const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : "";
+		const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : "";
+		const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean);
+		if (!(booking.user_id && booking.user_id === user?.userId || booking.customer_email && booking.customer_email.toLowerCase() === user?.email.toLowerCase() || phoneMatches)) return res.status(403).json({ error: "Access denied. You do not have permission to decline this extension." });
 	}
 	await db.prepare(`
     UPDATE bookings SET

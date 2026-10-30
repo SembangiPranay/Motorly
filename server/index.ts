@@ -2416,13 +2416,18 @@ app.post(
       return res.status(404).json({ error: "Booking not found." })
     }
 
-    // RBAC: Verify ownership (Admin or booking owner)
+    // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
     const user = req.user
     if (user?.role !== "admin") {
+      const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : ""
+      const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : ""
+      const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean)
+
       const isOwner =
         (booking.user_id && booking.user_id === user?.userId) ||
         (booking.customer_email &&
-          booking.customer_email.toLowerCase() === user?.email.toLowerCase())
+          booking.customer_email.toLowerCase() === user?.email.toLowerCase()) ||
+        phoneMatches
       if (!isOwner) {
         return res.status(403).json({
           error:
@@ -2478,10 +2483,17 @@ app.post(
       return res.status(404).json({ error: "Booking not found." })
     }
 
+    let extReq: any = {}
+    try {
+      if (booking.extension_request) extReq = JSON.parse(booking.extension_request)
+    } catch {}
+
     const quoteObj = {
       rateType: rateType || "day",
       rateAmount: Number(rateAmount) || 55,
       totalQuotedAmount: Number(totalQuotedAmount) || 55,
+      durationValue: extReq.extraDuration ?? extReq.durationValue ?? 1,
+      durationUnit: extReq.unit ?? extReq.durationUnit ?? "days",
       adminNotes: adminNotes || "Standard fleet rate extension quotation.",
       quotedAt: new Date().toISOString(),
     }
@@ -2520,13 +2532,18 @@ app.post(
       return res.status(404).json({ error: "Booking not found." })
     }
 
-    // RBAC: Verify ownership (Admin or booking owner)
+    // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
     const user = req.user
     if (user?.role !== "admin") {
+      const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : ""
+      const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : ""
+      const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean)
+
       const isOwner =
         (booking.user_id && booking.user_id === user?.userId) ||
         (booking.customer_email &&
-          booking.customer_email.toLowerCase() === user?.email.toLowerCase())
+          booking.customer_email.toLowerCase() === user?.email.toLowerCase()) ||
+        phoneMatches
       if (!isOwner) {
         return res.status(403).json({
           error:
@@ -2568,7 +2585,9 @@ app.post(
       newReturnTimestamp += extraDuration * 86400 * 1000
     }
 
-    const newReturnDateStr = new Date(newReturnTimestamp).toLocaleDateString(
+    const origTimeMatch = (booking.return_date || "").match(/\d{1,2}:\d{2}\s*(?:AM|PM)?/i)
+    const timeSuffix = origTimeMatch ? ` ${origTimeMatch[0]}` : ""
+    const dateFormatted = new Date(newReturnTimestamp).toLocaleDateString(
       "en-US",
       {
         month: "short",
@@ -2576,6 +2595,7 @@ app.post(
         year: "numeric",
       },
     )
+    const newReturnDateStr = `${dateFormatted}${timeSuffix}`
 
     // Append note to return date or notes
     const updatedNotes = `${
@@ -2618,13 +2638,18 @@ app.post(
       return res.status(404).json({ error: "Booking not found." })
     }
 
-    // RBAC: Verify ownership (Admin or booking owner)
+    // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
     const user = req.user
     if (user?.role !== "admin") {
+      const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : ""
+      const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : ""
+      const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean)
+
       const isOwner =
         (booking.user_id && booking.user_id === user?.userId) ||
         (booking.customer_email &&
-          booking.customer_email.toLowerCase() === user?.email.toLowerCase())
+          booking.customer_email.toLowerCase() === user?.email.toLowerCase()) ||
+        phoneMatches
       if (!isOwner) {
         return res.status(403).json({
           error:

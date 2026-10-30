@@ -363,7 +363,7 @@ export default function CompareView({
     return count
   }, [activeComparedCars, COMMON_FEATURES])
 
-  if (activeComparedCars.length === 0) {
+  if (activeComparedCars.length < 2) {
     return (
       <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-28 px-4">
         <div className="max-w-md mx-auto text-center bg-white p-8 rounded-xl border border-stone-200 shadow-xs">
@@ -371,10 +371,14 @@ export default function CompareView({
             <SparklesIcon size={24} />
           </div>
           <h2 className="text-xl font-black text-stone-900 font-heading mb-2">
-            No Vehicles to Compare
+            {!cars || cars.length === 0
+              ? "No Vehicles in Fleet"
+              : "Select at Least 2 Vehicles"}
           </h2>
           <p className="text-xs text-stone-500 leading-relaxed mb-6">
-            There are currently no vehicles selected for side-by-side comparison. Add vehicles from our certified garage catalog to evaluate rates and specs.
+            {!cars || cars.length === 0
+              ? "There are currently no vehicles in the fleet catalog to compare."
+              : "Side-by-side vehicle comparison requires at least 2 vehicles from the fleet catalog to compare rates, drivetrains, and features."}
           </p>
           <button
             onClick={onNavigateListing}
