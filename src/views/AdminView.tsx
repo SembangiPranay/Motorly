@@ -2151,11 +2151,28 @@ export default function AdminView({
         }
       }
 
+      const finalPricePerDay = Number(carFormData.pricePerDay) || 55
+      const parsedHour = Number(carFormData.pricePerHour)
+      const finalPricePerHour =
+        !isNaN(parsedHour) && parsedHour > 0
+          ? parsedHour
+          : Math.max(1, Math.round(finalPricePerDay / 8))
+      const parsedMonth = Number(carFormData.pricePerMonth)
+      const finalPricePerMonth =
+        !isNaN(parsedMonth) && parsedMonth > 0
+          ? parsedMonth
+          : Math.round(finalPricePerDay * 22)
+
       const payload: Partial<Car> = {
         ...carFormData,
-
+        pricePerDay: finalPricePerDay,
+        pricePerHour: finalPricePerHour,
+        pricePerMonth: finalPricePerMonth,
+        year: Number(carFormData.year) || 2024,
+        seats: Number(carFormData.seats) || 5,
+        purchaseCost: Number(carFormData.purchaseCost) || 32500,
+        currentOdometer: Number(carFormData.currentOdometer) || 14200,
         image: primaryImage,
-
         gallery: finalGallery,
       }
 
@@ -6074,17 +6091,23 @@ export default function AdminView({
                     </label>
                     <input
                       type="number"
-                      min="1"
-                      max="60"
-                      value={walkinForm.totalDays}
+                      step="1"
+                      placeholder="3"
+                      value={walkinForm.totalDays ?? ""}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onChange={(e) => {
-                        const days = Math.max(1, Number(e.target.value) || 1)
-
+                        const val = e.target.value
+                        if (val === "") {
+                          setWalkinForm({
+                            ...walkinForm,
+                            totalDays: "" as any,
+                          })
+                          return
+                        }
+                        const days = Math.max(1, Number(val) || 1)
                         setWalkinForm({
                           ...walkinForm,
-
                           totalDays: days,
-
                           returnDate: getWalkinReturnDefault(days),
                         })
                       }}
@@ -8588,6 +8611,7 @@ export default function AdminView({
           {/* Studio Body: Two-Column Full-Screen Layout */}
           <form
             id="car-studio-form"
+            noValidate
             onSubmit={handleSaveCar}
             className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start"
           >
@@ -8686,17 +8710,17 @@ export default function AdminView({
                       </label>
                       <input
                         type="number"
-                        min="2018"
-                        max="2027"
-                        value={carFormData.year || 2024}
+                        step="1"
+                        placeholder="2024"
+                        value={carFormData.year ?? ""}
                         onWheel={(e) => e.currentTarget.blur()}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value
                           setCarFormData({
                             ...carFormData,
-
-                            year: Number(e.target.value),
+                            year: val === "" ? ("" as any) : Number(val),
                           })
-                        }
+                        }}
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                           isDark
                             ? "bg-stone-900 border border-stone-700 text-white"
@@ -9134,16 +9158,17 @@ export default function AdminView({
                       </label>
                       <input
                         type="number"
-                        min="2"
-                        max="9"
-                        value={carFormData.seats || 5}
-                        onChange={(e) =>
+                        step="1"
+                        placeholder="5"
+                        value={carFormData.seats ?? ""}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          const val = e.target.value
                           setCarFormData({
                             ...carFormData,
-
-                            seats: Number(e.target.value),
+                            seats: val === "" ? ("" as any) : Number(val),
                           })
-                        }
+                        }}
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                           isDark
                             ? "bg-stone-900 border border-stone-700 text-white"
@@ -9249,17 +9274,17 @@ export default function AdminView({
                         </span>
                         <input
                           type="number"
-                          min="10"
-                          max="2500"
-                          value={carFormData.pricePerDay || 55}
+                          step="any"
+                          placeholder="55"
+                          value={carFormData.pricePerDay ?? ""}
                           onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-
-                              pricePerDay: Number(e.target.value),
+                              pricePerDay: val === "" ? ("" as any) : Number(val),
                             })
-                          }
+                          }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-black transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-orange-400"
@@ -9269,9 +9294,9 @@ export default function AdminView({
                       </div>
                       <p className="text-[10px] text-stone-400 mt-1 font-mono">
                         Weekly Est: $
-                        {((carFormData.pricePerDay || 55) * 7).toFixed(0)} •
+                        {((Number(carFormData.pricePerDay) || 55) * 7).toFixed(0)} •
                         Monthly Est: $
-                        {((carFormData.pricePerDay || 55) * 30).toFixed(0)}
+                        {((Number(carFormData.pricePerDay) || 55) * 30).toFixed(0)}
                       </p>
                     </div>
 
@@ -9290,17 +9315,17 @@ export default function AdminView({
                         </span>
                         <input
                           type="number"
-                          min="2"
-                          max="500"
-                          value={carFormData.pricePerHour || 8}
+                          step="any"
+                          placeholder="8"
+                          value={carFormData.pricePerHour ?? ""}
                           onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-
-                              pricePerHour: Number(e.target.value),
+                              pricePerHour: val === "" ? ("" as any) : Number(val),
                             })
-                          }
+                          }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
@@ -9324,7 +9349,7 @@ export default function AdminView({
                           type="button"
                           onClick={() => {
                             const calculated = Math.round(
-                              (carFormData.pricePerDay || 55) * 22,
+                              (Number(carFormData.pricePerDay) || 55) * 22,
                             )
 
                             setCarFormData({
@@ -9344,21 +9369,17 @@ export default function AdminView({
                         </span>
                         <input
                           type="number"
-                          min="100"
-                          max="50000"
+                          step="any"
+                          placeholder="1210"
                           onWheel={(e) => e.currentTarget.blur()}
-                          value={
-                            carFormData.pricePerMonth !== undefined
-                              ? carFormData.pricePerMonth
-                              : Math.round((carFormData.pricePerDay || 55) * 22)
-                          }
-                          onChange={(e) =>
+                          value={carFormData.pricePerMonth ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-
-                              pricePerMonth: Number(e.target.value),
+                              pricePerMonth: val === "" ? ("" as any) : Number(val),
                             })
-                          }
+                          }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-emerald-400"
@@ -9369,12 +9390,10 @@ export default function AdminView({
                       <p className="text-[10px] text-stone-400 mt-1 font-mono">
                         Effective: $
                         {(
-                          (carFormData.pricePerMonth ||
-                            Math.round((carFormData.pricePerDay || 55) * 22)) /
+                          (Number(carFormData.pricePerMonth) ||
+                            Math.round((Number(carFormData.pricePerDay) || 55) * 22)) /
                           30
-                        )
-
-                          .toFixed(1)}
+                        ).toFixed(1)}
                         /day
                       </p>
                     </div>
@@ -9676,16 +9695,17 @@ export default function AdminView({
                         </span>
                         <input
                           type="number"
+                          step="any"
                           placeholder="32500"
-                          value={carFormData.purchaseCost || 32500}
+                          value={carFormData.purchaseCost ?? ""}
                           onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-
-                              purchaseCost: Number(e.target.value),
+                              purchaseCost: val === "" ? ("" as any) : Number(val),
                             })
-                          }
+                          }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-white"
@@ -9707,16 +9727,17 @@ export default function AdminView({
                       <div className="relative flex items-center">
                         <input
                           type="number"
+                          step="any"
                           placeholder="14200"
-                          value={carFormData.currentOdometer || 14200}
+                          value={carFormData.currentOdometer ?? ""}
                           onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-
-                              currentOdometer: Number(e.target.value),
+                              currentOdometer: val === "" ? ("" as any) : Number(val),
                             })
-                          }
+                          }}
                           className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                             isDark
                               ? "bg-stone-900 border border-stone-700 text-amber-300"
@@ -10216,17 +10237,18 @@ export default function AdminView({
                 </label>
                 <input
                   type="number"
-                  min="5"
-                  max="75"
+                  step="any"
+                  placeholder="15"
                   required
-                  value={newPromoData.discountPercent}
-                  onChange={(e) =>
+                  value={newPromoData.discountPercent ?? ""}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onChange={(e) => {
+                    const val = e.target.value
                     setNewPromoData({
                       ...newPromoData,
-
-                      discountPercent: Number(e.target.value),
+                      discountPercent: val === "" ? ("" as any) : Number(val),
                     })
-                  }
+                  }}
                   className={`w-full px-3 py-2 rounded-xl text-sm font-mono focus:outline-none focus:border-emerald-500 transition ${
                     isDark
                       ? "bg-stone-900 border border-stone-700 text-white"
@@ -10395,12 +10417,14 @@ export default function AdminView({
                   </label>
                   <input
                     type="number"
-                    value={newMntData.cost}
+                    step="any"
+                    placeholder="150"
+                    value={newMntData.cost ?? ""}
+                    onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) =>
                       setNewMntData({
                         ...newMntData,
-
-                        cost: Number(e.target.value),
+                        cost: e.target.value === "" ? ("" as any) : Number(e.target.value),
                       })
                     }
                     className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
@@ -10420,12 +10444,14 @@ export default function AdminView({
                   </label>
                   <input
                     type="number"
-                    value={newMntData.odometer}
+                    step="any"
+                    placeholder="15000"
+                    value={newMntData.odometer ?? ""}
+                    onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) =>
                       setNewMntData({
                         ...newMntData,
-
-                        odometer: Number(e.target.value),
+                        odometer: e.target.value === "" ? ("" as any) : Number(e.target.value),
                       })
                     }
                     className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
