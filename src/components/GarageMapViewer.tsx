@@ -124,14 +124,22 @@ export default function GarageMapViewer({
             )
             const data = await res.json()
             if (data && data.display_name) {
-              const shortAddress = data.display_name
-                .split(",")
-                .slice(0, 4)
-                .join(",")
-                .trim()
-              setCurrentAddress(shortAddress)
+              // Extract clean, intelligible location string preserving city and region
+              const addr = data.address || {}
+              const road = addr.road || addr.street || addr.pedestrian || ""
+              const suburb = addr.suburb || addr.neighbourhood || addr.residential || ""
+              const city = addr.city || addr.town || addr.municipality || addr.county || ""
+              const state = addr.state || ""
+              const postcode = addr.postcode || ""
+
+              const cleanParts = [road, suburb, city, state, postcode].filter(Boolean)
+              const resolvedAddress = cleanParts.length >= 2 
+                ? cleanParts.join(", ") 
+                : data.display_name
+
+              setCurrentAddress(resolvedAddress)
               if (onLocationChange)
-                onLocationChange(userLat, userLng, shortAddress)
+                onLocationChange(userLat, userLng, resolvedAddress)
             } else {
               const gpsStr = `GPS Facility (${userLat}, ${userLng})`
               setCurrentAddress(gpsStr)

@@ -663,7 +663,7 @@ export default function ListingView({
           {/* Desktop Luxury Trip Summary Strip */}
           <div
             onClick={() => setIsScheduleModalOpen(true)}
-            className="hidden sm:flex w-full max-w-3xl mx-auto mt-3 sm:mt-5 bg-stone-50/80 hover:bg-stone-100/90 rounded-2xl p-2.5 sm:p-3.5 text-[#17191C] shadow-xs items-center justify-between gap-2.5 sm:gap-4 border border-stone-200/80 hover:border-orange-400 transition-all cursor-pointer group"
+            className="hidden sm:flex w-full max-w-3xl mx-auto mt-3 sm:mt-5 bg-stone-50/80 hover:bg-stone-100/90 rounded-xl p-2.5 sm:p-3.5 text-[#17191C] shadow-xs items-center justify-between gap-2.5 sm:gap-4 border border-stone-200/80 hover:border-orange-400 transition-all cursor-pointer group"
           >
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-orange-100/80 text-[#F97316] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -754,34 +754,11 @@ export default function ListingView({
 
             {/* Controls Row with smooth no-scrollbar */}
             <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scrollbar-none pb-0.5 sm:pb-0 w-full sm:w-auto">
-              {/* Desktop Filter Toggle */}
+              {/* Unified Filter Drawer Trigger */}
               <button
                 type="button"
-                onClick={() => setDesktopFilterOpen(!desktopFilterOpen)}
-                className={`hidden lg:flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl text-xs font-bold border transition cursor-pointer shadow-xs whitespace-nowrap shrink-0 ${
-                  desktopFilterOpen
-                    ? "bg-stone-100 text-stone-900 border-stone-300"
-                    : "bg-white text-stone-600 border-stone-200 hover:border-stone-400"
-                }`}
-              >
-                <FilterIcon
-                  size={14}
-                  className={desktopFilterOpen ? "text-[#F97316]" : ""}
-                />
-                <span>
-                  {desktopFilterOpen ? "Hide Filters" : "Show Filters"}
-                </span>
-                {activeFilterCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-[#F97316] text-white text-[10px] flex items-center justify-center font-bold">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Mobile Filter Toggle */}
-              <button
                 onClick={() => setMobileFilterOpen(true)}
-                className="lg:hidden h-10 px-3 bg-stone-100 hover:bg-stone-200 text-stone-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
+                className="h-10 px-3.5 bg-white hover:bg-stone-50 border border-stone-200 text-stone-800 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap transition"
               >
                 <FilterIcon size={14} className="text-[#F97316]" />
                 <span>Filters</span>
@@ -960,31 +937,7 @@ export default function ListingView({
 
       {/* Main Full-Width Fleet Explorer Viewport */}
       <div className="w-full max-w-[1780px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-5">
-        <div className="flex flex-col lg:flex-row items-start gap-6">
-          {/* Left Desktop Sidebar Filter Panel */}
-          {desktopFilterOpen && (
-            <aside className="hidden lg:block w-72 xl:w-80 shrink-0 bg-white rounded-3xl border border-stone-200 p-5 shadow-sm space-y-6 lg:sticky lg:top-[128px] max-h-[calc(100vh-148px)] overflow-y-auto scrollbar-thin z-20">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3.5">
-                <h3 className="font-extrabold text-base text-stone-900 font-heading flex items-center gap-2">
-                  <FilterIcon size={18} className="text-[#F97316]" />
-                  Fleet Filters
-                </h3>
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-xs font-bold text-[#F97316] hover:underline cursor-pointer"
-                  >
-                    Reset All ({activeFilterCount})
-                  </button>
-                )}
-              </div>
-
-              {renderFilterControls()}
-            </aside>
-          )}
-
-          {/* Right Main Vehicle Display Section */}
-          <main className="flex-1 min-w-0 w-full space-y-4">
+        <main className="w-full space-y-4">
             {/* Results Header Counter & Live Status Indicator */}
             <div className="hidden sm:flex items-center justify-between text-xs text-stone-500 px-1">
               <span className="font-medium">
@@ -1013,8 +966,8 @@ export default function ListingView({
 
             {/* Empty State */}
             {filteredCars.length === 0 ? (
-              <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center space-y-4 shadow-sm">
-                <div className="w-16 h-16 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center mx-auto border border-orange-200/80 shadow-xs">
+              <div className="bg-white rounded-xl border border-stone-200 p-12 text-center space-y-4 shadow-sm">
+                <div className="w-16 h-16 rounded-xl bg-orange-50 text-[#F97316] flex items-center justify-center mx-auto border border-orange-200/80 shadow-xs">
                   <CarIcon size={28} />
                 </div>
                 <h3 className="text-lg font-extrabold text-stone-900 font-heading">
@@ -1034,13 +987,7 @@ export default function ListingView({
             ) : viewMode === "grid" ? (
               /* GRID VIEW: High-Impact Visual Showcase */
 
-              <div
-                className={`grid gap-5 sm:gap-6 ${
-                  desktopFilterOpen
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-                    : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
-                }`}
-              >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 {filteredCars.map((car) => {
                   const isFav = favorites.includes(car.id)
 
@@ -1068,11 +1015,11 @@ export default function ListingView({
                   return (
                     <div
                       key={car.id}
-                      className="bg-white rounded-3xl border border-stone-200/90 hover:border-orange-300 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
+                      className="bg-white rounded-xl border border-stone-200/90 hover:border-orange-300 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden group"
                     >
                       {/* Framed Image Showcase: Clean 4-corner badges */}
                       <div
-                        className="relative h-52 sm:h-56 w-full bg-gradient-to-b from-stone-50 via-stone-100/50 to-stone-50/20 flex items-center justify-center overflow-hidden cursor-pointer rounded-t-3xl border-b border-stone-100 select-none"
+                        className="relative h-52 sm:h-56 w-full bg-gradient-to-b from-stone-50 via-stone-100/50 to-stone-50/20 flex items-center justify-center overflow-hidden cursor-pointer rounded-t-xl border-b border-stone-100 select-none"
                         onClick={() => onSelectCar(car.id)}
                       >
                         {/* Ambient Backdrop */}
@@ -1098,12 +1045,12 @@ export default function ListingView({
                         {/* Top Left: Clean Availability Status Badge */}
                         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 pointer-events-none">
                           {isRentedOrConflicted ? (
-                            <span className="bg-rose-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
+                            <span className="bg-rose-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-md shadow-xs flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                               {car.conflict ? "Reserved" : "Rented"}
                             </span>
                           ) : (
-                            <span className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
+                            <span className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-md shadow-xs flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white" />
                               Available
                             </span>
@@ -1124,13 +1071,13 @@ export default function ListingView({
                                 ? "Remove from compare"
                                 : "Add to comparison studio"
                             }
-                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center transition shadow-xs cursor-pointer backdrop-blur-md ${
+                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center transition shadow-xs cursor-pointer backdrop-blur-md ${
                               isCompared
                                 ? "bg-[#F97316] text-white border-orange-500 ring-2 ring-orange-300"
                                 : "bg-white/90 text-stone-700 border-stone-200 hover:border-[#F97316] hover:text-[#F97316]"
                             }`}
                           >
-                            <span className="text-xs sm:text-sm">⚖️</span>
+                            <span className="text-xs font-bold font-mono">⇄</span>
                           </button>
 
                           <button
@@ -1341,11 +1288,11 @@ export default function ListingView({
                   return (
                     <div
                       key={car.id}
-                      className="bg-white rounded-3xl border border-stone-200 hover:border-orange-300 p-4 sm:p-5 shadow-xs hover:shadow-lg transition-all flex flex-col md:flex-row items-center gap-5 group"
+                      className="bg-white rounded-xl border border-stone-200 hover:border-orange-300 p-4 sm:p-5 shadow-xs hover:shadow-lg transition-all flex flex-col md:flex-row items-center gap-5 group"
                     >
                       {/* Vehicle Image Frame */}
                       <div
-                        className="w-full md:w-64 h-44 rounded-2xl overflow-hidden bg-stone-50 flex-shrink-0 relative flex items-center justify-center cursor-pointer border border-stone-100 select-none"
+                        className="w-full md:w-64 h-44 rounded-xl overflow-hidden bg-stone-50 flex-shrink-0 relative flex items-center justify-center cursor-pointer border border-stone-100 select-none"
                         onClick={() => onSelectCar(car.id)}
                       >
                         <img
@@ -1515,13 +1462,12 @@ export default function ListingView({
               </div>
             )}
           </main>
-        </div>
       </div>
 
       {/* Floating Comparison Dock Bar */}
       {compareIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center px-4 w-full max-w-xl animate-fade-in pointer-events-none">
-          <div className="pointer-events-auto bg-[#17191C]/95 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-stone-700/80 flex items-center gap-4 w-full justify-between">
+          <div className="pointer-events-auto bg-[#17191C]/95 backdrop-blur-md text-white px-5 py-3.5 rounded-xl shadow-2xl border border-stone-700/80 flex items-center gap-4 w-full justify-between">
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-[#F97316] animate-pulse shrink-0" />
               <div className="text-xs">
@@ -1557,15 +1503,15 @@ export default function ListingView({
         </div>
       )}
 
-      {/* Mobile Filter Bottom Sheet Modal Drawer (Slide-up native UX) */}
+      {/* Unified Filter Bottom Sheet / Modal Drawer */}
       {mobileFilterOpen &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9998] flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fade-in lg:hidden"
+            className="fixed inset-0 z-[9998] flex flex-col justify-end lg:justify-center lg:items-center bg-black/60 backdrop-blur-xs animate-fade-in p-0 lg:p-6"
             onClick={() => setMobileFilterOpen(false)}
           >
             <div
-              className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col shadow-2xl animate-slide-up border-t border-stone-200"
+              className="bg-white rounded-t-2xl lg:rounded-xl w-full lg:max-w-md max-h-[85vh] lg:max-h-[80vh] flex flex-col shadow-2xl animate-slide-up border border-stone-200"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Drawer Drag Handle & Header */}
@@ -1631,7 +1577,7 @@ export default function ListingView({
             onClick={() => setIsCompareOpen(false)}
           >
             <div
-              className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl relative space-y-5 border border-stone-200 my-auto animate-scale-up"
+              className="bg-white rounded-xl max-w-4xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl relative space-y-5 border border-stone-200 my-auto animate-scale-up"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-stone-100 pb-3">
@@ -1690,7 +1636,7 @@ export default function ListingView({
                   {comparedCars.map((car) => (
                     <div
                       key={car.id}
-                      className="bg-stone-50 rounded-2xl p-4 border border-stone-200 space-y-3"
+                      className="bg-stone-50 rounded-xl p-4 border border-stone-200 space-y-3"
                     >
                       <div className="h-32 rounded-xl overflow-hidden bg-white flex items-center justify-center p-2 border border-stone-200/60">
                         <img

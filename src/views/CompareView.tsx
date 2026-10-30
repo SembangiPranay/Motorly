@@ -342,16 +342,16 @@ export default function CompareView({
 
     for (const feat of COMMON_FEATURES) {
       const hasFirst =
-        first?.features &&
-        first?.features.some((f) =>
-          f.toLowerCase().includes(feat.key.toLowerCase()),
+        Array.isArray(first?.features) &&
+        first.features.some((f) =>
+          typeof f === "string" && f.toLowerCase().includes(feat.key.toLowerCase()),
         )
 
       const diffFound = activeComparedCars.some((c) => {
         const hasC =
-          c?.features &&
-          c?.features.some((f) =>
-            f.toLowerCase().includes(feat.key.toLowerCase()),
+          Array.isArray(c?.features) &&
+          c.features.some((f) =>
+            typeof f === "string" && f.toLowerCase().includes(feat.key.toLowerCase()),
           )
 
         return hasC !== hasFirst
@@ -362,6 +362,30 @@ export default function CompareView({
 
     return count
   }, [activeComparedCars, COMMON_FEATURES])
+
+  if (activeComparedCars.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-28 px-4">
+        <div className="max-w-md mx-auto text-center bg-white p-8 rounded-xl border border-stone-200 shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-orange-50 text-[#F97316] flex items-center justify-center mx-auto mb-4 border border-orange-100">
+            <SparklesIcon size={24} />
+          </div>
+          <h2 className="text-xl font-black text-stone-900 font-heading mb-2">
+            No Vehicles to Compare
+          </h2>
+          <p className="text-xs text-stone-500 leading-relaxed mb-6">
+            There are currently no vehicles selected for side-by-side comparison. Add vehicles from our certified garage catalog to evaluate rates and specs.
+          </p>
+          <button
+            onClick={onNavigateListing}
+            className="w-full py-2.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <ArrowLeftIcon size={14} /> Browse Fleet Catalog
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-20 pb-28">
@@ -1016,17 +1040,19 @@ export default function CompareView({
 
                 <div className="divide-y divide-stone-100 text-xs">
                   {COMMON_FEATURES.map((feature) => {
+                    const car1 = mobileCars[0]
+                    const car2 = mobileCars[1]
                     const has1 = Boolean(
-                      mobileCars[0]?.features &&
-                        mobileCars[0]?.features.some((f) =>
-                          f.toLowerCase().includes(feature.key.toLowerCase()),
+                      Array.isArray(car1?.features) &&
+                        car1.features.some((f) =>
+                          typeof f === "string" && f.toLowerCase().includes(feature.key.toLowerCase()),
                         ),
                     )
 
                     const has2 = Boolean(
-                      mobileCars[1]?.features &&
-                        mobileCars[1]?.features.some((f) =>
-                          f.toLowerCase().includes(feature.key.toLowerCase()),
+                      Array.isArray(car2?.features) &&
+                        car2.features.some((f) =>
+                          typeof f === "string" && f.toLowerCase().includes(feature.key.toLowerCase()),
                         ),
                     )
 
@@ -1578,18 +1604,20 @@ export default function CompareView({
                     {COMMON_FEATURES.map((feature) => {
                       const hasFeatureList = activeComparedCars.map((c) =>
                         Boolean(
-                          c?.features &&
-                            c?.features.some((f) =>
-                              f.toLowerCase().includes(
+                          Array.isArray(c?.features) &&
+                            c.features.some((f) =>
+                              typeof f === "string" && f.toLowerCase().includes(
                                 feature.key.toLowerCase(),
                               ),
                             ),
                         ),
                       )
 
-                      const isIdentical = hasFeatureList.every(
-                        (val) => val === hasFeatureList[0],
-                      )
+                      const isIdentical =
+                        hasFeatureList.length > 0 &&
+                        hasFeatureList.every(
+                          (val) => val === hasFeatureList[0],
+                        )
 
                       if (showOnlyDifferences && isIdentical) return null
 
@@ -1600,9 +1628,9 @@ export default function CompareView({
                           </td>
                           {activeComparedCars.map((c) => {
                             const hasFeature =
-                              c?.features &&
-                              c?.features.some((f) =>
-                                f.toLowerCase().includes(
+                              Array.isArray(c?.features) &&
+                              c.features.some((f) =>
+                                typeof f === "string" && f.toLowerCase().includes(
                                   feature.key.toLowerCase(),
                                 ),
                               )

@@ -15,6 +15,7 @@ import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
 
 import { calculateRentalPrice } from "../utils/pricing"
+import { getGoogleMapsUrl } from "../utils/maps"
 
 import {
   ShieldIcon,
@@ -1214,12 +1215,15 @@ export default function CheckoutView({
                   Configured by vehicle garage owner
                 </span>
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  href={getGoogleMapsUrl(
                     car.garageAddress ||
                       car.garageName ||
                       car.location ||
                       "4200 NW 21st St, Miami, FL 33142",
-                  )}`}
+                    undefined,
+                    car.garageLat,
+                    car.garageLng,
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-bold text-[#F97316] hover:text-[#EA580C] hover:underline flex items-center gap-1 text-[11px]"

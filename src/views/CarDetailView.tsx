@@ -127,6 +127,27 @@ export default function CarDetailView({
     }
   }, [car?.id, bookingState.pickupDate, bookingState.returnDate])
 
+  if (!car) {
+    return (
+      <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-28 px-4 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center bg-white p-8 rounded-xl border border-stone-200 shadow-xs">
+          <h2 className="text-xl font-black text-stone-900 font-heading mb-2">
+            No Vehicle Selected
+          </h2>
+          <p className="text-xs text-stone-500 leading-relaxed mb-6">
+            Please choose a certified vehicle from our fleet catalog to inspect full specifications.
+          </p>
+          <button
+            onClick={onNavigateListing}
+            className="w-full py-2.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <ArrowLeftIcon size={14} /> Back to Fleet Catalog
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const galleryImages =
     car.gallery && car.gallery.length > 0 ? car.gallery : [car.image]
 
@@ -593,7 +614,7 @@ export default function CarDetailView({
                   each rental.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {(car.features || []).map((feature) => (
+                  {(Array.isArray(car?.features) ? car.features : []).map((feature) => (
                     <div
                       key={feature}
                       className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100"

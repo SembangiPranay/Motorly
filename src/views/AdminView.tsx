@@ -68,6 +68,11 @@ import {
   CameraIcon,
   RefreshCwIcon,
   MonitorIcon,
+  SunIcon,
+  MoonIcon,
+  GlobeIcon,
+  LogOutIcon,
+  StarIcon,
 } from "../components/Icons"
 
 interface AdminViewProps {
@@ -2788,57 +2793,54 @@ export default function AdminView({
             </div>
 
             {/* Right: Actions (View Website, Phone/Mail Settings, Profile, Sign Out, Alerts) */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5">
-              {/* VIEW WEBSITE Button (Desktop Only) */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Storefront Website SVG Button */}
               <button
                 type="button"
                 onClick={onExitAdmin}
-                className={`hidden md:flex px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold border transition items-center gap-1.5 cursor-pointer ${
+                className={`h-9 px-2.5 sm:px-3 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
                     : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
                 }`}
                 title="View customer storefront"
               >
-                <ArrowRightIcon size={12} className="-rotate-45 text-[#F97316]" />
-                <span>VIEW WEBSITE</span>
+                <GlobeIcon size={15} className="text-[#F97316]" />
+                <span className="hidden xl:inline text-xs">Storefront</span>
               </button>
 
-              {/* Quick Phone & Mail Settings Action Button (Desktop Only) */}
+              {/* Quick Dispatch / Phone & Mail Settings SVG Button */}
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab("settings")
-
                   setIsAdminProfileOpen(true)
                 }}
-                className={`hidden sm:flex px-3 py-1.5 rounded-xl text-xs font-bold border transition items-center gap-1.5 cursor-pointer ${
+                className={`h-9 w-9 sm:w-auto sm:px-3 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   activeTab === "settings" || isAdminProfileOpen
                     ? "bg-[#F97316] text-white border-[#F97316] shadow-xs"
                     : isDark
                       ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
                       : "bg-white hover:bg-stone-50 text-stone-800 border-stone-200 shadow-2xs"
                 }`}
-                title="Edit WhatsApp phone number & dispatch notification email"
+                title="Dispatch & Notification Settings"
               >
-                <PhoneIcon
-                  size={13}
+                <SettingsIcon
+                  size={15}
                   className={
                     activeTab === "settings" || isAdminProfileOpen
                       ? "text-white"
                       : "text-[#F97316]"
                   }
                 />
-                <span className="hidden md:inline">
-                  Phone &amp; Mail Settings
-                </span>
+                <span className="hidden xl:inline text-xs">Dispatch</span>
               </button>
 
               {/* Admin Profile Pill */}
               <button
                 type="button"
                 onClick={() => setIsAdminProfileOpen(true)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                className={`h-9 px-2.5 rounded-lg text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
                   isAdminProfileOpen
                     ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
                     : isDark
@@ -2847,32 +2849,27 @@ export default function AdminView({
                 }`}
                 title="Studio Director Profile & Dispatch Configuration"
               >
-                <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#1C1917] to-stone-700 text-white font-black text-[9px] flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-md bg-[#1C1917] text-[#F97316] font-mono font-black text-[10px] flex items-center justify-center shrink-0 border border-stone-700">
                   SD
                 </div>
-                <div className="hidden lg:block text-left leading-tight">
-                  <span className="font-bold text-xs block truncate max-w-[120px]">
-                    {studioContact.admin_name || "Studio Director"}
-                  </span>
-                  <span className="text-[9px] font-mono text-stone-400 block -mt-0.5">
-                    Fleet Admin
-                  </span>
-                </div>
+                <span className="hidden 2xl:inline text-xs font-semibold text-stone-700 dark:text-stone-300">
+                  {studioContact.admin_name || "Manager"}
+                </span>
               </button>
 
-              {/* SIGN OUT Button (Hidden on mobile to eliminate clutter) */}
+              {/* SIGN OUT SVG Button */}
               <button
                 type="button"
                 onClick={onLogoutAdmin || onExitAdmin}
-                className={`hidden sm:flex px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer items-center gap-1.5 ${
+                className={`h-9 px-2.5 rounded-lg text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
                   isDark
                     ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30"
                     : "bg-white hover:bg-rose-50 text-rose-700 border-stone-200 shadow-2xs"
                 }`}
                 title="Sign out of console"
               >
-                <span>[→</span>
-                <span className="hidden sm:inline">SIGN OUT</span>
+                <LogOutIcon size={14} className="text-rose-600 dark:text-rose-400" />
+                <span className="hidden xl:inline text-xs">Exit</span>
               </button>
 
               {/* Overdue Notification Bell */}
@@ -3015,38 +3012,50 @@ export default function AdminView({
                 )}
               </div>
 
-              {/* Reviews System Toggle */}
+              {/* Reviews System Toggle Button */}
               <button
                 type="button"
                 onClick={handleToggleReviews}
                 disabled={isUpdatingReviewsSetting}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                className={`h-9 px-2 sm:px-2.5 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   reviewsEnabled
                     ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40"
                     : isDark
                       ? "bg-stone-800 text-stone-400 border-stone-700"
                       : "bg-stone-100 text-stone-500 border-stone-200"
                 }`}
-                title="Toggle Global Reviews"
+                title={
+                  reviewsEnabled
+                    ? "Customer Reviews: Active (Click to Pause)"
+                    : "Customer Reviews: Paused (Click to Enable)"
+                }
               >
-                <span><SparklesIcon size={12} className="text-amber-500" /></span>
-                <span className="hidden xl:inline">
-                  {reviewsEnabled ? "Reviews: ON" : "Reviews: OFF"}
+                <StarIcon
+                  size={14}
+                  filled={reviewsEnabled}
+                  className={reviewsEnabled ? "text-amber-500" : "text-stone-400"}
+                />
+                <span className="hidden 2xl:inline text-[11px]">
+                  {reviewsEnabled ? "Reviews ON" : "Reviews OFF"}
                 </span>
               </button>
 
-              {/* Theme Toggle */}
+              {/* Mood SVG Theme Toggle (Sun for Dark Mode, Moon for Light Mode) */}
               <button
                 type="button"
                 onClick={toggleTheme}
-                className={`p-2 rounded-xl text-xs font-bold border transition ${
+                className={`h-9 w-9 rounded-lg border transition cursor-pointer flex items-center justify-center ${
                   isDark
-                    ? "bg-stone-800 text-stone-200 border-stone-700"
-                    : "bg-white text-stone-700 border-stone-200 shadow-2xs"
+                    ? "bg-stone-800 hover:bg-stone-700 text-amber-400 border-stone-700 shadow-xs"
+                    : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
                 }`}
-                title="Toggle Light / Dark Mode"
+                title={isDark ? "Switch to Day Mode" : "Switch to Night Mode"}
               >
-                {isDark ? "Dark" : "Light"}
+                {isDark ? (
+                  <SunIcon size={16} className="text-amber-400" />
+                ) : (
+                  <MoonIcon size={16} className="text-stone-700" />
+                )}
               </button>
             </div>
           </div>
@@ -3121,7 +3130,7 @@ export default function AdminView({
                 <button
                   type="button"
                   onClick={() => setIsPromoModalOpen(true)}
-                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
                   <span>Create New Privilege</span>
@@ -3132,7 +3141,7 @@ export default function AdminView({
                 <button
                   type="button"
                   onClick={handleOpenAddCar}
-                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
                   <span>Register Vehicle</span>
@@ -3143,7 +3152,7 @@ export default function AdminView({
                 <button
                   type="button"
                   onClick={() => setActiveTab("walkin")}
-                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
                   <span>Walk-in Dispatch</span>
@@ -3154,7 +3163,7 @@ export default function AdminView({
                 <button
                   type="button"
                   onClick={() => notify("Maintenance scheduler ready.")}
-                  className="px-4 py-2.5 rounded-2xl bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                   <PlusIcon size={14} />
                   <span>Schedule Service</span>
@@ -3166,7 +3175,7 @@ export default function AdminView({
                   type="button"
                   onClick={() => handleSaveStudioContact()}
                   disabled={isSavingStudioContact}
-                  className="px-4 py-2.5 rounded-2xl bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <CheckIcon size={14} />
                   <span>
@@ -3187,7 +3196,7 @@ export default function AdminView({
             {activeTab === "settings" && (
               <>
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3209,7 +3218,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3231,7 +3240,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3255,7 +3264,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3279,7 +3288,7 @@ export default function AdminView({
             {activeTab === "promos" && (
               <>
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3301,7 +3310,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3323,7 +3332,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3344,7 +3353,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3369,7 +3378,7 @@ export default function AdminView({
             {activeTab === "manifest" && (
               <>
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3391,7 +3400,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3419,7 +3428,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3440,7 +3449,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3465,7 +3474,7 @@ export default function AdminView({
             {activeTab === "fleet" && (
               <>
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3487,7 +3496,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3508,7 +3517,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3529,7 +3538,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3556,7 +3565,7 @@ export default function AdminView({
               activeTab === "maintenance") && (
               <>
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3578,7 +3587,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3600,7 +3609,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -3621,7 +3630,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  className={`border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
                     isDark
                       ? "bg-[#17191C] border-stone-800 shadow-md"
                       : "bg-white border-stone-200/90 shadow-xs"
@@ -5799,7 +5808,7 @@ export default function AdminView({
             ======================================================== */}
           {activeTab === "walkin" && (
             <section
-              className={`border rounded-xl sm:rounded-2xl p-3.5 sm:p-8 max-w-4xl mx-auto transition ${
+              className={`border rounded-xl p-3.5 sm:p-8 max-w-4xl mx-auto transition ${
                 isDark
                   ? "bg-[#17191C] border-stone-800 shadow-2xl text-white"
                   : "bg-white border-stone-200/90 shadow-xs text-stone-900"
@@ -6938,7 +6947,7 @@ export default function AdminView({
             ======================================================== */}
           {activeTab === "settings" && (
             <section
-              className={`border rounded-3xl overflow-hidden transition shadow-sm p-6 sm:p-8 space-y-6 ${
+              className={`border rounded-xl overflow-hidden transition shadow-sm p-6 sm:p-8 space-y-6 ${
                 isDark
                   ? "bg-[#17191C] border-stone-800 text-white"
                   : "bg-white border-stone-200/90 text-stone-900"
@@ -9047,7 +9056,7 @@ export default function AdminView({
                                     className="absolute top-2 right-2 w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white text-xs flex items-center justify-center transition cursor-pointer"
                                     title="Inspect photo full size"
                                   >
-                                    🔍
+                                    <SearchIcon size={12} />
                                   </button>
                                 </div>
 
@@ -9935,7 +9944,7 @@ export default function AdminView({
             {/* Right Column: Live Customer Storefront Card Preview */}
             <div className="lg:col-span-5 sticky top-2 space-y-4">
               <div
-                className={`p-5 rounded-3xl border shadow-lg space-y-4 transition ${
+                className={`p-5 rounded-xl border shadow-lg space-y-4 transition ${
                   isDark
                     ? "bg-stone-900/90 border-stone-800"
                     : "bg-stone-50 border-stone-200"
@@ -10518,7 +10527,7 @@ export default function AdminView({
       {inspectedLicense && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div
-            className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl transition ${
+            className={`border rounded-xl max-w-md w-full p-6 shadow-2xl transition ${
               isDark
                 ? "bg-[#17191C] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
@@ -10628,7 +10637,7 @@ export default function AdminView({
       {isKeyModalOpen && keyModalBooking && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div
-            className={`border rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
+            className={`border rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
               isDark
                 ? "bg-[#17191C] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
@@ -10922,7 +10931,7 @@ export default function AdminView({
       {isExtensionModalOpen && extensionBooking && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div
-            className={`border rounded-3xl max-w-lg w-full p-6 shadow-2xl transition ${
+            className={`border rounded-xl max-w-lg w-full p-6 shadow-2xl transition ${
               isDark
                 ? "bg-[#17191C] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
@@ -11165,7 +11174,7 @@ export default function AdminView({
       {isReturnModalOpen && returnModalBooking && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div
-            className={`border rounded-3xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
+            className={`border rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
               isDark
                 ? "bg-[#17191C] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
@@ -11516,7 +11525,7 @@ export default function AdminView({
           onClick={() => setZoomedPhoto(null)}
         >
           <div
-            className={`max-w-3xl w-full rounded-3xl p-5 border shadow-2xl relative space-y-4 ${
+            className={`max-w-3xl w-full rounded-xl p-5 border shadow-2xl relative space-y-4 ${
               isDark
                 ? "bg-[#17191C] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
@@ -11586,7 +11595,7 @@ export default function AdminView({
           }}
         >
           <div
-            className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border shadow-2xl p-6 sm:p-8 relative ${
+            className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl p-6 sm:p-8 relative ${
               isDark
                 ? "bg-[#181A1E] border-stone-800 text-stone-100"
                 : "bg-white border-stone-200 text-stone-900"
@@ -12022,7 +12031,7 @@ export default function AdminView({
           }}
         >
           <div
-            className={`w-full max-w-lg rounded-3xl border shadow-2xl p-6 sm:p-7 relative overflow-hidden transition ${
+            className={`w-full max-w-lg rounded-xl border shadow-2xl p-6 sm:p-7 relative overflow-hidden transition ${
               isDark
                 ? "bg-[#16181C] border-stone-800 text-stone-100"
                 : "bg-white border-stone-200 text-stone-900"
@@ -12119,7 +12128,7 @@ export default function AdminView({
                       Location Hub
                     </span>
                     <span className="font-medium text-stone-700 dark:text-stone-300 truncate block">
-                      📍{" "}
+                      <LocationIcon size={12} className="inline mr-1 text-[#F97316]" />
                       {deletingCar.location ||
                         deletingCar.garageName ||
                         "MIA Hub"}
@@ -12130,7 +12139,8 @@ export default function AdminView({
                       Assigned Bay
                     </span>
                     <span className="font-medium text-stone-700 dark:text-stone-300 block">
-                      🅿️ {deletingCar.garageBay || "Bay 14-B"}
+                      <TagIcon size={12} className="inline mr-1 text-stone-400" />
+                      {deletingCar.garageBay || "Bay 14-B"}
                     </span>
                   </div>
                   <div>
@@ -12161,9 +12171,9 @@ export default function AdminView({
               </div>
 
               {/* Warning Notice Box */}
-              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs space-y-1">
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
-                  <span>🚨</span>
+                  <AlertTriangleIcon size={14} className="text-rose-500" />
                   <span>Irreversible Deletion</span>
                 </div>
                 <p className="text-[11px] text-rose-600 dark:text-rose-400 leading-relaxed">
@@ -12181,7 +12191,7 @@ export default function AdminView({
                 type="button"
                 disabled={isDeletingCar}
                 onClick={() => setDeletingCar(null)}
-                className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-bold transition cursor-pointer disabled:opacity-50"
               >
                 Cancel & Keep
               </button>
@@ -12190,9 +12200,13 @@ export default function AdminView({
                 type="button"
                 disabled={isDeletingCar}
                 onClick={handleConfirmDeleteCar}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <span>{isDeletingCar ? "⏳" : "🗑️"}</span>
+                {isDeletingCar ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <TrashIcon size={14} />
+                )}
                 <span>
                   {isDeletingCar
                     ? "Deleting Vehicle..."
