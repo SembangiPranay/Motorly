@@ -14,7 +14,9 @@ import {
   QrCodeIcon,
   ClockIcon,
   SparklesIcon,
+  FileTextIcon,
 } from "../components/Icons"
+import InvoiceModal from "../components/InvoiceModal"
 
 interface MyBookingsViewProps {
   cars: Car[]
@@ -47,6 +49,10 @@ export default function MyBookingsView({
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false)
   const [selectedBookingForExtension, setSelectedBookingForExtension] =
     useState<BookingRecord | null>(null)
+  const [selectedCustomerInvoice, setSelectedCustomerInvoice] = useState<{
+    booking: BookingRecord
+    car?: Car
+  } | null>(null)
   const [extensionDuration, setExtensionDuration] = useState(1)
   const [extensionUnit, setExtensionUnit] =
     useState<"hours" | "days" | "months">("days")
@@ -1221,14 +1227,27 @@ export default function MyBookingsView({
                                 ${b.totalAmount.toFixed(2)}
                               </td>
                               <td className="px-5 py-3 text-center">
-                                <button
-                                  onClick={() =>
-                                    setSelectedVoucher({ booking: b, car })
-                                  }
-                                  className="text-stone-500 hover:text-stone-900 font-semibold underline decoration-stone-300"
-                                >
-                                  View
-                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedCustomerInvoice({ booking: b, car })
+                                    }
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 text-[#F97316] hover:bg-[#F97316] hover:text-white font-bold text-[11px] transition cursor-pointer border border-orange-200"
+                                    title="View official printable trip invoice"
+                                  >
+                                    <FileTextIcon size={12} />
+                                    <span>Invoice</span>
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      setSelectedVoucher({ booking: b, car })
+                                    }
+                                    className="text-stone-500 hover:text-stone-900 font-semibold underline decoration-stone-300 text-[11px]"
+                                  >
+                                    Voucher
+                                  </button>
+                                </div>
                               </td>
                               {reviewsEnabled && (
                                 <td className="px-5 py-3 text-center">
@@ -1628,6 +1647,14 @@ export default function MyBookingsView({
           </div>,
           document.body,
         )}
+
+      {selectedCustomerInvoice && (
+        <InvoiceModal
+          booking={selectedCustomerInvoice.booking}
+          car={selectedCustomerInvoice.car}
+          onClose={() => setSelectedCustomerInvoice(null)}
+        />
+      )}
     </div>
   )
 }

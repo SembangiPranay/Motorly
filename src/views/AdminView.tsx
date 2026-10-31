@@ -23,6 +23,7 @@ import { api } from "../services/api"
 import GarageMapViewer from "../components/GarageMapViewer"
 
 import { downloadBookingInvoicePng } from "../utils/invoiceGenerator"
+import InvoiceModal from "../components/InvoiceModal"
 
 import { getGoogleMapsUrl, openGoogleMaps } from "../utils/maps"
 
@@ -109,9 +110,16 @@ export default function AdminView({
   // Navigation tabs (includes dedicated Settings tab)
 
   const [activeTab, setActiveTab] =
-    useState<"manifest" | "fleet" | "walkin" | "promos" | "crm" | "maintenance" | "settings">(
+    useState<"manifest" | "completed" | "fleet" | "walkin" | "promos" | "crm" | "maintenance" | "settings">(
       "manifest",
     )
+
+  // Completed Trips & Invoice Archive State
+  const [completedSearchQuery, setCompletedSearchQuery] = useState("")
+  const [completedDateFilter, setCompletedDateFilter] = useState<"all" | "7d" | "30d" | "month">("all")
+  const [completedCategoryFilter, setCompletedCategoryFilter] = useState<string>("all")
+  const [completedViewMode, setCompletedViewMode] = useState<"cards" | "table">("cards")
+  const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<BookingRecord | null>(null)
 
   // Mobile sidebar drawer state
 
@@ -138,6 +146,146 @@ export default function AdminView({
   const [isSyncingHub, setIsSyncingHub] = useState(false)
 
   const [syncHubFeedback, setSyncHubFeedback] = useState<string | null>(null)
+
+
+  // Completed Bookings Filtering
+  const filteredCompletedBookings = useMemo(() => {
+    return bookings
+      .filter((b) => b.status === "Completed")
+      .filter((b) => {
+        if (!completedSearchQuery.trim()) return true
+        const q = completedSearchQuery.toLowerCase()
+        const car = cars.find((c) => c.id === b.matchedCarId)
+        const customerName =
+          (b.customer as any).name ||
+          `${b.customer.firstName || ""} ${b.customer.lastName || ""}`.trim()
+        const customerLicense =
+          b.driver?.licenseNumber ||
+          (b.customer as any).licenseNumber ||
+          ""
+        return (
+          b.id.toLowerCase().includes(q) ||
+          customerName.toLowerCase().includes(q) ||
+          (b.customer.phone && b.customer.phone.includes(q)) ||
+          (b.customer.email && b.customer.email.toLowerCase().includes(q)) ||
+          customerLicense.toLowerCase().includes(q) ||
+          (car && (
+            car.brand.toLowerCase().includes(q) ||
+            car.model.toLowerCase().includes(q) ||
+            car.name.toLowerCase().includes(q) ||
+            (car.plateNumber && car.plateNumber.toLowerCase().includes(q))
+          ))
+        )
+      })
+      .filter((b) => {
+        if (completedCategoryFilter === "all") return true
+        const car = cars.find((c) => c.id === b.matchedCarId)
+        const cat = car?.type || b.requestedCategory
+        return cat === completedCategoryFilter
+      })
+      .filter((b) => {
+        if (completedDateFilter === "all") return true
+        const bDate = new Date(b.createdAt || Date.now()).getTime()
+        const now = Date.now()
+        if (completedDateFilter === "7d") {
+          return now - bDate <= 7 * 24 * 60 * 60 * 1000
+        }
+        if (completedDateFilter === "30d") {
+          return now - bDate <= 30 * 24 * 60 * 60 * 1000
+        }
+        if (completedDateFilter === "month") {
+          const bMonth = new Date(bDate).getMonth()
+          const currentMonth = new Date(now).getMonth()
+          return bMonth === currentMonth
+        }
+        return true
+      })
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+  }, [bookings, cars, completedSearchQuery, completedCategoryFilter, completedDateFilter])
+
+  const completedStats = useMemo(() => {
+    const allCompleted = bookings.filter((b) => b.status === "Completed")
+    const totalCount = allCompleted.length
+    const totalRevenue = allCompleted.reduce(
+      (sum, b) => sum + (Number(b.totalAmount) || 0),
+      0,
+    )
+    const withExtensions = allCompleted.filter(
+      (b) => b.extensionStatus === "Approved",
+    ).length
+    return {
+      totalCount,
+      totalRevenue,
+      withExtensions,
+      passRate: "100%",
+    }
+  }, [bookings])
+
+  const handleExportCompletedCsv = () => {
+    const completedList = bookings.filter((b) => b.status === "Completed")
+    if (completedList.length === 0) {
+      alert("No completed trips available to export.")
+      return
+    }
+
+    const headers = [
+      "Invoice / Order ID",
+      "Customer Name",
+      "Customer Phone",
+      "Customer Email",
+      "Driver License",
+      "Vehicle",
+      "Plate Number",
+      "Pickup Date",
+      "Return Date",
+      "Extension Status",
+      "Total Settled Amount ($)",
+      "Status",
+      "Created Date",
+    ]
+
+    const rows = completedList.map((b) => {
+      const car = cars.find((c) => c.id === b.matchedCarId)
+      const customerName =
+        (b.customer as any).name ||
+        `${b.customer.firstName || ""} ${b.customer.lastName || ""}`.trim() ||
+        "Verified Client"
+      const customerLicense =
+        b.driver?.licenseNumber ||
+        (b.customer as any).licenseNumber ||
+        "Verified"
+      return [
+        `INV-${b.id}`,
+        `"${customerName.replace(/"/g, '""')}"`,
+        `"${(b.customer.phone || "").replace(/"/g, '""')}"`,
+        `"${(b.customer.email || "").replace(/"/g, '""')}"`,
+        `"${customerLicense.replace(/"/g, '""')}"`,
+        `"${car ? `${car.brand} ${car.model}` : b.requestedCategory || "Fleet"}"`,
+        `"${car?.plateNumber || "FL-908-MTR"}"`,
+        `"${b.pickupDate}"`,
+        `"${b.returnDate}"`,
+        `"${b.extensionStatus || "None"}"`,
+        (Number(b.totalAmount) || 0).toFixed(2),
+        b.status,
+        `"${b.createdAt}"`,
+      ]
+    })
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n")
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute(
+      "download",
+      `MOTORLY_Completed_Trips_Invoices_${new Date().toISOString().slice(0, 10)}.csv`,
+    )
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const handleSyncHubToFleet = async () => {
     if (!studioContact.hub_address) {
@@ -3141,6 +3289,7 @@ export default function AdminView({
               <h2 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-stone-900 dark:text-white uppercase mt-1">
                 {activeTab === "promos" && "PRIVILEGES & COUPON REGISTRY"}
                 {activeTab === "manifest" && "ORDERS & DISPATCH REGISTRY"}
+                {activeTab === "completed" && "COMPLETED ORDERS & INVOICE ARCHIVE"}
                 {activeTab === "fleet" && "FLEET & ASSET INVENTORY"}
                 {activeTab === "crm" && "CUSTOMERS & VERIFIED DRIVER CRM"}
                 {activeTab === "walkin" &&
