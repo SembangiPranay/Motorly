@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 
 import type {
   Car,
@@ -170,6 +170,14 @@ export default function App() {
         const params = new URLSearchParams(window.location.search)
 
         const bId = params.get("bookingId")
+        const carFromParam = params.get("car") || params.get("carId")
+        if (carFromParam) {
+          setSelectedCarId(carFromParam)
+          try {
+            localStorage.setItem("motorly_selected_car_id", carFromParam)
+          } catch {}
+          setBookingState((prev) => ({ ...prev, carId: carFromParam }))
+        }
 
         if (
           pathname === "/admin" ||
@@ -206,7 +214,15 @@ export default function App() {
 
       const params = new URLSearchParams(window.location.search)
 
-      const v = params.get("view") as ViewMode || "home"
+      const v = (params.get("view") as ViewMode) || "home"
+      const carFromUrl = params.get("car") || params.get("carId")
+      if (carFromUrl) {
+        setSelectedCarId(carFromUrl)
+        try {
+          localStorage.setItem("motorly_selected_car_id", carFromUrl)
+        } catch {}
+        setBookingState((prev) => ({ ...prev, carId: carFromUrl }))
+      }
 
       setCurrentView(v)
     }
@@ -223,6 +239,13 @@ export default function App() {
   const [authReturnView, setAuthReturnView] = useState<ViewMode>("home")
 
   const [selectedCarId, setSelectedCarId] = useState<string>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        const carFromParam = params.get("car") || params.get("carId")
+        if (carFromParam) return carFromParam
+      }
+    } catch {}
     return localStorage.getItem("motorly_selected_car_id") || ""
   })
 
@@ -355,10 +378,31 @@ export default function App() {
             : Promise.resolve(null),
         ])
 
-        if (Array.isArray(remoteCars)) {
+        if (Array.isArray(remoteCars) && remoteCars.length > 0) {
           setCars(remoteCars)
-
           setIsBackendConnected(true)
+
+          setSelectedCarId((prevSelected) => {
+            try {
+              if (typeof window !== "undefined") {
+                const p = new URLSearchParams(window.location.search)
+                const cParam = p.get("car") || p.get("carId")
+                if (cParam && remoteCars.some((c) => c.id === cParam)) {
+                  setBookingState((prev) => ({ ...prev, carId: cParam }))
+                  return cParam
+                }
+              }
+            } catch {}
+
+            if (prevSelected && remoteCars.some((c) => c.id === prevSelected)) {
+              setBookingState((prev) => ({ ...prev, carId: prevSelected }))
+              return prevSelected
+            }
+
+            const firstId = remoteCars[0].id
+            setBookingState((prev) => ({ ...prev, carId: firstId }))
+            return firstId
+          })
         }
 
         if (Array.isArray(remoteBookings)) {
@@ -432,7 +476,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [currentView, selectedCarId])
 
-  const activeCar = cars.find((c) => c.id === selectedCarId) || cars[0]
+  const activeCar = useMemo(() => {
+    if (!cars || cars.length === 0) return undefined
+    const matched = cars.find((c) => c.id === selectedCarId)
+    return matched || cars[0]
+  }, [cars, selectedCarId])
 
   const handleToggleFavorite = (id: string) => {
     setFavorites((prev) =>
@@ -441,11 +489,21 @@ export default function App() {
   }
 
   const handleSelectCar = (carId: string) => {
-    localStorage.setItem("motorly_selected_car_id", carId)
+    if (!carId) return
+    try {
+      localStorage.setItem("motorly_selected_car_id", carId)
+    } catch {}
 
     setSelectedCarId(carId)
-
     setBookingState((prev) => ({ ...prev, carId }))
+
+    if (typeof window !== "undefined") {
+      window.history.pushState(
+        null,
+        "",
+        `/?view=detail&car=${encodeURIComponent(carId)}`,
+      )
+    }
 
     setCurrentView("detail")
   }
@@ -524,12 +582,22 @@ export default function App() {
   // Enforce customer login for booking reservations
 
   const handleProceedToCheckout = (carId?: string) => {
-    const targetId = carId || selectedCarId
+    const targetId = carId || selectedCarId || activeCar?.id
 
     if (targetId) {
+      try {
+        localStorage.setItem("motorly_selected_car_id", targetId)
+      } catch {}
       setSelectedCarId(targetId)
-
       setBookingState((prev) => ({ ...prev, carId: targetId }))
+
+      if (typeof window !== "undefined") {
+        window.history.pushState(
+          null,
+          "",
+          `/?view=checkout&car=${encodeURIComponent(targetId)}`,
+        )
+      }
     }
 
     if (!currentUser) {
@@ -558,6 +626,18 @@ export default function App() {
       if (typeof window !== "undefined") {
         if (view === "home") {
           window.history.pushState(null, "", "/")
+        } else if (view === "detail" && selectedCarId) {
+          window.history.pushState(
+            null,
+            "",
+            `/?view=detail&car=${encodeURIComponent(selectedCarId)}`,
+          )
+        } else if (view === "checkout" && selectedCarId) {
+          window.history.pushState(
+            null,
+            "",
+            `/?view=checkout&car=${encodeURIComponent(selectedCarId)}`,
+          )
         } else {
           window.history.pushState(null, "", `/?view=${view}`)
         }
@@ -775,10 +855,10 @@ export default function App() {
             allCars={cars}
             bookingState={bookingState}
             setBookingState={setBookingState}
-            onProceedToBooking={() => handleProceedToCheckout()}
+            onProceedToBooking={() => handleProceedToCheckout(activeCar?.id)}
             onSelectSimilarCar={handleSelectCar}
-            onNavigateHome={() => setCurrentView("home")}
-            onNavigateListing={() => setCurrentView("listing")}
+            onNavigateHome={() => handleNavigate("home")}
+            onNavigateListing={() => handleNavigate("listing")}
           />
         )}
 

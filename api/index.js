@@ -40821,6 +40821,13 @@ app.get("/api/users/bookings", requireAuth, async (req, res) => {
 	rows.sort((a, b) => parseBookingDateSort(b.created_at) - parseBookingDateSort(a.created_at));
 	return res.json(rows.map(formatBookingRow));
 });
+app.get("/api/bookings/lookup/:id", async (req, res) => {
+	const { id } = req.params;
+	if (!id) return res.status(400).json({ error: "Booking ID is required" });
+	const row = await db.prepare("SELECT * FROM bookings WHERE LOWER(id) = LOWER(?)").get(id.trim());
+	if (!row) return res.status(404).json({ error: "Reservation not found" });
+	return res.json(formatBookingRow(row));
+});
 app.get("/api/cars", async (req, res) => {
 	const { status, type, search, maxPrice, pickupDate, returnDate } = req.query;
 	let query = "SELECT * FROM vehicles WHERE 1=1";

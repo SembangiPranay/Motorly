@@ -22,7 +22,7 @@ import {
 } from "../components/Icons"
 
 interface CarDetailViewProps {
-  car: Car
+  car?: Car
   allCars: Car[]
   bookingState: BookingState
   setBookingState: React.Dispatch<React.SetStateAction<BookingState>>

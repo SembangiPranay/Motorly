@@ -1063,6 +1063,17 @@ app.get(
   },
 )
 
+// Direct Booking Lookup (Public / Self-service by confirmation code)
+app.get("/api/bookings/lookup/:id", async (req, res) => {
+  const { id } = req.params
+  if (!id) return res.status(400).json({ error: "Booking ID is required" })
+  const row = (await db
+    .prepare("SELECT * FROM bookings WHERE LOWER(id) = LOWER(?)")
+    .get(id.trim())) as any
+  if (!row) return res.status(404).json({ error: "Reservation not found" })
+  return res.json(formatBookingRow(row))
+})
+
 /* ==========================================
    VEHICLES / FLEET ROUTES
    ========================================== */

@@ -77,6 +77,9 @@ import {
   StarIcon,
 } from "../components/Icons"
 
+const DEFAULT_FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
+
 interface AdminViewProps {
   cars: Car[]
 
@@ -3368,6 +3371,17 @@ export default function AdminView({
                 </button>
               )}
 
+              {activeTab === "completed" && (
+                <button
+                  type="button"
+                  onClick={handleExportCompletedCsv}
+                  className="px-4 py-2 rounded-lg bg-[#1C1917] hover:bg-black dark:bg-white dark:hover:bg-stone-100 text-white dark:text-stone-950 font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer"
+                >
+                  <DownloadIcon size={14} />
+                  <span>Export Invoice CSV</span>
+                </button>
+              )}
+
               {activeTab === "maintenance" && (
                 <button
                   type="button"
@@ -3869,7 +3883,621 @@ export default function AdminView({
                 </div>
               </>
             )}
+
+            {activeTab === "completed" && (
+              <>
+                <div
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                    isDark
+                      ? "bg-[#17191C] border-stone-800 shadow-md"
+                      : "bg-white border-stone-200/90 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      COMPLETED ORDERS
+                    </p>
+                    <span className="text-emerald-500"><CheckIcon size={14} /></span>
+                  </div>
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
+                    {completedStats.totalCount}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Audited &amp; archived
+                  </p>
+                </div>
+
+                <div
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                    isDark
+                      ? "bg-[#17191C] border-stone-800 shadow-md"
+                      : "bg-white border-stone-200/90 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      SETTLED REVENUE
+                    </p>
+                    <span className="text-emerald-500"><ZapIcon size={14} /></span>
+                  </div>
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
+                    ${completedStats.totalRevenue.toFixed(2)}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                    Cleared in registry
+                  </p>
+                </div>
+
+                <div
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                    isDark
+                      ? "bg-[#17191C] border-stone-800 shadow-md"
+                      : "bg-white border-stone-200/90 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      EXTENSIONS MONETIZED
+                    </p>
+                    <span className="text-amber-500"><SparklesIcon size={14} /></span>
+                  </div>
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
+                    {completedStats.withExtensions}
+                  </p>
+                  <p className="text-[11px] font-medium text-amber-500">
+                    Additional daily charges
+                  </p>
+                </div>
+
+                <div
+                  className={`border p-3 sm:p-5 rounded-xl flex flex-col justify-between min-h-[88px] sm:min-h-[120px] transition ${
+                    isDark
+                      ? "bg-[#17191C] border-stone-800 shadow-md"
+                      : "bg-white border-stone-200/90 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
+                      RETURN AUDIT PASS
+                    </p>
+                    <span className="text-sky-500"><ShieldIcon size={14} /></span>
+                  </div>
+                  <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
+                    {completedStats.passRate}
+                  </p>
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                    Zero dispute rate
+                  </p>
+                </div>
+              </>
+            )}
           </section>
+
+          {/* ========================================================
+            TAB: COMPLETED ORDERS & INVOICE ARCHIVE
+            ======================================================== */}
+          {activeTab === "completed" && (
+            <section
+              className={`border rounded-xl sm:rounded-2xl overflow-hidden transition ${
+                isDark
+                  ? "bg-[#17191C] border-stone-800 shadow-xl"
+                  : "bg-white border-stone-200/90 shadow-xs"
+              }`}
+            >
+              {/* Completed Toolbar */}
+              <div
+                className={`p-3 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 ${
+                  isDark
+                    ? "border-stone-800 bg-[#17191C]"
+                    : "border-stone-200/80 bg-white"
+                }`}
+              >
+                {/* Search Bar */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <div className="relative flex-1 md:w-80">
+                    <SearchIcon
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                    />
+                    <input
+                      type="text"
+                      value={completedSearchQuery}
+                      onChange={(e) => setCompletedSearchQuery(e.target.value)}
+                      placeholder="Search ID, customer, phone, plate..."
+                      className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDark
+                          ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
+                          : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Filter Controls: Date Range, Categories, View Toggle, Export */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Date Range Selector */}
+                  <div
+                    className={`flex items-center rounded-xl p-1 border ${
+                      isDark
+                        ? "bg-stone-900 border-stone-800"
+                        : "bg-stone-100/80 border-stone-200"
+                    }`}
+                  >
+                    {[
+                      { id: "all", label: "All Time" },
+                      { id: "7d", label: "7 Days" },
+                      { id: "30d", label: "30 Days" },
+                      { id: "month", label: "This Month" },
+                    ].map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setCompletedDateFilter(d.id as any)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                          completedDateFilter === d.id
+                            ? isDark
+                              ? "bg-stone-800 text-white shadow-2xs"
+                              : "bg-white text-stone-900 shadow-2xs"
+                            : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Category Filter Pills */}
+                  <div
+                    className={`hidden sm:flex items-center rounded-xl p-1 border ${
+                      isDark
+                        ? "bg-stone-900 border-stone-800"
+                        : "bg-stone-100/80 border-stone-200"
+                    }`}
+                  >
+                    {["all", "Sedan", "SUV", "Luxury"].map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setCompletedCategoryFilter(cat)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize transition cursor-pointer ${
+                          completedCategoryFilter === cat
+                            ? isDark
+                              ? "bg-stone-800 text-white shadow-2xs"
+                              : "bg-white text-stone-900 shadow-2xs"
+                            : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                        }`}
+                      >
+                        {cat === "all" ? "All Classes" : cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* View Mode Toggle: Cards vs Table */}
+                  <div
+                    className={`flex items-center rounded-xl p-1 border ${
+                      isDark
+                        ? "bg-stone-900 border-stone-800"
+                        : "bg-stone-100/80 border-stone-200"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setCompletedViewMode("cards")}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                        completedViewMode === "cards"
+                          ? isDark
+                            ? "bg-stone-800 text-white shadow-2xs"
+                            : "bg-white text-stone-900 shadow-2xs"
+                          : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                      }`}
+                      title="Card view"
+                    >
+                      <GridIcon size={13} />
+                      <span className="hidden sm:inline">Cards</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCompletedViewMode("table")}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                        completedViewMode === "table"
+                          ? isDark
+                            ? "bg-stone-800 text-white shadow-2xs"
+                            : "bg-white text-stone-900 shadow-2xs"
+                          : "text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                      }`}
+                      title="Spreadsheet table view"
+                    >
+                      <ListIcon size={13} />
+                      <span className="hidden sm:inline">Table</span>
+                    </button>
+                  </div>
+
+                  {/* Export CSV Button */}
+                  <button
+                    type="button"
+                    onClick={handleExportCompletedCsv}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                      isDark
+                        ? "bg-stone-900 border-stone-700 text-stone-200 hover:bg-stone-800"
+                        : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50 shadow-2xs"
+                    }`}
+                    title="Export CSV spreadsheet"
+                  >
+                    <DownloadIcon size={13} />
+                    <span className="hidden md:inline">Export CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Completed Body Content */}
+              {filteredCompletedBookings.length === 0 ? (
+                <div className="py-16 px-4 text-center">
+                  <div
+                    className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-3 border ${
+                      isDark
+                        ? "bg-stone-900 border-stone-800 text-stone-600"
+                        : "bg-stone-100 border-stone-200 text-stone-400"
+                    }`}
+                  >
+                    <FileTextIcon size={26} />
+                  </div>
+                  <h4
+                    className={`text-base font-bold font-heading ${
+                      isDark ? "text-stone-200" : "text-stone-800"
+                    }`}
+                  >
+                    No Completed Orders Found
+                  </h4>
+                  <p
+                    className={`text-xs mt-1 max-w-md mx-auto ${
+                      isDark ? "text-stone-500" : "text-stone-500"
+                    }`}
+                  >
+                    {completedSearchQuery
+                      ? "No records matched your search filter. Clear the search query to see all completed trip archives."
+                      : "When returned reservations complete audit and payment settlement, their official invoices and inspection receipts will appear here automatically."}
+                  </p>
+                  {completedSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setCompletedSearchQuery("")}
+                      className="mt-4 px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition cursor-pointer"
+                    >
+                      Clear Search Filter
+                    </button>
+                  )}
+                </div>
+              ) : completedViewMode === "cards" ? (
+                /* Card View Grid */
+                <div className="p-3 sm:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+                  {filteredCompletedBookings.map((b) => {
+                    const car = cars.find((c) => c.id === b.matchedCarId)
+                    const customerName =
+                      (b.customer as any).name ||
+                      `${b.customer.firstName || ""} ${b.customer.lastName || ""}`.trim() ||
+                      "Verified Client"
+                    const isExtension =
+                      b.extensionStatus === "Approved" ||
+                      Boolean(b.extensionQuote) ||
+                      (b.notes && b.notes.includes("Extended"))
+
+                    return (
+                      <div
+                        key={b.id}
+                        className={`rounded-2xl border p-4 sm:p-5 flex flex-col justify-between transition hover:shadow-md ${
+                          isDark
+                            ? "bg-stone-900/70 border-stone-800 hover:border-stone-700"
+                            : "bg-stone-50/70 border-stone-200/90 hover:border-orange-200"
+                        }`}
+                      >
+                        {/* Header Row: ID, Badges, Total Amount */}
+                        <div>
+                          <div className="flex items-center justify-between gap-2 pb-3 border-b border-stone-200/60 dark:border-stone-800/60">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-xs tracking-wider text-stone-900 dark:text-white">
+                                {b.id}
+                              </span>
+                              {b.notes?.includes("WALK-IN") ||
+                              b.pickupLocation?.includes("Walk-In") ? (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  WALK-IN
+                                </span>
+                              ) : null}
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                Completed
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono font-black text-sm text-stone-900 dark:text-white">
+                                ${Number(b.totalAmount || 0).toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-bold">
+                                Settled
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Extension Banner */}
+                          {isExtension && (
+                            <div className="mt-3 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium flex items-center gap-2">
+                              <CheckIcon size={14} className="shrink-0 text-emerald-500" />
+                              <span className="truncate">
+                                {b.notes?.includes("Extended")
+                                  ? b.notes
+                                  : "Extension Approved (+1 days)"}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Client Info Block */}
+                          <div className="mt-3.5 flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-[#F97316] font-bold text-xs flex items-center justify-center shrink-0 border border-orange-200 dark:border-orange-800">
+                              {customerName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h5 className="font-bold text-xs text-stone-900 dark:text-white truncate">
+                                {customerName}
+                              </h5>
+                              <p className="text-[11px] font-mono text-stone-500 dark:text-stone-400 mt-0.5 truncate">
+                                {b.customer.phone || "+1 (555) 000-0000"} • {b.customer.email}
+                              </p>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span
+                                  className={`px-1.5 py-0.2 rounded text-[10px] font-mono border ${
+                                    isDark
+                                      ? "bg-stone-800 text-stone-300 border-stone-700"
+                                      : "bg-stone-100 text-stone-700 border-stone-200"
+                                  }`}
+                                >
+                                  Lic: {b.driver?.licenseNumber || "FL-VERIFIED"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Paired Vehicle Block */}
+                          <div
+                            className={`mt-3.5 p-3 rounded-xl border flex items-center gap-3 ${
+                              isDark
+                                ? "bg-stone-900/80 border-stone-800"
+                                : "bg-white border-stone-200/80 shadow-2xs"
+                            }`}
+                          >
+                            <div className="w-12 h-9 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 shrink-0 border border-stone-200 dark:border-stone-700">
+                              <img
+                                src={car?.image || DEFAULT_FALLBACK_IMAGE}
+                                alt={car?.name || "Vehicle"}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h6 className="font-bold text-xs text-stone-900 dark:text-white truncate">
+                                {car?.name || b.requestedCategory || "Fleet Vehicle"}
+                              </h6>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shrink-0">
+                                  {car?.plateNumber || "FL-908-MTR"}
+                                </span>
+                                <span className="text-[10px] text-stone-400 truncate">
+                                  {car?.garageBay || "Bay 5-C"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Dates Timeline */}
+                          <div className="mt-3.5 grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div
+                              className={`p-2.5 rounded-xl border ${
+                                isDark
+                                  ? "bg-stone-900/50 border-stone-800"
+                                  : "bg-stone-100/70 border-stone-200/60"
+                              }`}
+                            >
+                              <span className="text-[9px] uppercase tracking-wider text-stone-400 block mb-0.5">
+                                Picked Up
+                              </span>
+                              <span className="text-[11px] font-bold text-stone-800 dark:text-stone-200 truncate block">
+                                {b.pickupDate}
+                              </span>
+                            </div>
+                            <div
+                              className={`p-2.5 rounded-xl border ${
+                                isDark
+                                  ? "bg-stone-900/50 border-stone-800"
+                                  : "bg-stone-100/70 border-stone-200/60"
+                              }`}
+                            >
+                              <span className="text-[9px] uppercase tracking-wider text-stone-400 block mb-0.5">
+                                Returned &amp; Audited
+                              </span>
+                              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate block">
+                                {b.returnDate}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Actions Footer */}
+                        <div className="mt-4 pt-3.5 border-t border-stone-200/70 dark:border-stone-800/70 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInvoiceBooking(b)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <FileTextIcon size={14} />
+                            <span>View &amp; Print Invoice</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              downloadBookingInvoicePng(
+                                b,
+                                cars.find((c) => c.id === b.matchedCarId),
+                                studioContact,
+                              )
+                            }
+                            className={`p-2 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 ${
+                              isDark
+                                ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                                : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
+                            }`}
+                            title="Download PNG invoice"
+                          >
+                            <DownloadIcon size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                /* Spreadsheet Table View */
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[960px] text-left text-xs border-collapse">
+                    <thead>
+                      <tr
+                        className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
+                          isDark
+                            ? "bg-stone-900/80 border-stone-800 text-stone-400"
+                            : "bg-stone-50/90 border-stone-200 text-stone-500"
+                        }`}
+                      >
+                        <th className="px-5 py-3.5 w-36 whitespace-nowrap">Invoice ID</th>
+                        <th className="px-5 py-3.5 w-52 whitespace-nowrap">Customer Client</th>
+                        <th className="px-5 py-3.5 w-48 whitespace-nowrap">Vehicle &amp; Plate</th>
+                        <th className="px-5 py-3.5 w-60 whitespace-nowrap">Rental Timeline</th>
+                        <th className="px-5 py-3.5 w-32 text-right whitespace-nowrap">Settled Total</th>
+                        <th className="px-5 py-3.5 w-44 text-center whitespace-nowrap">Invoice Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody
+                      className={`divide-y font-sans ${
+                        isDark ? "divide-stone-800/60" : "divide-stone-100"
+                      }`}
+                    >
+                      {filteredCompletedBookings.map((b) => {
+                        const car = cars.find((c) => c.id === b.matchedCarId)
+                        const customerName =
+                          (b.customer as any).name ||
+                          `${b.customer.firstName || ""} ${b.customer.lastName || ""}`.trim() ||
+                          "Verified Client"
+                        const isExtension =
+                          b.extensionStatus === "Approved" ||
+                          Boolean(b.extensionQuote) ||
+                          (b.notes && b.notes.includes("Extended"))
+
+                        return (
+                          <tr
+                            key={b.id}
+                            className={`transition ${
+                              isDark
+                                ? "hover:bg-stone-800/40 border-stone-800/60"
+                                : "hover:bg-orange-50/30 border-stone-100"
+                            }`}
+                          >
+                            {/* Invoice ID */}
+                            <td className="px-5 py-3.5 align-middle">
+                              <span className="font-mono font-bold text-xs text-stone-900 dark:text-white block">
+                                {b.id}
+                              </span>
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 inline-block mt-0.5">
+                                COMPLETED
+                              </span>
+                            </td>
+
+                            {/* Customer */}
+                            <td className="px-5 py-3.5 align-middle">
+                              <div className="font-bold text-xs text-stone-900 dark:text-white">
+                                {customerName}
+                              </div>
+                              <div className="text-[11px] font-mono text-stone-400 mt-0.5">
+                                {b.customer.phone || "+1 (555) 000-0000"}
+                              </div>
+                              <div className="text-[10px] text-stone-400 truncate max-w-[190px]">
+                                {b.customer.email}
+                              </div>
+                            </td>
+
+                            {/* Vehicle */}
+                            <td className="px-5 py-3.5 align-middle">
+                              <div className="font-bold text-xs text-stone-900 dark:text-white">
+                                {car?.name || b.requestedCategory || "Fleet Vehicle"}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="font-mono font-bold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shrink-0">
+                                  {car?.plateNumber || "FL-908-MTR"}
+                                </span>
+                                <span className="text-[10px] text-stone-400">
+                                  {car?.garageBay || "Bay 5-C"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Timeline */}
+                            <td className="px-5 py-3.5 align-middle">
+                              <div className="font-mono text-[11px] text-stone-800 dark:text-stone-200">
+                                {b.pickupDate} → {b.returnDate}
+                              </div>
+                              {isExtension && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-block mt-1">
+                                  +1 Day Extension Approved
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Settled Total */}
+                            <td className="px-5 py-3.5 align-middle text-right">
+                              <span className="font-mono font-black text-sm text-stone-900 dark:text-white block">
+                                ${Number(b.totalAmount || 0).toFixed(2)}
+                              </span>
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                Paid &amp; Settled
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-5 py-3.5 align-middle text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedInvoiceBooking(b)}
+                                  className="px-3 py-1.5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                  title="View and print official tax invoice"
+                                >
+                                  <FileTextIcon size={13} />
+                                  <span>Invoice</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    downloadBookingInvoicePng(
+                                      b,
+                                      cars.find((c) => c.id === b.matchedCarId),
+                                      studioContact,
+                                    )
+                                  }
+                                  className={`p-1.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                                    isDark
+                                      ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                                      : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
+                                  }`}
+                                  title="Download PNG invoice"
+                                >
+                                  <DownloadIcon size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* ========================================================
             TAB 1: RESERVATION MANIFEST & MATING
@@ -5450,7 +6078,7 @@ export default function AdminView({
                                     }`}
                                     title="Download Official Trip Invoice PNG"
                                   >
-                                    <span>📥</span>
+                                    <DownloadIcon size={12} className="inline mr-1" />
                                     <span className="hidden xl:inline text-[10px]">
                                       Invoice
                                     </span>
@@ -5721,7 +6349,7 @@ export default function AdminView({
                                   className="font-medium text-[11px] truncate block"
                                   title={c.location}
                                 >
-                                  📍 {cleanHub}
+                                  {cleanHub}
                                 </span>
                               </div>
                               <div>
@@ -5892,7 +6520,7 @@ export default function AdminView({
                                     />
                                     {c.gallery && c.gallery.length > 1 && (
                                       <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
-                                        <span>📷</span>
+                                        <CameraIcon size={10} className="inline mr-1" />
                                         <span>{c.gallery.length}</span>
                                       </span>
                                     )}
@@ -7609,7 +8237,7 @@ export default function AdminView({
                         href={
                           getWhatsAppUrls(
                             studioContact.contact_phone,
-                            "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!",
+                            "MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!",
                           ).appUrl
                         }
                         className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
@@ -7627,7 +8255,7 @@ export default function AdminView({
                         href={
                           getWhatsAppUrls(
                             studioContact.contact_phone,
-                            "🚗 MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!",
+                            "MOTORLY ATELIER: Test connection from Studio Director Console. Your WhatsApp dispatch integration is active!",
                           ).webUrl
                         }
                         target="_blank"
@@ -7647,7 +8275,7 @@ export default function AdminView({
                         href={
                           getEmailUrls(
                             studioContact.contact_email,
-                            "🚗 MOTORLY ATELIER: Email Dispatch Test",
+                            "MOTORLY ATELIER: Email Dispatch Test",
                             "This is a test notification from the MOTORLY Studio Director Console confirming that your email dispatch integration is operating correctly.",
                           ).gmailUrl
                         }
@@ -7656,7 +8284,7 @@ export default function AdminView({
                         className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white border border-red-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                         title="Directly opens Gmail compose with test email"
                       >
-                        <span>🔴</span>
+                        <span className="w-2 h-2 rounded-full bg-rose-500 inline-block mr-1" />
                         <span>Test Gmail Compose</span>
                       </a>
 
@@ -7664,7 +8292,7 @@ export default function AdminView({
                         href={
                           getEmailUrls(
                             studioContact.contact_email,
-                            "🚗 MOTORLY ATELIER: Email Dispatch Test",
+                            "MOTORLY ATELIER: Email Dispatch Test",
                             "This is a test notification from the MOTORLY Studio Director Console confirming that your email dispatch integration is operating correctly.",
                           ).mailtoUrl
                         }
@@ -7755,7 +8383,7 @@ export default function AdminView({
                 className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                 title="Download official high-resolution PNG invoice for this trip"
               >
-                <span>📥</span>
+                <DownloadIcon size={12} className="inline mr-1" />
                 <span>Download Invoice PNG</span>
               </button>
               <button
@@ -8098,7 +8726,7 @@ export default function AdminView({
                         {inspectedBooking.returnDate}
                       </p>
                       <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mt-0.5">
-                        🕒 Scheduled Time: {returnTimeStr}
+                        Scheduled Time: {returnTimeStr}
                       </p>
                       <p
                         className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
@@ -8519,7 +9147,7 @@ export default function AdminView({
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                             />
                             <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                              🔍 Click to Zoom
+                              Click to Zoom
                             </div>
                           </div>
                           <div className="flex gap-1.5 pt-1">
@@ -11943,7 +12571,7 @@ export default function AdminView({
                   download="Driver_License_Capture.png"
                   className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition shadow-xs flex items-center gap-1.5"
                 >
-                  📥 Download Image File
+                  Download Image File
                 </a>
                 <button
                   type="button"
@@ -12017,7 +12645,7 @@ export default function AdminView({
               <div className="p-5 rounded-2xl border bg-orange-500/5 border-orange-500/20 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-[#F97316] font-bold">⚙️</span>
+                    <SettingsIcon size={14} className="text-[#F97316]" />
                     <h4 className="text-xs font-bold uppercase tracking-wider font-mono text-stone-900 dark:text-white">
                       Edit Dispatch Phone &amp; Email
                     </h4>
@@ -12144,7 +12772,7 @@ export default function AdminView({
                         }
                         className="text-blue-500 hover:underline text-[10px] font-bold"
                       >
-                        📍 View Map
+                        View Map
                       </button>
                     </label>
                     <input
@@ -12345,8 +12973,8 @@ export default function AdminView({
                 >
                   <span>
                     {isDark
-                      ? "☀️ Switch to Light Mode"
-                      : "🌙 Switch to Dark Mode"}
+                      ? "Light Mode"
+                      : "Dark Mode"}
                   </span>
                 </button>
 
@@ -12385,7 +13013,7 @@ export default function AdminView({
                 }}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>🚪</span>
+                <LogOutIcon size={14} className="inline mr-1" />
                 <span>Sign Out of Admin Console</span>
               </button>
             </div>
@@ -12593,6 +13221,16 @@ export default function AdminView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Official Tax Invoice & Settlement Modal */}
+      {selectedInvoiceBooking && (
+        <InvoiceModal
+          booking={selectedInvoiceBooking}
+          car={cars.find((c) => c.id === selectedInvoiceBooking?.matchedCarId)}
+          settings={studioContact}
+          onClose={() => setSelectedInvoiceBooking(null)}
+        />
       )}
     </div>
   )

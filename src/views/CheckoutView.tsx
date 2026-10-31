@@ -31,7 +31,7 @@ import {
 } from "../components/Icons"
 
 interface CheckoutViewProps {
-  car: Car
+  car?: Car
 
   bookingState: BookingState
 
@@ -516,6 +516,11 @@ export default function CheckoutView({
     if (!currentUser) {
       onNavigateAuth?.("checkout")
 
+      return
+    }
+
+    if (!car) {
+      alert("No vehicle selected. Please choose a vehicle from the fleet catalog.")
       return
     }
 

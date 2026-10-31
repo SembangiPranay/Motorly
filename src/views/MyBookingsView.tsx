@@ -15,6 +15,9 @@ import {
   ClockIcon,
   SparklesIcon,
   FileTextIcon,
+  SearchIcon,
+  StarIcon,
+  ZapIcon,
 } from "../components/Icons"
 import InvoiceModal from "../components/InvoiceModal"
 
@@ -67,6 +70,35 @@ export default function MyBookingsView({
   const [phoneInput, setPhoneInput] = useState("")
   const [authError, setAuthError] = useState<string | null>(null)
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
+
+  // Guest / Direct Booking Lookup State
+  const [lookupIdInput, setLookupIdInput] = useState("")
+  const [isLookingUp, setIsLookingUp] = useState(false)
+  const [lookupFeedback, setLookupFeedback] = useState<string | null>(null)
+
+  const handleLookupBooking = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const cleanId = lookupIdInput.trim()
+    if (!cleanId) return
+    setIsLookingUp(true)
+    setLookupFeedback(null)
+    try {
+      const found = await api.lookupBooking(cleanId)
+      if (found) {
+        setBookings((prev) => {
+          const exists = prev.some((b) => b.id === found.id)
+          return exists ? prev : [found, ...prev]
+        })
+        showActionSuccess(`Reservation ${found.id} located successfully!`)
+      } else {
+        setLookupFeedback(`No reservation found for confirmation ID "${cleanId}".`)
+      }
+    } catch {
+      setLookupFeedback("Error locating reservation. Please check confirmation code.")
+    } finally {
+      setIsLookingUp(false)
+    }
+  }
 
   // Reviews & Feedback System State
   const [reviewsEnabled, setReviewsEnabled] = useState(true)
@@ -551,12 +583,54 @@ export default function MyBookingsView({
               </p>
             </div>
 
+            {/* Direct Reservation Lookup Bar */}
+            <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 mb-6">
+              <span className="text-[11px] font-bold text-stone-700 uppercase tracking-wider block mb-2">
+                Fast Reservation Lookup:
+              </span>
+              <form onSubmit={handleLookupBooking} className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <SearchIcon
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                  />
+                  <input
+                    type="text"
+                    value={lookupIdInput}
+                    onChange={(e) => setLookupIdInput(e.target.value)}
+                    placeholder="Enter Booking ID (e.g. MTR-852655)"
+                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-stone-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLookingUp}
+                  className="px-4 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  {isLookingUp ? "Searching..." : "Find Trip"}
+                </button>
+              </form>
+              {lookupFeedback && (
+                <p className="text-xs text-rose-600 font-medium mt-2">
+                  {lookupFeedback}
+                </p>
+              )}
+            </div>
+
             {/* Quick Demo Autofill Chips */}
             <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 mb-6">
               <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
                 Demo Quick-Fill Accounts:
               </p>
               <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin("test@gmail.com")}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition flex items-center gap-1"
+                >
+                  <CheckIcon size={12} className="text-emerald-600" />
+                  <span>test@gmail.com (MTR-852655 Completed Trip)</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => handleQuickDemoLogin("john.doe@email.com")}
@@ -1196,8 +1270,8 @@ export default function MyBookingsView({
                                     <span>
                                       {b.pickupDate} → {b.returnDate}
                                     </span>
-                                    <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded">
-                                      ⚡ Same Day
+                                    <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded inline-flex items-center gap-1">
+                                      <ZapIcon size={10} /> Same Day
                                     </span>
                                   </span>
                                 ) : (
@@ -1253,7 +1327,7 @@ export default function MyBookingsView({
                                 <td className="px-5 py-3 text-center">
                                   {existingReview ? (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                                      ★ {existingReview.rating}.0
+                                      <StarIcon size={12} filled className="text-amber-500" /><span>{existingReview.rating}.0</span>
                                     </span>
                                   ) : b.status === "Completed" ? (
                                     <button
@@ -1266,7 +1340,7 @@ export default function MyBookingsView({
                                       }
                                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
                                     >
-                                      <span>★</span> Rate Car
+                                      <StarIcon size={12} filled className="text-white" /><span>Rate Car</span>
                                     </button>
                                   ) : (
                                     <span className="text-stone-400 text-[10px]">

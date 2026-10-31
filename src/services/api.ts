@@ -327,6 +327,13 @@ class ApiService {
     return Array.isArray(data) ? data : []
   }
 
+  async lookupBooking(id: string): Promise<BookingRecord | null> {
+    if (!id || !id.trim()) return null
+    const res = await this.request(`/bookings/lookup/${encodeURIComponent(id.trim())}`)
+    if (!res.ok) return null
+    return this.safeJson(res, null)
+  }
+
   // --- Auth & Admin Verification ---
   async adminLogin(password: string, email?: string): Promise<{
     success: boolean

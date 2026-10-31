@@ -127,11 +127,11 @@ export default function Header({
   return (
     <>
       <header className="w-full bg-[#FAF7F2] transition-colors border-b border-gray-200/50 sticky top-0 z-40 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4 lg:gap-8">
-          {/* Logo */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-6 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4 lg:gap-4 xl:gap-6">
+          {/* Logo (Visible on mobile/tablet; hidden on desktop where persistent sidebar already shows logo) */}
           <div
             onClick={() => onNavigate("home")}
-            className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0 mr-2 sm:mr-4 lg:mr-6"
+            className="flex lg:hidden items-center gap-2.5 cursor-pointer select-none group shrink-0 mr-2"
           >
             {/* Ribbon M Logo */}
             <div className="w-7 h-6 relative flex items-end">
@@ -143,18 +143,18 @@ export default function Header({
                 <path d="M21 22L26 5L24 22H21Z" fill="#EA580C" opacity="0.8" />
               </svg>
             </div>
-            <span className="text-xl font-extrabold tracking-tight text-[#17191C] font-heading">
+            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-[#17191C] font-heading">
               MOTORLY
             </span>
           </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-4 xl:gap-7 text-sm font-medium">
+          {/* Desktop Navigation Links - Compact & responsive for 14" & 16" laptops */}
+          <nav className="hidden lg:flex items-center gap-2 xl:gap-4 2xl:gap-6 text-xs xl:text-sm font-medium">
             <button
               onClick={() => onNavigate("home")}
-              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
+              className={`transition-colors py-1 px-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "home"
-                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  ? "text-[#F97316] font-bold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
               }`}
             >
@@ -162,9 +162,9 @@ export default function Header({
             </button>
             <button
               onClick={() => onNavigate("listing")}
-              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
+              className={`transition-colors py-1 px-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "listing"
-                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  ? "text-[#F97316] font-bold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
               }`}
             >
@@ -172,24 +172,24 @@ export default function Header({
             </button>
             <button
               onClick={() => onNavigate("compare")}
-              className={`transition-colors pb-1 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`transition-colors py-1 px-1.5 flex items-center gap-1 cursor-pointer whitespace-nowrap ${
                 currentView === "compare"
-                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  ? "text-[#F97316] font-bold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
               }`}
             >
               <span>Compare</span>
               {compareCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 font-mono text-[10px] font-bold">
+                <span className="px-1.5 py-0.2 rounded-full bg-orange-100 text-orange-600 font-mono text-[10px] font-bold">
                   {compareCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => onNavigate("my-bookings")}
-              className={`transition-colors pb-1 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              className={`transition-colors py-1 px-1.5 flex items-center gap-1 cursor-pointer whitespace-nowrap ${
                 currentView === "my-bookings"
-                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  ? "text-[#F97316] font-bold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
               }`}
             >
@@ -201,22 +201,20 @@ export default function Header({
             <button
               onClick={() => {
                 onNavigate("home")
-
                 setTimeout(() => {
                   const el = document.getElementById("how-it-works")
-
                   if (el) el.scrollIntoView({ behavior: "smooth" })
                 }, 100)
               }}
-              className="hidden xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors pb-1 cursor-pointer whitespace-nowrap"
+              className="hidden 2xl:inline-block text-gray-700 hover:text-[#F97316] transition-colors py-1 px-1.5 cursor-pointer whitespace-nowrap"
             >
               How It Works
             </button>
             <button
               onClick={() => onNavigate("about")}
-              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
+              className={`hidden 2xl:inline-block transition-colors py-1 px-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "about"
-                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  ? "text-[#F97316] font-bold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
               }`}
             >
@@ -224,9 +222,9 @@ export default function Header({
             </button>
             <button
               onClick={() => onNavigate("contact")}
-              className={`transition-colors pb-1 cursor-pointer whitespace-nowrap ${
+              className={`hidden 2xl:inline-block transition-colors py-1 px-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "contact"
-                  ? "text-[#F97316] font-semibold border-b-2 border-[#F97316]"
+                  ? "text-[#F97316] font-bold border-b-2 border-[#F97316]"
                   : "text-gray-700 hover:text-[#F97316]"
               }`}
             >
@@ -234,39 +232,42 @@ export default function Header({
             </button>
           </nav>
 
-          {/* Right Action Elements */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0">
+          {/* Right Action Elements - Never overflows on 14" or 16" laptops */}
+          <div className="hidden lg:flex items-center gap-1.5 sm:gap-2 xl:gap-3 shrink-0">
             {isAdminAuthenticated && (
               <button
                 onClick={() => onNavigate("admin")}
-                className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 text-xs font-bold px-2.5 xl:px-3 py-1.5 sm:py-2 rounded-xl border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   currentView === "admin"
                     ? "bg-[#17191C] text-white border-[#17191C]"
                     : "bg-stone-900 hover:bg-black text-white border-stone-800 shadow-xs"
                 }`}
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Admin Console</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="hidden xl:inline">Admin Console</span>
+                <span className="xl:hidden">Admin</span>
               </button>
             )}
 
             {currentUser ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 xl:gap-2 shrink-0">
                 <button
                   onClick={() => onNavigate("my-bookings")}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-xs transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-2xs transition cursor-pointer whitespace-nowrap"
                 >
-                  <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px]">
+                  <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
                     {(currentUser.name || "U").charAt(0)}
                   </div>
-                  <span>{(currentUser.name || "User").split(" ")[0]}</span>
-                  <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded font-mono">
+                  <span className="truncate max-w-[90px] xl:max-w-[130px]">
+                    {(currentUser.name || "User").split(" ")[0]}
+                  </span>
+                  <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded font-mono font-bold shrink-0">
                     {currentUser.vipTier || "Member"}
                   </span>
                 </button>
                 <button
                   onClick={onLogoutCustomer}
-                  className="text-xs text-stone-500 hover:text-red-600 font-semibold px-2 py-1 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                  className="text-xs text-stone-500 hover:text-red-600 font-semibold px-1.5 py-1 rounded-lg hover:bg-stone-100 transition cursor-pointer whitespace-nowrap shrink-0"
                   title="Sign Out"
                 >
                   Logout
@@ -275,21 +276,21 @@ export default function Header({
             ) : (
               <button
                 onClick={() => onNavigate("auth")}
-                className="flex items-center gap-2 text-sm font-semibold text-[#17191C] hover:text-[#F97316] transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#17191C] hover:text-[#F97316] transition-colors cursor-pointer whitespace-nowrap shrink-0 px-2"
               >
-                <UserIcon size={18} className="text-gray-700" />
+                <UserIcon size={16} className="text-gray-700 shrink-0" />
                 <span>Sign In</span>
               </button>
             )}
 
             <button
               onClick={() => onNavigate("listing")}
-              className="bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-bold px-4 py-2 rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-2 group cursor-pointer whitespace-nowrap"
+              className="bg-[#F97316] hover:bg-[#EA580C] text-white text-xs sm:text-sm font-bold px-3.5 xl:px-4 py-2 rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5 xl:gap-2 group cursor-pointer whitespace-nowrap shrink-0"
             >
               <span>Book a Car</span>
               <ArrowRightIcon
-                size={15}
-                className="group-hover:translate-x-0.5 transition-transform"
+                size={14}
+                className="group-hover:translate-x-0.5 transition-transform shrink-0"
               />
             </button>
           </div>
