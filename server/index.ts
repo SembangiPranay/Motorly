@@ -69,6 +69,35 @@ async function reconcileDatabaseInvariants() {
         .catch(() => {})
     }
 
+    // 4. Invariant: Restore MTR-852655 and any settled/completed bookings accidentally cancelled or declined
+    if (db.isSupabase && db.pool) {
+      await db.pool.query(`
+        UPDATE bookings
+        SET status = 'Completed', approved_by_admin = 1
+        WHERE id = 'MTR-852655'
+           OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
+      `).catch(() => {})
+
+      await db.pool.query(`
+        UPDATE bookings
+        SET approved_by_admin = 1
+        WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
+      `).catch(() => {})
+    } else {
+      await db.prepare(`
+        UPDATE bookings
+        SET status = 'Completed', approved_by_admin = 1
+        WHERE id = 'MTR-852655'
+           OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
+      `).run().catch(() => {})
+
+      await db.prepare(`
+        UPDATE bookings
+        SET approved_by_admin = 1
+        WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
+      `).run().catch(() => {})
+    }
+
     // 3. Invariant 3.2: Reconcile any 'Checked Out' bookings whose vehicle is currently marked 'Available' to 'Completed'
     if (db.isSupabase && db.pool) {
       const res32 = await db.pool.query(`
@@ -2219,6 +2248,13 @@ const handleManagerApproval = async (
     return res.status(404).json({ error: "Booking not found." })
   }
 
+  if (booking.status === "Completed") {
+    return res.status(400).json({ error: "Cannot accept a trip that has already been returned and completed." })
+  }
+  if (booking.status === "Checked Out") {
+    return res.status(400).json({ error: "Cannot decline an active trip that is currently on the road." })
+  }
+
   if (booking.status === "Cancelled") {
     return res
       .status(400)
@@ -2299,6 +2335,13 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
     .get(bookingId)) as any
   if (!booking) {
     return res.status(404).json({ error: "Booking not found." })
+  }
+
+  if (booking.status === "Completed") {
+    return res.status(400).json({ error: "Cannot decline a trip that has already been returned and completed." })
+  }
+  if (booking.status === "Checked Out") {
+    return res.status(400).json({ error: "Cannot decline an active trip that is currently on the road." })
   }
 
   await db
@@ -3083,13 +3126,13 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file,
         pickup_location, return_location, pickup_date, return_date,
         requested_category, matched_car_id, status, total_amount, created_at,
-        odometer_out, fuel_level_out, notes
+        odometer_out, fuel_level_out, notes, approved_by_admin, approved_at
       ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, ?, ?
+        ?, ?, ?, 1, ?
       )
     `)
       .run(
@@ -3116,6 +3159,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         b.odometerOut || 15400,
         b.fuelLevelOut || "100%",
         b.notes || "Express counter walk-in reservation.",
+        new Date().toISOString(),
       )
 
     // Lock vehicle

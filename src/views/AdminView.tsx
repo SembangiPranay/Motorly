@@ -68,6 +68,7 @@ import {
   DownloadIcon,
   CameraIcon,
   RefreshCwIcon,
+  FileTextIcon,
   MonitorIcon,
   SunIcon,
   MoonIcon,
@@ -2773,6 +2774,21 @@ export default function AdminView({
             },
 
             {
+              id: "completed",
+
+              label: "Completed & Invoices",
+
+              icon: <FileTextIcon size={16} />,
+
+              badge: `${bookings.filter((b) => b.status === "Completed").length}`,
+
+              badgeColor:
+                bookings.filter((b) => b.status === "Completed").length > 0
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20"
+                  : "bg-stone-200/70 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+            },
+
+            {
               id: "fleet",
 
               label: "Fleet & Inventory",
@@ -4074,11 +4090,7 @@ export default function AdminView({
                       currency: "USD",
                     })
 
-                    const isPendingReview =
-                      !b.approvedByAdmin &&
-                      b.status !== "Cancelled" &&
-                      b.status !== "Completed" &&
-                      b.status !== "Checked Out"
+                    const isPendingReview = !b.approvedByAdmin && b.status !== "Cancelled" && b.status !== "Completed" && b.status !== "Checked Out" && b.status !== "Assigned"
 
                     return (
                       <div
@@ -4514,11 +4526,7 @@ export default function AdminView({
                           currency: "USD",
                         })
 
-                        const isPendingReview =
-                          !b.approvedByAdmin &&
-                          b.status !== "Cancelled" &&
-                          b.status !== "Completed" &&
-                          b.status !== "Checked Out"
+                        const isPendingReview = !b.approvedByAdmin && b.status !== "Cancelled" && b.status !== "Completed" && b.status !== "Checked Out" && b.status !== "Assigned"
 
                         return (
                           <div
@@ -5273,7 +5281,7 @@ export default function AdminView({
 
                                   {/* Operational Signals in neat secondary row */}
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    {b.approvedByAdmin ? (
+                                    {(b.approvedByAdmin || b.status === "Completed" || b.status === "Checked Out" || b.status === "Assigned") ? (
                                       <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" />
                                         Accepted
@@ -7882,7 +7890,7 @@ export default function AdminView({
                       : "Verified"}
                   </span>
                 </div>
-              ) : (
+              ) : (!inspectedBooking.approvedByAdmin && inspectedBooking.status !== "Completed" && inspectedBooking.status !== "Checked Out" && inspectedBooking.status !== "Cancelled" && inspectedBooking.status !== "Assigned") ? (
                 <div
                   className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition ${
                     isDark
@@ -7921,7 +7929,7 @@ export default function AdminView({
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Flow E: Key Handoff Clock Status */}
               {inspectedBooking.keysHandedAt && (
