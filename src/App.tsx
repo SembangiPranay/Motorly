@@ -659,6 +659,12 @@ export default function App() {
     totalAmount: number
 
     bookingId: string
+
+    promoCode?: string
+
+    discountPercent?: number
+
+    discountAmount?: number
   }) => {
     if (!currentUser) {
       setAuthReturnView("checkout")
@@ -710,6 +716,8 @@ export default function App() {
       status: "Assigned" as const,
 
       totalAmount: details.totalAmount,
+
+      promoCode: details.promoCode,
 
       createdAt: new Date().toISOString(),
 

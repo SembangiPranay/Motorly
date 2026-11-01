@@ -58,6 +58,8 @@ class ApiService {
 
     const isAdminEndpoint =
       role === "admin" ||
+      endpoint === "/promos" ||
+      (endpoint?.startsWith("/promos/") && endpoint !== "/promos/validate") ||
       endpoint?.startsWith("/maintenance") ||
       endpoint?.startsWith("/analytics") ||
       endpoint?.startsWith("/finance") ||
@@ -1003,7 +1005,7 @@ class ApiService {
 
   // --- Promo Codes & Dynamic Coupons ---
   async getPromos(): Promise<PromoCode[]> {
-    const res = await this.request("/promos")
+    const res = await this.request("/promos", {}, "admin")
     if (!res.ok) throw new Error("Failed to fetch promo rules")
     return res.json()
   }
@@ -1014,10 +1016,14 @@ class ApiService {
     description: string
     expiryDate: string
   }): Promise<PromoCode> {
-    const res = await this.request("/promos", {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const res = await this.request(
+      "/promos",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
     if (!res.ok) throw new Error("Failed to create promo code")
     return res.json()
   }
@@ -1028,15 +1034,20 @@ class ApiService {
       {
         method: "PATCH",
       },
+      "admin",
     )
     if (!res.ok) throw new Error("Failed to toggle promo code")
     return res.json()
   }
 
   async deletePromo(code: string): Promise<boolean> {
-    const res = await this.request(`/promos/${encodeURIComponent(code)}`, {
-      method: "DELETE",
-    })
+    const res = await this.request(
+      `/promos/${encodeURIComponent(code)}`,
+      {
+        method: "DELETE",
+      },
+      "admin",
+    )
     return res.ok
   }
 

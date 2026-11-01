@@ -459,6 +459,25 @@ export default function AdminView({
 
   const [promos, setPromos] = useState<PromoCode[]>([])
 
+  const promoStats = useMemo(() => {
+    const activeList = promos.filter((p) => p.isActive)
+    const inactiveList = promos.filter((p) => !p.isActive)
+    const totalRedemptions = promos.reduce(
+      (sum, p) => sum + (p.usageCount || 0),
+      0,
+    )
+    const sorted = [...promos].sort(
+      (a, b) => (b.usageCount || 0) - (a.usageCount || 0),
+    )
+    const topVoucher = sorted[0] || null
+    return {
+      activeCount: activeList.length,
+      inactiveCount: inactiveList.length,
+      totalRedemptions,
+      topVoucher,
+    }
+  }, [promos])
+
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false)
 
   const [newPromoData, setNewPromoData] = useState({
@@ -3524,7 +3543,7 @@ export default function AdminView({
                     <span className="text-emerald-500"><TagIcon size={14} /></span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
-                    {promos.length || 7}
+                    {promoStats.activeCount}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
@@ -3546,7 +3565,7 @@ export default function AdminView({
                     <span className="text-amber-500"><ShieldIcon size={14} /></span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
-                    1
+                    {promoStats.inactiveCount}
                   </p>
                   <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
@@ -3567,11 +3586,13 @@ export default function AdminView({
                     </p>
                     <span className="text-amber-500"><TagIcon size={14} /></span>
                   </div>
-                  <p className="text-2xl font-black font-mono my-1 text-stone-900 dark:text-white tracking-wider">
-                    MOTORLY15
+                  <p className="text-xl sm:text-2xl font-black font-mono my-1 text-stone-900 dark:text-white tracking-wider truncate">
+                    {promoStats.topVoucher ? promoStats.topVoucher.code : "NONE"}
                   </p>
-                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                    14 redemptions ($210 savings)
+                  <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400 truncate">
+                    {promoStats.topVoucher
+                      ? `${promoStats.topVoucher.usageCount} redemptions (${promoStats.topVoucher.discountPercent}% OFF)`
+                      : "No active redemptions yet"}
                   </p>
                 </div>
 
@@ -3584,15 +3605,15 @@ export default function AdminView({
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
-                      TOTAL SAVINGS GRANTED
+                      TOTAL REDEMPTIONS
                     </p>
-                    <span className="text-emerald-500">↗</span>
+                    <span className="text-emerald-500"><ZapIcon size={14} /></span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
-                    $480
+                    {promoStats.totalRedemptions}
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
-                    Across all atelier transactions
+                    Fleet concessions redeemed
                   </p>
                 </div>
               </>
@@ -4204,6 +4225,11 @@ export default function AdminView({
                                   WALK-IN
                                 </span>
                               ) : null}
+                              {b.promoCode && (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                  {b.promoCode}
+                                </span>
+                              )}
                               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                                 Completed
                               </span>
@@ -4740,6 +4766,11 @@ export default function AdminView({
                               {isWalkIn && (
                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                                   Walk-In
+                                </span>
+                              )}
+                              {b.promoCode && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                  {b.promoCode}
                                 </span>
                               )}
                             </div>
@@ -7256,15 +7287,14 @@ export default function AdminView({
                     }`}
                   >
                     <TagIcon size={16} className="text-emerald-500" />
-                    Promo Coupon Rule Engine
+                    Atelier Privilege &amp; Voucher Registry
                   </h3>
                   <p
                     className={`text-xs mt-0.5 ${
                       isDark ? "text-stone-400" : "text-stone-500"
                     }`}
                   >
-                    Dynamic discounts applied live during customer checkout and
-                    rate calculation.
+                    Confidential concession vouchers. These codes are strictly visible to the Studio Director and protected from public inspection.
                   </p>
                 </div>
                 <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -7296,83 +7326,94 @@ export default function AdminView({
                       isDark ? "divide-stone-800/60" : "divide-stone-100"
                     }`}
                   >
-                    {promos.map((p) => (
-                      <tr
-                        key={p.code}
-                        className={`transition ${
-                          isDark
-                            ? "hover:bg-stone-800/50 border-stone-800/60"
-                            : "hover:bg-orange-50/40 border-stone-100"
-                        }`}
-                      >
-                        <td className="px-5 py-3.5">
-                          <span
-                            className={`px-2.5 py-1 rounded-md font-mono font-bold text-xs border inline-block ${
-                              isDark
-                                ? "bg-stone-900 text-emerald-400 border-emerald-500/30"
-                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            }`}
-                          >
-                            {p.code}
-                          </span>
-                        </td>
+                    {promos.length === 0 ? (
+                      <tr>
                         <td
-                          className={`px-5 py-3.5 font-mono font-black text-sm ${
-                            isDark ? "text-white" : "text-stone-900"
-                          }`}
+                          colSpan={7}
+                          className="px-5 py-12 text-center text-stone-500 font-mono text-xs"
                         >
-                          {p.discountPercent}% OFF
-                        </td>
-                        <td
-                          className={`px-5 py-3.5 max-w-xs ${
-                            isDark ? "text-stone-300" : "text-stone-700"
-                          }`}
-                        >
-                          {p.description}
-                        </td>
-                        <td
-                          className={`px-5 py-3.5 font-mono ${
-                            isDark ? "text-stone-400" : "text-stone-500"
-                          }`}
-                        >
-                          {p.expiryDate}
-                        </td>
-                        <td
-                          className={`px-5 py-3.5 font-mono ${
-                            isDark ? "text-stone-300" : "text-stone-700"
-                          }`}
-                        >
-                          {p.usageCount} redemptions
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <button
-                            onClick={() => handleTogglePromo(p.code)}
-                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer ${
-                              p.isActive
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                                : isDark
-                                  ? "bg-stone-800 text-stone-500 border-stone-700"
-                                  : "bg-stone-100 text-stone-400 border-stone-200"
-                            }`}
-                          >
-                            {p.isActive ? "● Active" : "○ Inactive"}
-                          </button>
-                        </td>
-                        <td className="px-5 py-3.5 text-center">
-                          <button
-                            onClick={() => handleDeletePromo(p.code)}
-                            className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                              isDark
-                                ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
-                                : "hover:bg-rose-50 text-stone-400 hover:text-rose-600 border-stone-200"
-                            }`}
-                            title="Delete coupon"
-                          >
-                            <TrashIcon size={14} />
-                          </button>
+                          No privilege vouchers configured yet. Click "Create New Privilege" above to mint a concession code.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      promos.map((p) => (
+                        <tr
+                          key={p.code}
+                          className={`transition ${
+                            isDark
+                              ? "hover:bg-stone-800/50 border-stone-800/60"
+                              : "hover:bg-orange-50/40 border-stone-100"
+                          }`}
+                        >
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={`px-2.5 py-1 rounded-md font-mono font-bold text-xs border inline-block ${
+                                isDark
+                                  ? "bg-stone-900 text-emerald-400 border-emerald-500/30"
+                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              }`}
+                            >
+                              {p.code}
+                            </span>
+                          </td>
+                          <td
+                            className={`px-5 py-3.5 font-mono font-black text-sm ${
+                              isDark ? "text-white" : "text-stone-900"
+                            }`}
+                          >
+                            {p.discountPercent}% OFF
+                          </td>
+                          <td
+                            className={`px-5 py-3.5 max-w-xs ${
+                              isDark ? "text-stone-300" : "text-stone-700"
+                            }`}
+                          >
+                            {p.description}
+                          </td>
+                          <td
+                            className={`px-5 py-3.5 font-mono ${
+                              isDark ? "text-stone-400" : "text-stone-500"
+                            }`}
+                          >
+                            {p.expiryDate}
+                          </td>
+                          <td
+                            className={`px-5 py-3.5 font-mono ${
+                              isDark ? "text-stone-300" : "text-stone-700"
+                            }`}
+                          >
+                            {p.usageCount} redemptions
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <button
+                              onClick={() => handleTogglePromo(p.code)}
+                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer ${
+                                p.isActive
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                  : isDark
+                                    ? "bg-stone-800 text-stone-500 border-stone-700"
+                                    : "bg-stone-100 text-stone-400 border-stone-200"
+                              }`}
+                            >
+                              {p.isActive ? "● Active" : "○ Inactive"}
+                            </button>
+                          </td>
+                          <td className="px-5 py-3.5 text-center">
+                            <button
+                              onClick={() => handleDeletePromo(p.code)}
+                              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                isDark
+                                  ? "hover:bg-stone-800 text-stone-500 hover:text-rose-400 border-stone-800"
+                                  : "hover:bg-rose-50 text-stone-400 hover:text-rose-600 border-stone-200"
+                              }`}
+                              title="Delete coupon"
+                            >
+                              <TrashIcon size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -9368,6 +9409,17 @@ export default function AdminView({
                     {inspectedBooking.returnDate}
                   </span>
                 </div>
+                {inspectedBooking.promoCode && (
+                  <div className="flex justify-between items-center text-xs font-mono font-bold text-purple-600 dark:text-purple-400">
+                    <span className="flex items-center gap-1.5">
+                      <TagIcon size={12} />
+                      Privilege Voucher:
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded bg-purple-500/10 border border-purple-500/20">
+                      {inspectedBooking.promoCode}
+                    </span>
+                  </div>
+                )}
                 <div
                   className={`pt-2 border-t flex justify-between font-mono font-bold text-sm ${
                     isDark

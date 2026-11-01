@@ -41951,7 +41951,11 @@ app.get("/api/admin/customers", requireAdmin, async (req, res) => {
 	}
 	return res.json(Array.from(customerMap.values()));
 });
-app.get("/api/promos", async (req, res) => {
+app.get("/api/promos", requireAdmin, async (req, res) => {
+	const rows = await db.prepare("SELECT * FROM promo_codes ORDER BY created_at DESC").all();
+	return res.json(rows.map(formatPromoRow));
+});
+app.get("/api/admin/promos", requireAdmin, async (req, res) => {
 	const rows = await db.prepare("SELECT * FROM promo_codes ORDER BY created_at DESC").all();
 	return res.json(rows.map(formatPromoRow));
 });
@@ -41986,33 +41990,33 @@ app.delete("/api/promos/:code", requireAdmin, async (req, res) => {
 });
 app.post("/api/promos/validate", async (req, res) => {
 	const { code } = req.body;
-	if (!code) return res.status(400).json({
+	if (!code || typeof code !== "string" || !code.trim()) return res.status(200).json({
 		valid: false,
-		message: "Code is required."
+		message: "Please provide a privilege code."
 	});
 	const promoCode = code.trim().toUpperCase();
 	const promo = await db.prepare("SELECT * FROM promo_codes WHERE code = ?").get(promoCode);
-	if (!promo) return res.status(404).json({
+	if (!promo) return res.status(200).json({
 		valid: false,
-		message: "Invalid promo code."
+		message: "Privilege code not recognized."
 	});
-	if (!promo.is_active) return res.status(400).json({
+	if (!promo.is_active) return res.status(200).json({
 		valid: false,
-		message: "This coupon is no longer active."
+		message: "This privilege code has been deactivated."
 	});
 	if (promo.expiry_date) {
 		const expiryTime = Date.parse(promo.expiry_date);
-		if (!isNaN(expiryTime) && expiryTime < Date.now()) return res.status(400).json({
+		if (!isNaN(expiryTime) && expiryTime < Date.now()) return res.status(200).json({
 			valid: false,
-			message: "This coupon code has expired."
+			message: "This privilege code has expired."
 		});
 	}
-	return res.json({
+	return res.status(200).json({
 		valid: true,
 		code: promo.code,
 		discountPercent: promo.discount_percent,
 		description: promo.description,
-		message: `${promo.discount_percent}% discount applied!`
+		message: `${promo.discount_percent}% Atelier Privilege Applied`
 	});
 });
 app.get("/api/maintenance", requireAdmin, async (req, res) => {

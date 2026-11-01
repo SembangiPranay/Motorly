@@ -61,6 +61,8 @@ export interface BookingState {
   rentalDurationDays: number
   protectionPlan: boolean
   rentalPlan: "hourly" | "daily" | "weekly" | "monthly"
+  promoCode?: string
+  discountPercent?: number
 }
 
 export interface CustomerInfo {

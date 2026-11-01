@@ -3277,8 +3277,16 @@ app.get("/api/admin/customers", requireAdmin, async (req, res) => {
    PROMO CODES & PRICING RULES
    ========================================== */
 
-// GET all promo codes
-app.get("/api/promos", async (req, res) => {
+// GET all promo codes (Admin ONLY)
+app.get("/api/promos", requireAdmin, async (req, res) => {
+  const rows = await db
+    .prepare("SELECT * FROM promo_codes ORDER BY created_at DESC")
+    .all()
+  return res.json(rows.map(formatPromoRow))
+})
+
+// GET all promo codes alias (Admin ONLY)
+app.get("/api/admin/promos", requireAdmin, async (req, res) => {
   const rows = await db
     .prepare("SELECT * FROM promo_codes ORDER BY created_at DESC")
     .all()
@@ -3354,8 +3362,8 @@ app.delete("/api/promos/:code", requireAdmin, async (req, res) => {
 // POST Validate Promo Code (Customer Checkout) - Read-only check, does NOT prematurely increment usage
 app.post("/api/promos/validate", async (req, res) => {
   const { code } = req.body
-  if (!code) {
-    return res.status(400).json({ valid: false, message: "Code is required." })
+  if (!code || typeof code !== "string" || !code.trim()) {
+    return res.status(200).json({ valid: false, message: "Please provide a privilege code." })
   }
 
   const promoCode = code.trim().toUpperCase()
@@ -3365,31 +3373,31 @@ app.post("/api/promos/validate", async (req, res) => {
 
   if (!promo) {
     return res
-      .status(404)
-      .json({ valid: false, message: "Invalid promo code." })
+      .status(200)
+      .json({ valid: false, message: "Privilege code not recognized." })
   }
 
   if (!promo.is_active) {
     return res
-      .status(400)
-      .json({ valid: false, message: "This coupon is no longer active." })
+      .status(200)
+      .json({ valid: false, message: "This privilege code has been deactivated." })
   }
 
   if (promo.expiry_date) {
     const expiryTime = Date.parse(promo.expiry_date)
     if (!isNaN(expiryTime) && expiryTime < Date.now()) {
       return res
-        .status(400)
-        .json({ valid: false, message: "This coupon code has expired." })
+        .status(200)
+        .json({ valid: false, message: "This privilege code has expired." })
     }
   }
 
-  return res.json({
+  return res.status(200).json({
     valid: true,
     code: promo.code,
     discountPercent: promo.discount_percent,
     description: promo.description,
-    message: `${promo.discount_percent}% discount applied!`,
+    message: `${promo.discount_percent}% Atelier Privilege Applied`,
   })
 })
 

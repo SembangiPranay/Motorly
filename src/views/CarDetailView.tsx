@@ -19,6 +19,7 @@ import {
   ZapIcon,
   TagIcon,
   SparklesIcon,
+  AlertTriangleIcon,
 } from "../components/Icons"
 
 interface CarDetailViewProps {
@@ -47,9 +48,16 @@ export default function CarDetailView({
     useState<"overview" | "garage" | "features" | "rates" | "reviews">(
       "overview",
     )
-  const [promoCode, setPromoCode] = useState("")
-  const [promoApplied, setPromoApplied] = useState(false)
+  const [promoCode, setPromoCode] = useState(bookingState.promoCode || "")
+  const [promoApplied, setPromoApplied] = useState(
+    Boolean(bookingState.promoCode && bookingState.discountPercent),
+  )
+  const [discountPercent, setDiscountPercent] = useState<number>(
+    bookingState.discountPercent || 0,
+  )
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false)
   const [quoteMessage, setQuoteMessage] = useState<string | null>(null)
+  const [isQuoteSuccess, setIsQuoteSuccess] = useState(false)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
@@ -237,19 +245,73 @@ export default function CarDetailView({
   }, [car, isSameDayBooking, sameDayHours, days])
 
   const baseRental = pricingResult.basePrice
-  const discountMultiplier = promoApplied ? 0.85 : 1.0 // 15% off with promo code
-  const discountedBase = baseRental * discountMultiplier
-  const taxes = Number((discountedBase * 0.18).toFixed(2))
+  const discountMultiplier =
+    promoApplied && discountPercent > 0
+      ? 1 - discountPercent / 100
+      : 1.0
+  const discountedBase = Number((baseRental * discountMultiplier).toFixed(2))
+  const promoDiscountAmount = Number((baseRental - discountedBase).toFixed(2))
+  const taxes = Number((discountedBase * 0.1).toFixed(2)) // 10% standard tax
   const grandTotal = Number((discountedBase + taxes).toFixed(2))
 
-  const handleApplyPromo = () => {
-    if (promoCode.trim().toUpperCase() === "DRIVE15") {
-      setPromoApplied(true)
-      setQuoteMessage("Success: 15% discount applied with code DRIVE15!")
-    } else {
-      setQuoteMessage("Code invalid. Try promo code: DRIVE15")
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim().toUpperCase()
+    if (!code) {
+      setPromoApplied(false)
+      setDiscountPercent(0)
+      setIsQuoteSuccess(false)
+      setQuoteMessage("Please enter a privilege voucher code.")
+      return
     }
-    setTimeout(() => setQuoteMessage(null), 4000)
+
+    setIsValidatingPromo(true)
+    try {
+      const res = await api.validatePromo(code)
+      if (res && res.valid) {
+        setPromoApplied(true)
+        setDiscountPercent(res.discountPercent)
+        setPromoCode(res.code)
+        setIsQuoteSuccess(true)
+        setQuoteMessage(
+          `${res.discountPercent}% Atelier Privilege Applied (${res.code})`,
+        )
+        setBookingState((prev) => ({
+          ...prev,
+          promoCode: res.code,
+          discountPercent: res.discountPercent,
+        }))
+      } else {
+        setPromoApplied(false)
+        setDiscountPercent(0)
+        setIsQuoteSuccess(false)
+        setQuoteMessage(res?.message || "Invalid or unrecognized privilege code.")
+        setBookingState((prev) => ({
+          ...prev,
+          promoCode: undefined,
+          discountPercent: undefined,
+        }))
+      }
+    } catch {
+      setPromoApplied(false)
+      setDiscountPercent(0)
+      setIsQuoteSuccess(false)
+      setQuoteMessage("Unable to validate privilege code.")
+    } finally {
+      setIsValidatingPromo(false)
+      setTimeout(() => setQuoteMessage(null), 5000)
+    }
+  }
+
+  const handleRemovePromo = () => {
+    setPromoCode("")
+    setPromoApplied(false)
+    setDiscountPercent(0)
+    setQuoteMessage(null)
+    setBookingState((prev) => ({
+      ...prev,
+      promoCode: undefined,
+      discountPercent: undefined,
+    }))
   }
 
   if (!car) {
@@ -894,37 +956,87 @@ export default function CarDetailView({
                 </div>
               </div>
 
-              {/* Promo Code Box */}
-              <div className="pt-1 flex gap-2">
-                <div className="relative flex-1">
-                  <TagIcon
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Promo code (DRIVE15)"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="w-full pl-8 pr-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs uppercase font-mono font-bold"
-                  />
+              {/* European Atelier Privilege Voucher Box */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-stone-500">
+                    Privilege &amp; Voucher Code
+                  </span>
+                  {promoApplied && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePromo}
+                      className="text-[10px] font-mono text-stone-400 hover:text-stone-900 transition cursor-pointer underline"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleApplyPromo}
-                  className="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-colors"
-                >
-                  Apply
-                </button>
+
+                {promoApplied ? (
+                  <div className="p-3 rounded-xl border border-dashed border-emerald-500/50 bg-emerald-50/80 flex items-center justify-between gap-3 animate-fade-in shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                        <TagIcon size={13} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-black text-xs text-stone-900 tracking-wider">
+                            {promoCode}
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-600 text-white">
+                            {discountPercent}% OFF
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-emerald-700 font-medium">
+                          Atelier VIP Privilege Applied
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono font-bold text-xs text-emerald-700">
+                      -${promoDiscountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <TagIcon
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                      />
+                      <input
+                        type="text"
+                        placeholder="ENTER PRIVILEGE CODE"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleApplyPromo()
+                          }
+                        }}
+                        className="w-full pl-8 pr-2 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs uppercase font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-900 focus:bg-white transition"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isValidatingPromo}
+                      onClick={handleApplyPromo}
+                      className="px-3.5 py-2 bg-stone-900 hover:bg-black text-white rounded-xl text-xs font-mono font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {isValidatingPromo ? "..." : "Apply"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
             {quoteMessage && (
               <div
                 className={`p-2.5 rounded-xl text-xs font-semibold text-center animate-fade-in ${
-                  promoApplied
-                    ? "bg-green-50 text-green-700 border border-green-200"
-                    : "bg-orange-50 text-[#F97316] border border-orange-200"
+                  isQuoteSuccess
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-stone-100 text-stone-700 border border-stone-200"
                 }`}
               >
                 {quoteMessage}
@@ -948,9 +1060,12 @@ export default function CarDetailView({
                 </span>
               </div>
               {promoApplied && (
-                <div className="flex justify-between text-green-600 font-bold">
-                  <span>15% Promo Discount (DRIVE15)</span>
-                  <span>-${(baseRental * 0.15).toFixed(2)}</span>
+                <div className="flex justify-between text-emerald-600 font-bold">
+                  <span className="flex items-center gap-1.5 font-mono text-[11px]">
+                    <TagIcon size={12} />
+                    Privilege Voucher ({promoCode} • {discountPercent}% OFF)
+                  </span>
+                  <span className="font-mono">-${promoDiscountAmount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
@@ -974,7 +1089,7 @@ export default function CarDetailView({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 font-extrabold text-stone-900">
                       <span className="w-5 h-5 rounded-md bg-amber-200/60 text-amber-800 flex items-center justify-center text-xs">
-                        ⚠️
+                        <AlertTriangleIcon size={13} className="text-amber-800" />
                       </span>
                       <span>Schedule Conflict</span>
                     </div>

@@ -13,6 +13,7 @@ import {
   ClockIcon,
   CalendarIcon,
   SparklesIcon,
+  TagIcon,
 } from "./Icons"
 import { downloadBookingInvoicePng, type InvoiceSettings } from "../utils/invoiceGenerator"
 import { openWhatsAppDirect } from "../utils/whatsapp"
@@ -359,6 +360,26 @@ export default function InvoiceModal({
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-emerald-800">
                         +${extensionAmount.toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
+
+                  {booking.promoCode && (
+                    <tr className="bg-emerald-50/20">
+                      <td className="py-3 px-4">
+                        <p className="font-bold text-emerald-950 flex items-center gap-1.5">
+                          <TagIcon size={12} className="text-emerald-600" />
+                          Atelier Privilege Voucher ({booking.promoCode})
+                        </p>
+                        <p className="text-[11px] text-emerald-700">
+                          Promotional privilege discount recognized and settled
+                        </p>
+                      </td>
+                      <td className="py-3 px-4 text-center font-mono text-emerald-700 font-bold">
+                        Privilege
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">
+                        Applied
                       </td>
                     </tr>
                   )}

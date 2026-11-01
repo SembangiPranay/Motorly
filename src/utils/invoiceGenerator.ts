@@ -375,7 +375,10 @@ export async function generateBookingInvoicePng(
   ctx.fillText(`Primary Vehicle Rental: ${vehicleName}`, 75, finY + 120)
   ctx.fillStyle = "#78716C"
   ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillText(`Daily Rate: $${baseRate}/day`, 680, finY + 120)
+  const rateSubtitle = booking.promoCode
+    ? `Daily: $${baseRate}/day • Voucher: ${booking.promoCode}`
+    : `Daily Rate: $${baseRate}/day`
+  ctx.fillText(rateSubtitle, 680, finY + 120)
   ctx.textAlign = "right"
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 14px monospace"

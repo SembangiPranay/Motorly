@@ -51,6 +51,12 @@ interface CheckoutViewProps {
     totalAmount: number
 
     bookingId: string
+
+    promoCode?: string
+
+    discountPercent?: number
+
+    discountAmount?: number
   }) => void
 
   onNavigateHome: () => void
@@ -192,11 +198,25 @@ export default function CheckoutView({
 
   const [isUploading, setIsUploading] = useState<boolean>(false)
 
-  const [promoCode, setPromoCode] = useState<string>("")
+  const [promoCode, setPromoCode] = useState<string>(
+    bookingState.promoCode || "",
+  )
 
-  const [promoDiscount, setPromoDiscount] = useState<number>(0)
+  const [promoDiscount, setPromoDiscount] = useState<number>(
+    (bookingState.discountPercent || 0) / 100,
+  )
 
-  const [promoStatus, setPromoStatus] = useState<string | null>(null)
+  const [isValidatingPromo, setIsValidatingPromo] = useState<boolean>(false)
+
+  const [promoStatus, setPromoStatus] = useState<string | null>(
+    bookingState.promoCode && bookingState.discountPercent
+      ? `${bookingState.discountPercent}% Atelier Privilege Applied (${bookingState.promoCode})`
+      : null,
+  )
+
+  const [isPromoSuccess, setIsPromoSuccess] = useState<boolean>(
+    Boolean(bookingState.promoCode && bookingState.discountPercent),
+  )
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
@@ -357,35 +377,44 @@ export default function CheckoutView({
 
     if (!code) {
       setPromoDiscount(0)
-
-      setPromoStatus("Please enter a promo code.")
-
+      setIsPromoSuccess(false)
+      setPromoStatus("Please enter a privilege voucher code.")
       return
     }
 
+    setIsValidatingPromo(true)
     try {
       const res = await api.validatePromo(code)
 
       if (res && res.valid) {
-        const discountFraction = (res.discountPercent || 15) / 100
+        const discountFraction = (res.discountPercent || 0) / 100
 
         setPromoDiscount(discountFraction)
-
+        setPromoCode(res.code)
+        setIsPromoSuccess(true)
         setPromoStatus(
-          `Success: ${res.discountPercent}% discount applied (${res.code})!`,
+          `${res.discountPercent}% Atelier Privilege Applied (${res.code})`,
         )
       } else {
         setPromoDiscount(0)
-
-        setPromoStatus(res?.message || "Invalid promo code.")
+        setIsPromoSuccess(false)
+        setPromoStatus(res?.message || "Invalid or unrecognized privilege code.")
       }
     } catch {
       setPromoDiscount(0)
-
-      setPromoStatus("Failed to validate promo code.")
+      setIsPromoSuccess(false)
+      setPromoStatus("Unable to validate privilege code.")
+    } finally {
+      setIsValidatingPromo(false)
+      setTimeout(() => setPromoStatus(null), 5000)
     }
+  }
 
-    setTimeout(() => setPromoStatus(null), 4500)
+  const handleRemovePromo = () => {
+    setPromoCode("")
+    setPromoDiscount(0)
+    setIsPromoSuccess(false)
+    setPromoStatus(null)
   }
 
   // Calculations matching reference design with promo support and live date math
@@ -651,6 +680,12 @@ export default function CheckoutView({
         totalAmount,
 
         bookingId: randomId,
+
+        promoCode: promoDiscount > 0 ? promoCode.trim().toUpperCase() : undefined,
+
+        discountPercent: promoDiscount > 0 ? Math.round(promoDiscount * 100) : undefined,
+
+        discountAmount: promoDiscount > 0 ? Number((rawRentalTotal * promoDiscount).toFixed(2)) : undefined,
       })
 
       setIsSubmitting(false)
@@ -1338,30 +1373,86 @@ export default function CheckoutView({
               </div>
             )}
 
-            {/* Promo Code Box */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Promo Code (DRIVE15)"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs uppercase font-mono font-bold"
-              />
-              <button
-                type="button"
-                onClick={handleApplyPromo}
-                className="px-3 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-colors"
-              >
-                Apply
-              </button>
+            {/* European Atelier Privilege Voucher Box */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-stone-500">
+                  Privilege &amp; Voucher Code
+                </span>
+                {promoDiscount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    className="text-[10px] font-mono text-stone-400 hover:text-stone-900 transition cursor-pointer underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              {promoDiscount > 0 ? (
+                <div className="p-3 rounded-xl border border-dashed border-emerald-500/50 bg-emerald-50/80 flex items-center justify-between gap-3 animate-fade-in shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                      <TagIcon size={13} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-black text-xs text-stone-900 tracking-wider">
+                          {promoCode}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-600 text-white">
+                          {Math.round(promoDiscount * 100)}% OFF
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-emerald-700 font-medium">
+                        Atelier VIP Privilege Applied
+                      </p>
+                    </div>
+                  </div>
+                  <span className="font-mono font-bold text-xs text-emerald-700">
+                    -${(rawRentalTotal * promoDiscount).toFixed(2)}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <TagIcon
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="ENTER PRIVILEGE CODE"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          handleApplyPromo()
+                        }
+                      }}
+                      className="w-full pl-8 pr-2 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs uppercase font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-900 focus:bg-white transition"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isValidatingPromo}
+                    onClick={handleApplyPromo}
+                    className="px-3.5 py-2 bg-stone-900 hover:bg-black text-white rounded-xl text-xs font-mono font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isValidatingPromo ? "..." : "Apply"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {promoStatus && (
               <div
-                className={`p-2 rounded-xl text-xs font-semibold text-center ${
-                  promoDiscount > 0
-                    ? "bg-green-50 text-green-700"
-                    : "bg-orange-50 text-[#F97316]"
+                className={`p-2.5 rounded-xl text-xs font-semibold text-center animate-fade-in ${
+                  isPromoSuccess
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-stone-100 text-stone-700 border border-stone-200"
                 }`}
               >
                 {promoStatus}
@@ -1385,9 +1476,12 @@ export default function CheckoutView({
                 </span>
               </div>
               {promoDiscount > 0 && (
-                <div className="flex justify-between text-green-600 font-bold">
-                  <span>15% Discount Applied</span>
-                  <span>-${(rawRentalTotal * promoDiscount).toFixed(2)}</span>
+                <div className="flex justify-between text-emerald-600 font-bold">
+                  <span className="flex items-center gap-1.5 font-mono text-[11px]">
+                    <TagIcon size={12} />
+                    Privilege Voucher ({promoCode} • {Math.round(promoDiscount * 100)}% OFF)
+                  </span>
+                  <span className="font-mono">-${(rawRentalTotal * promoDiscount).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
