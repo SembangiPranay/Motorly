@@ -1116,18 +1116,12 @@ app.get("/api/cars", async (req, res) => {
   if (pickupDate && returnDate) {
     const range = parseDateRangeStrict(String(pickupDate), String(returnDate))
     if (!range.valid) {
-      // Fail safely: mark all vehicles unavailable for requested dates due to invalid date parameters
+      // Do not falsely lock the fleet when dates cannot be strictly parsed or are malformed.
+      // Default to real physical vehicle availability so customers can still view and select cars.
       for (const car of cars) {
-        car.isAvailableForDates = false
-        car.conflict = {
-          conflictingBookingId: "INVALID_DATES",
-          customerName: "Validation Guard",
-          pickupDate: String(pickupDate),
-          returnDate: String(returnDate),
-          status: "Invalid Dates",
-          reason: range.error || "Invalid date range specified.",
-        }
-        car.statusForDates = "Invalid Dates"
+        car.isAvailableForDates = car.status !== "Maintenance"
+        car.conflict = null
+        car.statusForDates = car.status
       }
     } else {
       try {
@@ -1137,7 +1131,7 @@ app.get("/api/cars", async (req, res) => {
             SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status, matched_car_id
             FROM bookings
             WHERE matched_car_id IS NOT NULL
-              AND status NOT IN ('Completed', 'Cancelled')
+              AND status NOT IN ('Completed', 'Cancelled', 'Declined')
           `)
           .all()
 
@@ -1562,14 +1556,14 @@ function parseDateRangeStrict(
     }
   }
 
-  const MAX_DURATION_MS = 45 * 24 * 3600 * 1000 // 45 days maximum
+  const MAX_DURATION_MS = 365 * 24 * 3600 * 1000 // 365 days maximum (supports monthly & multi-month rentals)
   if (durationMs > MAX_DURATION_MS) {
     return {
       start,
       end,
       valid: false,
       error:
-        "Maximum online reservation duration is 45 days. For extended commercial leasing, please contact fleet operations.",
+        "Maximum online reservation duration is 365 days. For multi-year fleet leasing, please contact studio administration.",
     }
   }
 
@@ -1740,14 +1734,7 @@ async function findVehicleBookingConflict(
 ) {
   const range = parseDateRangeStrict(pickupStr, returnStr)
   if (!range.valid) {
-    return {
-      conflictingBookingId: "INVALID_DATES",
-      customerName: "Validation Guard",
-      pickupDate: String(pickupStr || ""),
-      returnDate: String(returnStr || ""),
-      status: "Invalid Dates",
-      reason: range.error || "Invalid date range specified.",
-    }
+    return null
   }
 
   try {
@@ -1755,7 +1742,7 @@ async function findVehicleBookingConflict(
       SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status
       FROM bookings
       WHERE matched_car_id = ?
-        AND status NOT IN ('Completed', 'Cancelled')
+        AND status NOT IN ('Completed', 'Cancelled', 'Declined')
     `
     const params: any[] = [carId]
     if (excludeBookingId) {
@@ -1812,23 +1799,6 @@ app.get("/api/cars/:id/availability", async (req, res) => {
   const returnDate = req.query.returnDate as string || "Mar 18, 2026"
 
   try {
-    const range = parseDateRangeStrict(pickupDate, returnDate)
-    if (!range.valid) {
-      return res.status(400).json({
-        carId,
-        isAvailable: false,
-        error: range.error,
-        conflict: {
-          conflictingBookingId: "INVALID_DATES",
-          customerName: "Validation Guard",
-          pickupDate,
-          returnDate,
-          status: "Invalid Dates",
-          reason: range.error,
-        },
-      })
-    }
-
     const car = (await db
       .prepare("SELECT * FROM vehicles WHERE id = ?")
       .get(carId)) as any
@@ -1837,6 +1807,17 @@ app.get("/api/cars/:id/availability", async (req, res) => {
         carId,
         isAvailable: false,
         error: "Vehicle not found.",
+      })
+    }
+
+    const range = parseDateRangeStrict(pickupDate, returnDate)
+    if (!range.valid) {
+      return res.json({
+        carId,
+        isAvailable: car.status !== "Maintenance",
+        carStatus: car.status,
+        conflict: null,
+        note: range.error,
       })
     }
 

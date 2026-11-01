@@ -1008,9 +1008,11 @@ export default function ListingView({
                   // Dynamic conflict & availability check against requested dates
 
                   const isRentedOrConflicted =
+                    car.status === "Maintenance" ||
                     car.status === "Rented" ||
                     car.statusForDates === "Reserved" ||
-                    car.isAvailableForDates === false
+                    (Boolean(car.conflict) && car.conflict?.status !== "Invalid Dates") ||
+                    (car.isAvailableForDates === false && car.conflict?.status !== "Invalid Dates")
 
                   return (
                     <div
@@ -1047,7 +1049,11 @@ export default function ListingView({
                           {isRentedOrConflicted ? (
                             <span className="bg-rose-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-md shadow-xs flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                              {car.conflict ? "Reserved" : "Rented"}
+                              {car.status === "Maintenance"
+                                ? "Maintenance"
+                                : car.conflict || car.statusForDates === "Reserved"
+                                  ? "Reserved"
+                                  : "Rented"}
                             </span>
                           ) : (
                             <span className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-md shadow-xs flex items-center gap-1">
@@ -1281,9 +1287,11 @@ export default function ListingView({
                   const tripTotal = pricing.basePrice
 
                   const isRentedOrConflicted =
+                    car.status === "Maintenance" ||
                     car.status === "Rented" ||
                     car.statusForDates === "Reserved" ||
-                    car.isAvailableForDates === false
+                    (Boolean(car.conflict) && car.conflict?.status !== "Invalid Dates") ||
+                    (car.isAvailableForDates === false && car.conflict?.status !== "Invalid Dates")
 
                   return (
                     <div
@@ -1317,7 +1325,11 @@ export default function ListingView({
                         {isRentedOrConflicted && (
                           <div className="absolute top-2.5 right-2.5 z-20">
                             <span className="bg-rose-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
-                              {car.conflict ? "Reserved" : "Rented"}
+                              {car.status === "Maintenance"
+                                ? "Maintenance"
+                                : car.conflict || car.statusForDates === "Reserved"
+                                  ? "Reserved"
+                                  : "Rented"}
                             </span>
                           </div>
                         )}
@@ -1448,9 +1460,11 @@ export default function ListingView({
                             <ZapIcon size={12} />
                             <span>
                               {isRentedOrConflicted
-                                ? car.conflict
-                                  ? "Reserved"
-                                  : "Rented"
+                                ? car.status === "Maintenance"
+                                  ? "Maintenance"
+                                  : car.conflict || car.statusForDates === "Reserved"
+                                    ? "Reserved"
+                                    : "Rented"
                                 : "Book"}
                             </span>
                           </button>

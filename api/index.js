@@ -40854,23 +40854,16 @@ app.get("/api/cars", async (req, res) => {
 	if (pickupDate && returnDate) {
 		const range = parseDateRangeStrict(String(pickupDate), String(returnDate));
 		if (!range.valid) for (const car of cars) {
-			car.isAvailableForDates = false;
-			car.conflict = {
-				conflictingBookingId: "INVALID_DATES",
-				customerName: "Validation Guard",
-				pickupDate: String(pickupDate),
-				returnDate: String(returnDate),
-				status: "Invalid Dates",
-				reason: range.error || "Invalid date range specified."
-			};
-			car.statusForDates = "Invalid Dates";
+			car.isAvailableForDates = car.status !== "Maintenance";
+			car.conflict = null;
+			car.statusForDates = car.status;
 		}
 		else try {
 			const activeBookings = await db.prepare(`
             SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status, matched_car_id
             FROM bookings
             WHERE matched_car_id IS NOT NULL
-              AND status NOT IN ('Completed', 'Cancelled')
+              AND status NOT IN ('Completed', 'Cancelled', 'Declined')
           `).all();
 			const bookingsByCar = /* @__PURE__ */ new Map();
 			for (const b of activeBookings) {
@@ -41063,11 +41056,11 @@ function parseDateRangeStrict(pickupStr, returnStr, options) {
 		valid: false,
 		error: "Minimum rental duration is 3 hours. Please select a return time at least 3 hours after pickup."
 	};
-	if (durationMs > 3888e6) return {
+	if (durationMs > 31536e6) return {
 		start,
 		end,
 		valid: false,
-		error: "Maximum online reservation duration is 45 days. For extended commercial leasing, please contact fleet operations."
+		error: "Maximum online reservation duration is 365 days. For multi-year fleet leasing, please contact studio administration."
 	};
 	if (options?.checkPastDates) {
 		if (start < Date.now() - 9e5) return {
@@ -41162,20 +41155,13 @@ function datesOverlap(startA, endA, startB, endB) {
 }
 async function findVehicleBookingConflict(carId, pickupStr, returnStr, excludeBookingId, executor = db) {
 	const range = parseDateRangeStrict(pickupStr, returnStr);
-	if (!range.valid) return {
-		conflictingBookingId: "INVALID_DATES",
-		customerName: "Validation Guard",
-		pickupDate: String(pickupStr || ""),
-		returnDate: String(returnStr || ""),
-		status: "Invalid Dates",
-		reason: range.error || "Invalid date range specified."
-	};
+	if (!range.valid) return null;
 	try {
 		let query = `
       SELECT id, customer_first_name, customer_last_name, pickup_date, return_date, status
       FROM bookings
       WHERE matched_car_id = ?
-        AND status NOT IN ('Completed', 'Cancelled')
+        AND status NOT IN ('Completed', 'Cancelled', 'Declined')
     `;
 		const params = [carId];
 		if (excludeBookingId) {
@@ -41213,25 +41199,19 @@ app.get("/api/cars/:id/availability", async (req, res) => {
 	const pickupDate = req.query.pickupDate || "Mar 15, 2026";
 	const returnDate = req.query.returnDate || "Mar 18, 2026";
 	try {
-		const range = parseDateRangeStrict(pickupDate, returnDate);
-		if (!range.valid) return res.status(400).json({
-			carId,
-			isAvailable: false,
-			error: range.error,
-			conflict: {
-				conflictingBookingId: "INVALID_DATES",
-				customerName: "Validation Guard",
-				pickupDate,
-				returnDate,
-				status: "Invalid Dates",
-				reason: range.error
-			}
-		});
 		const car = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 		if (!car) return res.status(404).json({
 			carId,
 			isAvailable: false,
 			error: "Vehicle not found."
+		});
+		const range = parseDateRangeStrict(pickupDate, returnDate);
+		if (!range.valid) return res.json({
+			carId,
+			isAvailable: car.status !== "Maintenance",
+			carStatus: car.status,
+			conflict: null,
+			note: range.error
 		});
 		if (car.status === "Maintenance") return res.json({
 			carId,

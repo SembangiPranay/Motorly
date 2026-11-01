@@ -47,6 +47,8 @@ import ContactView from "./views/ContactView"
 
 import CustomerSidebar from "./components/CustomerSidebar"
 
+import WhatsAppSupportFAB from "./components/WhatsAppSupportFAB"
+
 function getUpcomingFormattedDate(daysAhead: number): string {
   const d = new Date()
 
@@ -977,6 +979,11 @@ export default function App() {
       {/* Footer (only on customer storefront views) */}
       {currentView !== "admin" && currentView !== "auth" && (
         <Footer onNavigate={handleNavigate} />
+      )}
+
+      {/* WhatsApp Direct Concierge FAB (Only visible on customer storefront views) */}
+      {currentView !== "admin" && (
+        <WhatsAppSupportFAB activeCar={activeCar} />
       )}
 
       {/* Booking Confirmation Modal */}
