@@ -18,6 +18,7 @@ import {
   SearchIcon,
   StarIcon,
   ZapIcon,
+  CameraIcon,
 } from "../components/Icons"
 import InvoiceModal from "../components/InvoiceModal"
 
@@ -55,6 +56,14 @@ export default function MyBookingsView({
   const [selectedCustomerInvoice, setSelectedCustomerInvoice] = useState<{
     booking: BookingRecord
     car?: Car
+  } | null>(null)
+  const [selectedInspectionBooking, setSelectedInspectionBooking] = useState<{
+    booking: BookingRecord
+    car?: Car
+  } | null>(null)
+  const [zoomedInspectionPhoto, setZoomedInspectionPhoto] = useState<{
+    url: string
+    title: string
   } | null>(null)
   const [extensionDuration, setExtensionDuration] = useState(1)
   const [extensionUnit, setExtensionUnit] =
@@ -1313,6 +1322,25 @@ export default function MyBookingsView({
                                     <FileTextIcon size={12} />
                                     <span>Invoice</span>
                                   </button>
+                                  {b.checklistIn && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedInspectionBooking({ booking: b, car })
+                                      }
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer border ${
+                                        b.checklistIn.damageFound
+                                          ? "bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border-rose-200"
+                                          : "bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border-emerald-200"
+                                      }`}
+                                      title="View certified vehicle return inspection & photo report"
+                                    >
+                                      <ShieldIcon size={12} />
+                                      <span>
+                                        {b.checklistIn.damageFound ? "Damage Report" : "Inspection Sheet"}
+                                      </span>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() =>
                                       setSelectedVoucher({ booking: b, car })
@@ -1729,6 +1757,257 @@ export default function MyBookingsView({
           onClose={() => setSelectedCustomerInvoice(null)}
         />
       )}
+
+      {/* Certified Vehicle Return Inspection & Damage Audit Modal */}
+      {selectedInspectionBooking &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-fade-in"
+            onClick={() => setSelectedInspectionBooking(null)}
+          >
+            <div
+              className="bg-white text-stone-900 rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-stone-200 my-auto animate-scale-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-[#17191C] text-white p-5 sm:p-6 relative rounded-t-3xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/20 text-[#F97316] flex items-center justify-center border border-orange-500/30">
+                      <ShieldIcon size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-mono font-bold tracking-widest text-[#F97316]">
+                        Official Fleet Return Inspection Audit
+                      </p>
+                      <h3 className="text-lg sm:text-xl font-black mt-0.5 font-heading">
+                        Ride #{selectedInspectionBooking.booking.id}
+                      </h3>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedInspectionBooking(null)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold transition cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-stone-300">
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-mono">Vehicle</span>
+                    <span className="font-bold text-white">
+                      {selectedInspectionBooking.car?.name || selectedInspectionBooking.booking.requestedCategory || "Fleet Vehicle"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-mono">License Plate</span>
+                    <span className="font-mono font-bold text-amber-400">
+                      {selectedInspectionBooking.car?.plateNumber || "FL-908-MTR"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-mono">Rental Period</span>
+                    <span className="font-mono text-white text-[11px]">
+                      {selectedInspectionBooking.booking.pickupDate?.split(" ")[0]} → {selectedInspectionBooking.booking.returnDate?.split(" ")[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-stone-400 block font-mono">Audit Verdict</span>
+                    <span className={`font-bold ${selectedInspectionBooking.booking.checklistIn?.damageFound ? "text-rose-400" : "text-emerald-400"}`}>
+                      {selectedInspectionBooking.booking.checklistIn?.damageFound ? "Damage Logged" : "Passed Clean"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 sm:p-6 space-y-4">
+                {/* Telemetry Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
+                  <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">Departure Odo</span>
+                    <span className="font-bold text-stone-800 text-sm">
+                      {(selectedInspectionBooking.booking.checklistOut?.odometerOut || 15200).toLocaleString()} mi
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200">
+                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">Return Odo</span>
+                    <span className="font-bold text-stone-800 text-sm">
+                      {(selectedInspectionBooking.booking.checklistIn?.odometerIn || 15320).toLocaleString()} mi
+                    </span>
+                    {selectedInspectionBooking.booking.checklistIn?.odometerIn && selectedInspectionBooking.booking.checklistOut?.odometerOut && (
+                      <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
+                        +{selectedInspectionBooking.booking.checklistIn.odometerIn - selectedInspectionBooking.booking.checklistOut.odometerOut} mi driven
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 col-span-2 sm:col-span-1">
+                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">Return Fuel</span>
+                    <span className="font-bold text-stone-800 text-sm">
+                      {selectedInspectionBooking.booking.checklistIn?.fuelLevelIn || "Full (100%)"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Damage Report Section */}
+                {selectedInspectionBooking.booking.checklistIn?.damageFound ? (
+                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-rose-200">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                        <h4 className="font-black text-xs text-rose-700 uppercase tracking-wider font-mono">
+                          Damage Incident Documented
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white font-mono uppercase">
+                        {selectedInspectionBooking.booking.checklistIn.damageSeverity || "Damage Recorded"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[11px] text-stone-500 font-semibold block">Affected Area:</span>
+                        <span className="font-bold text-stone-900 font-mono">
+                          {selectedInspectionBooking.booking.checklistIn.damageLocation || "Exterior Panel"}
+                        </span>
+                      </div>
+                      {Number(selectedInspectionBooking.booking.checklistIn.damageFee) > 0 && (
+                        <div>
+                          <span className="text-[11px] text-stone-500 font-semibold block">Repair Assessment / Surcharge:</span>
+                          <span className="font-black text-rose-600 font-mono">
+                            ${Number(selectedInspectionBooking.booking.checklistIn.damageFee).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedInspectionBooking.booking.checklistIn.damageNotes && (
+                      <div className="text-xs bg-white p-3 rounded-xl border border-rose-200 text-stone-800">
+                        <span className="text-[10px] text-rose-600 uppercase font-mono font-bold block mb-1">
+                          Inspector Observations:
+                        </span>
+                        <p className="leading-relaxed font-medium">
+                          {selectedInspectionBooking.booking.checklistIn.damageNotes}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Damage Photos Grid */}
+                    {selectedInspectionBooking.booking.checklistIn.damagePhotos &&
+                      selectedInspectionBooking.booking.checklistIn.damagePhotos.length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-rose-800 uppercase font-mono flex items-center gap-1.5">
+                              <CameraIcon size={14} className="text-rose-600" />
+                              <span>Photographic Evidence ({selectedInspectionBooking.booking.checklistIn.damagePhotos.length} Photos)</span>
+                            </span>
+                            <span className="text-[10px] text-stone-500 font-mono">Click to enlarge</span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            {selectedInspectionBooking.booking.checklistIn.damagePhotos.map((photo, pIdx) => (
+                              <div
+                                key={pIdx}
+                                onClick={() =>
+                                  setZoomedInspectionPhoto({
+                                    url: photo,
+                                    title: `Return Damage Audit Photo #${pIdx + 1} - ${selectedInspectionBooking.booking.id}`,
+                                  })
+                                }
+                                className="group relative aspect-video rounded-xl overflow-hidden border border-rose-300 bg-black cursor-pointer shadow-xs hover:border-rose-500 transition"
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`Damage Evidence ${pIdx + 1}`}
+                                  className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition pointer-events-none" />
+                                <span className="absolute bottom-1 right-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                  #{pIdx + 1} View Full
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                        ✓
+                      </div>
+                      <h4 className="font-black text-xs text-emerald-800 uppercase tracking-wide font-mono">
+                        Clean Return Clearance Certified
+                      </h4>
+                    </div>
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      Vehicle was returned in verified baseline condition. Interior cleanliness confirmed, 0 damages recorded, and full security pre-authorization hold released.
+                    </p>
+                  </div>
+                )}
+
+                {/* Audit Signoff Footer */}
+                <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 text-xs flex items-center justify-between text-stone-600">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Certified Auditor: <strong>{selectedInspectionBooking.booking.checklistIn?.inspectorStaff || "Lead Fleet Auditor"}</strong></span>
+                  </div>
+                  <span className="font-mono text-[11px] text-stone-400">
+                    {selectedInspectionBooking.booking.checklistIn?.timestamp ? new Date(selectedInspectionBooking.booking.checklistIn.timestamp).toLocaleString() : "Audit Certified"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-5 border-t border-stone-200 bg-stone-50 rounded-b-3xl flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedInspectionBooking(null)}
+                  className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  Close Inspection Report
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Lightbox for Zoomed Inspection Photos in Customer View */}
+      {zoomedInspectionPhoto &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+            onClick={() => setZoomedInspectionPhoto(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-3xl w-full p-4 sm:p-5 shadow-2xl relative space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-stone-200">
+                <span className="font-bold text-xs tracking-tight text-stone-900 font-mono">
+                  {zoomedInspectionPhoto.title}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoomedInspectionPhoto(null)}
+                  className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center text-xs font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="rounded-xl overflow-hidden bg-black max-h-[75vh] flex items-center justify-center">
+                <img
+                  src={zoomedInspectionPhoto.url}
+                  alt={zoomedInspectionPhoto.title}
+                  className="max-h-[75vh] w-auto max-w-full object-contain"
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -22,6 +22,18 @@ test.describe("Finite State Machine (FSM) Booking Lifecycle Suite", () => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${authToken}`,
     }
+
+    // Ensure a sedan is Available for FSM tests
+    const carsRes = await fetch(`${BASE_URL}/api/cars`)
+    const cars = await carsRes.json()
+    const sedan = cars.find((c: any) => c.type.toLowerCase().includes("sedan")) || cars[0]
+    if (sedan && sedan.status !== "Available") {
+      await fetch(`${BASE_URL}/api/cars/${sedan.id}`, {
+        method: "PUT",
+        headers: authHeaders,
+        body: JSON.stringify({ ...sedan, status: "Available" }),
+      })
+    }
   })
 
   test.afterAll(async () => {

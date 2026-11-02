@@ -419,6 +419,11 @@ function formatBookingRow(row: any) {
       checklistIn = {
         ...parsed,
         fuelLevelIn: parsed.fuelLevelIn || parsed.fuelIn || "100%",
+        damagePhotos: Array.isArray(parsed.damagePhotos) ? parsed.damagePhotos : [],
+        damageNotes: parsed.damageNotes || parsed.inspectionNotes || "",
+        damageSeverity: parsed.damageSeverity || "",
+        damageLocation: parsed.damageLocation || "",
+        damageFee: Number(parsed.damageFee) || 0,
       }
     }
   } catch {}
@@ -2726,6 +2731,11 @@ app.post(
       inspectionPassed,
       staffSign,
       inspectionNotes,
+      damageNotes,
+      damageSeverity,
+      damageLocation,
+      damagePhotos,
+      damageFee,
     } = req.body
 
     const booking = (await db
@@ -2750,15 +2760,28 @@ app.post(
     }
 
     const nowIso = new Date().toISOString()
+    const isDamage = Boolean(damageFound)
     const checklistInObj = {
       odometerIn: Number(odometerIn) || 14380,
       fuelIn: fuelIn || "100%",
-      damageFound: Boolean(damageFound),
+      fuelLevelIn: fuelIn || "100%",
+      damageFound: isDamage,
+      damageNotes: damageNotes || inspectionNotes || "",
+      damageSeverity: damageSeverity || (isDamage ? "Minor Cosmetic" : ""),
+      damageLocation: damageLocation || (isDamage ? "Exterior Panel" : ""),
+      damagePhotos: Array.isArray(damagePhotos) ? damagePhotos.filter(Boolean) : [],
+      damageFee: Number(damageFee) || 0,
       cleanlinessPass: Boolean(cleanlinessPass !== false),
+      cleanlinessPassed: Boolean(cleanlinessPass !== false),
       inspectionPassed: Boolean(inspectionPassed !== false),
       staffSign: staffSign || "Garage Return Inspector",
+      inspectorStaff: staffSign || "Garage Return Inspector",
       timestamp: nowIso,
     }
+
+    const finalNotes = isDamage
+      ? `[DAMAGE REPORTED: ${checklistInObj.damageSeverity} - ${checklistInObj.damageLocation}] ${checklistInObj.damageNotes}`
+      : inspectionNotes || "Inspection passed clean with 0 damage."
 
     // Update booking: status = Completed only after inspection passes!
     await db
@@ -2776,15 +2799,18 @@ app.post(
         JSON.stringify(checklistInObj),
         checklistInObj.odometerIn,
         checklistInObj.fuelIn,
-        inspectionNotes || "Inspection passed clean with 0 damage.",
+        finalNotes,
         bookingId,
       )
 
-    // Release vehicle back to Available (or Cleaning if dirty)
+    // Release vehicle: If damage is found, automatically route car to 'Maintenance' for repairs!
     if (booking.matched_car_id) {
-      const nextCarStatus = checklistInObj.cleanlinessPass
-        ? "Available"
-        : "Cleaning"
+      let nextCarStatus = "Available"
+      if (isDamage) {
+        nextCarStatus = "Maintenance"
+      } else if (!checklistInObj.cleanlinessPass) {
+        nextCarStatus = "Cleaning"
+      }
       await db
         .prepare(
           "UPDATE vehicles SET status = ?, current_odometer = ? WHERE id = ?",
@@ -3029,6 +3055,30 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
     message: `Booking ${bookingId} transitioned to ${newStatus}.`,
     booking: formatBookingRow(updatedBooking),
   })
+})
+
+// DELETE Booking (Admin / Cleanup)
+app.delete("/api/bookings/:id", requireAdmin, async (req, res) => {
+  const bookingId = req.params.id
+  const booking = (await db
+    .prepare("SELECT * FROM bookings WHERE id = ?")
+    .get(bookingId)) as any
+  if (!booking) {
+    return res.status(404).json({ error: "Booking not found." })
+  }
+
+  if (
+    booking.matched_car_id &&
+    (booking.status === "Checked Out" || booking.status === "Assigned")
+  ) {
+    await db
+      .prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?")
+      .run(booking.matched_car_id)
+  }
+
+  await db.prepare("DELETE FROM bookings WHERE id = ?").run(bookingId)
+
+  return res.json({ success: true, message: `Booking ${bookingId} deleted.` })
 })
 
 // POST Admin Walk-In / Counter Reservation with Database-Level Concurrency Protection (< 60s)

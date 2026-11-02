@@ -778,6 +778,11 @@ class ApiService {
       inspectionPassed?: boolean
       staffSign?: string
       inspectionNotes?: string
+      damageNotes?: string
+      damageSeverity?: string
+      damageLocation?: string
+      damagePhotos?: string[]
+      damageFee?: number
     },
   ): Promise<{
     success: boolean

@@ -144,6 +144,10 @@ export interface InspectionChecklistIn {
   fuelLevelIn?: string
   damageFound?: boolean
   damageNotes?: string
+  damageSeverity?: string
+  damageLocation?: string
+  damagePhotos?: string[]
+  damageFee?: number
   cleanlinessPass?: boolean
   cleanlinessPassed?: boolean
   inspectionPassed?: boolean

@@ -40429,7 +40429,12 @@ function formatBookingRow(row) {
 			const parsed = JSON.parse(row.checklist_in);
 			checklistIn = {
 				...parsed,
-				fuelLevelIn: parsed.fuelLevelIn || parsed.fuelIn || "100%"
+				fuelLevelIn: parsed.fuelLevelIn || parsed.fuelIn || "100%",
+				damagePhotos: Array.isArray(parsed.damagePhotos) ? parsed.damagePhotos : [],
+				damageNotes: parsed.damageNotes || parsed.inspectionNotes || "",
+				damageSeverity: parsed.damageSeverity || "",
+				damageLocation: parsed.damageLocation || "",
+				damageFee: Number(parsed.damageFee) || 0
 			};
 		}
 	} catch {}
@@ -41668,21 +41673,31 @@ app.post("/api/bookings/:id/decline-extension", requireAuth, async (req, res) =>
 });
 app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
-	const { odometerIn, fuelIn, damageFound, cleanlinessPass, inspectionPassed, staffSign, inspectionNotes } = req.body;
+	const { odometerIn, fuelIn, damageFound, cleanlinessPass, inspectionPassed, staffSign, inspectionNotes, damageNotes, damageSeverity, damageLocation, damagePhotos, damageFee } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	if (booking.status === "Completed") return res.status(409).json({ error: `Booking ${bookingId} has already been completed and finalized.` });
 	if (booking.status !== "Checked Out") return res.status(400).json({ error: `Illegal state transition: Cannot perform return inspection on booking ${bookingId} with status "${booking.status}". Booking must be in "Checked Out" status.` });
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+	const isDamage = Boolean(damageFound);
 	const checklistInObj = {
 		odometerIn: Number(odometerIn) || 14380,
 		fuelIn: fuelIn || "100%",
-		damageFound: Boolean(damageFound),
+		fuelLevelIn: fuelIn || "100%",
+		damageFound: isDamage,
+		damageNotes: damageNotes || inspectionNotes || "",
+		damageSeverity: damageSeverity || (isDamage ? "Minor Cosmetic" : ""),
+		damageLocation: damageLocation || (isDamage ? "Exterior Panel" : ""),
+		damagePhotos: Array.isArray(damagePhotos) ? damagePhotos.filter(Boolean) : [],
+		damageFee: Number(damageFee) || 0,
 		cleanlinessPass: Boolean(cleanlinessPass !== false),
+		cleanlinessPassed: Boolean(cleanlinessPass !== false),
 		inspectionPassed: Boolean(inspectionPassed !== false),
 		staffSign: staffSign || "Garage Return Inspector",
+		inspectorStaff: staffSign || "Garage Return Inspector",
 		timestamp: nowIso
 	};
+	const finalNotes = isDamage ? `[DAMAGE REPORTED: ${checklistInObj.damageSeverity} - ${checklistInObj.damageLocation}] ${checklistInObj.damageNotes}` : inspectionNotes || "Inspection passed clean with 0 damage.";
 	await db.prepare(`
     UPDATE bookings SET
       status = 'Completed',
@@ -41692,9 +41707,11 @@ app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) =
       inspection_notes = ?,
       inspection_passed = 1
     WHERE id = ?
-  `).run(JSON.stringify(checklistInObj), checklistInObj.odometerIn, checklistInObj.fuelIn, inspectionNotes || "Inspection passed clean with 0 damage.", bookingId);
+  `).run(JSON.stringify(checklistInObj), checklistInObj.odometerIn, checklistInObj.fuelIn, finalNotes, bookingId);
 	if (booking.matched_car_id) {
-		const nextCarStatus = checklistInObj.cleanlinessPass ? "Available" : "Cleaning";
+		let nextCarStatus = "Available";
+		if (isDamage) nextCarStatus = "Maintenance";
+		else if (!checklistInObj.cleanlinessPass) nextCarStatus = "Cleaning";
 		await db.prepare("UPDATE vehicles SET status = ?, current_odometer = ? WHERE id = ?").run(nextCarStatus, checklistInObj.odometerIn, booking.matched_car_id);
 	}
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
@@ -41808,6 +41825,17 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
 		success: true,
 		message: `Booking ${bookingId} transitioned to ${newStatus}.`,
 		booking: formatBookingRow(updatedBooking)
+	});
+});
+app.delete("/api/bookings/:id", requireAdmin, async (req, res) => {
+	const bookingId = req.params.id;
+	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	if (!booking) return res.status(404).json({ error: "Booking not found." });
+	if (booking.matched_car_id && (booking.status === "Checked Out" || booking.status === "Assigned")) await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(booking.matched_car_id);
+	await db.prepare("DELETE FROM bookings WHERE id = ?").run(bookingId);
+	return res.json({
+		success: true,
+		message: `Booking ${bookingId} deleted.`
 	});
 });
 app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {

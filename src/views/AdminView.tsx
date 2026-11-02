@@ -67,6 +67,7 @@ import {
   FlagIcon,
   DownloadIcon,
   CameraIcon,
+  UploadIcon,
   RefreshCwIcon,
   FileTextIcon,
   MonitorIcon,
@@ -725,19 +726,16 @@ export default function AdminView({
   const [returnChecklist, setReturnChecklist] = useState<InspectionChecklistIn>(
     {
       odometerIn: 15450,
-
       fuelLevelIn: "Full (100%)",
-
       cleanlinessPassed: true,
-
       damageFound: false,
-
       damageNotes: "",
-
+      damageSeverity: "Minor Scratch / Scuff",
+      damageLocation: "Front Right Bumper",
+      damagePhotos: [],
+      damageFee: 0,
       inspectionPassed: true,
-
       inspectorStaff: "Admin Operations Lead",
-
       timestamp: "",
     },
   )
@@ -1861,19 +1859,16 @@ export default function AdminView({
 
     setReturnChecklist({
       odometerIn: currentOdo + 120,
-
       fuelLevelIn: "Full (100%)",
-
       cleanlinessPassed: true,
-
       damageFound: false,
-
       damageNotes: "",
-
+      damageSeverity: "Minor Scratch / Scuff",
+      damageLocation: "Front Right Bumper",
+      damagePhotos: [],
+      damageFee: 0,
       inspectionPassed: true,
-
       inspectorStaff: "Admin Return Auditor",
-
       timestamp: new Date().toISOString(),
     })
 
@@ -1896,18 +1891,17 @@ export default function AdminView({
     try {
       const res = await api.returnInspection(returnModalBooking.id, {
         odometerIn: Number(returnChecklist.odometerIn),
-
         fuelIn: returnChecklist.fuelLevelIn || "100%",
-
         damageFound: returnChecklist.damageFound,
-
         cleanlinessPass: returnChecklist.cleanlinessPassed,
-
         inspectionPassed: returnChecklist.inspectionPassed,
-
         staffSign: returnChecklist.inspectorStaff,
-
         inspectionNotes: returnChecklist.damageNotes,
+        damageNotes: returnChecklist.damageNotes,
+        damageSeverity: returnChecklist.damageSeverity,
+        damageLocation: returnChecklist.damageLocation,
+        damagePhotos: returnChecklist.damagePhotos,
+        damageFee: returnChecklist.damageFee,
       })
 
       if (res.success) {
@@ -4233,6 +4227,16 @@ export default function AdminView({
                               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                                 Completed
                               </span>
+                              {b.checklistIn?.damageFound ? (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                  Damage ({b.checklistIn.damagePhotos?.length || 0} Photos)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  Clean Audit
+                                </span>
+                              )}
                             </div>
                             <div className="text-right">
                               <span className="font-mono font-black text-sm text-stone-900 dark:text-white">
@@ -4357,6 +4361,21 @@ export default function AdminView({
                           </button>
                           <button
                             type="button"
+                            onClick={() => setInspectedBooking(b)}
+                            className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                              b.checklistIn?.damageFound
+                                ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border-rose-500/30"
+                                : isDark
+                                  ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                                  : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
+                            }`}
+                            title="Inspect vehicle return sheet & damage photos"
+                          >
+                            <ShieldIcon size={13} className={b.checklistIn?.damageFound ? "text-rose-500" : "text-emerald-500"} />
+                            <span>{b.checklistIn?.damageFound ? "Damage" : "Audit"}</span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={() =>
                               downloadBookingInvoicePng(
                                 b,
@@ -4428,9 +4447,20 @@ export default function AdminView({
                               <span className="font-mono font-bold text-xs text-stone-900 dark:text-white block">
                                 {b.id}
                               </span>
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 inline-block mt-0.5">
-                                COMPLETED
-                              </span>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 inline-block">
+                                  COMPLETED
+                                </span>
+                                {b.checklistIn?.damageFound ? (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 inline-block">
+                                    DAMAGE ({b.checklistIn.damagePhotos?.length || 0})
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-block">
+                                    CLEAN
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Customer */}
@@ -4494,6 +4524,21 @@ export default function AdminView({
                                 >
                                   <FileTextIcon size={13} />
                                   <span>Invoice</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setInspectedBooking(b)}
+                                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                                    b.checklistIn?.damageFound
+                                      ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border-rose-500/30"
+                                      : isDark
+                                        ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                                        : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
+                                  }`}
+                                  title="Inspect return check & damage photos"
+                                >
+                                  <ShieldIcon size={12} className={b.checklistIn?.damageFound ? "text-rose-500" : "text-emerald-500"} />
+                                  <span>{b.checklistIn?.damageFound ? "Damage" : "Audit"}</span>
                                 </button>
                                 <button
                                   type="button"
@@ -9438,50 +9483,125 @@ export default function AdminView({
               {inspectedBooking.checklistIn && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className={`p-3 rounded-xl border text-xs space-y-1 transition ${
+                  className={`p-4 rounded-2xl border text-xs space-y-3 transition ${
                     isDark
                       ? "bg-stone-900/60 border-stone-800"
                       : "bg-stone-50 border-stone-200"
                   }`}
                 >
-                  <span className="font-bold text-emerald-500">
-                    Return Vehicle Inspection Audit Completed
-                  </span>
-                  <p
-                    className={`text-[11px] ${
-                      isDark ? "text-stone-400" : "text-stone-600"
-                    }`}
-                  >
-                    Odometer In:{" "}
-                    <span
-                      className={`font-mono ${
-                        isDark ? "text-white" : "text-stone-900"
-                      }`}
-                    >
-                      {inspectedBooking.checklistIn.odometerIn.toLocaleString()}{" "}
-                      mi
-                    </span>{" "}
-                    • Fuel In:{" "}
-                    <span
-                      className={`font-mono ${
-                        isDark ? "text-white" : "text-stone-900"
-                      }`}
-                    >
-                      {inspectedBooking.checklistIn.fuelLevelIn}
-                    </span>{" "}
-                    • Auditor:{" "}
-                    <span
-                      className={
-                        isDark ? "text-stone-300" : "text-stone-700 font-medium"
-                      }
-                    >
-                      {inspectedBooking.checklistIn.inspectorStaff}
+                  <div className="flex items-center justify-between pb-2 border-b border-stone-200 dark:border-stone-800">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          inspectedBooking.checklistIn.damageFound
+                            ? "bg-rose-500 animate-pulse"
+                            : "bg-emerald-500"
+                        }`}
+                      />
+                      <span
+                        className={`font-bold uppercase tracking-wider text-xs font-heading ${
+                          inspectedBooking.checklistIn.damageFound
+                            ? "text-rose-500"
+                            : "text-emerald-500"
+                        }`}
+                      >
+                        {inspectedBooking.checklistIn.damageFound
+                          ? "Post-Trip Inspection: Damage Documented"
+                          : "Post-Trip Inspection: 0 Damage Passed Clean"}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono text-stone-400">
+                      Audited {inspectedBooking.checklistIn.timestamp ? new Date(inspectedBooking.checklistIn.timestamp).toLocaleDateString() : "Certified"}
                     </span>
-                  </p>
-                  {inspectedBooking.checklistIn.damageFound && (
-                    <p className="text-[11px] text-rose-500">
-                      Damage Notes: {inspectedBooking.checklistIn.damageNotes}
-                    </p>
+                  </div>
+
+                  {/* Return Metrics: Odometer, Fuel, Auditor */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px]">
+                    <div className="p-2 rounded-xl bg-white/70 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800">
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">Return Odometer</span>
+                      <span className="font-bold text-stone-900 dark:text-white">
+                        {inspectedBooking.checklistIn.odometerIn.toLocaleString()} mi
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/70 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800">
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">Return Fuel</span>
+                      <span className="font-bold text-stone-900 dark:text-white">
+                        {inspectedBooking.checklistIn.fuelLevelIn}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-white/70 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 col-span-2 sm:col-span-1">
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">Certified Auditor</span>
+                      <span className="font-bold text-stone-900 dark:text-white truncate block">
+                        {inspectedBooking.checklistIn.inspectorStaff || "Lead Auditor"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Damage Incident Details if Damage Found */}
+                  {inspectedBooking.checklistIn.damageFound ? (
+                    <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-600 text-white font-mono">
+                            {inspectedBooking.checklistIn.damageSeverity || "Damage Incident"}
+                          </span>
+                          {inspectedBooking.checklistIn.damageLocation && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-mono">
+                              {inspectedBooking.checklistIn.damageLocation}
+                            </span>
+                          )}
+                        </div>
+                        {Number(inspectedBooking.checklistIn.damageFee) > 0 && (
+                          <span className="font-mono font-bold text-xs text-rose-600 dark:text-rose-400">
+                            Repair Surcharge: ${Number(inspectedBooking.checklistIn.damageFee).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+
+                      {inspectedBooking.checklistIn.damageNotes && (
+                        <p className="text-xs text-stone-800 dark:text-stone-200 font-medium leading-relaxed">
+                          <strong className="text-rose-600 dark:text-rose-400 font-bold">Auditor Notes:</strong> {inspectedBooking.checklistIn.damageNotes}
+                        </p>
+                      )}
+
+                      {/* Attached Damage Photos */}
+                      {inspectedBooking.checklistIn.damagePhotos && inspectedBooking.checklistIn.damagePhotos.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-rose-700 dark:text-rose-400 font-mono block">
+                            Documented Photo Evidence ({inspectedBooking.checklistIn.damagePhotos.length} photos):
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {inspectedBooking.checklistIn.damagePhotos.map((photo, pIdx) => (
+                              <div
+                                key={pIdx}
+                                onClick={() =>
+                                  setZoomedPhoto({
+                                    url: photo,
+                                    title: `Damage Audit Photo #${pIdx + 1} (${inspectedBooking.id})`,
+                                  })
+                                }
+                                className="group relative aspect-video rounded-xl overflow-hidden border border-rose-300 dark:border-rose-800 cursor-pointer shadow-xs bg-black"
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`Damage Evidence ${pIdx + 1}`}
+                                  className="w-full h-full object-cover transition group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition pointer-events-none" />
+                                <span className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                  #{pIdx + 1} Click to zoom
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
+                      <CheckIcon size={14} className="text-emerald-500 shrink-0" />
+                      <span>Zero new damage recorded. Vehicle cleared return audit with full deposit release.</span>
+                    </div>
                   )}
                 </div>
               )}
@@ -12450,36 +12570,244 @@ export default function AdminView({
 
                 {returnChecklist.damageFound && (
                   <div
-                    className={`p-3 border rounded-xl space-y-1 ${
+                    className={`p-3.5 sm:p-4 border rounded-2xl space-y-3 ${
                       isDark
-                        ? "bg-rose-950/30 border-rose-500/40"
-                        : "bg-rose-50 border-rose-200"
+                        ? "bg-rose-950/25 border-rose-500/30 text-white"
+                        : "bg-rose-50/80 border-rose-200 text-stone-900"
                     }`}
                   >
-                    <label
-                      className={`block text-[11px] font-bold ${
-                        isDark ? "text-rose-400" : "text-rose-600"
-                      }`}
-                    >
-                      Damage Assessment Notes
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="Describe location and severity of damage..."
-                      value={returnChecklist.damageNotes}
-                      onChange={(e) =>
-                        setReturnChecklist({
-                          ...returnChecklist,
+                    <div className="flex items-center justify-between pb-2 border-b border-rose-200/60 dark:border-rose-500/20">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider font-mono">
+                          Damage Incident &amp; Photo Audit
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/60 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 font-bold">
+                        Photo Evidence Required
+                      </span>
+                    </div>
 
-                          damageNotes: e.target.value,
-                        })
-                      }
-                      className={`w-full px-3 py-1.5 rounded-lg text-xs transition ${
-                        isDark
-                          ? "bg-stone-950 border border-stone-700 text-white"
-                          : "bg-white border border-stone-200 text-stone-900 focus:bg-white"
-                      }`}
-                    />
+                    {/* Damage Severity & Location Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                          Damage Severity Class
+                        </label>
+                        <select
+                          value={returnChecklist.damageSeverity || "Minor Scratch / Scuff"}
+                          onChange={(e) =>
+                            setReturnChecklist({
+                              ...returnChecklist,
+                              damageSeverity: e.target.value,
+                            })
+                          }
+                          className={`w-full px-2.5 py-1.5 rounded-xl text-xs transition ${
+                            isDark
+                              ? "bg-stone-950 border border-stone-700 text-white"
+                              : "bg-white border border-stone-200 text-stone-900"
+                          }`}
+                        >
+                          <option value="Minor Scratch / Scuff">Minor Scratch / Surface Scuff</option>
+                          <option value="Body Dent / Panel Crease">Body Dent / Panel Crease</option>
+                          <option value="Wheel / Rim Curb Rash">Wheel / Rim Curb Rash</option>
+                          <option value="Glass / Windshield Crack">Glass / Windshield Crack</option>
+                          <option value="Bumper / Trim Displacement">Bumper / Trim Displacement</option>
+                          <option value="Mechanical / Underbody Impact">Mechanical / Underbody Impact</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                          Affected Vehicle Area
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Front Right Bumper &amp; Wheel"
+                          value={returnChecklist.damageLocation || ""}
+                          onChange={(e) =>
+                            setReturnChecklist({
+                              ...returnChecklist,
+                              damageLocation: e.target.value,
+                            })
+                          }
+                          className={`w-full px-2.5 py-1.5 rounded-xl text-xs transition ${
+                            isDark
+                              ? "bg-stone-950 border border-stone-700 text-white"
+                              : "bg-white border border-stone-200 text-stone-900"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Damage Assessment Notes */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                        Damage Assessment &amp; Inspection Notes
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="Document exact location, depth of scratch/dent, and whether paint is cracked..."
+                        value={returnChecklist.damageNotes}
+                        onChange={(e) =>
+                          setReturnChecklist({
+                            ...returnChecklist,
+                            damageNotes: e.target.value,
+                          })
+                        }
+                        className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                          isDark
+                            ? "bg-stone-950 border border-stone-700 text-white placeholder-stone-500"
+                            : "bg-white border border-stone-200 text-stone-900 placeholder-stone-400"
+                        }`}
+                      />
+                    </div>
+
+                    {/* Deductible / Repair Estimate */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
+                          Estimated Repair Cost / Deductible ($)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-bold">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="10"
+                            value={returnChecklist.damageFee || 0}
+                            onChange={(e) =>
+                              setReturnChecklist({
+                                ...returnChecklist,
+                                damageFee: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pl-7 pr-3 py-1.5 rounded-xl text-xs font-mono transition ${
+                              isDark
+                                ? "bg-stone-950 border border-stone-700 text-white"
+                                : "bg-white border border-stone-200 text-stone-900"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-end">
+                        <p className="text-[10px] text-stone-500 dark:text-stone-400">
+                          * Vehicle will be routed directly to Fleet Maintenance for shop inspection.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Inspection Photos Inclusion Section */}
+                    <div className="pt-2 border-t border-rose-200/60 dark:border-rose-500/20 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                          <CameraIcon size={14} className="text-rose-500" />
+                          <span>Damage Inspection Photos ({returnChecklist.damagePhotos?.length || 0})</span>
+                        </label>
+                        <span className="text-[10px] text-stone-500 dark:text-stone-400 font-mono">
+                          Click photo to preview full size
+                        </span>
+                      </div>
+
+                      {/* Photo Gallery Grid */}
+                      {returnChecklist.damagePhotos && returnChecklist.damagePhotos.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                          {returnChecklist.damagePhotos.map((photoUrl, idx) => (
+                            <div
+                              key={idx}
+                              className="relative group rounded-xl overflow-hidden border border-rose-300 dark:border-rose-800 bg-black aspect-video flex items-center justify-center cursor-pointer shadow-xs"
+                              onClick={() =>
+                                setZoomedPhoto({
+                                  url: photoUrl,
+                                  title: `Damage Inspection Photo #${idx + 1} - ${returnModalBooking?.id || "Audit"}`,
+                                })
+                              }
+                            >
+                              <img
+                                src={photoUrl}
+                                alt={`Damage ${idx + 1}`}
+                                className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                              />
+                              <span className="absolute top-1 left-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                #{idx + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const nextPhotos = (returnChecklist.damagePhotos || []).filter((_, i) => i !== idx)
+                                  setReturnChecklist({
+                                    ...returnChecklist,
+                                    damagePhotos: nextPhotos,
+                                  })
+                                }}
+                                className="absolute top-1 right-1 w-6 h-6 rounded-md bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center opacity-90 hover:opacity-100 transition shadow-xs cursor-pointer"
+                                title="Remove photo"
+                              >
+                                <TrashIcon size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Upload Controls & Fast Preset Triggers */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-2xs">
+                          <UploadIcon size={13} />
+                          <span>Attach Inspection Photos</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            capture="environment"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || [])
+                              if (files.length === 0) return
+                              const compressed = await Promise.all(files.map((f) => compressVehiclePhoto(f)))
+                              const valid = compressed.filter(Boolean)
+                              if (valid.length > 0) {
+                                setReturnChecklist({
+                                  ...returnChecklist,
+                                  damagePhotos: [...(returnChecklist.damagePhotos || []), ...valid],
+                                })
+                              }
+                              e.target.value = ""
+                            }}
+                          />
+                        </label>
+
+                        {/* Quick Sample Photos for Testing/Verification */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sample = "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80"
+                            setReturnChecklist({
+                              ...returnChecklist,
+                              damagePhotos: [...(returnChecklist.damagePhotos || []), sample],
+                            })
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-white/60 dark:bg-stone-900 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 transition cursor-pointer"
+                        >
+                          + Sample Scuff Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sample = "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=800&q=80"
+                            setReturnChecklist({
+                              ...returnChecklist,
+                              damagePhotos: [...(returnChecklist.damagePhotos || []), sample],
+                            })
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-white/60 dark:bg-stone-900 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 transition cursor-pointer"
+                        >
+                          + Sample Dent Photo
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 

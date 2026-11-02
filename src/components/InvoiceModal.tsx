@@ -310,6 +310,25 @@ export default function InvoiceModal({
                 </span>
               </div>
             )}
+
+            {booking.checklistIn?.damageFound && (
+              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="flex items-center gap-1.5 font-bold text-rose-700">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Return Damage Incident: {booking.checklistIn.damageSeverity || "Documented"} ({booking.checklistIn.damageLocation || "Exterior"})
+                  </span>
+                  {booking.checklistIn.damageNotes && (
+                    <p className="text-[11px] text-rose-600 font-medium">{booking.checklistIn.damageNotes}</p>
+                  )}
+                </div>
+                {Number(booking.checklistIn.damageFee) > 0 && (
+                  <span className="font-mono font-bold text-rose-700">
+                    +${Number(booking.checklistIn.damageFee).toFixed(2)} assessment
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Financial Breakdown Table */}
