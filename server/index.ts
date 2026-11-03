@@ -2539,8 +2539,16 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
 // POST Step E: Admin Hands Over Keys (Handover Checklist & Clock Starts)
 app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
   const bookingId = req.params.id
-  const { odometerOut, fuelOut, exteriorClean, tiresInspected, staffSign } =
-    req.body
+  const {
+    odometerOut,
+    odometerUnit,
+    odometerPhoto,
+    odometerNotes,
+    fuelOut,
+    exteriorClean,
+    tiresInspected,
+    staffSign,
+  } = req.body
 
   const booking = (await db
     .prepare("SELECT * FROM bookings WHERE id = ?")
@@ -2567,6 +2575,9 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
   const nowIso = new Date().toISOString()
   const checklistObj = {
     odometerOut: Number(odometerOut) || 14250,
+    odometerUnit: odometerUnit || "mi",
+    odometerPhoto: odometerPhoto || null,
+    odometerNotes: odometerNotes || "",
     fuelOut: fuelOut || "100%",
     exteriorClean: Boolean(exteriorClean !== false),
     tiresInspected: Boolean(tiresInspected !== false),
@@ -2594,11 +2605,13 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       bookingId,
     )
 
-  // Ensure vehicle status is Rented
+  // Ensure vehicle status is Rented and sync latest departure odometer
   if (booking.matched_car_id) {
     await db
-      .prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?")
-      .run(booking.matched_car_id)
+      .prepare(
+        "UPDATE vehicles SET status = 'Rented', current_odometer = ? WHERE id = ?",
+      )
+      .run(checklistObj.odometerOut, booking.matched_car_id)
   }
 
   const updatedBooking = await db

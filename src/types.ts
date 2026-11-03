@@ -126,6 +126,9 @@ export interface ExtensionQuote {
 
 export interface InspectionChecklistOut {
   odometerOut: number
+  odometerUnit?: string
+  odometerPhoto?: string
+  odometerNotes?: string
   fuelOut?: string
   fuelLevelOut?: string
   exteriorClean?: boolean

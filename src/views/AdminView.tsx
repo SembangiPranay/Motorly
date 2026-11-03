@@ -1847,15 +1847,13 @@ export default function AdminView({
 
     setKeyChecklist({
       odometerOut: matchedCar?.currentOdometer || 15200,
-
+      odometerUnit: "mi",
+      odometerPhoto: undefined,
+      odometerNotes: "",
       fuelLevelOut: "Full (100%)",
-
       cleanlinessVerified: true,
-
       tiresExteriorVerified: true,
-
       inspectorStaff: "Admin Operations Lead",
-
       timestamp: new Date().toISOString(),
     })
 
@@ -1871,13 +1869,12 @@ export default function AdminView({
       setIsSubmittingKeyHandoff(true)
       const res = await api.handoverKeys(keyModalBooking.id, {
         odometerOut: Number(keyChecklist.odometerOut),
-
+        odometerUnit: keyChecklist.odometerUnit || "mi",
+        odometerPhoto: keyChecklist.odometerPhoto,
+        odometerNotes: keyChecklist.odometerNotes,
         fuelOut: keyChecklist.fuelLevelOut || "100%",
-
         exteriorClean: keyChecklist.cleanlinessVerified,
-
         tiresInspected: keyChecklist.tiresExteriorVerified,
-
         staffSign: keyChecklist.inspectorStaff,
       })
 
@@ -9479,38 +9476,61 @@ export default function AdminView({
                     </span>
                   </div>
                   {inspectedBooking.checklistOut && (
-                    <p
-                      className={`text-xs ${
-                        isDark ? "text-stone-400" : "text-sky-900"
-                      }`}
-                    >
-                      Departure Odometer:{" "}
-                      <span
-                        className={`font-mono font-bold ${
-                          isDark ? "text-white" : "text-sky-950"
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p
+                        className={`text-xs ${
+                          isDark ? "text-stone-400" : "text-sky-900"
                         }`}
                       >
-                        {inspectedBooking.checklistOut.odometerOut.toLocaleString()}{" "}
-                        mi
-                      </span>{" "}
-                      • Fuel Level:{" "}
-                      <span
-                        className={`font-semibold ${
-                          isDark ? "text-white" : "text-sky-950"
-                        }`}
-                      >
-                        {inspectedBooking.checklistOut.fuelLevelOut}
-                      </span>{" "}
-                      • Dispatch Officer:{" "}
-                      <span
-                        className={`font-semibold ${
-                          isDark ? "text-stone-200" : "text-sky-950"
-                        }`}
-                      >
-                        {inspectedBooking.checklistOut.inspectorStaff ||
-                          "Admin Lead"}
-                      </span>
-                    </p>
+                        Departure Odometer:{" "}
+                        <span
+                          className={`font-mono font-bold ${
+                            isDark ? "text-white" : "text-sky-950"
+                          }`}
+                        >
+                          {inspectedBooking.checklistOut.odometerOut.toLocaleString()}{" "}
+                          {inspectedBooking.checklistOut.odometerUnit || "mi"}
+                        </span>{" "}
+                        • Fuel Level:{" "}
+                        <span
+                          className={`font-semibold ${
+                            isDark ? "text-white" : "text-sky-950"
+                          }`}
+                        >
+                          {inspectedBooking.checklistOut.fuelLevelOut}
+                        </span>{" "}
+                        • Dispatch Officer:{" "}
+                        <span
+                          className={`font-semibold ${
+                            isDark ? "text-stone-200" : "text-sky-950"
+                          }`}
+                        >
+                          {inspectedBooking.checklistOut.inspectorStaff ||
+                            "Admin Lead"}
+                        </span>
+                        {inspectedBooking.checklistOut.odometerNotes && (
+                          <span className="block text-[11px] font-mono text-stone-500 dark:text-stone-400 mt-0.5">
+                            Notes: &quot;{inspectedBooking.checklistOut.odometerNotes}&quot;
+                          </span>
+                        )}
+                      </p>
+                      {inspectedBooking.checklistOut.odometerPhoto && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setZoomedPhoto({
+                              url: inspectedBooking.checklistOut!.odometerPhoto!,
+                              title: `Departure Odometer & Cluster Proof (${inspectedBooking.id})`,
+                            })
+                          }
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-500/30 text-xs font-bold cursor-pointer transition shrink-0"
+                          title="Click to view departure odometer photo"
+                        >
+                          <CameraIcon size={13} />
+                          <span>View Odometer Photo</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -9989,53 +10009,221 @@ export default function AdminView({
 
                   {inspectedBooking.approvedByAdmin ? (
                     <div className="space-y-3.5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
-                            Departure Odometer (mi / km)
-                          </label>
-                          <input
-                            type="number"
-                            value={keyChecklist.odometerOut}
-                            onChange={(e) =>
-                              setKeyChecklist({
-                                ...keyChecklist,
-                                odometerOut: Number(e.target.value),
-                              })
-                            }
-                            className={`w-full px-3 py-2 rounded-xl font-mono text-xs font-bold transition ${
-                              isDark
-                                ? "bg-stone-950 border border-stone-700 text-white"
-                                : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
-                            }`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
-                            Departure Fuel / Battery Level
-                          </label>
-                          <select
-                            value={keyChecklist.fuelLevelOut}
-                            onChange={(e) =>
-                              setKeyChecklist({
-                                ...keyChecklist,
-                                fuelLevelOut: e.target.value,
-                              })
-                            }
-                            className={`w-full px-3 py-2 rounded-xl text-xs font-medium transition ${
-                              isDark
-                                ? "bg-stone-950 border border-stone-700 text-white"
-                                : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
-                            }`}
-                          >
-                            <option value="Full (100%)">Full (100%)</option>
-                            <option value="90%">90%</option>
-                            <option value="80%">80%</option>
-                            <option value="75%">75%</option>
-                            <option value="50%">50%</option>
-                          </select>
-                        </div>
-                      </div>
+                      {(() => {
+                        const matched = cars.find(
+                          (c) => c.id === inspectedBooking.matchedCarId,
+                        )
+                        const baselineOdo = matched?.currentOdometer || 15200
+                        return (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="block font-bold text-stone-700 dark:text-stone-300">
+                                    Departure Odometer
+                                  </label>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setKeyChecklist((prev) => ({
+                                          ...prev,
+                                          odometerOut: baselineOdo,
+                                        }))
+                                      }
+                                      className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                                      title="Sync with fleet baseline odometer"
+                                    >
+                                      <RefreshCwIcon size={10} /> Sync ({baselineOdo.toLocaleString()})
+                                    </button>
+                                    <div className="inline-flex rounded-lg border border-stone-200 dark:border-stone-700 p-0.5 text-[10px] font-bold">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setKeyChecklist((prev) => ({
+                                            ...prev,
+                                            odometerUnit: "mi",
+                                          }))
+                                        }
+                                        className={`px-1.5 py-0.5 rounded transition ${
+                                          keyChecklist.odometerUnit !== "km"
+                                            ? "bg-amber-500 text-white"
+                                            : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
+                                        }`}
+                                      >
+                                        mi
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setKeyChecklist((prev) => ({
+                                            ...prev,
+                                            odometerUnit: "km",
+                                          }))
+                                        }
+                                        className={`px-1.5 py-0.5 rounded transition ${
+                                          keyChecklist.odometerUnit === "km"
+                                            ? "bg-amber-500 text-white"
+                                            : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
+                                        }`}
+                                      >
+                                        km
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type="number"
+                                    value={keyChecklist.odometerOut}
+                                    onChange={(e) =>
+                                      setKeyChecklist({
+                                        ...keyChecklist,
+                                        odometerOut: Number(e.target.value),
+                                      })
+                                    }
+                                    className={`w-full pr-12 px-3 py-2 rounded-xl font-mono text-xs font-bold transition ${
+                                      isDark
+                                        ? "bg-stone-950 border border-stone-700 text-white"
+                                        : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
+                                    }`}
+                                  />
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-stone-400 font-mono pointer-events-none">
+                                    {keyChecklist.odometerUnit || "mi"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                                  Departure Fuel / Battery Level
+                                </label>
+                                <select
+                                  value={keyChecklist.fuelLevelOut}
+                                  onChange={(e) =>
+                                    setKeyChecklist({
+                                      ...keyChecklist,
+                                      fuelLevelOut: e.target.value,
+                                    })
+                                  }
+                                  className={`w-full px-3 py-2 rounded-xl text-xs font-medium transition ${
+                                    isDark
+                                      ? "bg-stone-950 border border-stone-700 text-white"
+                                      : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
+                                  }`}
+                                >
+                                  <option value="Full (100%)">Full (100%)</option>
+                                  <option value="90%">90%</option>
+                                  <option value="80%">80%</option>
+                                  <option value="75%">75%</option>
+                                  <option value="50%">50%</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Odometer Proof Photo & Cluster Verification */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1 flex items-center justify-between">
+                                  <span className="flex items-center gap-1.5">
+                                    <CameraIcon size={13} className="text-amber-500" />
+                                    <span>Cluster &amp; Odometer Photo</span>
+                                  </span>
+                                  <span className="text-[10px] font-normal text-stone-500">Optional</span>
+                                </label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  id="manifest-odo-photo"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      const compressed = await compressVehiclePhoto(file)
+                                      setKeyChecklist((prev) => ({
+                                        ...prev,
+                                        odometerPhoto: compressed,
+                                      }))
+                                    }
+                                  }}
+                                />
+                                {keyChecklist.odometerPhoto ? (
+                                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                                    <div
+                                      onClick={() =>
+                                        setZoomedPhoto({
+                                          url: keyChecklist.odometerPhoto!,
+                                          title: `Odometer Proof Photo - ${inspectedBooking.id}`,
+                                        })
+                                      }
+                                      className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                                    >
+                                      <img
+                                        src={keyChecklist.odometerPhoto}
+                                        alt="Odometer Proof"
+                                        className="w-10 h-8 object-cover rounded-lg border border-emerald-500/40 shrink-0"
+                                      />
+                                      <div className="min-w-0 text-[11px]">
+                                        <p className="font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                                          Photo Attached ✓
+                                        </p>
+                                        <p className="text-[10px] text-stone-500 truncate">
+                                          Click to preview full size
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setKeyChecklist((prev) => ({
+                                          ...prev,
+                                          odometerPhoto: undefined,
+                                        }))
+                                      }
+                                      className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold transition cursor-pointer shrink-0"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <label
+                                    htmlFor="manifest-odo-photo"
+                                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed cursor-pointer transition text-xs font-medium ${
+                                      isDark
+                                        ? "bg-stone-950/60 border-stone-700 hover:border-amber-500 text-stone-300"
+                                        : "bg-stone-50 border-stone-300 hover:border-amber-500 text-stone-700"
+                                    }`}
+                                  >
+                                    <CameraIcon size={14} className="text-amber-500" />
+                                    <span>Upload / Snap Dashboard Proof</span>
+                                  </label>
+                                )}
+                              </div>
+                              <div>
+                                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                                  Odometer / Cluster Notes
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Clean dashboard, zero warning lights"
+                                  value={keyChecklist.odometerNotes || ""}
+                                  onChange={(e) =>
+                                    setKeyChecklist({
+                                      ...keyChecklist,
+                                      odometerNotes: e.target.value,
+                                    })
+                                  }
+                                  className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                                    isDark
+                                      ? "bg-stone-950 border border-stone-700 text-white"
+                                      : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
                         <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer ${
@@ -10107,6 +10295,9 @@ export default function AdminView({
                               )
                               const res = await api.handoverKeys(inspectedBooking.id, {
                                 odometerOut: Number(keyChecklist.odometerOut) || matched?.currentOdometer || 15200,
+                                odometerUnit: keyChecklist.odometerUnit || "mi",
+                                odometerPhoto: keyChecklist.odometerPhoto,
+                                odometerNotes: keyChecklist.odometerNotes,
                                 fuelOut: keyChecklist.fuelLevelOut || "Full (100%)",
                                 exteriorClean: keyChecklist.cleanlinessVerified,
                                 tiresInspected: keyChecklist.tiresExteriorVerified,
@@ -12981,7 +13172,7 @@ export default function AdminView({
 
             {/* Vehicle & Customer Capsule */}
             <div
-              className={`my-4 p-3 rounded-xl border text-xs space-y-1 ${
+              className={`my-4 p-3.5 rounded-xl border text-xs space-y-2 ${
                 isDark
                   ? "bg-stone-900 border-stone-800"
                   : "bg-stone-50 border-stone-200"
@@ -13019,77 +13210,275 @@ export default function AdminView({
 
                 return c ? (
                   <div
-                    className={`flex justify-between pt-1 border-t text-amber-500 font-medium ${
+                    className={`pt-2.5 mt-2 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                       isDark ? "border-stone-800" : "border-stone-200"
                     }`}
                   >
-                    <span>Vehicle & Stall:</span>
-                    <span className="font-mono font-bold">
-                      {c.name} ({c.plateNumber}) • {c.garageBay || "Bay 14-B"}
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      {c.image && (
+                        <img
+                          src={c.image}
+                          alt={c.name}
+                          className="w-12 h-9 object-cover rounded-lg border border-stone-300 dark:border-stone-700 shrink-0"
+                        />
+                      )}
+                      <div>
+                        <span className="font-bold text-amber-500 block">
+                          {c.name} ({c.plateNumber})
+                        </span>
+                        <span className="text-[11px] text-stone-500 dark:text-stone-400">
+                          {c.garageBay || "Bay 16-C"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="sm:text-right">
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 block font-semibold">
+                        Registered Baseline Odometer
+                      </span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                        {(c.currentOdometer || 15200).toLocaleString()}{" "}
+                        {keyChecklist.odometerUnit || "mi"}
+                      </span>
+                    </div>
                   </div>
                 ) : null
               })()}
             </div>
 
             <form onSubmit={handleSubmitKeyHandoff} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    className={`block text-xs font-semibold mb-1 ${
-                      isDark ? "text-stone-400" : "text-stone-600"
-                    }`}
-                  >
-                    Departure Odometer (mi)
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={keyChecklist.odometerOut}
-                    onChange={(e) =>
-                      setKeyChecklist({
-                        ...keyChecklist,
+              {(() => {
+                const c = cars.find(
+                  (x) => x.id === keyModalBooking.matchedCarId,
+                )
+                const baselineOdo = c?.currentOdometer || 15200
+                return (
+                  <div className="space-y-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label
+                            className={`block font-semibold ${
+                              isDark ? "text-stone-400" : "text-stone-600"
+                            }`}
+                          >
+                            Departure Odometer
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            {c && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setKeyChecklist((prev) => ({
+                                    ...prev,
+                                    odometerOut: baselineOdo,
+                                  }))
+                                }
+                                className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                                title="Reset to vehicle baseline mileage"
+                              >
+                                <RefreshCwIcon size={10} /> Sync ({baselineOdo.toLocaleString()})
+                              </button>
+                            )}
+                            <div className="inline-flex rounded-lg border border-stone-300 dark:border-stone-700 p-0.5 text-[10px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setKeyChecklist((prev) => ({
+                                    ...prev,
+                                    odometerUnit: "mi",
+                                  }))
+                                }
+                                className={`px-1.5 py-0.5 rounded transition ${
+                                  keyChecklist.odometerUnit !== "km"
+                                    ? "bg-amber-500 text-white"
+                                    : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
+                                }`}
+                              >
+                                mi
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setKeyChecklist((prev) => ({
+                                    ...prev,
+                                    odometerUnit: "km",
+                                  }))
+                                }
+                                className={`px-1.5 py-0.5 rounded transition ${
+                                  keyChecklist.odometerUnit === "km"
+                                    ? "bg-amber-500 text-white"
+                                    : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
+                                }`}
+                              >
+                                km
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            required
+                            value={keyChecklist.odometerOut}
+                            onChange={(e) =>
+                              setKeyChecklist({
+                                ...keyChecklist,
+                                odometerOut: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full pr-12 px-3 py-2 rounded-xl text-xs font-mono font-bold transition ${
+                              isDark
+                                ? "bg-stone-950 border border-stone-700 text-white"
+                                : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                            }`}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-stone-400 font-mono pointer-events-none">
+                            {keyChecklist.odometerUnit || "mi"}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <label
+                          className={`block text-xs font-semibold mb-1 ${
+                            isDark ? "text-stone-400" : "text-stone-600"
+                          }`}
+                        >
+                          Departure Fuel Level
+                        </label>
+                        <select
+                          value={keyChecklist.fuelLevelOut}
+                          onChange={(e) =>
+                            setKeyChecklist({
+                              ...keyChecklist,
+                              fuelLevelOut: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                            isDark
+                              ? "bg-stone-950 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                          }`}
+                        >
+                          <option value="Full (100%)">Full (100%)</option>
+                          <option value="90%">90%</option>
+                          <option value="80%">80%</option>
+                          <option value="75%">75%</option>
+                          <option value="50%">50%</option>
+                        </select>
+                      </div>
+                    </div>
 
-                        odometerOut: Number(e.target.value),
-                      })
-                    }
-                    className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
-                      isDark
-                        ? "bg-stone-950 border border-stone-700 text-white"
-                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label
-                    className={`block text-xs font-semibold mb-1 ${
-                      isDark ? "text-stone-400" : "text-stone-600"
-                    }`}
-                  >
-                    Departure Fuel Level
-                  </label>
-                  <select
-                    value={keyChecklist.fuelLevelOut}
-                    onChange={(e) =>
-                      setKeyChecklist({
-                        ...keyChecklist,
-
-                        fuelLevelOut: e.target.value,
-                      })
-                    }
-                    className={`w-full px-3 py-2 rounded-xl text-xs transition ${
-                      isDark
-                        ? "bg-stone-950 border border-stone-700 text-white"
-                        : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
-                    }`}
-                  >
-                    <option value="Full (100%)">Full (100%)</option>
-                    <option value="90%">90%</option>
-                    <option value="80%">80%</option>
-                    <option value="75%">75%</option>
-                  </select>
-                </div>
-              </div>
+                    {/* Odometer Proof Photo & Cluster Verification */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label
+                            className={`block font-semibold ${
+                              isDark ? "text-stone-400" : "text-stone-600"
+                            }`}
+                          >
+                            Odometer &amp; Cluster Proof Photo
+                          </label>
+                          <span className="text-[10px] text-stone-500">Optional</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          id="modal-odo-photo"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const compressed = await compressVehiclePhoto(file)
+                              setKeyChecklist((prev) => ({
+                                ...prev,
+                                odometerPhoto: compressed,
+                              }))
+                            }
+                          }}
+                        />
+                        {keyChecklist.odometerPhoto ? (
+                          <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                            <div
+                              onClick={() =>
+                                setZoomedPhoto({
+                                  url: keyChecklist.odometerPhoto!,
+                                  title: `Odometer Proof Photo - ${keyModalBooking.id}`,
+                                })
+                              }
+                              className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                            >
+                              <img
+                                src={keyChecklist.odometerPhoto}
+                                alt="Odometer Proof"
+                                className="w-10 h-8 object-cover rounded-lg border border-emerald-500/40 shrink-0"
+                              />
+                              <div className="min-w-0 text-[11px]">
+                                <p className="font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                                  Proof Attached ✓
+                                </p>
+                                <p className="text-[10px] text-stone-500 truncate">
+                                  Click to preview
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setKeyChecklist((prev) => ({
+                                  ...prev,
+                                  odometerPhoto: undefined,
+                                }))
+                              }
+                              className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold transition cursor-pointer shrink-0"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <label
+                            htmlFor="modal-odo-photo"
+                            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed cursor-pointer transition text-xs font-medium ${
+                              isDark
+                                ? "bg-stone-950/60 border-stone-700 hover:border-amber-500 text-stone-300"
+                                : "bg-stone-50 border-stone-300 hover:border-amber-500 text-stone-700"
+                            }`}
+                          >
+                            <CameraIcon size={14} className="text-amber-500" />
+                            <span>Capture / Upload Cluster Photo</span>
+                          </label>
+                        )}
+                      </div>
+                      <div>
+                        <label
+                          className={`block font-semibold mb-1 ${
+                            isDark ? "text-stone-400" : "text-stone-600"
+                          }`}
+                        >
+                          Odometer &amp; Cluster Notes
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Cluster clean, 0 warning lights"
+                          value={keyChecklist.odometerNotes || ""}
+                          onChange={(e) =>
+                            setKeyChecklist({
+                              ...keyChecklist,
+                              odometerNotes: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                            isDark
+                              ? "bg-stone-950 border border-stone-700 text-white"
+                              : "bg-stone-50 border border-stone-200 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div
                 className={`space-y-2 pt-2 border-t text-xs ${

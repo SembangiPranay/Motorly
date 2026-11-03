@@ -41576,7 +41576,7 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
 });
 app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
-	const { odometerOut, fuelOut, exteriorClean, tiresInspected, staffSign } = req.body;
+	const { odometerOut, odometerUnit, odometerPhoto, odometerNotes, fuelOut, exteriorClean, tiresInspected, staffSign } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	if (booking.status === "Completed" || booking.status === "Cancelled") return res.status(400).json({ error: `Illegal transition: Cannot hand over keys for booking ${bookingId} with terminal status "${booking.status}".` });
@@ -41588,6 +41588,9 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
 	const checklistObj = {
 		odometerOut: Number(odometerOut) || 14250,
+		odometerUnit: odometerUnit || "mi",
+		odometerPhoto: odometerPhoto || null,
+		odometerNotes: odometerNotes || "",
 		fuelOut: fuelOut || "100%",
 		exteriorClean: Boolean(exteriorClean !== false),
 		tiresInspected: Boolean(tiresInspected !== false),
@@ -41604,7 +41607,7 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       fuel_level_out = ?
     WHERE id = ?
   `).run(nowIso, JSON.stringify(checklistObj), checklistObj.odometerOut, checklistObj.fuelOut, bookingId);
-	if (booking.matched_car_id) await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(booking.matched_car_id);
+	if (booking.matched_car_id) await db.prepare("UPDATE vehicles SET status = 'Rented', current_odometer = ? WHERE id = ?").run(checklistObj.odometerOut, booking.matched_car_id);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	return res.json({
 		success: true,

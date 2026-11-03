@@ -671,6 +671,9 @@ class ApiService {
     bookingId: string,
     data: {
       odometerOut: number
+      odometerUnit?: string
+      odometerPhoto?: string
+      odometerNotes?: string
       fuelOut: string
       exteriorClean?: boolean
       tiresInspected?: boolean
