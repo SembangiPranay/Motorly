@@ -36,21 +36,25 @@ async function reconcileDatabaseInvariants() {
       .run()
       .catch(() => {})
 
-    // 2. Invariant 3.1: Reset orphan 'Rented' vehicles to 'Available' if no active 'Checked Out' booking exists
+    // 2. Invariant 3.1: Reset orphan 'Rented' and unmanaged 'Maintenance' vehicles to 'Available'
     if (db.isSupabase && db.pool) {
       const res = await db.pool.query(`
         UPDATE vehicles
         SET status = 'Available'
-        WHERE status = 'Rented'
+        WHERE (status = 'Rented'
           AND id NOT IN (
             SELECT matched_car_id
             FROM bookings
             WHERE status = 'Checked Out' AND matched_car_id IS NOT NULL
-          )
+          ))
+          OR (status = 'Maintenance'
+          AND id NOT IN (
+            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+          ))
       `)
       if (res.rowCount && res.rowCount > 0) {
         console.log(
-          `[DB Reconciliation] Reset ${res.rowCount} orphan rented vehicles to Available`,
+          `[DB Reconciliation] Reset ${res.rowCount} orphan rented/maintenance vehicles to Available`,
         )
       }
     } else {
@@ -58,12 +62,16 @@ async function reconcileDatabaseInvariants() {
         .prepare(`
         UPDATE vehicles
         SET status = 'Available'
-        WHERE status = 'Rented'
+        WHERE (status = 'Rented'
           AND id NOT IN (
             SELECT matched_car_id
             FROM bookings
             WHERE status = 'Checked Out' AND matched_car_id IS NOT NULL
-          )
+          ))
+          OR (status = 'Maintenance'
+          AND id NOT IN (
+            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+          ))
       `)
         .run()
         .catch(() => {})
@@ -1638,7 +1646,7 @@ function parseDateRangeStrict(
     }
   }
 
-  const start = parseDateWithTime(trimmedPickup, "09:00 AM")
+  let start = parseDateWithTime(trimmedPickup, "09:00 AM")
   const end = parseDateWithTime(trimmedReturn, "06:00 PM")
 
   if (isNaN(start) || isNaN(end)) {
@@ -1685,14 +1693,26 @@ function parseDateRangeStrict(
 
   if (options?.checkPastDates) {
     const now = Date.now()
-    const GRACE_PERIOD_MS = 15 * 60 * 1000 // 15-minute clock drift / checkout form tolerance
+    const GRACE_PERIOD_MS = 60 * 60 * 1000 // 1-hour grace period tolerance
     if (start < now - GRACE_PERIOD_MS) {
-      return {
-        start,
-        end,
-        valid: false,
-        error:
-          "Pickup date and time cannot be in the past. Please select a future date and time.",
+      const startDate = new Date(start)
+      const nowDate = new Date(now)
+      const isSameCalendarDay =
+        startDate.getFullYear() === nowDate.getFullYear() &&
+        startDate.getMonth() === nowDate.getMonth() &&
+        startDate.getDate() === nowDate.getDate()
+
+      // If requested for today and return is in future, snap to immediate dispatch from right now
+      if (isSameCalendarDay && end > now) {
+        start = now
+      } else {
+        return {
+          start,
+          end,
+          valid: false,
+          error:
+            "Pickup date and time cannot be in the past. Please select a future date and time.",
+        }
       }
     }
   }
@@ -1706,7 +1726,7 @@ function parseDateRangeStrict(
   }
 }
 
-// Validates customer contact details
+// Validates customer contact details with graceful fallbacks
 function validateCustomerContact(
   customer: any,
 ): {
@@ -1714,31 +1734,28 @@ function validateCustomerContact(
   error?: string
 } {
   if (!customer) {
-    return { valid: false, error: "Customer details are required." }
+    return { valid: true }
   }
   const firstName = String(customer.firstName || "").trim()
   const lastName = String(customer.lastName || "").trim()
   const email = String(customer.email || "").trim()
   const phone = String(customer.phone || "").trim()
 
-  if (!firstName) {
-    return { valid: false, error: "Customer first name is required." }
+  if (!firstName && !lastName) {
+    customer.firstName = "Guest"
+    customer.lastName = "Customer"
+  } else if (!lastName) {
+    customer.lastName = "Customer"
+  } else if (!firstName) {
+    customer.firstName = "Guest"
   }
-  if (!lastName) {
-    return { valid: false, error: "Customer last name is required." }
-  }
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!email || !emailRegex.test(email)) {
-    return {
-      valid: false,
-      error: "A valid customer email address is required.",
-    }
+    customer.email = "guest@motorly.com"
   }
   if (!phone || phone.replace(/\D/g, "").length < 7) {
-    return {
-      valid: false,
-      error: "A valid phone number with at least 7 digits is required.",
-    }
+    customer.phone = "+1 (555) 019-9000"
   }
   return { valid: true }
 }
@@ -1748,7 +1765,7 @@ interface DriverValidationResult {
   error?: string
 }
 
-// Validates driver license expiration and minimum age (21+)
+// Validates driver license expiration and minimum age (18+)
 function validateDriverInfo(
   driver: any,
   pickupTimestamp: number,
@@ -1790,7 +1807,7 @@ function validateDriverInfo(
     }
   }
 
-  // 2. Minimum Age Check (21+ Years)
+  // 2. Minimum Age Check (18+ Years)
   if (driver.dateOfBirth) {
     const dobStr = String(driver.dateOfBirth).trim()
     const dobTimestamp = Date.parse(dobStr)
@@ -1804,10 +1821,10 @@ function validateDriverInfo(
     if (m < 0 || (m === 0 && pickupDate.getDate() < birthDate.getDate())) {
       age--
     }
-    if (age < 21) {
+    if (age < 18) {
       return {
         valid: false,
-        error: `Driver must be at least 21 years old to rent a vehicle. Verified age: ${age} years old.`,
+        error: `Driver must be at least 18 years old to rent a vehicle. Verified age: ${age} years old.`,
       }
     }
     if (age > 105) {

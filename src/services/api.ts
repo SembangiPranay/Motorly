@@ -544,7 +544,15 @@ class ApiService {
       },
       "customer",
     )
-    if (!res.ok) throw new Error("Failed to create booking")
+    if (!res.ok) {
+      let errMsg = "Failed to create booking"
+      try {
+        const body = await res.json()
+        if (body.error) errMsg = body.error
+        else if (body.message) errMsg = body.message
+      } catch {}
+      throw new Error(errMsg)
+    }
     return res.json()
   }
 

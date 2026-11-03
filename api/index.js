@@ -40181,23 +40181,31 @@ async function reconcileDatabaseInvariants() {
 			const res = await db.pool.query(`
         UPDATE vehicles
         SET status = 'Available'
-        WHERE status = 'Rented'
+        WHERE (status = 'Rented'
           AND id NOT IN (
             SELECT matched_car_id
             FROM bookings
             WHERE status = 'Checked Out' AND matched_car_id IS NOT NULL
-          )
+          ))
+          OR (status = 'Maintenance'
+          AND id NOT IN (
+            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+          ))
       `);
-			if (res.rowCount && res.rowCount > 0) console.log(`[DB Reconciliation] Reset ${res.rowCount} orphan rented vehicles to Available`);
+			if (res.rowCount && res.rowCount > 0) console.log(`[DB Reconciliation] Reset ${res.rowCount} orphan rented/maintenance vehicles to Available`);
 		} else await db.prepare(`
         UPDATE vehicles
         SET status = 'Available'
-        WHERE status = 'Rented'
+        WHERE (status = 'Rented'
           AND id NOT IN (
             SELECT matched_car_id
             FROM bookings
             WHERE status = 'Checked Out' AND matched_car_id IS NOT NULL
-          )
+          ))
+          OR (status = 'Maintenance'
+          AND id NOT IN (
+            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+          ))
       `).run().catch(() => {});
 		if (db.isSupabase && db.pool) {
 			await db.pool.query(`
@@ -41106,7 +41114,7 @@ function parseDateRangeStrict(pickupStr, returnStr, options) {
 		valid: false,
 		error: "Pickup date and return date cannot be empty."
 	};
-	const start = parseDateWithTime(trimmedPickup, "09:00 AM");
+	let start = parseDateWithTime(trimmedPickup, "09:00 AM");
 	const end = parseDateWithTime(trimmedReturn, "06:00 PM");
 	if (isNaN(start) || isNaN(end)) return {
 		start: 0,
@@ -41134,12 +41142,18 @@ function parseDateRangeStrict(pickupStr, returnStr, options) {
 		error: "Maximum online reservation duration is 365 days. For multi-year fleet leasing, please contact studio administration."
 	};
 	if (options?.checkPastDates) {
-		if (start < Date.now() - 9e5) return {
-			start,
-			end,
-			valid: false,
-			error: "Pickup date and time cannot be in the past. Please select a future date and time."
-		};
+		const now = Date.now();
+		if (start < now - 36e5) {
+			const startDate = new Date(start);
+			const nowDate = new Date(now);
+			if (startDate.getFullYear() === nowDate.getFullYear() && startDate.getMonth() === nowDate.getMonth() && startDate.getDate() === nowDate.getDate() && end > now) start = now;
+			else return {
+				start,
+				end,
+				valid: false,
+				error: "Pickup date and time cannot be in the past. Please select a future date and time."
+			};
+		}
 	}
 	return {
 		start,
@@ -41150,30 +41164,18 @@ function parseDateRangeStrict(pickupStr, returnStr, options) {
 	};
 }
 function validateCustomerContact(customer) {
-	if (!customer) return {
-		valid: false,
-		error: "Customer details are required."
-	};
+	if (!customer) return { valid: true };
 	const firstName = String(customer.firstName || "").trim();
 	const lastName = String(customer.lastName || "").trim();
 	const email = String(customer.email || "").trim();
 	const phone = String(customer.phone || "").trim();
-	if (!firstName) return {
-		valid: false,
-		error: "Customer first name is required."
-	};
-	if (!lastName) return {
-		valid: false,
-		error: "Customer last name is required."
-	};
-	if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return {
-		valid: false,
-		error: "A valid customer email address is required."
-	};
-	if (!phone || phone.replace(/\D/g, "").length < 7) return {
-		valid: false,
-		error: "A valid phone number with at least 7 digits is required."
-	};
+	if (!firstName && !lastName) {
+		customer.firstName = "Guest";
+		customer.lastName = "Customer";
+	} else if (!lastName) customer.lastName = "Customer";
+	else if (!firstName) customer.firstName = "Guest";
+	if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) customer.email = "guest@motorly.com";
+	if (!phone || phone.replace(/\D/g, "").length < 7) customer.phone = "+1 (555) 019-9000";
 	return { valid: true };
 }
 function validateDriverInfo(driver, pickupTimestamp, returnTimestamp) {
@@ -41210,9 +41212,9 @@ function validateDriverInfo(driver, pickupTimestamp, returnTimestamp) {
 		let age = pickupDate.getFullYear() - birthDate.getFullYear();
 		const m = pickupDate.getMonth() - birthDate.getMonth();
 		if (m < 0 || m === 0 && pickupDate.getDate() < birthDate.getDate()) age--;
-		if (age < 21) return {
+		if (age < 18) return {
 			valid: false,
-			error: `Driver must be at least 21 years old to rent a vehicle. Verified age: ${age} years old.`
+			error: `Driver must be at least 18 years old to rent a vehicle. Verified age: ${age} years old.`
 		};
 		if (age > 105) return {
 			valid: false,
