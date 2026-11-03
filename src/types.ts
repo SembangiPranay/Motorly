@@ -1,6 +1,6 @@
 export type VehicleType = "Economy" | "Sedan" | "SUV" | "Luxury" | "Van" | "Electric"
 export type Transmission = "Automatic" | "Manual"
-export type FuelType = "Gasoline" | "Hybrid" | "Electric"
+export type FuelType = "Petrol" | "Diesel" | "Electric" | "Hybrid" | "Gasoline"
 export type CarStatus = "Available" | "Rented" | "Maintenance" | "Cleaning"
 
 export type BookingStatus = "Pending Assignment" | "Assigned" | "Checked Out" | "Returned" | "Completed" | "Cancelled"

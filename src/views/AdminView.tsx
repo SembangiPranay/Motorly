@@ -83,6 +83,30 @@ import {
 const DEFAULT_FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80"
 
+export const formatFuelDisplay = (mileage?: string, fuelType?: string): string => {
+  if (!mileage || !mileage.trim()) {
+    return fuelType === "Electric" ? "100% EV" : "45 Liters"
+  }
+  const clean = mileage.trim()
+  if (fuelType === "Electric") {
+    if (clean.includes("%") || clean.toLowerCase().includes("kwh") || clean.toLowerCase().includes("ev")) {
+      return clean
+    }
+    return `${clean} kWh`
+  }
+  if (/liters?|ltrs?|\bl\b/i.test(clean)) {
+    return clean
+  }
+  if (/mpg|mpge/i.test(clean)) {
+    const num = clean.replace(/[^0-9.]/g, "")
+    return num ? `${num} Liters` : clean
+  }
+  if (/^\d+(\.\d+)?$/.test(clean)) {
+    return `${clean} Liters`
+  }
+  return `${clean} Liters`
+}
+
 interface AdminViewProps {
   cars: Car[]
 
@@ -1173,30 +1197,28 @@ export default function AdminView({
 
     transmission: "Automatic",
 
-    fuelType: "Gasoline",
+    fuelType: "Petrol",
 
-    mileage: "32 MPG",
+    mileage: "45 Liters",
 
-    luggage: "3 Large Bags",
+    luggage: "3 Bags",
 
-    plateNumber: "FL-882-MTR",
+    plateNumber: "TS-09-MTR-8820",
 
-    location: "Miami International Airport (MIA)",
+    location: "Operating Fleet Hub",
 
     status: "Available",
 
-    healthScore: 98,
-
     description:
-      "Pristine fleet rental vehicle with full telemetry and insurance certification.",
+      "Pristine fleet rental vehicle with full telemetry.",
 
     features: ["Bluetooth", "Backup Camera", "Apple CarPlay"],
 
-    insurancePolicy: "POL-FL-883201",
+    insurancePolicy: "",
 
-    insuranceProvider: "Geico Commercial Fleet",
+    insuranceProvider: "",
 
-    insuranceExpiry: "2027-12-31",
+    insuranceExpiry: "",
 
     purchaseDate: "2024-01-15",
 
@@ -1204,16 +1226,25 @@ export default function AdminView({
 
     currentOdometer: 14200,
 
-    garageName: "Miami Airport Hub (MIA - Garage Bay 4)",
+    garageName: "Operating Fleet Hub",
 
-    garageAddress: "4200 NW 21st St, Miami, FL 33142",
+    garageAddress: "Operating Fleet Hub",
 
-    garageLat: 25.7959,
+    garageLat: 17.4646,
 
-    garageLng: -80.287,
+    garageLng: 78.3582,
 
-    garageBay: "Bay 14-B",
+    garageBay: "Bay 1",
   })
+
+  // Insurance optional details toggle for car modal
+  const [addInsuranceDetails, setAddInsuranceDetails] = useState<boolean>(false)
+
+  // Guard against duplicate vehicle creations / rapid double clicks
+  const [isSavingCar, setIsSavingCar] = useState<boolean>(false)
+
+  // Refreshing fleet manifest state
+  const [isRefreshingFleet, setIsRefreshingFleet] = useState<boolean>(false)
 
   // --- Manifest Filters & View Mode ---
 
@@ -2320,48 +2351,48 @@ export default function AdminView({
 
       transmission: "Automatic",
 
-      fuelType: "Gasoline",
+      fuelType: "Petrol",
 
-      mileage: "32 MPG",
+      mileage: "45 Liters",
 
       luggage: "3 Bags",
 
-      plateNumber: `FL-${Math.floor(100 + Math.random() * 900)}-MTR`,
+      plateNumber: `TS-${Math.floor(10 + Math.random() * 90)}-MTR-${Math.floor(1000 + Math.random() * 9000)}`,
 
-      location: "Miami International Airport (MIA)",
+      location: studioContact.hub_address || "Operating Fleet Hub",
 
       status: "Available",
 
-      healthScore: 98,
-
       description:
-        "Pristine fleet rental vehicle with full insurance certification.",
+        "Pristine fleet rental vehicle with full telemetry.",
 
       features: ["Bluetooth", "Backup Camera", "Apple CarPlay"],
 
-      insurancePolicy: `POL-FL-${Math.floor(100000 + Math.random() * 900000)}`,
+      insurancePolicy: "",
 
-      insuranceProvider: "Geico Commercial Fleet",
+      insuranceProvider: "",
 
-      insuranceExpiry: "2027-12-31",
+      insuranceExpiry: "",
 
-      purchaseDate: "2024-01-15",
+      purchaseDate: new Date().toISOString().split("T")[0],
 
       purchaseCost: 32500,
 
       currentOdometer: 14200,
 
-      garageName: "Miami Airport Hub (MIA - Garage Bay 4)",
+      garageName: studioContact.hub_address || "Operating Fleet Hub",
 
-      garageAddress: "4200 NW 21st St, Miami, FL 33142",
+      garageAddress: studioContact.hub_address || "Operating Fleet Hub",
 
-      garageLat: 25.7959,
+      garageLat: studioContact.hub_lat ?? 17.4646,
 
-      garageLng: -80.287,
+      garageLng: studioContact.hub_lng ?? 78.3582,
 
       garageBay: `Bay ${Math.floor(1 + Math.random() * 20)}-${["A", "B", "C"][Math.floor(Math.random() * 3)]}`,
     })
 
+    setAddInsuranceDetails(false)
+    setIsSavingCar(false)
     setIsCarModalOpen(true)
   }
 
@@ -2379,6 +2410,12 @@ export default function AdminView({
           ? [car.image]
           : []
 
+    const hasInsurance = Boolean(
+      car.insurancePolicy?.trim() || car.insuranceProvider?.trim(),
+    )
+    setAddInsuranceDetails(hasInsurance)
+    setIsSavingCar(false)
+
     setCarFormData({
       ...car,
 
@@ -2386,14 +2423,20 @@ export default function AdminView({
 
       gallery: initialGallery,
 
+      fuelType:
+        ((car.fuelType === "Gasoline" ? "Petrol" : car.fuelType) as FuelType) ||
+        "Petrol",
+
+      mileage: car.mileage || "45 Liters",
+
       pricePerMonth:
         car.pricePerMonth || Math.round((car.pricePerDay || 55) * 22),
 
-      insurancePolicy: car.insurancePolicy || "POL-FL-883201",
+      insurancePolicy: car.insurancePolicy || "",
 
-      insuranceProvider: car.insuranceProvider || "Geico Commercial Fleet",
+      insuranceProvider: car.insuranceProvider || "",
 
-      insuranceExpiry: car.insuranceExpiry || "2027-12-31",
+      insuranceExpiry: car.insuranceExpiry || "",
 
       purchaseDate: car.purchaseDate || "2024-01-15",
 
@@ -2401,15 +2444,20 @@ export default function AdminView({
 
       currentOdometer: car.currentOdometer || 14200,
 
-      garageName: car.garageName || "Miami Airport Hub (MIA - Garage Bay 4)",
+      garageName:
+        car.garageName || studioContact.hub_address || "Operating Fleet Hub",
 
-      garageAddress: car.garageAddress || "4200 NW 21st St, Miami, FL 33142",
+      garageAddress:
+        car.garageAddress || studioContact.hub_address || "Operating Fleet Hub",
 
-      garageLat: car.garageLat || 25.7959,
+      location:
+        car.location || studioContact.hub_address || "Operating Fleet Hub",
 
-      garageLng: car.garageLng || -80.287,
+      garageLat: car.garageLat ?? studioContact.hub_lat ?? 17.4646,
 
-      garageBay: car.garageBay || "Bay 14-B",
+      garageLng: car.garageLng ?? studioContact.hub_lng ?? 78.3582,
+
+      garageBay: car.garageBay || "Bay 1",
     })
 
     setIsCarModalOpen(true)
@@ -2417,6 +2465,8 @@ export default function AdminView({
 
   const handleSaveCar = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isSavingCar) return
 
     if (!editingCar && carModalTab !== "garage") {
       if (carModalTab === "identity") {
@@ -2436,6 +2486,8 @@ export default function AdminView({
       }
       return
     }
+
+    setIsSavingCar(true)
 
     try {
       const rawGallery = (carFormData.gallery || []).filter(Boolean)
@@ -2485,6 +2537,29 @@ export default function AdminView({
         currentOdometer: Number(carFormData.currentOdometer) || 14200,
         image: primaryImage,
         gallery: finalGallery,
+        location:
+          carFormData.location ||
+          studioContact.hub_address ||
+          "Operating Fleet Hub",
+        garageName:
+          carFormData.garageName ||
+          studioContact.hub_address ||
+          "Operating Fleet Hub",
+        garageAddress:
+          carFormData.garageAddress ||
+          studioContact.hub_address ||
+          "Operating Fleet Hub",
+        garageLat: carFormData.garageLat ?? studioContact.hub_lat ?? 17.4646,
+        garageLng: carFormData.garageLng ?? studioContact.hub_lng ?? 78.3582,
+        insurancePolicy: addInsuranceDetails
+          ? (carFormData.insurancePolicy || "").trim()
+          : "",
+        insuranceProvider: addInsuranceDetails
+          ? (carFormData.insuranceProvider || "").trim()
+          : "",
+        insuranceExpiry: addInsuranceDetails
+          ? (carFormData.insuranceExpiry || "").trim()
+          : "",
       }
 
       if (editingCar) {
@@ -2507,9 +2582,17 @@ export default function AdminView({
         )
       }
 
+      // Re-fetch all cars fresh from backend to sync database state
+      const freshFleet = await api.getCars().catch(() => null)
+      if (freshFleet && Array.isArray(freshFleet)) {
+        setCars(freshFleet)
+      }
+
       setIsCarModalOpen(false)
     } catch (err: any) {
-      alert("Failed to save car: " + err.message)
+      alert("Failed to save car: " + (err?.message || "Unknown error"))
+    } finally {
+      setIsSavingCar(false)
     }
   }
 
@@ -2522,6 +2605,11 @@ export default function AdminView({
       await api.deleteCar(deletingCar.id)
 
       setCars((prev) => prev.filter((c) => c.id !== deletingCar.id))
+
+      const freshFleet = await api.getCars().catch(() => null)
+      if (freshFleet && Array.isArray(freshFleet)) {
+        setCars(freshFleet)
+      }
 
       notify(
         `Vehicle ${deletingCar.name} (${deletingCar.plateNumber || deletingCar.id}) decommissioned and removed from fleet.`,
@@ -6639,6 +6727,46 @@ export default function AdminView({
                   </div>
 
                   <button
+                    type="button"
+                    disabled={isRefreshingFleet}
+                    onClick={async () => {
+                      setIsRefreshingFleet(true)
+                      try {
+                        const refreshed = await api.getCars()
+                        if (Array.isArray(refreshed)) {
+                          setCars(refreshed)
+                          notify(
+                            `Fleet refreshed (${refreshed.length} vehicles synced).`,
+                          )
+                        }
+                      } catch (e: any) {
+                        alert(
+                          "Failed to refresh fleet: " +
+                            (e?.message || "Network error"),
+                        )
+                      } finally {
+                        setIsRefreshingFleet(false)
+                      }
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 cursor-pointer ${
+                      isDark
+                        ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
+                        : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
+                    }`}
+                    title="Refresh fleet list directly from database"
+                  >
+                    <RefreshCwIcon
+                      size={13}
+                      className={
+                        isRefreshingFleet
+                          ? "animate-spin text-[#F97316]"
+                          : "text-stone-400"
+                      }
+                    />
+                    <span>{isRefreshingFleet ? "Syncing..." : "Refresh"}</span>
+                  </button>
+
+                  <button
                     onClick={handleOpenAddCar}
                     className="px-3.5 py-2 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
@@ -6752,18 +6880,17 @@ export default function AdminView({
                                 </span>
                                 <span
                                   className="font-medium text-[11px] truncate block"
-                                  title={c.location}
+                                  title={c.location || studioContact.hub_address}
                                 >
                                   {cleanHub}
                                 </span>
                               </div>
                               <div>
                                 <span className="text-[10px] text-stone-400 block font-mono uppercase">
-                                  Telemetry & Fuel
+                                  Fuel / Tank Capacity
                                 </span>
-                                <span className="font-mono text-[11px] font-bold text-emerald-500">
-                                  Pass {c.healthScore || 98}% •{" "}
-                                  {c.mileage || "30 MPG"}
+                                <span className="font-mono text-[11px] font-bold text-orange-500">
+                                  {formatFuelDisplay(c.mileage, c.fuelType)}
                                 </span>
                               </div>
                             </div>
@@ -6865,17 +6992,14 @@ export default function AdminView({
                           <th className="px-5 py-3.5 w-72 whitespace-nowrap">
                             Vehicle / Specs
                           </th>
-                          <th className="px-5 py-3.5 w-48 whitespace-nowrap">
+                          <th className="px-5 py-3.5 w-52 whitespace-nowrap">
                             Plate & Hub
                           </th>
                           <th className="px-5 py-3.5 w-36 whitespace-nowrap">
                             Status Override
                           </th>
                           <th className="px-5 py-3.5 w-40 whitespace-nowrap">
-                            Health & Sanitation
-                          </th>
-                          <th className="px-5 py-3.5 w-28 whitespace-nowrap">
-                            Fuel / Battery
+                            Fuel / Tank Capacity
                           </th>
                           <th className="px-5 py-3.5 w-36 text-right whitespace-nowrap">
                             Daily Rate
@@ -6891,7 +7015,7 @@ export default function AdminView({
                         }`}
                       >
                         {filteredFleet.map((c) => {
-                          const cleanHub = (c.location || "Miami MIA")
+                          const cleanHub = (c.location || studioContact.hub_address || "Operating Fleet Hub")
 
                             .replace(/International Airport/i, "Intl")
 
@@ -6969,7 +7093,7 @@ export default function AdminView({
                                   className={`text-[11px] mt-1 font-medium whitespace-nowrap ${
                                     isDark ? "text-stone-400" : "text-stone-500"
                                   }`}
-                                  title={c.location}
+                                  title={c.location || studioContact.hub_address}
                                 >
                                   {cleanHub}
                                 </div>
@@ -7018,45 +7142,15 @@ export default function AdminView({
                                 </select>
                               </td>
 
-                              {/* Health score */}
-                              <td className="px-5 py-3.5">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`font-mono font-bold ${
-                                      isDark ? "text-white" : "text-stone-900"
-                                    }`}
-                                  >
-                                    {c.healthScore || 98}%
-                                  </span>
-                                  <div
-                                    className={`w-16 h-1.5 rounded-full overflow-hidden ${
-                                      isDark ? "bg-stone-800" : "bg-stone-100"
-                                    }`}
-                                  >
-                                    <div
-                                      className="bg-emerald-500 h-full rounded-full"
-                                      style={{
-                                        width: `${c.healthScore || 98}%`,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                                <span
-                                  className={`text-[10px] ${
-                                    isDark ? "text-stone-500" : "text-stone-400"
-                                  }`}
-                                >
-                                  Inspection Pass
-                                </span>
-                              </td>
-
-                              {/* Fuel */}
+                              {/* Fuel & Tank Capacity in Liters */}
                               <td
                                 className={`px-5 py-3.5 font-mono ${
                                   isDark ? "text-stone-300" : "text-stone-700"
                                 }`}
                               >
-                                {c.mileage || "30 MPG"}
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-xs font-semibold">
+                                  {formatFuelDisplay(c.mileage, c.fuelType)}
+                                </span>
                               </td>
 
                               {/* Daily, Hourly & Monthly Dynamic Rates */}
@@ -9816,7 +9910,7 @@ export default function AdminView({
                                 isDark ? "text-stone-400" : "text-stone-500"
                               }`}
                             >
-                              {c.type} • {c.location} • Health {c.healthScore}%
+                              {c.type} • {c.location || studioContact.hub_address} • {formatFuelDisplay(c.mileage, c.fuelType)}
                             </p>
                           </div>
                         </div>
@@ -10897,7 +10991,7 @@ export default function AdminView({
                       <input
                         type="text"
                         placeholder="e.g. 3 Bags"
-                        value={carFormData.luggage || "3 Bags"}
+                        value={carFormData.luggage ?? ""}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11150,7 +11244,7 @@ export default function AdminView({
                         Fuel &amp; Powertrain
                       </label>
                       <select
-                        value={carFormData.fuelType || "Gasoline"}
+                        value={carFormData.fuelType || "Petrol"}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11164,25 +11258,29 @@ export default function AdminView({
                             : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                         }`}
                       >
-                        <option value="Gasoline">Gasoline (Standard)</option>
-                        <option value="Hybrid">Hybrid Electric (Eco)</option>
-                        <option value="Electric">Full Electric (EV)</option>
+                        <option value="Petrol">1) Petrol</option>
+                        <option value="Diesel">2) Diesel</option>
+                        <option value="Electric">3) Electric</option>
+                        <option value="Hybrid">4) Hybrid</option>
+                        <option value="Gasoline" className="hidden">
+                          Gasoline
+                        </option>
                       </select>
                     </div>
 
-                    {/* Fuel Efficiency */}
+                    {/* Fuel / Tank Capacity in Liters */}
                     <div>
                       <label
                         className={`block text-xs font-bold mb-1 ${
                           isDark ? "text-stone-300" : "text-stone-800"
                         }`}
                       >
-                        Fuel Economy / Mileage
+                        Tank / Bunk Capacity (Liters)
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. 32 MPG or 118 MPGe"
-                        value={carFormData.mileage || "32 MPG"}
+                        placeholder="e.g. 45 Liters"
+                        value={carFormData.mileage ?? ""}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11196,37 +11294,9 @@ export default function AdminView({
                             : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                         }`}
                       />
-                    </div>
-
-                    {/* Health Score */}
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
-                        }`}
-                      >
-                        Vehicle Condition Score ({carFormData.healthScore || 98}
-                        %)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min="50"
-                          max="100"
-                          value={carFormData.healthScore || 98}
-                          onChange={(e) =>
-                            setCarFormData({
-                              ...carFormData,
-
-                              healthScore: Number(e.target.value),
-                            })
-                          }
-                          className="flex-1 accent-[#F97316] cursor-pointer"
-                        />
-                        <span className="font-mono text-xs font-bold text-emerald-500 w-10 text-right">
-                          {carFormData.healthScore || 98}%
-                        </span>
-                      </div>
+                      <p className="text-[10px] text-stone-400 mt-1 font-mono">
+                        Tank volume in Liters (or battery capacity for EV)
+                      </p>
                     </div>
                   </div>
 
@@ -11281,91 +11351,134 @@ export default function AdminView({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
+                  {/* Optional Commercial Insurance Toggle */}
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition select-none ${
+                      addInsuranceDetails
+                        ? isDark
+                          ? "bg-emerald-950/20 border-emerald-500/40"
+                          : "bg-emerald-50 border-emerald-300"
+                        : isDark
+                          ? "bg-stone-900/60 border-stone-800 hover:border-stone-700"
+                          : "bg-stone-50 border-stone-200 hover:border-stone-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={addInsuranceDetails}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        setAddInsuranceDetails(checked)
+                        if (!checked) {
+                          setCarFormData((prev) => ({
+                            ...prev,
+                            insuranceProvider: "",
+                            insurancePolicy: "",
+                            insuranceExpiry: "",
+                          }))
+                        }
+                      }}
+                      className="mt-0.5 w-4 h-4 rounded text-emerald-600 accent-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div
+                        className={`text-xs font-bold ${
+                          isDark ? "text-stone-200" : "text-stone-900"
                         }`}
                       >
-                        Insurance Carrier{" "}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. State Farm Commercial, Geico Fleet"
-                        value={carFormData.insuranceProvider || ""}
-                        onChange={(e) =>
-                          setCarFormData({
-                            ...carFormData,
-
-                            insuranceProvider: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                          isDark
-                            ? "bg-stone-900 border border-stone-700 text-white"
-                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
-                        }`}
-                      />
+                        Add Commercial Insurance Details (Optional)
+                      </div>
+                      <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                        If unchecked, commercial policy is skipped for this car and recorded as standard self-insured.
+                      </div>
                     </div>
+                  </label>
 
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
-                        }`}
-                      >
-                        Policy Certificate ID{" "}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. POL-STF-994021"
-                        value={carFormData.insurancePolicy || ""}
-                        onChange={(e) =>
-                          setCarFormData({
-                            ...carFormData,
+                  {addInsuranceDetails && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                      <div>
+                        <label
+                          className={`block text-xs font-bold mb-1 ${
+                            isDark ? "text-stone-300" : "text-stone-800"
+                          }`}
+                        >
+                          Insurance Carrier
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. State Farm Commercial, Geico Fleet"
+                          value={carFormData.insuranceProvider ?? ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
 
-                            insurancePolicy: e.target.value.toUpperCase(),
-                          })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                          isDark
-                            ? "bg-stone-900 border border-stone-700 text-emerald-400"
-                            : "bg-white border border-stone-300 text-emerald-700 focus:bg-white"
-                        }`}
-                      />
+                              insuranceProvider: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          className={`block text-xs font-bold mb-1 ${
+                            isDark ? "text-stone-300" : "text-stone-800"
+                          }`}
+                        >
+                          Policy Certificate ID
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. POL-STF-994021"
+                          value={carFormData.insurancePolicy ?? ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+
+                              insurancePolicy: e.target.value.toUpperCase(),
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-emerald-400"
+                              : "bg-white border border-stone-300 text-emerald-700 focus:bg-white"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          className={`block text-xs font-bold mb-1 ${
+                            isDark ? "text-stone-300" : "text-stone-800"
+                          }`}
+                        >
+                          Insurance Expiry Date
+                        </label>
+                        <input
+                          type="date"
+                          value={carFormData.insuranceExpiry ?? ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
+
+                              insuranceExpiry: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                      </div>
                     </div>
+                  )}
 
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
-                        }`}
-                      >
-                        Insurance Expiry Date
-                      </label>
-                      <input
-                        type="date"
-                        value={carFormData.insuranceExpiry || "2027-12-31"}
-                        onChange={(e) =>
-                          setCarFormData({
-                            ...carFormData,
-
-                            insuranceExpiry: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                          isDark
-                            ? "bg-stone-900 border border-stone-700 text-white"
-                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
-                        }`}
-                      />
-                    </div>
-
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
                     <div>
                       <label
                         className={`block text-xs font-bold mb-1 ${
@@ -11376,7 +11489,7 @@ export default function AdminView({
                       </label>
                       <input
                         type="date"
-                        value={carFormData.purchaseDate || "2024-01-15"}
+                        value={carFormData.purchaseDate ?? ""}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11415,7 +11528,7 @@ export default function AdminView({
                             setCarFormData({
                               ...carFormData,
                               purchaseCost:
-                                val === "" ? "" as any : Number(val),
+                                val === "" ? ("" as any) : Number(val),
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
@@ -11433,8 +11546,7 @@ export default function AdminView({
                           isDark ? "text-stone-300" : "text-stone-800"
                         }`}
                       >
-                        Current Odometer (mi){" "}
-                        <span className="text-red-500">*</span>
+                        Current Odometer (km / mi)
                       </label>
                       <div className="relative flex items-center">
                         <input
@@ -11448,7 +11560,7 @@ export default function AdminView({
                             setCarFormData({
                               ...carFormData,
                               currentOdometer:
-                                val === "" ? "" as any : Number(val),
+                                val === "" ? ("" as any) : Number(val),
                             })
                           }}
                           className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
@@ -11498,9 +11610,32 @@ export default function AdminView({
                       isDark ? "border-stone-800" : "border-stone-200"
                     }`}
                   >
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-sky-500">
-                      Assigned Garage Location &amp; Map
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-sky-500">
+                        Assigned Garage Location &amp; Map
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCarFormData((prev) => ({
+                            ...prev,
+                            garageName:
+                              studioContact.hub_address || "Operating Fleet Hub",
+                            garageAddress:
+                              studioContact.hub_address || "Operating Fleet Hub",
+                            location:
+                              studioContact.hub_address || "Operating Fleet Hub",
+                            garageLat: studioContact.hub_lat ?? 17.4646,
+                            garageLng: studioContact.hub_lng ?? 78.3582,
+                          }))
+                          notify("Inherited Operating Hub address & GPS location.")
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/30 text-[10px] font-bold transition cursor-pointer"
+                        title="Click to use Operating Hub address from Settings"
+                      >
+                        Use Operating Hub Address
+                      </button>
+                    </div>
                     <span className="text-[11px] text-stone-400 font-mono">
                       GPS: {carFormData.garageLat?.toFixed(4)},{" "}
                       {carFormData.garageLng?.toFixed(4)}
@@ -11520,8 +11655,10 @@ export default function AdminView({
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Miami Airport Central Garage"
-                        value={carFormData.garageName || ""}
+                        placeholder={
+                          studioContact.hub_address || "Operating Fleet Hub"
+                        }
+                        value={carFormData.garageName ?? ""}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11548,8 +11685,10 @@ export default function AdminView({
                       <input
                         type="text"
                         required
-                        placeholder="4200 NW 21st St, Miami, FL 33142"
-                        value={carFormData.garageAddress || ""}
+                        placeholder={
+                          studioContact.hub_address || "Operating Fleet Hub"
+                        }
+                        value={carFormData.garageAddress ?? ""}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11576,7 +11715,7 @@ export default function AdminView({
                       <input
                         type="text"
                         placeholder="e.g. Bay 14-B"
-                        value={carFormData.garageBay || "Bay 14-B"}
+                        value={carFormData.garageBay ?? ""}
                         onChange={(e) =>
                           setCarFormData({
                             ...carFormData,
@@ -11611,7 +11750,9 @@ export default function AdminView({
 
                           garageLng: lng,
 
-                          garageAddress: address,
+                          garageAddress: address || prev.garageAddress,
+
+                          location: address || prev.location,
                         }))
                       }}
                     />
@@ -11629,16 +11770,32 @@ export default function AdminView({
                       }`}
                     >
                       <span>&larr;</span>
-                      <span>Back: Insurance &amp; Policy</span>
+                      <span>Back: Insurance &amp; Odometer</span>
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-md flex items-center gap-2 cursor-pointer font-heading"
+                      disabled={isSavingCar}
+                      className={`px-6 py-2.5 rounded-xl text-white text-xs font-bold transition shadow-md flex items-center gap-2 font-heading ${
+                        isSavingCar
+                          ? "bg-orange-400 cursor-not-allowed opacity-80"
+                          : "bg-[#F97316] hover:bg-orange-600 cursor-pointer"
+                      }`}
                     >
-                      <CheckIcon size={14} />
-                      <span>
-                        {editingCar ? "Save Changes" : "Review & Add to Fleet"}
-                      </span>
+                      {isSavingCar ? (
+                        <>
+                          <RefreshCwIcon size={14} className="animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon size={14} />
+                          <span>
+                            {editingCar
+                              ? "Save Changes"
+                              : "Review & Add to Fleet"}
+                          </span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -11765,8 +11922,11 @@ export default function AdminView({
                         <p className="text-[11px] text-stone-500 mt-0.5 font-medium">
                           {carFormData.seats || 5} Seats •{" "}
                           {carFormData.transmission || "Automatic"} •{" "}
-                          {carFormData.fuelType || "Gasoline"} •{" "}
-                          {carFormData.mileage || "30 MPG"}
+                          {carFormData.fuelType || "Petrol"} •{" "}
+                          {formatFuelDisplay(
+                            carFormData.mileage,
+                            carFormData.fuelType,
+                          )}
                         </p>
                       </div>
                     </div>
@@ -11777,19 +11937,30 @@ export default function AdminView({
                         isDark ? "border-stone-800" : "border-stone-100"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 text-emerald-600">
-                        <ShieldIcon size={13} className="shrink-0" />
-                        <span className="font-semibold">
-                          {carFormData.insuranceProvider ||
-                            "Commercial Insurance"}{" "}
-                          ({carFormData.insurancePolicy || "Verified"})
-                        </span>
-                      </div>
+                      {addInsuranceDetails && carFormData.insurancePolicy ? (
+                        <div className="flex items-center gap-1.5 text-emerald-600">
+                          <ShieldIcon size={13} className="shrink-0" />
+                          <span className="font-semibold truncate">
+                            {carFormData.insuranceProvider ||
+                              "Commercial Insurance"}{" "}
+                            ({carFormData.insurancePolicy})
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-stone-400">
+                          <ShieldIcon size={13} className="shrink-0" />
+                          <span className="font-medium">
+                            Standard Self-Insured Fleet
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5 text-sky-600">
                         <LocationIcon size={13} className="shrink-0" />
                         <span className="font-medium truncate">
-                          {carFormData.garageName || "Central Garage"} •{" "}
-                          {carFormData.garageBay || "Bay 14-B"}
+                          {carFormData.garageName ||
+                            studioContact.hub_address ||
+                            "Operating Fleet Hub"}{" "}
+                          • {carFormData.garageBay || "Bay 1"}
                         </span>
                       </div>
                     </div>
@@ -11879,12 +12050,26 @@ export default function AdminView({
                 ) : (
                   <button
                     type="submit"
-                    className="flex-1 py-3 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer font-heading"
+                    disabled={isSavingCar}
+                    className={`flex-1 py-3 rounded-xl text-white text-xs font-bold transition shadow-md flex items-center justify-center gap-2 font-heading ${
+                      isSavingCar
+                        ? "bg-orange-400 cursor-not-allowed opacity-80"
+                        : "bg-[#F97316] hover:bg-orange-600 cursor-pointer"
+                    }`}
                   >
-                    <CheckIcon size={14} />
-                    <span>
-                      {editingCar ? "Save Changes" : "Review & Add to Fleet"}
-                    </span>
+                    {isSavingCar ? (
+                      <>
+                        <RefreshCwIcon size={14} className="animate-spin" />
+                        <span>Saving Vehicle to Fleet...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckIcon size={14} />
+                        <span>
+                          {editingCar ? "Save Changes" : "Review & Add to Fleet"}
+                        </span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -14211,10 +14396,10 @@ export default function AdminView({
                   </div>
                   <div>
                     <span className="text-stone-400 font-mono text-[10px] uppercase block">
-                      Health Score
+                      Fuel / Tank Capacity
                     </span>
                     <span className="font-mono font-bold text-stone-700 dark:text-stone-300 block">
-                      {deletingCar.healthScore || 98}% Operational
+                      {formatFuelDisplay(deletingCar.mileage, deletingCar.fuelType)}
                     </span>
                   </div>
                 </div>

@@ -1296,27 +1296,27 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       Number(car.reviewsCount) || 1,
       Number(car.seats) || 5,
       car.transmission || "Automatic",
-      car.fuelType || "Gasoline",
-      car.mileage || "30 MPG",
+      car.fuelType || "Petrol",
+      car.mileage || "45 Liters",
       car.luggage || "3 Bags",
       featuresJson,
       car.description || "Premium rental vehicle.",
       car.isPopular ? 1 : 0,
       car.status || "Available",
       car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`,
-      car.location || "Miami International Airport (MIA)",
+      car.location || "Operating Fleet Hub",
       Number(car.healthScore) || 98,
-      car.insurancePolicy || "POL-STF-994021",
-      car.insuranceProvider || "State Farm Comprehensive",
-      car.insuranceExpiry || "2027-04-15",
-      car.purchaseDate || "2024-01-10",
-      Number(car.purchaseCost) || 28500,
-      Number(car.currentOdometer) || 14250,
-      car.garageName || "MOTORLY Central Hub & Garage Bay 4",
-      car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142",
-      Number(car.garageLat) || 25.7959,
-      Number(car.garageLng) || -80.287,
-      car.garageBay || "Bay 14-B",
+      car.insurancePolicy !== undefined ? car.insurancePolicy : "",
+      car.insuranceProvider !== undefined ? car.insuranceProvider : "",
+      car.insuranceExpiry !== undefined ? car.insuranceExpiry : "",
+      car.purchaseDate || new Date().toISOString().split("T")[0],
+      Number(car.purchaseCost) || 32500,
+      Number(car.currentOdometer) || 14200,
+      car.garageName || car.location || "Operating Fleet Hub",
+      car.garageAddress || car.location || "Operating Fleet Hub",
+      Number(car.garageLat) || 17.4646,
+      Number(car.garageLng) || 78.3582,
+      car.garageBay || "Bay 1",
     )
 
   const created = await db
@@ -1376,17 +1376,17 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       car.plateNumber,
       car.location,
       Number(car.healthScore) || 95,
-      car.insurancePolicy || "POL-STF-994021",
-      car.insuranceProvider || "State Farm Comprehensive",
-      car.insuranceExpiry || "2027-04-15",
+      car.insurancePolicy !== undefined ? car.insurancePolicy : "",
+      car.insuranceProvider !== undefined ? car.insuranceProvider : "",
+      car.insuranceExpiry !== undefined ? car.insuranceExpiry : "",
       car.purchaseDate || "2024-01-10",
       Number(car.purchaseCost) || 28500,
       Number(car.currentOdometer) || 14250,
-      car.garageName || "MOTORLY Central Hub & Garage Bay 4",
-      car.garageAddress || car.location || "4200 NW 21st St, Miami, FL 33142",
-      Number(car.garageLat) || 25.7959,
-      Number(car.garageLng) || -80.287,
-      car.garageBay || "Bay 14-B",
+      car.garageName || car.location || "Operating Fleet Hub",
+      car.garageAddress || car.location || "Operating Fleet Hub",
+      Number(car.garageLat) || 17.4646,
+      Number(car.garageLng) || 78.3582,
+      car.garageBay || "Bay 1",
       carId,
     )
 
@@ -3847,17 +3847,34 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
         : null
 
     if (db.isSupabase && db.pool) {
-      if (latVal !== null && lngVal !== null) {
-        await db.pool.query(
-          "UPDATE cars SET garage_name = $1, garage_address = $1, garage_lat = $2, garage_lng = $3",
-          [hub_address, latVal, lngVal],
-        )
-      } else {
-        await db.pool.query(
-          "UPDATE cars SET garage_name = $1, garage_address = $1",
-          [hub_address],
-        )
+      try {
+        if (latVal !== null && lngVal !== null) {
+          await db.pool.query(
+            "UPDATE vehicles SET garage_name = $1, garage_address = $1, location = $1, garage_lat = $2, garage_lng = $3",
+            [hub_address, latVal, lngVal],
+          )
+        } else {
+          await db.pool.query(
+            "UPDATE vehicles SET garage_name = $1, garage_address = $1, location = $1",
+            [hub_address],
+          )
+        }
+      } catch (errVehicles) {
+        try {
+          if (latVal !== null && lngVal !== null) {
+            await db.pool.query(
+              "UPDATE cars SET garage_name = $1, garage_address = $1, location = $1, garage_lat = $2, garage_lng = $3",
+              [hub_address, latVal, lngVal],
+            )
+          } else {
+            await db.pool.query(
+              "UPDATE cars SET garage_name = $1, garage_address = $1, location = $1",
+              [hub_address],
+            )
+          }
+        } catch {}
       }
+
       await db.pool.query(
         "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
         [hub_address],
@@ -3881,17 +3898,34 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
         )
       }
     } else {
-      if (latVal !== null && lngVal !== null) {
-        await db
-          .prepare(
-            "UPDATE cars SET garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?",
-          )
-          .run(hub_address, hub_address, latVal, lngVal)
-      } else {
-        await db
-          .prepare("UPDATE cars SET garage_name = ?, garage_address = ?")
-          .run(hub_address, hub_address)
+      try {
+        if (latVal !== null && lngVal !== null) {
+          await db
+            .prepare(
+              "UPDATE vehicles SET garage_name = ?, garage_address = ?, location = ?, garage_lat = ?, garage_lng = ?",
+            )
+            .run(hub_address, hub_address, hub_address, latVal, lngVal)
+        } else {
+          await db
+            .prepare("UPDATE vehicles SET garage_name = ?, garage_address = ?, location = ?")
+            .run(hub_address, hub_address, hub_address)
+        }
+      } catch (errVehicles) {
+        try {
+          if (latVal !== null && lngVal !== null) {
+            await db
+              .prepare(
+                "UPDATE cars SET garage_name = ?, garage_address = ?, location = ?, garage_lat = ?, garage_lng = ?",
+              )
+              .run(hub_address, hub_address, hub_address, latVal, lngVal)
+          } else {
+            await db
+              .prepare("UPDATE cars SET garage_name = ?, garage_address = ?, location = ?")
+              .run(hub_address, hub_address, hub_address)
+          }
+        } catch {}
       }
+
       await db
         .prepare(
           "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",

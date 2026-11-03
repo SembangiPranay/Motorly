@@ -320,12 +320,11 @@ export default function ListingView({
         }
 
         // Fuel Type filter
-
-        if (
-          filterState.fuelTypes.length > 0 &&
-          !filterState.fuelTypes.includes(car.fuelType)
-        ) {
-          return false
+        if (filterState.fuelTypes.length > 0) {
+          const normalizedFuel = car.fuelType === "Gasoline" ? "Petrol" : car.fuelType
+          if (!filterState.fuelTypes.includes(normalizedFuel) && !filterState.fuelTypes.includes(car.fuelType)) {
+            return false
+          }
         }
 
         // Seats filter
@@ -573,7 +572,7 @@ export default function ListingView({
           Powertrain &amp; Fuel
         </h4>
         <div className="space-y-2">
-          {(["Gasoline", "Hybrid", "Electric"] as FuelType[]).map((label) => (
+          {(["Petrol", "Diesel", "Electric", "Hybrid"] as FuelType[]).map((label) => (
             <label
               key={label}
               className="flex items-center justify-between text-xs text-stone-700 cursor-pointer hover:text-black"
@@ -588,7 +587,7 @@ export default function ListingView({
                 <span className="font-semibold">{label}</span>
               </div>
               <span className="text-stone-400 font-semibold text-[11px]">
-                ({liveCars.filter((c) => c.fuelType === label).length})
+                ({liveCars.filter((c) => c.fuelType === label || (label === "Petrol" && c.fuelType === "Gasoline")).length})
               </span>
             </label>
           ))}
