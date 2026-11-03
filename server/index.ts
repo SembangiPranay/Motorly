@@ -164,6 +164,44 @@ async function reconcileDatabaseInvariants() {
     } catch (passErr: any) {
       console.warn("[DB Password Upgrade Warning]", passErr?.message)
     }
+
+    // 5. Invariant: Synchronize Stationed Hub and purge stale placeholder garage locations
+    try {
+      const activeHub = await getActiveOperatingHub()
+      if (activeHub.address && activeHub.address.length > 2 && !activeHub.address.includes("Miami")) {
+        if (db.isSupabase && db.pool) {
+          await db.pool.query(`
+            UPDATE vehicles
+            SET
+              garage_name = $1,
+              garage_address = $1,
+              location = $1
+            WHERE garage_name ILIKE '%Miami%'
+               OR garage_address ILIKE '%Miami%'
+               OR location ILIKE '%Miami%'
+               OR garage_name IS NULL
+               OR garage_name = ''
+               OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
+          `, [activeHub.address]).catch(() => {})
+        } else {
+          await db.prepare(`
+            UPDATE vehicles
+            SET
+              garage_name = ?,
+              garage_address = ?,
+              location = ?
+            WHERE garage_name LIKE '%Miami%'
+               OR garage_address LIKE '%Miami%'
+               OR location LIKE '%Miami%'
+               OR garage_name IS NULL
+               OR garage_name = ''
+               OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
+          `).run(activeHub.address, activeHub.address, activeHub.address).catch(() => {})
+        }
+      }
+    } catch (hubErr: any) {
+      console.warn("[DB Hub Sync Warning]", hubErr?.message)
+    }
   } catch (err: any) {
     console.warn("[DB Reconciliation Warning]", err?.message)
   }
@@ -303,9 +341,63 @@ app.get(["/api", "/api/health"], async (_req, res) => {
   })
 })
 
+// Helper to retrieve active operating hub from settings
+async function getActiveOperatingHub(): Promise<{ address: string; lat: number | null; lng: number | null }> {
+  try {
+    const rows: any = await db
+      .prepare(
+        "SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')",
+      )
+      .all()
+    let address = "MOTORLY Central Operations Hub"
+    let lat: number | null = null
+    let lng: number | null = null
+    const list = Array.isArray(rows) ? rows : []
+    for (const r of list) {
+      if (r.key === "hub_address" && r.value) address = String(r.value).trim()
+      if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value)
+      if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value)
+    }
+    return { address, lat, lng }
+  } catch {
+    return { address: "MOTORLY Central Operations Hub", lat: null, lng: null }
+  }
+}
+
 // Helper to format car row from SQLite
-function formatCarRow(row: any) {
+function formatCarRow(
+  row: any,
+  fallbackHub?: string,
+  fallbackLat?: number | null,
+  fallbackLng?: number | null,
+) {
   if (!row) return null
+
+  const isStaleMiami = (val?: string) =>
+    !val ||
+    val.includes("Miami") ||
+    val.includes("Central Hub & Garage Bay 4") ||
+    val.includes("4200 NW 21st St")
+
+  const cleanHub =
+    fallbackHub && fallbackHub.trim().length > 2
+      ? fallbackHub.trim()
+      : "MOTORLY Central Operations Hub"
+
+  const cleanGarageAddress = !isStaleMiami(row.garage_address)
+    ? row.garage_address
+    : !isStaleMiami(row.location)
+      ? row.location
+      : cleanHub
+
+  const cleanGarageName = !isStaleMiami(row.garage_name)
+    ? row.garage_name
+    : cleanGarageAddress
+
+  const cleanLocation = !isStaleMiami(row.location)
+    ? row.location
+    : cleanGarageAddress
+
   return {
     id: row.id,
     name: row.name,
@@ -336,9 +428,9 @@ function formatCarRow(row: any) {
     reviewsCount: Number(row.reviews_count) || 0,
     seats: Number(row.seats) || 5,
     transmission: row.transmission || "Automatic",
-    fuelType: row.fuel_type || "Gasoline",
-    mileage: row.mileage || "32 MPG",
-    luggage: row.luggage || "2 Bags",
+    fuelType: row.fuel_type || "Petrol",
+    mileage: row.mileage || "45 Liters",
+    luggage: row.luggage || "3 Bags",
     features: (() => {
       if (Array.isArray(row.features)) return row.features
       if (typeof row.features === "string") {
@@ -355,19 +447,18 @@ function formatCarRow(row: any) {
     isPopular: Boolean(row.is_popular),
     status: row.status,
     plateNumber: row.plate_number,
-    location: row.location,
+    location: cleanLocation,
     healthScore: row.health_score,
-    insurancePolicy: row.insurance_policy || "POL-STF-994021",
-    insuranceProvider: row.insurance_provider || "State Farm Comprehensive",
-    insuranceExpiry: row.insurance_expiry || "2027-04-15",
+    insurancePolicy: row.insurance_policy || "",
+    insuranceProvider: row.insurance_provider || "",
+    insuranceExpiry: row.insurance_expiry || "",
     purchaseDate: row.purchase_date || "2024-01-10",
     purchaseCost: Number(row.purchase_cost) || 28500,
     currentOdometer: Number(row.current_odometer) || 14250,
-    garageName: row.garage_name || "MOTORLY Central Hub & Garage Bay 4",
-    garageAddress:
-      row.garage_address || row.location || "4200 NW 21st St, Miami, FL 33142",
-    garageLat: Number(row.garage_lat) || 25.7959,
-    garageLng: Number(row.garage_lng) || -80.287,
+    garageName: cleanGarageName,
+    garageAddress: cleanGarageAddress,
+    garageLat: Number(row.garage_lat) || fallbackLat || 17.4586,
+    garageLng: Number(row.garage_lng) || fallbackLng || 78.3606,
     garageBay: row.garage_bay || "Bay 14-B",
   }
 }
@@ -1127,7 +1218,10 @@ app.get("/api/cars", async (req, res) => {
   query += " ORDER BY is_popular DESC, price_per_day ASC"
 
   const rows = await db.prepare(query).all(...params)
-  const cars = rows.map(formatCarRow)
+  const activeHub = await getActiveOperatingHub()
+  const cars = rows.map((r) =>
+    formatCarRow(r, activeHub.address, activeHub.lat, activeHub.lng),
+  )
 
   // Dynamically evaluate conflict/availability against requested dates with optimized single batch query
   if (pickupDate && returnDate) {
@@ -1237,7 +1331,10 @@ app.get("/api/cars/:id", async (req, res) => {
   if (!row) {
     return res.status(404).json({ error: "Vehicle not found." })
   }
-  return res.json(formatCarRow(row))
+  const activeHub = await getActiveOperatingHub()
+  return res.json(
+    formatCarRow(row, activeHub.address, activeHub.lat, activeHub.lng),
+  )
 })
 
 // POST add new vehicle
@@ -3823,6 +3920,27 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
             "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
           )
           .run(k, v)
+      }
+    }
+
+    // Auto-propagate new Stationed Hub address to fleet cars if hub_address was modified
+    const hubSetting = toUpdate.find(([k]) => k === "hub_address")
+    if (hubSetting && hubSetting[1] && hubSetting[1].trim().length > 2) {
+      const cleanHub = hubSetting[1].trim()
+      if (db.isSupabase && db.pool) {
+        await db.pool
+          .query(
+            "UPDATE vehicles SET garage_name = $1, garage_address = $1, location = $1",
+            [cleanHub],
+          )
+          .catch(() => {})
+      } else {
+        await db
+          .prepare(
+            "UPDATE vehicles SET garage_name = ?, garage_address = ?, location = ?",
+          )
+          .run(cleanHub, cleanHub, cleanHub)
+          .catch(() => {})
       }
     }
 

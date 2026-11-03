@@ -11201,23 +11201,40 @@ export default function AdminView({
                       >
                         Luggage Capacity
                       </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 3 Bags"
-                        value={carFormData.luggage ?? ""}
-                        onChange={(e) =>
-                          setCarFormData({
-                            ...carFormData,
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          placeholder="e.g. 3 Bags"
+                          value={carFormData.luggage ?? ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
 
-                            luggage: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
-                          isDark
-                            ? "bg-stone-900 border border-stone-700 text-white"
-                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
-                        }`}
-                      />
+                              luggage: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 pr-8 py-2.5 rounded-xl text-xs transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                        {carFormData.luggage ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCarFormData({
+                                ...carFormData,
+                                luggage: "",
+                              })
+                            }
+                            className="absolute right-2.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-xs px-1 cursor-pointer"
+                            title="Clear luggage input"
+                          >
+                            ✕
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
@@ -11490,23 +11507,40 @@ export default function AdminView({
                       >
                         Tank / Bunk Capacity (Liters)
                       </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 45 Liters"
-                        value={carFormData.mileage ?? ""}
-                        onChange={(e) =>
-                          setCarFormData({
-                            ...carFormData,
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          placeholder="e.g. 45 Liters"
+                          value={carFormData.mileage ?? ""}
+                          onChange={(e) =>
+                            setCarFormData({
+                              ...carFormData,
 
-                            mileage: e.target.value,
-                          })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
-                          isDark
-                            ? "bg-stone-900 border border-stone-700 text-white"
-                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
-                        }`}
-                      />
+                              mileage: e.target.value,
+                            })
+                          }
+                          className={`w-full px-3.5 pr-8 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                            isDark
+                              ? "bg-stone-900 border border-stone-700 text-white"
+                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                          }`}
+                        />
+                        {carFormData.mileage ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCarFormData({
+                                ...carFormData,
+                                mileage: "",
+                              })
+                            }
+                            className="absolute right-2.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-xs px-1 cursor-pointer"
+                            title="Clear tank capacity input"
+                          >
+                            ✕
+                          </button>
+                        ) : null}
+                      </div>
                       <p className="text-[10px] text-stone-400 mt-1 font-mono">
                         Tank volume in Liters (or battery capacity for EV)
                       </p>
@@ -11691,102 +11725,42 @@ export default function AdminView({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
-                        }`}
-                      >
-                        Purchase Date
-                      </label>
+                  <div className="pt-1 max-w-sm">
+                    <label
+                      className={`block text-xs font-bold mb-1 ${
+                        isDark ? "text-stone-300" : "text-stone-800"
+                      }`}
+                    >
+                      Current Odometer (km / mi)
+                    </label>
+                    <div className="relative flex items-center">
                       <input
-                        type="date"
-                        value={carFormData.purchaseDate ?? ""}
-                        onChange={(e) =>
+                        type="number"
+                        step="any"
+                        placeholder="14200"
+                        value={carFormData.currentOdometer ?? ""}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          const val = e.target.value
                           setCarFormData({
                             ...carFormData,
-
-                            purchaseDate: e.target.value,
+                            currentOdometer:
+                              val === "" ? ("" as any) : Number(val),
                           })
-                        }
-                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                        }}
+                        className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                           isDark
-                            ? "bg-stone-900 border border-stone-700 text-white"
-                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                            ? "bg-stone-900 border border-stone-700 text-amber-300"
+                            : "bg-white border border-stone-300 text-amber-700 focus:bg-white"
                         }`}
                       />
+                      <span className="absolute right-3.5 font-mono text-xs font-bold text-stone-400">
+                        mi
+                      </span>
                     </div>
-
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
-                        }`}
-                      >
-                        Vehicle Purchase Price (€)
-                      </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-3.5 font-bold text-stone-400 text-xs">
-                          €
-                        </span>
-                        <input
-                          type="number"
-                          step="any"
-                          placeholder="32500"
-                          value={carFormData.purchaseCost ?? ""}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setCarFormData({
-                              ...carFormData,
-                              purchaseCost:
-                                val === "" ? ("" as any) : Number(val),
-                            })
-                          }}
-                          className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                            isDark
-                              ? "bg-stone-900 border border-stone-700 text-white"
-                              : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
-                          }`}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        className={`block text-xs font-bold mb-1 ${
-                          isDark ? "text-stone-300" : "text-stone-800"
-                        }`}
-                      >
-                        Current Odometer (km / mi)
-                      </label>
-                      <div className="relative flex items-center">
-                        <input
-                          type="number"
-                          step="any"
-                          placeholder="14200"
-                          value={carFormData.currentOdometer ?? ""}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setCarFormData({
-                              ...carFormData,
-                              currentOdometer:
-                                val === "" ? ("" as any) : Number(val),
-                            })
-                          }}
-                          className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                            isDark
-                              ? "bg-stone-900 border border-stone-700 text-amber-300"
-                              : "bg-white border border-stone-300 text-amber-700 focus:bg-white"
-                          }`}
-                        />
-                        <span className="absolute right-3.5 font-mono text-xs font-bold text-stone-400">
-                          mi
-                        </span>
-                      </div>
-                    </div>
+                    <p className="text-[10px] text-stone-400 mt-1 font-mono">
+                      Initial odometer baseline used for dispatch handoff &amp; return verification.
+                    </p>
                   </div>
 
                   {/* Step 3 of 4 Navigation */}

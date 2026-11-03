@@ -883,12 +883,18 @@ export default function CarDetailView({
                   />
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-xs text-stone-900 truncate">
-                      {car.garageName || "MOTORLY Central Hub & Garage"}
+                      {car.garageName &&
+                      !car.garageName.includes("Miami") &&
+                      !car.garageName.includes("Central Hub & Garage Bay 4")
+                        ? car.garageName
+                        : car.garageAddress || "MOTORLY Central Operations Hub"}
                     </p>
                     <p className="text-[11px] text-stone-600 truncate mt-0.5">
-                      {car.garageAddress ||
-                        car.location ||
-                        "4200 NW 21st St, Miami, FL 33142"}
+                      {car.garageAddress &&
+                      !car.garageAddress.includes("Miami") &&
+                      !car.garageAddress.includes("4200 NW 21st St")
+                        ? car.garageAddress
+                        : car.location || "MOTORLY Central Operations Hub"}
                     </p>
                     {car.garageBay && (
                       <span className="inline-block mt-1 text-[10px] font-mono font-bold text-amber-800 bg-white border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs">

@@ -1250,12 +1250,18 @@ export default function CheckoutView({
 
               <div>
                 <h5 className="font-bold text-xs sm:text-sm text-stone-900">
-                  {car.garageName || "MOTORLY Central Hub & Garage"}
+                  {car.garageName &&
+                  !car.garageName.includes("Miami") &&
+                  !car.garageName.includes("Central Hub & Garage Bay 4")
+                    ? car.garageName
+                    : car.garageAddress || "MOTORLY Central Operations Hub"}
                 </h5>
                 <p className="text-[11px] text-stone-600 leading-snug mt-0.5">
-                  {car.garageAddress ||
-                    car.location ||
-                    "4200 NW 21st St, Miami, FL 33142"}
+                  {car.garageAddress &&
+                  !car.garageAddress.includes("Miami") &&
+                  !car.garageAddress.includes("4200 NW 21st St")
+                    ? car.garageAddress
+                    : car.location || "MOTORLY Central Operations Hub"}
                 </p>
               </div>
 
@@ -1265,10 +1271,9 @@ export default function CheckoutView({
                 </span>
                 <a
                   href={getGoogleMapsUrl(
-                    car.garageAddress ||
-                      car.garageName ||
-                      car.location ||
-                      "4200 NW 21st St, Miami, FL 33142",
+                    (car.garageAddress && !car.garageAddress.includes("Miami")
+                      ? car.garageAddress
+                      : car.location) || "MOTORLY Central Operations Hub",
                     undefined,
                     car.garageLat,
                     car.garageLng,

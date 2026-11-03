@@ -40252,6 +40252,39 @@ async function reconcileDatabaseInvariants() {
 		} catch (passErr) {
 			console.warn("[DB Password Upgrade Warning]", passErr?.message);
 		}
+		try {
+			const activeHub = await getActiveOperatingHub();
+			if (activeHub.address && activeHub.address.length > 2 && !activeHub.address.includes("Miami")) {
+				if (db.isSupabase && db.pool) await db.pool.query(`
+            UPDATE vehicles
+            SET
+              garage_name = $1,
+              garage_address = $1,
+              location = $1
+            WHERE garage_name ILIKE '%Miami%'
+               OR garage_address ILIKE '%Miami%'
+               OR location ILIKE '%Miami%'
+               OR garage_name IS NULL
+               OR garage_name = ''
+               OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
+          `, [activeHub.address]).catch(() => {});
+				else await db.prepare(`
+            UPDATE vehicles
+            SET
+              garage_name = ?,
+              garage_address = ?,
+              location = ?
+            WHERE garage_name LIKE '%Miami%'
+               OR garage_address LIKE '%Miami%'
+               OR location LIKE '%Miami%'
+               OR garage_name IS NULL
+               OR garage_name = ''
+               OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
+          `).run(activeHub.address, activeHub.address, activeHub.address).catch(() => {});
+			}
+		} catch (hubErr) {
+			console.warn("[DB Hub Sync Warning]", hubErr?.message);
+		}
 	} catch (err) {
 		console.warn("[DB Reconciliation Warning]", err?.message);
 	}
@@ -40330,8 +40363,38 @@ app.get(["/api", "/api/health"], async (_req, res) => {
 		timestamp: (/* @__PURE__ */ new Date()).toISOString()
 	});
 });
-function formatCarRow(row) {
+async function getActiveOperatingHub() {
+	try {
+		const rows = await db.prepare("SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')").all();
+		let address = "MOTORLY Central Operations Hub";
+		let lat = null;
+		let lng = null;
+		const list = Array.isArray(rows) ? rows : [];
+		for (const r of list) {
+			if (r.key === "hub_address" && r.value) address = String(r.value).trim();
+			if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value);
+			if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value);
+		}
+		return {
+			address,
+			lat,
+			lng
+		};
+	} catch {
+		return {
+			address: "MOTORLY Central Operations Hub",
+			lat: null,
+			lng: null
+		};
+	}
+}
+function formatCarRow(row, fallbackHub, fallbackLat, fallbackLng) {
 	if (!row) return null;
+	const isStaleMiami = (val) => !val || val.includes("Miami") || val.includes("Central Hub & Garage Bay 4") || val.includes("4200 NW 21st St");
+	const cleanHub = fallbackHub && fallbackHub.trim().length > 2 ? fallbackHub.trim() : "MOTORLY Central Operations Hub";
+	const cleanGarageAddress = !isStaleMiami(row.garage_address) ? row.garage_address : !isStaleMiami(row.location) ? row.location : cleanHub;
+	const cleanGarageName = !isStaleMiami(row.garage_name) ? row.garage_name : cleanGarageAddress;
+	const cleanLocation = !isStaleMiami(row.location) ? row.location : cleanGarageAddress;
 	return {
 		id: row.id,
 		name: row.name,
@@ -40357,9 +40420,9 @@ function formatCarRow(row) {
 		reviewsCount: Number(row.reviews_count) || 0,
 		seats: Number(row.seats) || 5,
 		transmission: row.transmission || "Automatic",
-		fuelType: row.fuel_type || "Gasoline",
-		mileage: row.mileage || "32 MPG",
-		luggage: row.luggage || "2 Bags",
+		fuelType: row.fuel_type || "Petrol",
+		mileage: row.mileage || "45 Liters",
+		luggage: row.luggage || "3 Bags",
 		features: (() => {
 			if (Array.isArray(row.features)) return row.features;
 			if (typeof row.features === "string") try {
@@ -40374,18 +40437,18 @@ function formatCarRow(row) {
 		isPopular: Boolean(row.is_popular),
 		status: row.status,
 		plateNumber: row.plate_number,
-		location: row.location,
+		location: cleanLocation,
 		healthScore: row.health_score,
-		insurancePolicy: row.insurance_policy || "POL-STF-994021",
-		insuranceProvider: row.insurance_provider || "State Farm Comprehensive",
-		insuranceExpiry: row.insurance_expiry || "2027-04-15",
+		insurancePolicy: row.insurance_policy || "",
+		insuranceProvider: row.insurance_provider || "",
+		insuranceExpiry: row.insurance_expiry || "",
 		purchaseDate: row.purchase_date || "2024-01-10",
 		purchaseCost: Number(row.purchase_cost) || 28500,
 		currentOdometer: Number(row.current_odometer) || 14250,
-		garageName: row.garage_name || "MOTORLY Central Hub & Garage Bay 4",
-		garageAddress: row.garage_address || row.location || "4200 NW 21st St, Miami, FL 33142",
-		garageLat: Number(row.garage_lat) || 25.7959,
-		garageLng: Number(row.garage_lng) || -80.287,
+		garageName: cleanGarageName,
+		garageAddress: cleanGarageAddress,
+		garageLat: Number(row.garage_lat) || fallbackLat || 17.4586,
+		garageLng: Number(row.garage_lng) || fallbackLng || 78.3606,
 		garageBay: row.garage_bay || "Bay 14-B"
 	};
 }
@@ -40855,7 +40918,9 @@ app.get("/api/cars", async (req, res) => {
 		params.push(wildcard, wildcard, wildcard);
 	}
 	query += " ORDER BY is_popular DESC, price_per_day ASC";
-	const cars = (await db.prepare(query).all(...params)).map(formatCarRow);
+	const rows = await db.prepare(query).all(...params);
+	const activeHub = await getActiveOperatingHub();
+	const cars = rows.map((r) => formatCarRow(r, activeHub.address, activeHub.lat, activeHub.lng));
 	if (pickupDate && returnDate) {
 		const range = parseDateRangeStrict(String(pickupDate), String(returnDate));
 		if (!range.valid) for (const car of cars) {
@@ -40932,7 +40997,8 @@ app.get("/api/cars", async (req, res) => {
 app.get("/api/cars/:id", async (req, res) => {
 	const row = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(req.params.id);
 	if (!row) return res.status(404).json({ error: "Vehicle not found." });
-	return res.json(formatCarRow(row));
+	const activeHub = await getActiveOperatingHub();
+	return res.json(formatCarRow(row, activeHub.address, activeHub.lat, activeHub.lng));
 });
 app.post("/api/cars", requireAdmin, async (req, res) => {
 	const car = req.body;
@@ -42241,6 +42307,12 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
 		});
 		for (const [k, v] of toUpdate) if (db.isSupabase && db.pool) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()", [k, v]);
 		else await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(k, v);
+		const hubSetting = toUpdate.find(([k]) => k === "hub_address");
+		if (hubSetting && hubSetting[1] && hubSetting[1].trim().length > 2) {
+			const cleanHub = hubSetting[1].trim();
+			if (db.isSupabase && db.pool) await db.pool.query("UPDATE vehicles SET garage_name = $1, garage_address = $1, location = $1", [cleanHub]).catch(() => {});
+			else await db.prepare("UPDATE vehicles SET garage_name = ?, garage_address = ?, location = ?").run(cleanHub, cleanHub, cleanHub).catch(() => {});
+		}
 		return res.json({
 			success: true,
 			message: "Studio settings updated successfully.",

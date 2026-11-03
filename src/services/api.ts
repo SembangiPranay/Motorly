@@ -812,7 +812,13 @@ class ApiService {
           booking: fresh,
         }
       }
-      throw new Error("Failed to complete return inspection")
+      let serverErrorMsg = "Failed to complete return inspection"
+      try {
+        const errJson = await res.json()
+        if (errJson.error) serverErrorMsg = errJson.error
+        else if (errJson.message) serverErrorMsg = errJson.message
+      } catch {}
+      throw new Error(serverErrorMsg)
     }
     return res.json()
   }
