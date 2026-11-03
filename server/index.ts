@@ -2260,19 +2260,15 @@ const handleManagerApproval = async (
   }
 
   if (booking.status === "Completed") {
-    return res
-      .status(400)
-      .json({
-        error:
-          "Cannot accept a trip that has already been returned and completed.",
-      })
+    return res.status(400).json({
+      error:
+        "Cannot accept a trip that has already been returned and completed.",
+    })
   }
   if (booking.status === "Checked Out") {
-    return res
-      .status(400)
-      .json({
-        error: "Cannot decline an active trip that is currently on the road.",
-      })
+    return res.status(400).json({
+      error: "Cannot decline an active trip that is currently on the road.",
+    })
   }
 
   if (booking.status === "Cancelled") {
@@ -2358,19 +2354,15 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
   }
 
   if (booking.status === "Completed") {
-    return res
-      .status(400)
-      .json({
-        error:
-          "Cannot decline a trip that has already been returned and completed.",
-      })
+    return res.status(400).json({
+      error:
+        "Cannot decline a trip that has already been returned and completed.",
+    })
   }
   if (booking.status === "Checked Out") {
-    return res
-      .status(400)
-      .json({
-        error: "Cannot decline an active trip that is currently on the road.",
-      })
+    return res.status(400).json({
+      error: "Cannot decline an active trip that is currently on the road.",
+    })
   }
 
   await db
@@ -3472,12 +3464,10 @@ app.post("/api/promos/validate", async (req, res) => {
   }
 
   if (!promo.is_active) {
-    return res
-      .status(200)
-      .json({
-        valid: false,
-        message: "This privilege code has been deactivated.",
-      })
+    return res.status(200).json({
+      valid: false,
+      message: "This privilege code has been deactivated.",
+    })
   }
 
   if (promo.expiry_date) {
@@ -3840,18 +3830,34 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
 
 app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
   try {
-    const { hub_address, google_maps_url } = req.body
+    const { hub_address, google_maps_url, hub_lat, hub_lng } = req.body
     if (!hub_address || typeof hub_address !== "string") {
       return res
         .status(400)
         .json({ success: false, error: "hub_address is required." })
     }
 
+    const latVal =
+      hub_lat !== undefined && hub_lat !== null && !isNaN(Number(hub_lat))
+        ? Number(hub_lat)
+        : null
+    const lngVal =
+      hub_lng !== undefined && hub_lng !== null && !isNaN(Number(hub_lng))
+        ? Number(hub_lng)
+        : null
+
     if (db.isSupabase && db.pool) {
-      await db.pool.query(
-        "UPDATE cars SET garage_name = $1, garage_address = $1",
-        [hub_address],
-      )
+      if (latVal !== null && lngVal !== null) {
+        await db.pool.query(
+          "UPDATE cars SET garage_name = $1, garage_address = $1, garage_lat = $2, garage_lng = $3",
+          [hub_address, latVal, lngVal],
+        )
+      } else {
+        await db.pool.query(
+          "UPDATE cars SET garage_name = $1, garage_address = $1",
+          [hub_address],
+        )
+      }
       await db.pool.query(
         "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
         [hub_address],
@@ -3862,10 +3868,30 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
           [google_maps_url],
         )
       }
+      if (latVal !== null) {
+        await db.pool.query(
+          "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lat', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
+          [String(latVal)],
+        )
+      }
+      if (lngVal !== null) {
+        await db.pool.query(
+          "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lng', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
+          [String(lngVal)],
+        )
+      }
     } else {
-      await db
-        .prepare("UPDATE cars SET garage_name = ?, garage_address = ?")
-        .run(hub_address, hub_address)
+      if (latVal !== null && lngVal !== null) {
+        await db
+          .prepare(
+            "UPDATE cars SET garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?",
+          )
+          .run(hub_address, hub_address, latVal, lngVal)
+      } else {
+        await db
+          .prepare("UPDATE cars SET garage_name = ?, garage_address = ?")
+          .run(hub_address, hub_address)
+      }
       await db
         .prepare(
           "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
@@ -3877,6 +3903,20 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
             "INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
           )
           .run(google_maps_url)
+      }
+      if (latVal !== null) {
+        await db
+          .prepare(
+            "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lat', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+          )
+          .run(String(latVal))
+      }
+      if (lngVal !== null) {
+        await db
+          .prepare(
+            "INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lng', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+          )
+          .run(String(lngVal))
       }
     }
 

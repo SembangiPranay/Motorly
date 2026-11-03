@@ -42244,19 +42244,31 @@ app.patch("/api/settings", requireAdmin, async (req, res) => {
 });
 app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
 	try {
-		const { hub_address, google_maps_url } = req.body;
+		const { hub_address, google_maps_url, hub_lat, hub_lng } = req.body;
 		if (!hub_address || typeof hub_address !== "string") return res.status(400).json({
 			success: false,
 			error: "hub_address is required."
 		});
+		const latVal = hub_lat !== void 0 && hub_lat !== null && !isNaN(Number(hub_lat)) ? Number(hub_lat) : null;
+		const lngVal = hub_lng !== void 0 && hub_lng !== null && !isNaN(Number(hub_lng)) ? Number(hub_lng) : null;
 		if (db.isSupabase && db.pool) {
-			await db.pool.query("UPDATE cars SET garage_name = $1, garage_address = $1", [hub_address]);
+			if (latVal !== null && lngVal !== null) await db.pool.query("UPDATE cars SET garage_name = $1, garage_address = $1, garage_lat = $2, garage_lng = $3", [
+				hub_address,
+				latVal,
+				lngVal
+			]);
+			else await db.pool.query("UPDATE cars SET garage_name = $1, garage_address = $1", [hub_address]);
 			await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()", [hub_address]);
 			if (google_maps_url !== void 0) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()", [google_maps_url]);
+			if (latVal !== null) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lat', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()", [String(latVal)]);
+			if (lngVal !== null) await db.pool.query("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lng', $1, NOW()) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()", [String(lngVal)]);
 		} else {
-			await db.prepare("UPDATE cars SET garage_name = ?, garage_address = ?").run(hub_address, hub_address);
+			if (latVal !== null && lngVal !== null) await db.prepare("UPDATE cars SET garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?").run(hub_address, hub_address, latVal, lngVal);
+			else await db.prepare("UPDATE cars SET garage_name = ?, garage_address = ?").run(hub_address, hub_address);
 			await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_address', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(hub_address);
 			if (google_maps_url !== void 0) await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES ('google_maps_url', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(google_maps_url);
+			if (latVal !== null) await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lat', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(String(latVal));
+			if (lngVal !== null) await db.prepare("INSERT INTO system_settings (key, value, updated_at) VALUES ('hub_lng', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").run(String(lngVal));
 		}
 		return res.json({
 			success: true,

@@ -960,13 +960,20 @@ class ApiService {
   async syncHubLocation(
     hub_address: string,
     google_maps_url?: string,
+    hub_lat?: number,
+    hub_lng?: number,
   ): Promise<SyncHubResponse> {
     try {
       const res = await this.request(
         "/settings/sync-hub",
         {
           method: "POST",
-          body: JSON.stringify({ hub_address, google_maps_url }),
+          body: JSON.stringify({
+            hub_address,
+            google_maps_url,
+            hub_lat,
+            hub_lng,
+          }),
         },
         "admin",
       )
