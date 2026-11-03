@@ -5143,51 +5143,96 @@ export default function AdminView({
                   : "bg-white border-stone-200/90 shadow-xs"
               }`}
             >
-              {/* Manifest Toolbar */}
+              {/* Manifest Toolbar: 2-Tier Structured Layout (No Cutoffs, All Chips Immediately Visible) */}
               <div
-                className={`p-2.5 sm:p-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4 ${
+                className={`p-3 sm:p-4 lg:p-5 border-b space-y-3 ${
                   isDark
                     ? "border-stone-800 bg-[#17191C]"
                     : "border-stone-200/80 bg-white"
                 }`}
               >
-                {/* Search Bar + Walk-In Button on Mobile */}
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                  <div className="relative flex-1 md:w-72">
+                {/* Row 1: Search Bar (Left) + View Switcher & Walk-In Button (Right) */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
+                  {/* Search Input */}
+                  <div className="relative flex-1 min-w-[220px] max-w-md">
                     <SearchIcon
                       size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"
                     />
                     <input
                       type="text"
                       value={manifestSearch}
                       onChange={(e) => setManifestSearch(e.target.value)}
-                      placeholder="Search ID, customer, phone..."
-                      className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                      placeholder="Search ID, customer, phone, car..."
+                      className={`w-full pl-9.5 pr-8 py-2 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-orange-500 ${
                         isDark
                           ? "bg-stone-900 border border-stone-700 text-white placeholder-stone-500"
                           : "bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 focus:bg-white"
                       }`}
                     />
+                    {manifestSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setManifestSearch("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 text-xs px-1 cursor-pointer"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
 
-                  {/* Direct Walk-In button visible on Mobile next to Search */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("walkin")}
-                    className={`md:hidden shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                      isDark
-                        ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs"
-                    }`}
-                  >
-                    <ZapIcon size={14} />
-                    <span>+ Walk-In</span>
-                  </button>
+                  {/* Actions: View Switcher (Cards vs Table) + Direct Walk-In CTA */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center p-1 bg-stone-100 dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800">
+                      <button
+                        type="button"
+                        onClick={() => setManifestViewMode("cards")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                          manifestViewMode === "cards"
+                            ? "bg-white dark:bg-stone-800 text-[#F97316] shadow-xs"
+                            : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
+                        }`}
+                        title="Card Grid View"
+                      >
+                        <GridIcon size={13} />
+                        <span>Cards</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setManifestViewMode("table")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                          manifestViewMode === "table"
+                            ? "bg-white dark:bg-stone-800 text-[#F97316] shadow-xs"
+                            : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
+                        }`}
+                        title="Compact Table View"
+                      >
+                        <ListIcon size={13} />
+                        <span>Table</span>
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("walkin")}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs ${
+                        isDark
+                          ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs"
+                      }`}
+                    >
+                      <ZapIcon size={14} className="text-amber-500" />
+                      <span>+ Direct Walk-In</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Status Chips with Live Dynamic Counts */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs py-0.5 w-full md:w-auto">
+                {/* Row 2: Status Filter Chips with flex-wrap - ALL visible on first load without scrolling! */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-stone-100 dark:border-stone-800/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-400 dark:text-stone-500 mr-1 hidden sm:inline">
+                    Status:
+                  </span>
                   {[
                     {
                       id: "all",
@@ -5242,13 +5287,13 @@ export default function AdminView({
                         key={s.id}
                         type="button"
                         onClick={() => setManifestStatusFilter(s.id)}
-                        className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shadow-xs ${
                           isSelected
-                            ? "bg-[#F97316] text-white shadow-md"
+                            ? "bg-[#F97316] text-white shadow-md ring-2 ring-orange-400/40"
                             : (s as any).isAmber && (s as any).count > 0
                               ? isDark
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                                : "bg-amber-50 text-amber-800 border border-amber-300"
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                                : "bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100"
                               : isDark
                                 ? "bg-stone-900 text-stone-300 hover:text-white border border-stone-800 hover:bg-stone-800/80"
                                 : "bg-white text-stone-700 hover:text-stone-950 border border-stone-200 hover:bg-stone-100/80"
@@ -5271,48 +5316,20 @@ export default function AdminView({
                       </button>
                     )
                   })}
-                </div>
 
-                {/* Right tools (Desktop) */}
-                <div className="hidden md:flex items-center gap-2 shrink-0">
-                  {/* Desktop View Switcher: Cards vs Table */}
-                  <div className="hidden lg:flex items-center p-1 bg-stone-100 dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800">
+                  {/* Quick Reset Button if filter or search is active */}
+                  {(manifestStatusFilter !== "all" || manifestSearch) && (
                     <button
                       type="button"
-                      onClick={() => setManifestViewMode("cards")}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        manifestViewMode === "cards"
-                          ? "bg-white dark:bg-stone-800 text-[#F97316] shadow-xs"
-                          : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
-                      }`}
+                      onClick={() => {
+                        setManifestStatusFilter("all")
+                        setManifestSearch("")
+                      }}
+                      className="ml-auto text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline px-2 py-1 cursor-pointer"
                     >
-                      <GridIcon size={13} />
-                      <span>Cards</span>
+                      Reset filters
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setManifestViewMode("table")}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        manifestViewMode === "table"
-                          ? "bg-white dark:bg-stone-800 text-[#F97316] shadow-xs"
-                          : "text-stone-500 hover:text-stone-900 dark:hover:text-white"
-                      }`}
-                    >
-                      <ListIcon size={13} />
-                      <span>Table</span>
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => setActiveTab("walkin")}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                      isDark
-                        ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs"
-                    }`}
-                  >
-                    <ZapIcon size={14} />+ Direct Walk-In
-                  </button>
+                  )}
                 </div>
               </div>
 
