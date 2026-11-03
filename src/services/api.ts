@@ -799,7 +799,21 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to complete return inspection")
+    if (!res.ok) {
+      if (res.status === 409) {
+        try {
+          const body = await res.json()
+          if (body.booking) return body
+        } catch {}
+        const fresh = await this.getBooking(bookingId)
+        return {
+          success: true,
+          message: "Booking already completed",
+          booking: fresh,
+        }
+      }
+      throw new Error("Failed to complete return inspection")
+    }
     return res.json()
   }
 

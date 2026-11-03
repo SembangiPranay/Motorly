@@ -22,7 +22,10 @@ import { api } from "../services/api"
 
 import GarageMapViewer from "../components/GarageMapViewer"
 
-import { downloadBookingInvoicePng } from "../utils/invoiceGenerator"
+import {
+  downloadBookingInvoicePng,
+  downloadBookingInvoicePdf,
+} from "../utils/invoiceGenerator"
 import InvoiceModal from "../components/InvoiceModal"
 
 import { getGoogleMapsUrl, openGoogleMaps } from "../utils/maps"
@@ -803,6 +806,7 @@ export default function AdminView({
   // --- Flow E: Key Handover Checklist Modal State ---
 
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
+  const [isSubmittingKeyHandoff, setIsSubmittingKeyHandoff] = useState(false)
 
   const [keyModalBooking, setKeyModalBooking] = useState<BookingRecord | null>(
     null,
@@ -850,6 +854,7 @@ export default function AdminView({
   // --- Flow G: Return Vehicle Inspection Modal State ---
 
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false)
 
   const [returnModalBooking, setReturnModalBooking] =
     useState<BookingRecord | null>(null)
@@ -1842,9 +1847,10 @@ export default function AdminView({
   const handleSubmitKeyHandoff = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!keyModalBooking) return
+    if (!keyModalBooking || isSubmittingKeyHandoff) return
 
     try {
+      setIsSubmittingKeyHandoff(true)
       const res = await api.handoverKeys(keyModalBooking.id, {
         odometerOut: Number(keyChecklist.odometerOut),
 
@@ -1878,6 +1884,8 @@ export default function AdminView({
       }
     } catch (err: any) {
       alert("Key handover failed: " + err.message)
+    } finally {
+      setIsSubmittingKeyHandoff(false)
     }
   }
 
@@ -2016,7 +2024,7 @@ export default function AdminView({
   const handleSubmitReturnInspection = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!returnModalBooking) return
+    if (!returnModalBooking || isSubmittingReturn) return
 
     if (!returnChecklist.inspectionPassed) {
       alert(
@@ -2027,6 +2035,7 @@ export default function AdminView({
     }
 
     try {
+      setIsSubmittingReturn(true)
       const res = await api.returnInspection(returnModalBooking.id, {
         odometerIn: Number(returnChecklist.odometerIn),
         fuelIn: returnChecklist.fuelLevelIn || "100%",
@@ -2063,6 +2072,8 @@ export default function AdminView({
       }
     } catch (err: any) {
       alert("Return inspection failed: " + err.message)
+    } finally {
+      setIsSubmittingReturn(false)
     }
   }
 
@@ -4672,13 +4683,7 @@ export default function AdminView({
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              downloadBookingInvoicePng(
-                                b,
-                                cars.find((c) => c.id === b.matchedCarId),
-                                studioContact,
-                              )
-                            }
+                            onClick={() => setSelectedInvoiceBooking(b)}
                             className={`p-2 rounded-xl border text-xs font-bold transition cursor-pointer shrink-0 ${
                               isDark
                                 ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
@@ -4864,19 +4869,13 @@ export default function AdminView({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    downloadBookingInvoicePng(
-                                      b,
-                                      cars.find((c) => c.id === b.matchedCarId),
-                                      studioContact,
-                                    )
-                                  }
+                                  onClick={() => setSelectedInvoiceBooking(b)}
                                   className={`p-1.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
                                     isDark
                                       ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border-stone-700"
                                       : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200 shadow-2xs"
                                   }`}
-                                  title="Download PNG invoice"
+                                  title="View and Download Invoice (PNG and PDF)"
                                 >
                                   <DownloadIcon size={13} />
                                 </button>
@@ -5116,7 +5115,7 @@ export default function AdminView({
                       b.status !== "Cancelled" &&
                       b.status !== "Completed" &&
                       b.status !== "Checked Out" &&
-                      b.status !== "Assigned"
+                      b.status !== "Returned"
 
                     return (
                       <div
@@ -5517,19 +5516,9 @@ export default function AdminView({
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
-                              onClick={() => {
-                                const matched = cars.find(
-                                  (c) => c.id === b.matchedCarId,
-                                )
-
-                                downloadBookingInvoicePng(
-                                  b,
-                                  matched,
-                                  studioContact,
-                                )
-                              }}
+                              onClick={() => setSelectedInvoiceBooking(b)}
                               className="px-2 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
-                              title="Download Trip Invoice PNG"
+                              title="View & Download Official Invoice (PNG / PDF)"
                             >
                               <DownloadIcon
                                 size={12}
@@ -5601,7 +5590,7 @@ export default function AdminView({
                           b.status !== "Cancelled" &&
                           b.status !== "Completed" &&
                           b.status !== "Checked Out" &&
-                          b.status !== "Assigned"
+                          b.status !== "Returned"
 
                         return (
                           <div
@@ -6006,19 +5995,9 @@ export default function AdminView({
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const matched = cars.find(
-                                      (c) => c.id === b.matchedCarId,
-                                    )
-
-                                    downloadBookingInvoicePng(
-                                      b,
-                                      matched,
-                                      studioContact,
-                                    )
-                                  }}
+                                  onClick={() => setSelectedInvoiceBooking(b)}
                                   className="p-1.5 px-2.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
-                                  title="Download Trip Invoice PNG"
+                                  title="View & Download Official Invoice (PNG / PDF)"
                                 >
                                   <DownloadIcon size={14} />
                                   <span>Invoice</span>
@@ -9044,11 +9023,30 @@ export default function AdminView({
                     studioContact,
                   )
                 }}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-stone-800 hover:bg-stone-900 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                 title="Download official high-resolution PNG invoice for this trip"
               >
                 <DownloadIcon size={12} className="inline mr-1" />
-                <span>Download Invoice PNG</span>
+                <span>Download PNG</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const matched = cars.find(
+                    (c) => c.id === inspectedBooking.matchedCarId,
+                  )
+
+                  downloadBookingInvoicePdf(
+                    inspectedBooking,
+                    matched,
+                    studioContact,
+                  )
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                title="Download official printable A4 PDF invoice for this trip"
+              >
+                <DownloadIcon size={12} className="inline mr-1" />
+                <span>Download PDF</span>
               </button>
               <button
                 type="button"
@@ -9120,12 +9118,12 @@ export default function AdminView({
                       <ZapIcon size={13} /> Auto-Mate Vehicle
                     </button>
                   )}
-                  {inspectedBooking.status === "Assigned" && (
+                  {inspectedBooking.status === "Assigned" && inspectedBooking.approvedByAdmin && (
                     <button
                       onClick={() => handleOpenKeyHandoff(inspectedBooking)}
                       className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer"
                     >
-                      <ZapIcon size={13} /> Handoff Keys & Start Clock
+                      <ZapIcon size={13} /> Handoff Keys &amp; Start Clock
                     </button>
                   )}
                   {inspectedBooking.status === "Checked Out" && (
@@ -9186,7 +9184,7 @@ export default function AdminView({
                 inspectedBooking.status !== "Completed" &&
                 inspectedBooking.status !== "Checked Out" &&
                 inspectedBooking.status !== "Cancelled" &&
-                inspectedBooking.status !== "Assigned" ? (
+                inspectedBooking.status !== "Returned" ? (
                 <div
                   className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition ${
                     isDark
@@ -9735,16 +9733,16 @@ export default function AdminView({
                                 title: `Driver License Front - ${inspectedBooking.customer.firstName} ${inspectedBooking.customer.lastName}`,
                               })
                             }
-                            className="relative h-28 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 cursor-zoom-in group"
+                            className="relative h-56 sm:h-64 rounded-xl overflow-hidden bg-stone-100/80 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 cursor-zoom-in group flex items-center justify-center p-2"
                             title="Click to zoom / view full resolution"
                           >
                             <img
                               src={frontSrc}
                               alt="Driver License Front"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              className="max-h-full max-w-full object-contain rounded-lg group-hover:scale-102 transition-transform drop-shadow-sm"
                             />
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                              Click to Zoom
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold rounded-xl backdrop-blur-xs">
+                              Click to Zoom High-Res
                             </div>
                           </div>
                           <div className="flex gap-1.5 pt-1">
@@ -9806,16 +9804,16 @@ export default function AdminView({
                                 title: `Driver License Back - ${inspectedBooking.customer.firstName} ${inspectedBooking.customer.lastName}`,
                               })
                             }
-                            className="relative h-28 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 cursor-zoom-in group"
+                            className="relative h-56 sm:h-64 rounded-xl overflow-hidden bg-stone-100/80 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 cursor-zoom-in group flex items-center justify-center p-2"
                             title="Click to zoom / view full resolution"
                           >
                             <img
                               src={backSrc}
                               alt="Driver License Back"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              className="max-h-full max-w-full object-contain rounded-lg group-hover:scale-102 transition-transform drop-shadow-sm"
                             />
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold">
-                              Click to Zoom
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold rounded-xl backdrop-blur-xs">
+                              Click to Zoom High-Res
                             </div>
                           </div>
                           <div className="flex gap-1.5 pt-1">
@@ -9984,6 +9982,221 @@ export default function AdminView({
                 )}
               </div>
 
+              {/* FLOW E: Embedded Key Handover & Departure Station */}
+              {inspectedBooking.status === "Assigned" && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`p-5 rounded-2xl border space-y-4 transition shadow-xs ${
+                    inspectedBooking.approvedByAdmin
+                      ? isDark
+                        ? "bg-emerald-950/20 border-emerald-500/30"
+                        : "bg-emerald-50/70 border-emerald-200"
+                      : isDark
+                        ? "bg-amber-950/20 border-amber-500/30"
+                        : "bg-amber-50/70 border-amber-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold shadow-xs ${
+                          inspectedBooking.approvedByAdmin
+                            ? "bg-emerald-600 text-white"
+                            : "bg-amber-500 text-white"
+                        }`}
+                      >
+                        <ZapIcon size={16} />
+                      </span>
+                      <div>
+                        <h4 className="font-black text-sm sm:text-base text-stone-900 dark:text-white">
+                          Key Handover &amp; Departure Checklist
+                        </h4>
+                        <p className="text-xs text-stone-500 dark:text-stone-400">
+                          {inspectedBooking.approvedByAdmin
+                            ? "Inspect vehicle odometer, certify departure fuel, and hand over keys."
+                            : "Awaiting manager clearance before physical keys can be dispatched."}
+                        </p>
+                      </div>
+                    </div>
+                    {inspectedBooking.approvedByAdmin ? (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-2xs">
+                        Clearance Granted
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleApproveBooking(inspectedBooking.id)}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <CheckIcon size={14} /> Accept Request First
+                      </button>
+                    )}
+                  </div>
+
+                  {inspectedBooking.approvedByAdmin ? (
+                    <div className="space-y-3.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                            Departure Odometer (mi / km)
+                          </label>
+                          <input
+                            type="number"
+                            value={keyChecklist.odometerOut}
+                            onChange={(e) =>
+                              setKeyChecklist({
+                                ...keyChecklist,
+                                odometerOut: Number(e.target.value),
+                              })
+                            }
+                            className={`w-full px-3 py-2 rounded-xl font-mono text-xs font-bold transition ${
+                              isDark
+                                ? "bg-stone-950 border border-stone-700 text-white"
+                                : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                            Departure Fuel / Battery Level
+                          </label>
+                          <select
+                            value={keyChecklist.fuelLevelOut}
+                            onChange={(e) =>
+                              setKeyChecklist({
+                                ...keyChecklist,
+                                fuelLevelOut: e.target.value,
+                              })
+                            }
+                            className={`w-full px-3 py-2 rounded-xl text-xs font-medium transition ${
+                              isDark
+                                ? "bg-stone-950 border border-stone-700 text-white"
+                                : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
+                            }`}
+                          >
+                            <option value="Full (100%)">Full (100%)</option>
+                            <option value="90%">90%</option>
+                            <option value="80%">80%</option>
+                            <option value="75%">75%</option>
+                            <option value="50%">50%</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                        <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer ${
+                          isDark ? "bg-stone-900/60 border-stone-800" : "bg-white border-stone-200 shadow-2xs"
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={keyChecklist.cleanlinessVerified}
+                            onChange={(e) =>
+                              setKeyChecklist({
+                                ...keyChecklist,
+                                cleanlinessVerified: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-0"
+                          />
+                          <span className="font-semibold text-stone-800 dark:text-stone-200">
+                            Interior Sanitized &amp; Vacuumed
+                          </span>
+                        </label>
+                        <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer ${
+                          isDark ? "bg-stone-900/60 border-stone-800" : "bg-white border-stone-200 shadow-2xs"
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={keyChecklist.tiresExteriorVerified}
+                            onChange={(e) =>
+                              setKeyChecklist({
+                                ...keyChecklist,
+                                tiresExteriorVerified: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-0"
+                          />
+                          <span className="font-semibold text-stone-800 dark:text-stone-200">
+                            Exterior Walkaround &amp; Tires Certified
+                          </span>
+                        </label>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                        <div className="w-full sm:w-auto flex-1 text-xs">
+                          <input
+                            type="text"
+                            placeholder="Dispatch Staff Name"
+                            value={keyChecklist.inspectorStaff}
+                            onChange={(e) =>
+                              setKeyChecklist({
+                                ...keyChecklist,
+                                inspectorStaff: e.target.value,
+                              })
+                            }
+                            className={`w-full px-3 py-2 rounded-xl text-xs transition ${
+                              isDark
+                                ? "bg-stone-950 border border-stone-700 text-white"
+                                : "bg-white border border-stone-200 text-stone-900 shadow-2xs"
+                            }`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isSubmittingKeyHandoff}
+                          onClick={async () => {
+                            if (!inspectedBooking || isSubmittingKeyHandoff) return
+                            try {
+                              setIsSubmittingKeyHandoff(true)
+                              const matched = cars.find(
+                                (c) => c.id === inspectedBooking.matchedCarId,
+                              )
+                              const res = await api.handoverKeys(inspectedBooking.id, {
+                                odometerOut: Number(keyChecklist.odometerOut) || matched?.currentOdometer || 15200,
+                                fuelOut: keyChecklist.fuelLevelOut || "Full (100%)",
+                                exteriorClean: keyChecklist.cleanlinessVerified,
+                                tiresInspected: keyChecklist.tiresExteriorVerified,
+                                staffSign: keyChecklist.inspectorStaff,
+                              })
+                              if (res.success) {
+                                setBookings((prev) =>
+                                  prev.map((b) => (b.id === inspectedBooking.id ? res.booking : b)),
+                                )
+                                setInspectedBooking(res.booking)
+                                const freshCars = await api.getCars()
+                                setCars(freshCars)
+                                notify(`Keys handed over for ${inspectedBooking.id}! Live rental timer initiated.`)
+                              }
+                            } catch (err: any) {
+                              alert("Key handoff failed: " + err.message)
+                            } finally {
+                              setIsSubmittingKeyHandoff(false)
+                            }
+                          }}
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                        >
+                          {isSubmittingKeyHandoff ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Starting Trip...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ZapIcon size={14} />
+                              <span>Confirm Key Handover &amp; Start Clock</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+                      Please click <strong>Accept Request First</strong> to grant garage clearance before dispatching keys to the client.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Itinerary */}
               <div
                 onClick={(e) => e.stopPropagation()}
@@ -10149,7 +10362,7 @@ export default function AdminView({
                         </div>
                         {Number(inspectedBooking.checklistIn.damageFee) > 0 && (
                           <span className="font-mono font-bold text-xs text-rose-600 dark:text-rose-400">
-                            Repair Surcharge: $
+                            Repair Surcharge: €
                             {Number(
                               inspectedBooking.checklistIn.damageFee,
                             ).toFixed(2)}

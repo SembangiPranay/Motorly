@@ -17,6 +17,7 @@ import {
 } from "./Icons"
 import {
   downloadBookingInvoicePng,
+  downloadBookingInvoicePdf,
   type InvoiceSettings,
 } from "../utils/invoiceGenerator"
 import { openWhatsAppDirect } from "../utils/whatsapp"
@@ -67,7 +68,15 @@ export default function InvoiceModal({
           0,
       )
     : 0
-  const baseRentalSubtotal = Math.max(0, totalAmount - extensionAmount)
+
+  // Damage details from return inspection
+  const damageFee = Number(booking.checklistIn?.damageFee) || 0
+  const hasDamage = Boolean(booking.checklistIn?.damageFound || damageFee > 0)
+  const damageSeverity = booking.checklistIn?.damageSeverity || "Damage"
+  const damageLocation = booking.checklistIn?.damageLocation || "Exterior"
+  const damageNotes = booking.checklistIn?.damageNotes || ""
+
+  const baseRentalSubtotal = Math.max(0, totalAmount - extensionAmount - damageFee)
 
   const handlePrint = () => {
     window.print()
@@ -79,6 +88,15 @@ export default function InvoiceModal({
     } catch (err) {
       console.error("Failed to generate invoice PNG", err)
       alert("Failed to generate invoice image. Please use Print / Save as PDF.")
+    }
+  }
+
+  const handleDownloadPdf = async () => {
+    try {
+      await downloadBookingInvoicePdf(booking, car, settings)
+    } catch (err) {
+      console.error("Failed to generate invoice PDF", err)
+      alert("Failed to generate invoice PDF. Please try Print / Save as PDF.")
     }
   }
 
@@ -449,6 +467,28 @@ export default function InvoiceModal({
                     </td>
                   </tr>
 
+                  {/* Vehicle Damage Assessment line item when damage is recorded */}
+                  {(damageFee > 0 || hasDamage) && (
+                    <tr className="bg-rose-50/70 border-t border-rose-200">
+                      <td className="py-2.5 px-4">
+                        <p className="font-bold text-rose-900 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
+                          Vehicle Damage Assessment &amp; Repair
+                        </p>
+                        <p className="text-[11px] text-rose-700">
+                          [{damageSeverity}] {damageLocation}
+                          {damageNotes ? ` • ${damageNotes}` : ""}
+                        </p>
+                      </td>
+                      <td className="py-2.5 px-4 text-center font-mono text-rose-800 text-xs font-semibold">
+                        Certified
+                      </td>
+                      <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-700">
+                        +€{damageFee.toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
+
                   <tr>
                     <td className="py-2.5 px-4">
                       <p className="font-semibold text-stone-800">
@@ -489,7 +529,7 @@ export default function InvoiceModal({
                       TOTAL SETTLED AMOUNT PAID:
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-black text-xl text-[#F97316]">
-                      €${totalAmount.toFixed(2)}
+                      €{totalAmount.toFixed(2)}
                     </td>
                   </tr>
                 </tfoot>
@@ -533,10 +573,20 @@ export default function InvoiceModal({
             <button
               type="button"
               onClick={handleDownloadPng}
-              className="px-3.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Download high-resolution image format"
             >
               <DownloadIcon size={14} />
-              <span>Download Invoice PNG</span>
+              <span>Download PNG</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="px-3.5 py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Download printable official A4 PDF document"
+            >
+              <DownloadIcon size={14} />
+              <span>Download PDF</span>
             </button>
             <button
               type="button"

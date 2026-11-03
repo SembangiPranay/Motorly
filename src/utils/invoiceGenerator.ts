@@ -6,6 +6,7 @@
  */
 
 import type { BookingRecord, Car } from "../types"
+import jsPDF from "jspdf"
 
 export interface InvoiceSettings {
   admin_name?: string
@@ -362,67 +363,103 @@ export async function generateBookingInvoicePng(
   ctx.textAlign = "right"
   ctx.fillText("TOTAL (EUR)", 1120, finY + 77)
 
-  // Calculations
+  // Calculations & Damage Assessment Integration
   const total = Number(booking.totalAmount) || 0
-  const baseRate = car?.pricePerDay || 45
-  const baseCharge = Number((total * 0.82).toFixed(2))
-  const taxCharge = Number((total * 0.18).toFixed(2))
+  const damageFee = Number(booking.checklistIn?.damageFee) || 0
+  const hasDamage = Boolean(booking.checklistIn?.damageFound || damageFee > 0)
+  const damageSeverity = booking.checklistIn?.damageSeverity || "Assessed"
+  const damageLocation = booking.checklistIn?.damageLocation || "Exterior"
+  const damageNotes = booking.checklistIn?.damageNotes || ""
 
-  // Row 1
+  const baseRate = car?.pricePerDay || 45
+  // Base rental and tax calculation excluding damage fee
+  const subtotalBeforeDamage = Math.max(0, total - damageFee)
+  const baseCharge = Number((subtotalBeforeDamage * 0.82).toFixed(2))
+  const taxCharge = Number((subtotalBeforeDamage * 0.18).toFixed(2))
+
+  // Row 1: Primary Vehicle Rental
   ctx.textAlign = "left"
   ctx.fillStyle = "#1C1917"
   ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText(`Primary Vehicle Rental: ${vehicleName}`, 75, finY + 120)
+  ctx.fillText(`Primary Vehicle Rental: ${vehicleName}`, 75, finY + 115)
   ctx.fillStyle = "#78716C"
   ctx.font = "500 13px system-ui, sans-serif"
   const rateSubtitle = booking.promoCode
     ? `Daily: €${baseRate}/day • Voucher: ${booking.promoCode}`
     : `Daily Rate: €${baseRate}/day`
-  ctx.fillText(rateSubtitle, 680, finY + 120)
+  ctx.fillText(rateSubtitle, 680, finY + 115)
   ctx.textAlign = "right"
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 14px monospace"
-  ctx.fillText(`€${baseCharge.toFixed(2)}`, 1120, finY + 120)
+  ctx.fillText(`€${baseCharge.toFixed(2)}`, 1120, finY + 115)
 
   // Divider
   ctx.strokeStyle = "#F5F5F4"
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(55, finY + 140)
-  ctx.lineTo(1145, finY + 140)
+  ctx.moveTo(55, finY + 132)
+  ctx.lineTo(1145, finY + 132)
   ctx.stroke()
 
-  // Row 2
+  // Row 2: Standard Taxes & Fees
   ctx.textAlign = "left"
   ctx.fillStyle = "#1C1917"
   ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText("Hub Concession & State Highway Rental Tax", 75, finY + 170)
+  ctx.fillText("Hub Concession & State Highway Rental Tax", 75, finY + 155)
   ctx.fillStyle = "#78716C"
   ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillText("18% Standard Tier Tax", 680, finY + 170)
+  ctx.fillText("18% Standard Tier Tax", 680, finY + 155)
   ctx.textAlign = "right"
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 14px monospace"
-  ctx.fillText(`€${taxCharge.toFixed(2)}`, 1120, finY + 170)
+  ctx.fillText(`€${taxCharge.toFixed(2)}`, 1120, finY + 155)
 
   // Divider
   ctx.beginPath()
-  ctx.moveTo(55, finY + 190)
-  ctx.lineTo(1145, finY + 190)
+  ctx.moveTo(55, finY + 172)
+  ctx.lineTo(1145, finY + 172)
   ctx.stroke()
 
-  // Row 3
+  // Row 3: Damage Fee (if damage was assessed during return inspection)
+  let currentY = finY + 195
+  if (damageFee > 0 || hasDamage) {
+    ctx.textAlign = "left"
+    ctx.fillStyle = "#DC2626"
+    ctx.font = "bold 14px system-ui, sans-serif"
+    ctx.fillText("Vehicle Damage Assessment & Incident Repair", 75, currentY)
+    ctx.fillStyle = "#991B1B"
+    ctx.font = "500 12px system-ui, sans-serif"
+    const damageDesc = `[${damageSeverity}] ${damageLocation}${damageNotes ? ` • ${damageNotes}` : ""}`
+    ctx.fillText(
+      damageDesc.length > 55 ? damageDesc.slice(0, 52) + "..." : damageDesc,
+      680,
+      currentY,
+    )
+    ctx.textAlign = "right"
+    ctx.fillStyle = "#DC2626"
+    ctx.font = "bold 14px monospace"
+    ctx.fillText(`+€${damageFee.toFixed(2)}`, 1120, currentY)
+
+    currentY += 17
+    ctx.beginPath()
+    ctx.moveTo(55, currentY)
+    ctx.lineTo(1145, currentY)
+    ctx.stroke()
+    currentY += 22
+  }
+
+  // Row: Security Deposit Hold
   ctx.textAlign = "left"
   ctx.fillStyle = "#1C1917"
   ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText("Security Deposit Hold (Pre-Authorization)", 75, finY + 220)
+  ctx.fillText("Security Deposit Hold (Pre-Authorization)", 75, currentY)
   ctx.fillStyle = "#059669"
   ctx.font = "bold 13px system-ui, sans-serif"
-  ctx.fillText("100% Refundable on Check-in", 680, finY + 220)
+  ctx.fillText("100% Refundable on Check-in", 680, currentY)
   ctx.textAlign = "right"
   ctx.fillStyle = "#059669"
   ctx.font = "bold 14px monospace"
-  ctx.fillText("€200.00 (Hold)", 1120, finY + 220)
+  ctx.fillText("€200.00 (Hold)", 1120, currentY)
 
   // Grand Total Box
   ctx.fillStyle = "#1C1917"
@@ -432,11 +469,19 @@ export async function generateBookingInvoicePng(
   ctx.textAlign = "left"
   ctx.fillStyle = "#A8A29E"
   ctx.font = "bold 12px monospace"
-  ctx.fillText("TOTAL RENTAL AMOUNT DUE UPON KEY HANDOFF", 85, finY + 310)
+  ctx.fillText(
+    booking.status === "Completed"
+      ? "TOTAL SETTLED AMOUNT PAID (COMPLETED & AUDITED)"
+      : "TOTAL RENTAL AMOUNT DUE UPON KEY HANDOFF",
+    85,
+    finY + 310,
+  )
   ctx.font = "500 12px system-ui, sans-serif"
   ctx.fillStyle = "#78716C"
   ctx.fillText(
-    "Payment Method: Hub Counter (Card / Cash / Contactless)",
+    damageFee > 0
+      ? `Includes base rental + €${damageFee.toFixed(2)} certified damage repair charge`
+      : "Payment Method: Hub Counter (Card / Cash / Contactless)",
     85,
     finY + 345,
   )
@@ -563,4 +608,46 @@ export async function downloadBookingInvoicePng(
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+}
+
+/**
+ * Generates an official A4 PDF document of the booking invoice
+ */
+export async function generateBookingInvoicePdf(
+  booking: BookingRecord,
+  car?: Car,
+  settings?: InvoiceSettings,
+): Promise<Blob> {
+  const pngDataUrl = await generateBookingInvoicePng(booking, car, settings)
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  })
+  const pdfWidth = pdf.internal.pageSize.getWidth()
+  const pdfHeight = pdf.internal.pageSize.getHeight()
+  // 1200 x 1650 aspect ratio
+  const imgWidth = pdfWidth
+  const imgHeight = (1650 / 1200) * pdfWidth
+  pdf.addImage(pngDataUrl, "PNG", 0, 0, imgWidth, Math.min(imgHeight, pdfHeight))
+  return pdf.output("blob")
+}
+
+/**
+ * Generates and triggers instant browser download of the trip invoice PDF
+ */
+export async function downloadBookingInvoicePdf(
+  booking: BookingRecord,
+  car?: Car,
+  settings?: InvoiceSettings,
+): Promise<void> {
+  const blob = await generateBookingInvoicePdf(booking, car, settings)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `MOTORLY_Invoice_${booking.id}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
 }

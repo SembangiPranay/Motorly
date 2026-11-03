@@ -2412,9 +2412,12 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       error: `Illegal transition: Cannot hand over keys for booking ${bookingId} with terminal status "${booking.status}".`,
     })
   }
+  // Idempotency guard: If already Checked Out, return success
   if (booking.status === "Checked Out") {
-    return res.status(409).json({
-      error: `Booking ${bookingId} has already been checked out.`,
+    return res.status(200).json({
+      success: true,
+      message: `Keys have already been handed over for booking ${bookingId}.`,
+      booking: formatBookingRow(booking),
     })
   }
 
@@ -2796,10 +2799,12 @@ app.post(
       return res.status(404).json({ error: "Booking not found." })
     }
 
-    // State Machine Guard: If already Completed, reject with 409 Conflict
+    // State Machine Guard: If already Completed, return idempotent success with formatted row
     if (booking.status === "Completed") {
-      return res.status(409).json({
-        error: `Booking ${bookingId} has already been completed and finalized.`,
+      return res.status(200).json({
+        success: true,
+        message: `Booking ${bookingId} has already been completed and finalized.`,
+        booking: formatBookingRow(booking),
       })
     }
 
@@ -2836,6 +2841,11 @@ app.post(
       ? `[DAMAGE REPORTED: ${checklistInObj.damageSeverity} - ${checklistInObj.damageLocation}] ${checklistInObj.damageNotes}`
       : inspectionNotes || "Inspection passed clean with 0 damage."
 
+    // Incorporate damage fee into the booking's total amount
+    const feeToAdd = Number(checklistInObj.damageFee) || 0
+    const currentTotal = Number(booking.total_amount) || 0
+    const newTotal = Number((currentTotal + feeToAdd).toFixed(2))
+
     // Update booking: status = Completed only after inspection passes!
     await db
       .prepare(`
@@ -2845,7 +2855,8 @@ app.post(
       odometer_in = ?,
       fuel_level_in = ?,
       inspection_notes = ?,
-      inspection_passed = 1
+      inspection_passed = 1,
+      total_amount = ?
     WHERE id = ?
   `)
       .run(
@@ -2853,6 +2864,7 @@ app.post(
         checklistInObj.odometerIn,
         checklistInObj.fuelIn,
         finalNotes,
+        newTotal,
         bookingId,
       )
 

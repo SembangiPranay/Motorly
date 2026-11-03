@@ -41503,7 +41503,11 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	if (booking.status === "Completed" || booking.status === "Cancelled") return res.status(400).json({ error: `Illegal transition: Cannot hand over keys for booking ${bookingId} with terminal status "${booking.status}".` });
-	if (booking.status === "Checked Out") return res.status(409).json({ error: `Booking ${bookingId} has already been checked out.` });
+	if (booking.status === "Checked Out") return res.status(200).json({
+		success: true,
+		message: `Keys have already been handed over for booking ${bookingId}.`,
+		booking: formatBookingRow(booking)
+	});
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
 	const checklistObj = {
 		odometerOut: Number(odometerOut) || 14250,
@@ -41676,7 +41680,11 @@ app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) =
 	const { odometerIn, fuelIn, damageFound, cleanlinessPass, inspectionPassed, staffSign, inspectionNotes, damageNotes, damageSeverity, damageLocation, damagePhotos, damageFee } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
-	if (booking.status === "Completed") return res.status(409).json({ error: `Booking ${bookingId} has already been completed and finalized.` });
+	if (booking.status === "Completed") return res.status(200).json({
+		success: true,
+		message: `Booking ${bookingId} has already been completed and finalized.`,
+		booking: formatBookingRow(booking)
+	});
 	if (booking.status !== "Checked Out") return res.status(400).json({ error: `Illegal state transition: Cannot perform return inspection on booking ${bookingId} with status "${booking.status}". Booking must be in "Checked Out" status.` });
 	const nowIso = (/* @__PURE__ */ new Date()).toISOString();
 	const isDamage = Boolean(damageFound);
@@ -41698,6 +41706,9 @@ app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) =
 		timestamp: nowIso
 	};
 	const finalNotes = isDamage ? `[DAMAGE REPORTED: ${checklistInObj.damageSeverity} - ${checklistInObj.damageLocation}] ${checklistInObj.damageNotes}` : inspectionNotes || "Inspection passed clean with 0 damage.";
+	const feeToAdd = Number(checklistInObj.damageFee) || 0;
+	const currentTotal = Number(booking.total_amount) || 0;
+	const newTotal = Number((currentTotal + feeToAdd).toFixed(2));
 	await db.prepare(`
     UPDATE bookings SET
       status = 'Completed',
@@ -41705,9 +41716,10 @@ app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) =
       odometer_in = ?,
       fuel_level_in = ?,
       inspection_notes = ?,
-      inspection_passed = 1
+      inspection_passed = 1,
+      total_amount = ?
     WHERE id = ?
-  `).run(JSON.stringify(checklistInObj), checklistInObj.odometerIn, checklistInObj.fuelIn, finalNotes, bookingId);
+  `).run(JSON.stringify(checklistInObj), checklistInObj.odometerIn, checklistInObj.fuelIn, finalNotes, newTotal, bookingId);
 	if (booking.matched_car_id) {
 		let nextCarStatus = "Available";
 		if (isDamage) nextCarStatus = "Maintenance";
