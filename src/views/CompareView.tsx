@@ -59,31 +59,7 @@ export default function CompareView({
 
   onNavigateListing,
 }: CompareViewProps) {
-  if (!cars || cars.length < 2) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold text-stone-900 font-heading">
-          {!cars || cars.length === 0
-            ? "No Vehicles in Fleet"
-            : "Select at Least 2 Vehicles"}
-        </h2>
-        <p className="text-stone-500 text-sm">
-          {!cars || cars.length === 0
-            ? "There are currently no vehicles in the fleet catalog to compare."
-            : "Vehicle comparison requires at least 2 vehicles to compare side-by-side."}
-        </p>
-        <button
-          onClick={onNavigateListing}
-          className="px-6 py-2.5 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition cursor-pointer text-sm"
-        >
-          Browse Fleet
-        </button>
-      </div>
-    )
-  }
-
   // Filter toggle: show all specs vs differences only
-
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false)
 
   // Active category filter tab
@@ -343,15 +319,19 @@ export default function CompareView({
     for (const feat of COMMON_FEATURES) {
       const hasFirst =
         Array.isArray(first?.features) &&
-        first.features.some((f) =>
-          typeof f === "string" && f.toLowerCase().includes(feat.key.toLowerCase()),
+        first.features.some(
+          (f) =>
+            typeof f === "string" &&
+            f.toLowerCase().includes(feat.key.toLowerCase()),
         )
 
       const diffFound = activeComparedCars.some((c) => {
         const hasC =
           Array.isArray(c?.features) &&
-          c.features.some((f) =>
-            typeof f === "string" && f.toLowerCase().includes(feat.key.toLowerCase()),
+          c.features.some(
+            (f) =>
+              typeof f === "string" &&
+              f.toLowerCase().includes(feat.key.toLowerCase()),
           )
 
         return hasC !== hasFirst
@@ -557,13 +537,13 @@ export default function CompareView({
                   <span className="text-emerald-700 font-black">
                     Best Value Advantage:
                   </span>{" "}
-                  {priceWinner.lowest.name} is ${priceWinner.diff}/day cheaper
+                  {priceWinner.lowest.name} is €{priceWinner.diff}/day cheaper
                   than {priceWinner.highest.name}
                 </h3>
                 <p className="text-xs text-stone-600 mt-0.5">
-                  Save {priceWinner.percent}% per rental day ($
+                  Save {priceWinner.percent}% per rental day (€
                   {priceWinner.lowest.pricePerDay}
-                  /day vs ${priceWinner.highest.pricePerDay}/day). Both vehicles
+                  /day vs €{priceWinner.highest.pricePerDay}/day). Both vehicles
                   include full commercial liability protection.
                 </p>
               </div>
@@ -574,7 +554,7 @@ export default function CompareView({
                 onClick={() => onQuickBook(priceWinner.lowest.id)}
                 className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition flex items-center justify-center gap-1.5"
               >
-                Book Best Value (${priceWinner.lowest.pricePerDay}){" "}
+                Book Best Value (€{priceWinner.lowest.pricePerDay}){" "}
                 <ArrowRightIcon size={14} />
               </button>
             </div>
@@ -610,7 +590,7 @@ export default function CompareView({
                   >
                     {activeComparedCars.map((c, i) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} (${c.pricePerDay})
+                        {c.name} (€{c.pricePerDay})
                       </option>
                     ))}
                   </select>
@@ -632,7 +612,7 @@ export default function CompareView({
                   >
                     {activeComparedCars.map((c, i) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} (${c.pricePerDay})
+                        {c.name} (€{c.pricePerDay})
                       </option>
                     ))}
                   </select>
@@ -681,23 +661,49 @@ export default function CompareView({
                     </h3>
                     <div className="flex items-baseline gap-1 mt-0.5">
                       <span className="text-base font-black text-[#F97316] font-mono">
-                        ${car.pricePerDay}
+                        €{car.pricePerDay}
                       </span>
                       <span className="text-[10px] text-stone-400">/day</span>
                       <span className="text-[10px] font-mono text-stone-500">
-                        (${car.pricePerHour}/hr)
+                        (€{car.pricePerHour}/hr)
                       </span>
                     </div>
                   </div>
 
                   {/* Action Buttons: Designed to never truncate */}
                   <div className="space-y-1">
-                    <button
-                      onClick={() => onQuickBook(car.id)}
-                      className="w-full py-1.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1"
-                    >
-                      Reserve <ArrowRightIcon size={12} />
-                    </button>
+                    {(() => {
+                      const isConflicted =
+                        car.status === "Maintenance" ||
+                        car.status === "Rented" ||
+                        car.statusForDates === "Reserved" ||
+                        car.isAvailableForDates === false ||
+                        Boolean(
+                          car.conflict &&
+                            car.conflict?.status !== "Invalid Dates",
+                        )
+
+                      return (
+                        <button
+                          disabled={isConflicted}
+                          onClick={() => {
+                            if (!isConflicted) onQuickBook(car.id)
+                          }}
+                          className={`w-full py-1.5 rounded-lg font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 ${
+                            isConflicted
+                              ? "bg-stone-200 text-stone-500 cursor-not-allowed"
+                              : "bg-[#F97316] hover:bg-orange-600 text-white cursor-pointer"
+                          }`}
+                        >
+                          {isConflicted
+                            ? car.status === "Maintenance"
+                              ? "Maintenance"
+                              : "Reserved"
+                            : "Reserve"}{" "}
+                          {!isConflicted && <ArrowRightIcon size={12} />}
+                        </button>
+                      )
+                    })()}
                     <button
                       onClick={() => onSelectCar(car.id)}
                       className="w-full py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-[11px] transition text-center"
@@ -744,7 +750,7 @@ export default function CompareView({
                               }`}
                             >
                               <div className="font-mono font-black text-sm text-stone-900">
-                                ${c.pricePerDay}.00
+                                €{c.pricePerDay}.00
                               </div>
                               {isLowest && (
                                 <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded mt-0.5">
@@ -773,7 +779,7 @@ export default function CompareView({
                             className="p-2 rounded-xl bg-stone-50 border border-stone-100"
                           >
                             <span className="font-mono font-bold text-stone-800">
-                              ${c.pricePerHour}.00/hr
+                              €{c.pricePerHour}.00/hr
                             </span>
                           </div>
                         ))}
@@ -795,7 +801,7 @@ export default function CompareView({
                             key={c.id}
                             className="p-2 rounded-xl bg-stone-50 border border-stone-100 font-mono text-stone-700"
                           >
-                            ${Math.round(c.pricePerDay * 7 * 0.9)}.00
+                            €{Math.round(c.pricePerDay * 7 * 0.9)}.00
                           </div>
                         ))}
                       </div>
@@ -814,7 +820,7 @@ export default function CompareView({
                             key={c.id}
                             className="p-2 rounded-xl bg-emerald-50/60 border border-emerald-100 text-[11px] text-emerald-800 font-semibold"
                           >
-                            Included ($0 Liability)
+                            Included (€0 Liability)
                           </div>
                         ))}
                       </div>
@@ -1048,15 +1054,19 @@ export default function CompareView({
                     const car2 = mobileCars[1]
                     const has1 = Boolean(
                       Array.isArray(car1?.features) &&
-                        car1.features.some((f) =>
-                          typeof f === "string" && f.toLowerCase().includes(feature.key.toLowerCase()),
+                        car1.features.some(
+                          (f) =>
+                            typeof f === "string" &&
+                            f.toLowerCase().includes(feature.key.toLowerCase()),
                         ),
                     )
 
                     const has2 = Boolean(
                       Array.isArray(car2?.features) &&
-                        car2.features.some((f) =>
-                          typeof f === "string" && f.toLowerCase().includes(feature.key.toLowerCase()),
+                        car2.features.some(
+                          (f) =>
+                            typeof f === "string" &&
+                            f.toLowerCase().includes(feature.key.toLowerCase()),
                         ),
                     )
 
@@ -1201,25 +1211,53 @@ export default function CompareView({
                             </h3>
                             <div className="flex items-baseline gap-1 mt-0.5">
                               <span className="text-2xl font-black text-[#F97316] font-mono">
-                                ${car.pricePerDay}
+                                €{car.pricePerDay}
                               </span>
                               <span className="text-xs font-medium text-stone-400">
                                 /day
                               </span>
                               <span className="text-xs font-mono text-stone-500 ml-2">
-                                (${car.pricePerHour}/hr)
+                                (€{car.pricePerHour}/hr)
                               </span>
                             </div>
                           </div>
 
                           {/* Action CTAs */}
                           <div className="space-y-1.5 pt-1">
-                            <button
-                              onClick={() => onQuickBook(car.id)}
-                              className="w-full py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5"
-                            >
-                              Reserve This Car <ArrowRightIcon size={14} />
-                            </button>
+                            {(() => {
+                              const isConflicted =
+                                car.status === "Maintenance" ||
+                                car.status === "Rented" ||
+                                car.statusForDates === "Reserved" ||
+                                car.isAvailableForDates === false ||
+                                Boolean(
+                                  car.conflict &&
+                                    car.conflict?.status !== "Invalid Dates",
+                                )
+
+                              return (
+                                <button
+                                  disabled={isConflicted}
+                                  onClick={() => {
+                                    if (!isConflicted) onQuickBook(car.id)
+                                  }}
+                                  className={`w-full py-2.5 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 ${
+                                    isConflicted
+                                      ? "bg-stone-200 text-stone-500 cursor-not-allowed"
+                                      : "bg-[#F97316] hover:bg-orange-600 text-white cursor-pointer"
+                                  }`}
+                                >
+                                  {isConflicted
+                                    ? car.status === "Maintenance"
+                                      ? "Maintenance"
+                                      : "Reserved for Dates"
+                                    : "Reserve This Car"}{" "}
+                                  {!isConflicted && (
+                                    <ArrowRightIcon size={14} />
+                                  )}
+                                </button>
+                              )
+                            })()}
                             <button
                               onClick={() => onSelectCar(car.id)}
                               className="w-full py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs transition"
@@ -1295,7 +1333,7 @@ export default function CompareView({
                                   : "text-stone-900"
                               }`}
                             >
-                              ${c.pricePerDay}.00
+                              €{c.pricePerDay}.00
                               {isLowest && (
                                 <span className="ml-2 text-[10px] font-sans font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
                                   Lowest
@@ -1323,7 +1361,7 @@ export default function CompareView({
                             key={c.id}
                             className="px-5 py-3 border-l border-stone-100 font-mono font-bold text-stone-700"
                           >
-                            ${c.pricePerHour}.00 / hr
+                            €{c.pricePerHour}.00 / hr
                           </td>
                         ))}
                         {activeComparedCars.length < 4 && (
@@ -1345,7 +1383,7 @@ export default function CompareView({
                             key={c.id}
                             className="px-5 py-3 border-l border-stone-100 font-mono text-stone-700"
                           >
-                            ${Math.round(c.pricePerDay * 7 * 0.9)}.00
+                            €{Math.round(c.pricePerDay * 7 * 0.9)}.00
                           </td>
                         ))}
                         {activeComparedCars.length < 4 && (
@@ -1363,7 +1401,7 @@ export default function CompareView({
                             key={c.id}
                             className="px-5 py-3 border-l border-stone-100 text-emerald-700 font-semibold"
                           >
-                            ✓ Included ($0 Liability)
+                            ✓ Included (€0 Liability)
                           </td>
                         ))}
                         {activeComparedCars.length < 4 && (
@@ -1609,19 +1647,19 @@ export default function CompareView({
                       const hasFeatureList = activeComparedCars.map((c) =>
                         Boolean(
                           Array.isArray(c?.features) &&
-                            c.features.some((f) =>
-                              typeof f === "string" && f.toLowerCase().includes(
-                                feature.key.toLowerCase(),
-                              ),
+                            c.features.some(
+                              (f) =>
+                                typeof f === "string" &&
+                                f
+                                  .toLowerCase()
+                                  .includes(feature.key.toLowerCase()),
                             ),
                         ),
                       )
 
                       const isIdentical =
                         hasFeatureList.length > 0 &&
-                        hasFeatureList.every(
-                          (val) => val === hasFeatureList[0],
-                        )
+                        hasFeatureList.every((val) => val === hasFeatureList[0])
 
                       if (showOnlyDifferences && isIdentical) return null
 
@@ -1633,10 +1671,12 @@ export default function CompareView({
                           {activeComparedCars.map((c) => {
                             const hasFeature =
                               Array.isArray(c?.features) &&
-                              c.features.some((f) =>
-                                typeof f === "string" && f.toLowerCase().includes(
-                                  feature.key.toLowerCase(),
-                                ),
+                              c.features.some(
+                                (f) =>
+                                  typeof f === "string" &&
+                                  f
+                                    .toLowerCase()
+                                    .includes(feature.key.toLowerCase()),
                               )
 
                             return (
@@ -1770,7 +1810,7 @@ export default function CompareView({
                       </div>
                       <div className="text-[11px] text-stone-500 flex items-center gap-2 mt-0.5">
                         <span className="font-mono font-bold text-stone-700">
-                          ${c.pricePerDay}/day
+                          €{c.pricePerDay}/day
                         </span>
                         <span>·</span>
                         <span>{c.mileage}</span>

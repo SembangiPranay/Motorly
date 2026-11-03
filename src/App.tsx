@@ -181,6 +181,20 @@ export default function App() {
           setBookingState((prev) => ({ ...prev, carId: carFromParam }))
         }
 
+        const viewFromParam = params.get("view") as ViewMode | null
+        const validViews: ViewMode[] = [
+          "home",
+          "listing",
+          "detail",
+          "checkout",
+          "admin",
+          "my-bookings",
+          "compare",
+          "auth",
+          "about",
+          "contact",
+        ]
+
         if (
           pathname === "/admin" ||
           pathname.startsWith("/admin/") ||
@@ -193,8 +207,8 @@ export default function App() {
           setTargetBookingId(bId)
 
           setCurrentView("admin")
-        } else if (params.get("view") === "admin") {
-          setCurrentView("admin")
+        } else if (viewFromParam && validViews.includes(viewFromParam)) {
+          setCurrentView(viewFromParam)
         }
       }
     } catch {}
@@ -216,7 +230,7 @@ export default function App() {
 
       const params = new URLSearchParams(window.location.search)
 
-      const v = (params.get("view") as ViewMode) || "home"
+      const v = params.get("view") as ViewMode || "home"
       const carFromUrl = params.get("car") || params.get("carId")
       if (carFromUrl) {
         setSelectedCarId(carFromUrl)
@@ -373,7 +387,12 @@ export default function App() {
         const hasAdmin = api.hasAdminToken()
 
         const [remoteCars, remoteBookings] = await Promise.all([
-          api.getCars().catch(() => null),
+          api
+            .getCars({
+              pickupDate: bookingState.pickupDate,
+              returnDate: bookingState.returnDate,
+            })
+            .catch(() => null),
 
           hasAdmin
             ? api.getBookings().catch(() => null)
@@ -418,6 +437,28 @@ export default function App() {
     initData()
   }, [])
 
+  // Live Double-Booking Guard: Re-evaluate fleet availability whenever selected dates change
+  useEffect(() => {
+    if (!bookingState.pickupDate || !bookingState.returnDate) return
+    let isCancelled = false
+
+    api
+      .getCars({
+        pickupDate: bookingState.pickupDate,
+        returnDate: bookingState.returnDate,
+      })
+      .then((freshCars) => {
+        if (!isCancelled && Array.isArray(freshCars) && freshCars.length > 0) {
+          setCars(freshCars)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      isCancelled = true
+    }
+  }, [bookingState.pickupDate, bookingState.returnDate])
+
   // Handle 401 Unauthorized globally for admin and customer sessions
 
   useEffect(() => {
@@ -427,14 +468,6 @@ export default function App() {
       localStorage.removeItem("motorly_admin_token")
 
       localStorage.removeItem("motorly_admin_user")
-
-      if (currentView === "admin") {
-        setAuthInitialTab("admin")
-
-        setAuthReturnView("admin")
-
-        setCurrentView("auth")
-      }
     }
 
     const handleCustomerUnauthorized = () => {
@@ -739,7 +772,12 @@ export default function App() {
         ...prev.filter((b) => b.id !== created.id),
       ])
 
-      const freshCars = await api.getCars().catch(() => null)
+      const freshCars = await api
+        .getCars({
+          pickupDate: bookingState.pickupDate,
+          returnDate: bookingState.returnDate,
+        })
+        .catch(() => null)
 
       if (freshCars) setCars(freshCars)
 
@@ -982,9 +1020,7 @@ export default function App() {
       )}
 
       {/* WhatsApp Direct Concierge FAB (Only visible on customer storefront views) */}
-      {currentView !== "admin" && (
-        <WhatsAppSupportFAB activeCar={activeCar} />
-      )}
+      {currentView !== "admin" && <WhatsAppSupportFAB activeCar={activeCar} />}
 
       {/* Booking Confirmation Modal */}
       {confirmedBooking && (

@@ -323,7 +323,7 @@ export default function HomeView({
 
       label: "Economy",
 
-      price: "From $35/day",
+      price: "From €35/day",
 
       image:
         "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
@@ -336,7 +336,7 @@ export default function HomeView({
 
       label: "Sedan",
 
-      price: "From $45/day",
+      price: "From €45/day",
 
       image:
         "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=800&q=80",
@@ -349,7 +349,7 @@ export default function HomeView({
 
       label: "SUV",
 
-      price: "From $65/day",
+      price: "From €65/day",
 
       image:
         "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=800&q=80",
@@ -363,7 +363,7 @@ export default function HomeView({
 
       label: "Luxury",
 
-      price: "From $120/day",
+      price: "From €120/day",
 
       image:
         "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80",
@@ -504,11 +504,11 @@ export default function HomeView({
                   <div className="pt-1.5 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500 font-medium">
                     <span>
                       {selectedDuration === "Hourly" &&
-                        "City sprint: Same-day return, zero fuel penalty, from $12/hr."}
+                        "City sprint: Same-day return, zero fuel penalty, from €12/hr."}
                       {selectedDuration === "Daily" &&
-                        "Standard rental: 250 mi/day included, exact car handoff, from $45/day."}
+                        "Standard rental: 250 mi/day included, exact car handoff, from €45/day."}
                       {selectedDuration === "Weekly" &&
-                        "Week vacation: 15% discount applied, unlimited mileage, from $270/wk."}
+                        "Week vacation: 15% discount applied, unlimited mileage, from €270/wk."}
                       {selectedDuration === "Monthly" &&
                         "Executive flex: Save up to 35%, free monthly swap, zero lease lock-in."}
                     </span>
@@ -778,103 +778,142 @@ export default function HomeView({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredCars.map((car) => (
-              <div
-                key={car.id}
-                className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between group"
-              >
-                {/* Image & Badges */}
+            {featuredCars.map((car) => {
+              const isConflicted =
+                car.status === "Maintenance" ||
+                car.status === "Rented" ||
+                car.statusForDates === "Reserved" ||
+                car.isAvailableForDates === false ||
+                Boolean(
+                  car.conflict && car.conflict?.status !== "Invalid Dates",
+                )
+
+              return (
                 <div
-                  className="relative h-48 bg-gray-50 overflow-hidden cursor-pointer"
-                  onClick={() => onSelectCar(car.id)}
+                  key={car.id}
+                  className="bg-white rounded-3xl border border-[#E5E7EB] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1.5 flex flex-col justify-between group"
                 >
-                  <img
-                    src={car.image}
-                    alt={car.name}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null
+                  {/* Image & Badges */}
+                  <div
+                    className="relative h-48 bg-gray-50 overflow-hidden cursor-pointer"
+                    onClick={() => onSelectCar(car.id)}
+                  >
+                    <img
+                      src={car.image}
+                      alt={car.name}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null
 
-                      e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
-                    }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                    <span className="bg-[#17191C]/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                      {car.type}
-                    </span>
-                    {car.status === "Rented" && (
-                      <span className="bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-lg shadow-xs">
-                        Rented
+                        e.currentTarget.src = DEFAULT_FALLBACK_IMAGE
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      <span className="bg-[#17191C]/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                        {car.type}
                       </span>
-                    )}
-                  </div>
-                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
-                    <StarIcon size={12} filled className="text-amber-500" />
-                    <span className="text-[11px] font-bold text-gray-800">
-                      {car.rating}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Car Info */}
-                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                  <div>
-                    <h3
-                      onClick={() => onSelectCar(car.id)}
-                      className="text-lg font-bold text-[#17191C] font-heading hover:text-[#F97316] transition-colors cursor-pointer"
-                    >
-                      {car.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                      <span>{car.transmission}</span>
-                      <span>•</span>
-                      <span>{car.fuelType}</span>
-                      <span>•</span>
-                      <span>{car.seats} Seats</span>
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-xl font-black text-[#17191C] font-heading">
-                        ${car.pricePerDay}
-                      </span>
-                      <span className="text-[11px] text-gray-400"> /day</span>
-                    </div>
-
-                    {/* 1-Click Fast Actions */}
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => onSelectCar(car.id)}
-                        className="px-3 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold transition-colors"
-                        title="Inspect Specifications"
-                      >
-                        Details
-                      </button>
-                      <button
-                        disabled={car.status === "Rented"}
-                        onClick={() => {
-                          if (car.status !== "Rented") {
-                            if (onQuickBook) onQuickBook(car.id)
-                            else onSelectCar(car.id)
-                          }
-                        }}
-                        className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1 group/btn ${
-                          car.status === "Rented"
-                            ? "bg-stone-200 text-stone-500 cursor-not-allowed"
-                            : "bg-[#F97316] hover:bg-[#EA580C] text-white"
-                        }`}
-                      >
-                        <ZapIcon size={13} />
-                        <span>
-                          {car.status === "Rented" ? "Rented" : "Book"}
+                      {isConflicted && (
+                        <span className="bg-amber-600/95 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          {car.status === "Maintenance"
+                            ? "Maintenance"
+                            : car.conflict || car.statusForDates === "Reserved"
+                              ? "Reserved for Dates"
+                              : "Rented"}
                         </span>
-                      </button>
+                      )}
+                    </div>
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
+                      <StarIcon size={12} filled className="text-amber-500" />
+                      <span className="text-[11px] font-bold text-gray-800">
+                        {car.rating}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Car Info */}
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div>
+                      <h3
+                        onClick={() => onSelectCar(car.id)}
+                        className="text-lg font-bold text-[#17191C] font-heading hover:text-[#F97316] transition-colors cursor-pointer"
+                      >
+                        {car.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                        <span>{car.transmission}</span>
+                        <span>•</span>
+                        <span>{car.fuelType}</span>
+                        <span>•</span>
+                        <span>{car.seats} Seats</span>
+                      </p>
+
+                      {isConflicted && (
+                        <div className="mt-2.5 p-2 rounded-xl bg-amber-50 border border-amber-200/90 text-[11px] font-bold text-amber-900 flex items-center gap-1.5 shadow-2xs">
+                          <CalendarIcon
+                            size={13}
+                            className="text-amber-600 shrink-0"
+                          />
+                          <span className="truncate">
+                            {car.status === "Maintenance"
+                              ? "Under garage maintenance"
+                              : `Reserved for ${bookingState.pickupDate || "selected dates"}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-xl font-black text-[#17191C] font-heading">
+                          €{car.pricePerDay}
+                        </span>
+                        <span className="text-[11px] text-gray-400"> /day</span>
+                      </div>
+
+                      {/* 1-Click Fast Actions */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onSelectCar(car.id)}
+                          className="px-3 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold transition-colors"
+                          title="Inspect Specifications"
+                        >
+                          Details
+                        </button>
+                        <button
+                          disabled={isConflicted}
+                          onClick={() => {
+                            if (!isConflicted) {
+                              if (onQuickBook) onQuickBook(car.id)
+                              else onSelectCar(car.id)
+                            }
+                          }}
+                          className={`px-3.5 py-2 text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1 group/btn ${
+                            isConflicted
+                              ? "bg-stone-200 text-stone-500 cursor-not-allowed shadow-none"
+                              : "bg-[#F97316] hover:bg-[#EA580C] text-white cursor-pointer"
+                          }`}
+                          title={
+                            isConflicted
+                              ? "Vehicle already reserved for these dates. Click Details to select alternative dates."
+                              : "Instant Book"
+                          }
+                        >
+                          <ZapIcon size={13} />
+                          <span>
+                            {isConflicted
+                              ? car.status === "Maintenance"
+                                ? "Maintenance"
+                                : "Reserved"
+                              : "Book"}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

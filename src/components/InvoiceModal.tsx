@@ -15,7 +15,10 @@ import {
   SparklesIcon,
   TagIcon,
 } from "./Icons"
-import { downloadBookingInvoicePng, type InvoiceSettings } from "../utils/invoiceGenerator"
+import {
+  downloadBookingInvoicePng,
+  type InvoiceSettings,
+} from "../utils/invoiceGenerator"
 import { openWhatsAppDirect } from "../utils/whatsapp"
 
 interface InvoiceModalProps {
@@ -80,14 +83,16 @@ export default function InvoiceModal({
   }
 
   const handleSendWhatsApp = () => {
-    const text = `*MOTORLY ATELIER - OFFICIAL TRIP INVOICE*\nInvoice #${booking.id}\nClient: ${customerName}\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nDuration: ${booking.pickupDate} to ${booking.returnDate}\nTotal Settled: $${totalAmount.toFixed(2)}\nStatus: PAID & AUDITED\n\nThank you for choosing Motorly Atelier!`
+    const text = `*MOTORLY ATELIER - OFFICIAL TRIP INVOICE*\nInvoice #${booking.id}\nClient: ${customerName}\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nDuration: ${booking.pickupDate} to ${booking.returnDate}\nTotal Settled: €${totalAmount.toFixed(2)}\nStatus: PAID & AUDITED\n\nThank you for choosing Motorly Atelier!`
     openWhatsAppDirect(booking.customer.phone, text)
   }
 
   const handleSendEmail = () => {
-    const subject = encodeURIComponent(`MOTORLY Atelier - Trip Invoice #${booking.id}`)
+    const subject = encodeURIComponent(
+      `MOTORLY Atelier - Trip Invoice #${booking.id}`,
+    )
     const body = encodeURIComponent(
-      `Hello ${customerName},\n\nPlease find your official trip receipt and completed rental invoice for reservation #${booking.id}.\n\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nRental Period: ${booking.pickupDate} to ${booking.returnDate}\nTotal Amount Paid: $${totalAmount.toFixed(2)}\nReturn Status: Inspected & Settled\n\nThank you for driving with MOTORLY Atelier.\n\nBest regards,\n${adminName}\nMotorly Fleet Management`,
+      `Hello ${customerName},\n\nPlease find your official trip receipt and completed rental invoice for reservation #${booking.id}.\n\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nRental Period: ${booking.pickupDate} to ${booking.returnDate}\nTotal Amount Paid: €${totalAmount.toFixed(2)}\nReturn Status: Inspected & Settled\n\nThank you for driving with MOTORLY Atelier.\n\nBest regards,\n${adminName}\nMotorly Fleet Management`,
     )
     window.location.href = `mailto:${booking.customer.email}?subject=${subject}&body=${body}`
   }
@@ -180,7 +185,9 @@ export default function InvoiceModal({
                   <LocationIcon size={12} className="text-[#F97316] shrink-0" />
                   <span>{hubAddress}</span>
                 </p>
-                <p>Tel: {contactPhone} • Email: {contactEmail}</p>
+                <p>
+                  Tel: {contactPhone} • Email: {contactEmail}
+                </p>
                 <p className="text-[10px] font-mono text-stone-400">
                   Tax / Commercial Registry: US-FL-MTR-99401-EX
                 </p>
@@ -193,22 +200,28 @@ export default function InvoiceModal({
               </span>
               <div className="font-mono text-xs text-stone-500 space-y-0.5">
                 <p>
-                  <strong className="text-stone-800">Invoice:</strong> INV-{booking.id}
+                  <strong className="text-stone-800">Invoice:</strong> INV-
+                  {booking.id}
                 </p>
                 <p>
-                  <strong className="text-stone-800">Booking Ref:</strong> {booking.id}
+                  <strong className="text-stone-800">Booking Ref:</strong>{" "}
+                  {booking.id}
                 </p>
                 <p>
                   <strong className="text-stone-800">Date Issued:</strong>{" "}
-                  {new Date(booking.createdAt || Date.now()).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {new Date(booking.createdAt || Date.now()).toLocaleDateString(
+                    "en-US",
+                    {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    },
+                  )}
                 </p>
                 <p>
                   <strong className="text-stone-800">Type:</strong>{" "}
-                  {booking.notes?.includes("WALK-IN") || booking.notes?.includes("Walk-In")
+                  {booking.notes?.includes("WALK-IN") ||
+                  booking.notes?.includes("Walk-In")
                     ? "Counter Walk-In Dispatch"
                     : "Direct Web Reservation"}
                 </p>
@@ -223,9 +236,7 @@ export default function InvoiceModal({
               <span className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-wider block">
                 Billed To (Client &amp; Verified Driver)
               </span>
-              <p className="font-bold text-stone-900 text-sm">
-                {customerName}
-              </p>
+              <p className="font-bold text-stone-900 text-sm">{customerName}</p>
               <p className="text-stone-600 font-mono">
                 Phone: {booking.customer.phone || "On File"}
               </p>
@@ -247,7 +258,8 @@ export default function InvoiceModal({
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-stone-900 text-sm">
-                  {car?.brand || "Fleet"} {car?.model || "Vehicle"} ({car?.year || 2024})
+                  {car?.brand || "Fleet"} {car?.model || "Vehicle"} (
+                  {car?.year || 2024})
                 </span>
                 <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-stone-200 text-stone-800">
                   {car?.type || "Sedan"}
@@ -257,7 +269,8 @@ export default function InvoiceModal({
                 Plate: {car?.plateNumber || "FL-908-MTR"}
               </p>
               <p className="text-stone-600">
-                Handoff Hub: {car?.garageName || "Main Garage Facility"} ({car?.garageBay || "Bay 5-C"})
+                Handoff Hub: {car?.garageName || "Main Garage Facility"} (
+                {car?.garageBay || "Bay 5-C"})
               </p>
               <p className="text-stone-500 text-[11px] pt-1 border-t border-stone-200/60">
                 Policy Coverage: {car?.insurancePolicy || "POL-STF-994021"}
@@ -284,7 +297,9 @@ export default function InvoiceModal({
                 </p>
                 <p className="font-bold text-stone-900">{booking.pickupDate}</p>
                 <p className="text-[11px] text-stone-500 font-mono">
-                  Odometer Out: {booking.odometerOut ?? car?.currentOdometer ?? 14250} mi • Fuel: {booking.fuelLevelOut ?? "Full (100%)"}
+                  Odometer Out:{" "}
+                  {booking.odometerOut ?? car?.currentOdometer ?? 14250} mi •
+                  Fuel: {booking.fuelLevelOut ?? "Full (100%)"}
                 </p>
               </div>
 
@@ -294,7 +309,9 @@ export default function InvoiceModal({
                 </p>
                 <p className="font-bold text-stone-900">{booking.returnDate}</p>
                 <p className="text-[11px] text-stone-500 font-mono">
-                  Odometer In: {booking.odometerIn ?? ((car?.currentOdometer ?? 14250) + 380)} mi • Fuel: {booking.fuelLevelIn ?? "Full (100%)"}
+                  Odometer In:{" "}
+                  {booking.odometerIn ?? (car?.currentOdometer ?? 14250) + 380}{" "}
+                  mi • Fuel: {booking.fuelLevelIn ?? "Full (100%)"}
                 </p>
               </div>
             </div>
@@ -303,10 +320,12 @@ export default function InvoiceModal({
               <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-bold">
                   <CheckIcon size={14} className="text-emerald-600 shrink-0" />
-                  Trip Extension Approved (+{booking.extensionQuote?.durationValue ?? 1} {booking.extensionQuote?.durationUnit ?? "days"})
+                  Trip Extension Approved (+
+                  {booking.extensionQuote?.durationValue ?? 1}{" "}
+                  {booking.extensionQuote?.durationUnit ?? "days"})
                 </span>
                 <span className="font-mono font-bold text-emerald-700">
-                  +${extensionAmount.toFixed(2)} added
+                  +€${extensionAmount.toFixed(2)} added
                 </span>
               </div>
             )}
@@ -316,15 +335,20 @@ export default function InvoiceModal({
                 <div className="space-y-0.5">
                   <span className="flex items-center gap-1.5 font-bold text-rose-700">
                     <span className="w-2 h-2 rounded-full bg-rose-500" />
-                    Return Damage Incident: {booking.checklistIn.damageSeverity || "Documented"} ({booking.checklistIn.damageLocation || "Exterior"})
+                    Return Damage Incident:{" "}
+                    {booking.checklistIn.damageSeverity || "Documented"} (
+                    {booking.checklistIn.damageLocation || "Exterior"})
                   </span>
                   {booking.checklistIn.damageNotes && (
-                    <p className="text-[11px] text-rose-600 font-medium">{booking.checklistIn.damageNotes}</p>
+                    <p className="text-[11px] text-rose-600 font-medium">
+                      {booking.checklistIn.damageNotes}
+                    </p>
                   )}
                 </div>
                 {Number(booking.checklistIn.damageFee) > 0 && (
                   <span className="font-mono font-bold text-rose-700">
-                    +${Number(booking.checklistIn.damageFee).toFixed(2)} assessment
+                    +€${Number(booking.checklistIn.damageFee).toFixed(2)}{" "}
+                    assessment
                   </span>
                 )}
               </div>
@@ -341,7 +365,9 @@ export default function InvoiceModal({
                 <thead className="bg-stone-100 text-stone-700 font-mono uppercase text-[10px]">
                   <tr>
                     <th className="py-2.5 px-4 font-bold">Description</th>
-                    <th className="py-2.5 px-4 font-bold text-center">Unit Rate</th>
+                    <th className="py-2.5 px-4 font-bold text-center">
+                      Unit Rate
+                    </th>
                     <th className="py-2.5 px-4 font-bold text-right">Amount</th>
                   </tr>
                 </thead>
@@ -352,14 +378,15 @@ export default function InvoiceModal({
                         Primary Vehicle Rental Reservation
                       </p>
                       <p className="text-[11px] text-stone-500">
-                        {car?.brand || "Fleet"} {car?.model || "Car"} • Initial booked duration
+                        {car?.brand || "Fleet"} {car?.model || "Car"} • Initial
+                        booked duration
                       </p>
                     </td>
                     <td className="py-3 px-4 text-center font-mono text-stone-600">
-                      ${dailyRate}/day
+                      €${dailyRate}/day
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-stone-900">
-                      ${baseRentalSubtotal.toFixed(2)}
+                      €${baseRentalSubtotal.toFixed(2)}
                     </td>
                   </tr>
 
@@ -368,7 +395,9 @@ export default function InvoiceModal({
                       <td className="py-3 px-4">
                         <p className="font-bold text-emerald-950 flex items-center gap-1.5">
                           <CheckIcon size={12} className="text-emerald-600" />
-                          Manager-Quoted Extension (+{booking.extensionQuote?.durationValue ?? 1} {booking.extensionQuote?.durationUnit ?? "days"})
+                          Manager-Quoted Extension (+
+                          {booking.extensionQuote?.durationValue ?? 1}{" "}
+                          {booking.extensionQuote?.durationUnit ?? "days"})
                         </p>
                         <p className="text-[11px] text-emerald-700">
                           Authorized extension to {booking.returnDate}
@@ -378,7 +407,7 @@ export default function InvoiceModal({
                         Flat Quote
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-emerald-800">
-                        +${extensionAmount.toFixed(2)}
+                        +€${extensionAmount.toFixed(2)}
                       </td>
                     </tr>
                   )}
@@ -416,7 +445,7 @@ export default function InvoiceModal({
                       Standard
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono text-stone-600">
-                      $0.00 (Included)
+                      €0.00 (Included)
                     </td>
                   </tr>
 
@@ -430,7 +459,7 @@ export default function InvoiceModal({
                       Comp
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono text-stone-600">
-                      $0.00
+                      €0.00
                     </td>
                   </tr>
 
@@ -444,20 +473,23 @@ export default function InvoiceModal({
                       </p>
                     </td>
                     <td className="py-2.5 px-4 text-center font-mono text-stone-500">
-                      $250.00
+                      €250.00
                     </td>
                     <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">
-                      Released ($0.00 net)
+                      Released (€0.00 net)
                     </td>
                   </tr>
                 </tbody>
                 <tfoot className="bg-stone-50/80 border-t border-stone-200">
                   <tr>
-                    <td colSpan={2} className="py-3.5 px-4 text-right font-bold text-stone-700 text-sm font-heading">
+                    <td
+                      colSpan={2}
+                      className="py-3.5 px-4 text-right font-bold text-stone-700 text-sm font-heading"
+                    >
                       TOTAL SETTLED AMOUNT PAID:
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-black text-xl text-[#F97316]">
-                      ${totalAmount.toFixed(2)}
+                      €${totalAmount.toFixed(2)}
                     </td>
                   </tr>
                 </tfoot>
@@ -472,7 +504,8 @@ export default function InvoiceModal({
                 Audited &amp; Authorized By: {adminName}
               </p>
               <p className="text-[11px]">
-                Motorly Atelier Certified Station Hub • Vehicle Keys Returned &amp; Checked
+                Motorly Atelier Certified Station Hub • Vehicle Keys Returned
+                &amp; Checked
               </p>
             </div>
 

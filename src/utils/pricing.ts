@@ -34,7 +34,7 @@ export function calculateRentalPrice(params: {
       tier: "hourly",
       basePrice,
       rateApplied: effectiveHourlyRate,
-      rateLabel: `$${effectiveHourlyRate}/hr`,
+      rateLabel: `€${effectiveHourlyRate}/hr`,
       durationText: `${hours} Hours (Same-Day)`,
     }
   }
@@ -52,12 +52,12 @@ export function calculateRentalPrice(params: {
       tier: "monthly",
       basePrice,
       rateApplied: effectiveMonthlyRate,
-      rateLabel: `$${effectiveMonthlyRate}/mo`,
+      rateLabel: `€${effectiveMonthlyRate}/mo`,
       durationText: `${days} Days (${months} Mo${
         remainderDays > 0 ? ` + ${remainderDays}d` : ""
       })`,
       savingsText:
-        savings > 0 ? `Save $${savings.toLocaleString()} vs daily` : undefined,
+        savings > 0 ? `Save €${savings.toLocaleString()} vs daily` : undefined,
     }
   }
 
@@ -66,7 +66,7 @@ export function calculateRentalPrice(params: {
     tier: "daily",
     basePrice,
     rateApplied: effectiveDailyRate,
-    rateLabel: `$${effectiveDailyRate}/day`,
+    rateLabel: `€${effectiveDailyRate}/day`,
     durationText: `${days} ${days === 1 ? "Day" : "Days"}`,
   }
 }

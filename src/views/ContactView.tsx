@@ -74,7 +74,7 @@ Sent via MOTORLY Direct Contact Portal`
     },
     {
       q: "What is the security deposit policy?",
-      a: "A standard refundable pre-authorization hold of $200 is placed at key handoff and released immediately when the car is returned with no new damages and agreed fuel level.",
+      a: "A standard refundable pre-authorization hold of €200 is placed at key handoff and released immediately when the car is returned with no new damages and agreed fuel level.",
     },
     {
       q: "How does fuel work?",
@@ -82,7 +82,7 @@ Sent via MOTORLY Direct Contact Portal`
     },
     {
       q: "What documents must I present?",
-      a: "A valid, unexpired driver's license (US or international) and matching government photo ID. Drivers must be at least 21 years of age.",
+      a: "A valid, unexpired driver's license (US or international) and matching government photo ID. Drivers must be at least 18 years of age.",
     },
   ]
 

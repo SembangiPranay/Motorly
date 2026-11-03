@@ -360,7 +360,7 @@ export async function generateBookingInvoicePng(
   ctx.fillText("ITEM DESCRIPTION", 75, finY + 77)
   ctx.fillText("RATE / SPECIFICATION", 680, finY + 77)
   ctx.textAlign = "right"
-  ctx.fillText("TOTAL (USD)", 1120, finY + 77)
+  ctx.fillText("TOTAL (EUR)", 1120, finY + 77)
 
   // Calculations
   const total = Number(booking.totalAmount) || 0
@@ -376,13 +376,13 @@ export async function generateBookingInvoicePng(
   ctx.fillStyle = "#78716C"
   ctx.font = "500 13px system-ui, sans-serif"
   const rateSubtitle = booking.promoCode
-    ? `Daily: $${baseRate}/day • Voucher: ${booking.promoCode}`
-    : `Daily Rate: $${baseRate}/day`
+    ? `Daily: €${baseRate}/day • Voucher: ${booking.promoCode}`
+    : `Daily Rate: €${baseRate}/day`
   ctx.fillText(rateSubtitle, 680, finY + 120)
   ctx.textAlign = "right"
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 14px monospace"
-  ctx.fillText(`$${baseCharge.toFixed(2)}`, 1120, finY + 120)
+  ctx.fillText(`€${baseCharge.toFixed(2)}`, 1120, finY + 120)
 
   // Divider
   ctx.strokeStyle = "#F5F5F4"
@@ -403,7 +403,7 @@ export async function generateBookingInvoicePng(
   ctx.textAlign = "right"
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 14px monospace"
-  ctx.fillText(`$${taxCharge.toFixed(2)}`, 1120, finY + 170)
+  ctx.fillText(`€${taxCharge.toFixed(2)}`, 1120, finY + 170)
 
   // Divider
   ctx.beginPath()
@@ -422,7 +422,7 @@ export async function generateBookingInvoicePng(
   ctx.textAlign = "right"
   ctx.fillStyle = "#059669"
   ctx.font = "bold 14px monospace"
-  ctx.fillText("$200.00 (Hold)", 1120, finY + 220)
+  ctx.fillText("€200.00 (Hold)", 1120, finY + 220)
 
   // Grand Total Box
   ctx.fillStyle = "#1C1917"
@@ -444,7 +444,7 @@ export async function generateBookingInvoicePng(
   ctx.textAlign = "right"
   ctx.fillStyle = "#F97316"
   ctx.font = "bold 38px monospace"
-  ctx.fillText(`$${total.toFixed(2)}`, 1115, finY + 335)
+  ctx.fillText(`€${total.toFixed(2)}`, 1115, finY + 335)
 
   // ========================================================
   // 5. OFFICIAL SIGNATURE & DIGITAL VERIFICATION SEAL

@@ -29,13 +29,19 @@ async function runTests() {
     console.log("Server online, beginning tests...")
 
     // TEST 1: Unauthenticated user requests GET /api/promos -> Must be BLOCKED (401)
-    console.log("\n[TEST 1] Testing coupon privacy: Public cannot list admin promo codes")
+    console.log(
+      "\n[TEST 1] Testing coupon privacy: Public cannot list admin promo codes",
+    )
     const publicPromosRes = await fetch(`${BASE_URL}/api/promos`)
     console.log("Status:", publicPromosRes.status)
     if (publicPromosRes.status !== 401 && publicPromosRes.status !== 403) {
-      throw new Error(`Expected 401/403 for unauthenticated GET /api/promos, got ${publicPromosRes.status}`)
+      throw new Error(
+        `Expected 401/403 for unauthenticated GET /api/promos, got ${publicPromosRes.status}`,
+      )
     }
-    console.log("PASS: Unauthenticated access to /api/promos is securely blocked!")
+    console.log(
+      "PASS: Unauthenticated access to /api/promos is securely blocked!",
+    )
 
     // TEST 2: Customer validates an invalid promo code
     console.log("\n[TEST 2] Testing validation of invalid promo code")
@@ -74,10 +80,14 @@ async function runTests() {
       headers: { Authorization: `Bearer ${adminToken}` },
     })
     if (!adminPromosRes.ok) {
-      throw new Error(`Admin failed to fetch promos: status ${adminPromosRes.status}`)
+      throw new Error(
+        `Admin failed to fetch promos: status ${adminPromosRes.status}`,
+      )
     }
     const promosList = await adminPromosRes.json()
-    console.log(`PASS: Admin successfully fetched ${promosList.length} promo codes!`)
+    console.log(
+      `PASS: Admin successfully fetched ${promosList.length} promo codes!`,
+    )
 
     // TEST 5: Admin creates a new promo code "EUROPE25"
     console.log("\n[TEST 5] Admin creates new promo coupon: EUROPE25 (25% off)")
@@ -107,7 +117,10 @@ async function runTests() {
     }
     const createdPromo = await createPromoRes.json()
     console.log("Created promo:", createdPromo)
-    if (createdPromo.code !== "EUROPE25" || createdPromo.discountPercent !== 25) {
+    if (
+      createdPromo.code !== "EUROPE25" ||
+      createdPromo.discountPercent !== 25
+    ) {
       throw new Error("Created promo data mismatch")
     }
     console.log("PASS: Admin created promo EUROPE25 successfully!")

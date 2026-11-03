@@ -100,10 +100,14 @@ export default function MyBookingsView({
         })
         showActionSuccess(`Reservation ${found.id} located successfully!`)
       } else {
-        setLookupFeedback(`No reservation found for confirmation ID "${cleanId}".`)
+        setLookupFeedback(
+          `No reservation found for confirmation ID "${cleanId}".`,
+        )
       }
     } catch {
-      setLookupFeedback("Error locating reservation. Please check confirmation code.")
+      setLookupFeedback(
+        "Error locating reservation. Please check confirmation code.",
+      )
     } finally {
       setIsLookingUp(false)
     }
@@ -243,7 +247,9 @@ export default function MyBookingsView({
       const res = await api.approveExtension(bookingId)
       if (res.success) {
         setBookings((prev) => {
-          const updated = prev.map((b) => (b.id === bookingId ? res.booking : b))
+          const updated = prev.map((b) =>
+            b.id === bookingId ? res.booking : b,
+          )
           onBookingsChange?.(updated)
           return updated
         })
@@ -264,7 +270,9 @@ export default function MyBookingsView({
       const res = await api.declineExtension(bookingId)
       if (res.success) {
         setBookings((prev) => {
-          const updated = prev.map((b) => (b.id === bookingId ? res.booking : b))
+          const updated = prev.map((b) =>
+            b.id === bookingId ? res.booking : b,
+          )
           onBookingsChange?.(updated)
           return updated
         })
@@ -279,12 +287,15 @@ export default function MyBookingsView({
   useEffect(() => {
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible" && currentUser?.email) {
-        api.getCustomerBookings(currentUser.email).then((fresh) => {
-          if (Array.isArray(fresh) && fresh.length > 0) {
-            setBookings(fresh)
-            onBookingsChange?.(fresh)
-          }
-        }).catch(() => {})
+        api
+          .getCustomerBookings(currentUser.email)
+          .then((fresh) => {
+            if (Array.isArray(fresh) && fresh.length > 0) {
+              setBookings(fresh)
+              onBookingsChange?.(fresh)
+            }
+          })
+          .catch(() => {})
       }
     }, 6000)
     return () => clearInterval(pollInterval)
@@ -597,7 +608,10 @@ export default function MyBookingsView({
               <span className="text-[11px] font-bold text-stone-700 uppercase tracking-wider block mb-2">
                 Fast Reservation Lookup:
               </span>
-              <form onSubmit={handleLookupBooking} className="flex items-center gap-2">
+              <form
+                onSubmit={handleLookupBooking}
+                className="flex items-center gap-2"
+              >
                 <div className="relative flex-1">
                   <SearchIcon
                     size={14}
@@ -991,8 +1005,13 @@ export default function MyBookingsView({
                                   className="text-amber-600 shrink-0"
                                 />
                                 Extension Request Submitted (+
-                                {b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1}{" "}
-                                {b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"})
+                                {b.extensionRequest?.durationValue ??
+                                  b.extensionRequest?.extraDuration ??
+                                  1}{" "}
+                                {b.extensionRequest?.durationUnit ??
+                                  b.extensionRequest?.unit ??
+                                  "days"}
+                                )
                               </span>
                               <p className="text-stone-600 text-[11px] mt-0.5">
                                 The garage manager has received your request and
@@ -1023,8 +1042,15 @@ export default function MyBookingsView({
                             <p className="text-stone-700 mb-2">
                               You requested an extension of{" "}
                               <strong>
-                                +{b.extensionQuote.durationValue ?? b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1}{" "}
-                                {b.extensionQuote.durationUnit ?? b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"}
+                                +
+                                {b.extensionQuote.durationValue ??
+                                  b.extensionRequest?.durationValue ??
+                                  b.extensionRequest?.extraDuration ??
+                                  1}{" "}
+                                {b.extensionQuote.durationUnit ??
+                                  b.extensionRequest?.durationUnit ??
+                                  b.extensionRequest?.unit ??
+                                  "days"}
                               </strong>
                               . The manager has provided this official quote:
                             </p>
@@ -1032,7 +1058,7 @@ export default function MyBookingsView({
                               <div className="flex justify-between text-stone-600">
                                 <span>Quoted Rate:</span>
                                 <span className="font-bold text-stone-900">
-                                  $
+                                  €
                                   {(b.extensionQuote.rateAmount ?? 0).toFixed(
                                     2,
                                   )}{" "}
@@ -1042,7 +1068,7 @@ export default function MyBookingsView({
                               <div className="flex justify-between text-stone-900 font-bold pt-1 border-t border-stone-100">
                                 <span>Total Quoted Amount to Add:</span>
                                 <span className="text-emerald-600 text-base font-black">
-                                  +$
+                                  +€
                                   {b.extensionQuote.totalQuotedAmount.toFixed(
                                     2,
                                   )}
@@ -1050,7 +1076,8 @@ export default function MyBookingsView({
                               </div>
                               {b.extensionQuote.notes && (
                                 <p className="text-[11px] text-stone-500 italic pt-1 font-sans">
-                                  Note from Hub: &quot;{b.extensionQuote.notes}&quot;
+                                  Note from Hub: &quot;{b.extensionQuote.notes}
+                                  &quot;
                                 </p>
                               )}
                             </div>
@@ -1181,7 +1208,7 @@ export default function MyBookingsView({
                                 Total Rental Cost
                               </p>
                               <p className="text-2xl font-black font-mono text-stone-900 mt-0.5">
-                                ${b.totalAmount.toFixed(2)}
+                                €{b.totalAmount.toFixed(2)}
                               </p>
                               <span className="text-[10px] text-emerald-600 font-medium">
                                 Taxes & Standard Protection Included
@@ -1307,14 +1334,17 @@ export default function MyBookingsView({
                                 )}
                               </td>
                               <td className="px-5 py-3 font-mono font-bold text-stone-900 text-right">
-                                ${b.totalAmount.toFixed(2)}
+                                €{b.totalAmount.toFixed(2)}
                               </td>
                               <td className="px-5 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      setSelectedCustomerInvoice({ booking: b, car })
+                                      setSelectedCustomerInvoice({
+                                        booking: b,
+                                        car,
+                                      })
                                     }
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-50 text-[#F97316] hover:bg-[#F97316] hover:text-white font-bold text-[11px] transition cursor-pointer border border-orange-200"
                                     title="View official printable trip invoice"
@@ -1326,7 +1356,10 @@ export default function MyBookingsView({
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setSelectedInspectionBooking({ booking: b, car })
+                                        setSelectedInspectionBooking({
+                                          booking: b,
+                                          car,
+                                        })
                                       }
                                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer border ${
                                         b.checklistIn.damageFound
@@ -1337,7 +1370,9 @@ export default function MyBookingsView({
                                     >
                                       <ShieldIcon size={12} />
                                       <span>
-                                        {b.checklistIn.damageFound ? "Damage Report" : "Inspection Sheet"}
+                                        {b.checklistIn.damageFound
+                                          ? "Damage Report"
+                                          : "Inspection Sheet"}
                                       </span>
                                     </button>
                                   )}
@@ -1355,7 +1390,12 @@ export default function MyBookingsView({
                                 <td className="px-5 py-3 text-center">
                                   {existingReview ? (
                                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                                      <StarIcon size={12} filled className="text-amber-500" /><span>{existingReview.rating}.0</span>
+                                      <StarIcon
+                                        size={12}
+                                        filled
+                                        className="text-amber-500"
+                                      />
+                                      <span>{existingReview.rating}.0</span>
                                     </span>
                                   ) : b.status === "Completed" ? (
                                     <button
@@ -1368,7 +1408,12 @@ export default function MyBookingsView({
                                       }
                                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
                                     >
-                                      <StarIcon size={12} filled className="text-white" /><span>Rate Car</span>
+                                      <StarIcon
+                                        size={12}
+                                        filled
+                                        className="text-white"
+                                      />
+                                      <span>Rate Car</span>
                                     </button>
                                   ) : (
                                     <span className="text-stone-400 text-[10px]">
@@ -1628,10 +1673,10 @@ export default function MyBookingsView({
                 </div>
 
                 <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-[11px] text-stone-600">
-                  <strong>Quotation Flow:</strong> Once you submit, the
-                  garage manager will receive your request and reply with an
-                  official quotation rate per day / hour / month. You can review
-                  and approve it before anything is added to your bill.
+                  <strong>Quotation Flow:</strong> Once you submit, the garage
+                  manager will receive your request and reply with an official
+                  quotation rate per day / hour / month. You can review and
+                  approve it before anything is added to your bill.
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -1795,27 +1840,58 @@ export default function MyBookingsView({
 
                 <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-stone-300">
                   <div>
-                    <span className="text-[10px] text-stone-400 block font-mono">Vehicle</span>
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      Vehicle
+                    </span>
                     <span className="font-bold text-white">
-                      {selectedInspectionBooking.car?.name || selectedInspectionBooking.booking.requestedCategory || "Fleet Vehicle"}
+                      {selectedInspectionBooking.car?.name ||
+                        selectedInspectionBooking.booking.requestedCategory ||
+                        "Fleet Vehicle"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-400 block font-mono">License Plate</span>
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      License Plate
+                    </span>
                     <span className="font-mono font-bold text-amber-400">
-                      {selectedInspectionBooking.car?.plateNumber || "FL-908-MTR"}
+                      {selectedInspectionBooking.car?.plateNumber ||
+                        "FL-908-MTR"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-400 block font-mono">Rental Period</span>
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      Rental Period
+                    </span>
                     <span className="font-mono text-white text-[11px]">
-                      {selectedInspectionBooking.booking.pickupDate?.split(" ")[0]} → {selectedInspectionBooking.booking.returnDate?.split(" ")[0]}
+                      {
+                        selectedInspectionBooking.booking.pickupDate?.split(
+                          " ",
+                        )[0]
+                      }{" "}
+                      →{" "}
+                      {
+                        selectedInspectionBooking.booking.returnDate?.split(
+                          " ",
+                        )[0]
+                      }
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-400 block font-mono">Audit Verdict</span>
-                    <span className={`font-bold ${selectedInspectionBooking.booking.checklistIn?.damageFound ? "text-rose-400" : "text-emerald-400"}`}>
-                      {selectedInspectionBooking.booking.checklistIn?.damageFound ? "Damage Logged" : "Passed Clean"}
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      Audit Verdict
+                    </span>
+                    <span
+                      className={`font-bold ${
+                        selectedInspectionBooking.booking.checklistIn
+                          ?.damageFound
+                          ? "text-rose-400"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      {selectedInspectionBooking.booking.checklistIn
+                        ?.damageFound
+                        ? "Damage Logged"
+                        : "Passed Clean"}
                     </span>
                   </div>
                 </div>
@@ -1826,26 +1902,49 @@ export default function MyBookingsView({
                 {/* Telemetry Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
                   <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200">
-                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">Departure Odo</span>
+                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">
+                      Departure Odo
+                    </span>
                     <span className="font-bold text-stone-800 text-sm">
-                      {(selectedInspectionBooking.booking.checklistOut?.odometerOut || 15200).toLocaleString()} mi
+                      {(
+                        selectedInspectionBooking.booking.checklistOut
+                          ?.odometerOut || 15200
+                      ).toLocaleString()}{" "}
+                      mi
                     </span>
                   </div>
                   <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200">
-                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">Return Odo</span>
-                    <span className="font-bold text-stone-800 text-sm">
-                      {(selectedInspectionBooking.booking.checklistIn?.odometerIn || 15320).toLocaleString()} mi
+                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">
+                      Return Odo
                     </span>
-                    {selectedInspectionBooking.booking.checklistIn?.odometerIn && selectedInspectionBooking.booking.checklistOut?.odometerOut && (
-                      <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
-                        +{selectedInspectionBooking.booking.checklistIn.odometerIn - selectedInspectionBooking.booking.checklistOut.odometerOut} mi driven
-                      </span>
-                    )}
+                    <span className="font-bold text-stone-800 text-sm">
+                      {(
+                        selectedInspectionBooking.booking.checklistIn
+                          ?.odometerIn || 15320
+                      ).toLocaleString()}{" "}
+                      mi
+                    </span>
+                    {selectedInspectionBooking.booking.checklistIn
+                      ?.odometerIn &&
+                      selectedInspectionBooking.booking.checklistOut
+                        ?.odometerOut && (
+                        <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
+                          +
+                          {selectedInspectionBooking.booking.checklistIn
+                            .odometerIn -
+                            selectedInspectionBooking.booking.checklistOut
+                              .odometerOut}{" "}
+                          mi driven
+                        </span>
+                      )}
                   </div>
                   <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 col-span-2 sm:col-span-1">
-                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">Return Fuel</span>
+                    <span className="text-[10px] text-stone-400 block uppercase tracking-wider">
+                      Return Fuel
+                    </span>
                     <span className="font-bold text-stone-800 text-sm">
-                      {selectedInspectionBooking.booking.checklistIn?.fuelLevelIn || "Full (100%)"}
+                      {selectedInspectionBooking.booking.checklistIn
+                        ?.fuelLevelIn || "Full (100%)"}
                     </span>
                   </div>
                 </div>
@@ -1861,72 +1960,101 @@ export default function MyBookingsView({
                         </h4>
                       </div>
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white font-mono uppercase">
-                        {selectedInspectionBooking.booking.checklistIn.damageSeverity || "Damage Recorded"}
+                        {selectedInspectionBooking.booking.checklistIn
+                          .damageSeverity || "Damage Recorded"}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       <div>
-                        <span className="text-[11px] text-stone-500 font-semibold block">Affected Area:</span>
+                        <span className="text-[11px] text-stone-500 font-semibold block">
+                          Affected Area:
+                        </span>
                         <span className="font-bold text-stone-900 font-mono">
-                          {selectedInspectionBooking.booking.checklistIn.damageLocation || "Exterior Panel"}
+                          {selectedInspectionBooking.booking.checklistIn
+                            .damageLocation || "Exterior Panel"}
                         </span>
                       </div>
-                      {Number(selectedInspectionBooking.booking.checklistIn.damageFee) > 0 && (
+                      {Number(
+                        selectedInspectionBooking.booking.checklistIn.damageFee,
+                      ) > 0 && (
                         <div>
-                          <span className="text-[11px] text-stone-500 font-semibold block">Repair Assessment / Surcharge:</span>
+                          <span className="text-[11px] text-stone-500 font-semibold block">
+                            Repair Assessment / Surcharge:
+                          </span>
                           <span className="font-black text-rose-600 font-mono">
-                            ${Number(selectedInspectionBooking.booking.checklistIn.damageFee).toFixed(2)}
+                            €
+                            {Number(
+                              selectedInspectionBooking.booking.checklistIn
+                                .damageFee,
+                            ).toFixed(2)}
                           </span>
                         </div>
                       )}
                     </div>
 
-                    {selectedInspectionBooking.booking.checklistIn.damageNotes && (
+                    {selectedInspectionBooking.booking.checklistIn
+                      .damageNotes && (
                       <div className="text-xs bg-white p-3 rounded-xl border border-rose-200 text-stone-800">
                         <span className="text-[10px] text-rose-600 uppercase font-mono font-bold block mb-1">
                           Inspector Observations:
                         </span>
                         <p className="leading-relaxed font-medium">
-                          {selectedInspectionBooking.booking.checklistIn.damageNotes}
+                          {
+                            selectedInspectionBooking.booking.checklistIn
+                              .damageNotes
+                          }
                         </p>
                       </div>
                     )}
 
                     {/* Damage Photos Grid */}
-                    {selectedInspectionBooking.booking.checklistIn.damagePhotos &&
-                      selectedInspectionBooking.booking.checklistIn.damagePhotos.length > 0 && (
+                    {selectedInspectionBooking.booking.checklistIn
+                      .damagePhotos &&
+                      selectedInspectionBooking.booking.checklistIn.damagePhotos
+                        .length > 0 && (
                         <div className="space-y-2 pt-1">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-rose-800 uppercase font-mono flex items-center gap-1.5">
                               <CameraIcon size={14} className="text-rose-600" />
-                              <span>Photographic Evidence ({selectedInspectionBooking.booking.checklistIn.damagePhotos.length} Photos)</span>
+                              <span>
+                                Photographic Evidence (
+                                {
+                                  selectedInspectionBooking.booking.checklistIn
+                                    .damagePhotos.length
+                                }{" "}
+                                Photos)
+                              </span>
                             </span>
-                            <span className="text-[10px] text-stone-500 font-mono">Click to enlarge</span>
+                            <span className="text-[10px] text-stone-500 font-mono">
+                              Click to enlarge
+                            </span>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                            {selectedInspectionBooking.booking.checklistIn.damagePhotos.map((photo, pIdx) => (
-                              <div
-                                key={pIdx}
-                                onClick={() =>
-                                  setZoomedInspectionPhoto({
-                                    url: photo,
-                                    title: `Return Damage Audit Photo #${pIdx + 1} - ${selectedInspectionBooking.booking.id}`,
-                                  })
-                                }
-                                className="group relative aspect-video rounded-xl overflow-hidden border border-rose-300 bg-black cursor-pointer shadow-xs hover:border-rose-500 transition"
-                              >
-                                <img
-                                  src={photo}
-                                  alt={`Damage Evidence ${pIdx + 1}`}
-                                  className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition pointer-events-none" />
-                                <span className="absolute bottom-1 right-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
-                                  #{pIdx + 1} View Full
-                                </span>
-                              </div>
-                            ))}
+                            {selectedInspectionBooking.booking.checklistIn.damagePhotos.map(
+                              (photo, pIdx) => (
+                                <div
+                                  key={pIdx}
+                                  onClick={() =>
+                                    setZoomedInspectionPhoto({
+                                      url: photo,
+                                      title: `Return Damage Audit Photo #${pIdx + 1} - ${selectedInspectionBooking.booking.id}`,
+                                    })
+                                  }
+                                  className="group relative aspect-video rounded-xl overflow-hidden border border-rose-300 bg-black cursor-pointer shadow-xs hover:border-rose-500 transition"
+                                >
+                                  <img
+                                    src={photo}
+                                    alt={`Damage Evidence ${pIdx + 1}`}
+                                    className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                                  />
+                                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition pointer-events-none" />
+                                  <span className="absolute bottom-1 right-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                    #{pIdx + 1} View Full
+                                  </span>
+                                </div>
+                              ),
+                            )}
                           </div>
                         </div>
                       )}
@@ -1942,7 +2070,9 @@ export default function MyBookingsView({
                       </h4>
                     </div>
                     <p className="text-xs text-stone-600 leading-relaxed">
-                      Vehicle was returned in verified baseline condition. Interior cleanliness confirmed, 0 damages recorded, and full security pre-authorization hold released.
+                      Vehicle was returned in verified baseline condition.
+                      Interior cleanliness confirmed, 0 damages recorded, and
+                      full security pre-authorization hold released.
                     </p>
                   </div>
                 )}
@@ -1951,10 +2081,21 @@ export default function MyBookingsView({
                 <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 text-xs flex items-center justify-between text-stone-600">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>Certified Auditor: <strong>{selectedInspectionBooking.booking.checklistIn?.inspectorStaff || "Lead Fleet Auditor"}</strong></span>
+                    <span>
+                      Certified Auditor:{" "}
+                      <strong>
+                        {selectedInspectionBooking.booking.checklistIn
+                          ?.inspectorStaff || "Lead Fleet Auditor"}
+                      </strong>
+                    </span>
                   </div>
                   <span className="font-mono text-[11px] text-stone-400">
-                    {selectedInspectionBooking.booking.checklistIn?.timestamp ? new Date(selectedInspectionBooking.booking.checklistIn.timestamp).toLocaleString() : "Audit Certified"}
+                    {selectedInspectionBooking.booking.checklistIn?.timestamp
+                      ? new Date(
+                          selectedInspectionBooking.booking.checklistIn
+                            .timestamp,
+                        ).toLocaleString()
+                      : "Audit Certified"}
                   </span>
                 </div>
               </div>

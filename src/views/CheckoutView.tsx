@@ -398,7 +398,9 @@ export default function CheckoutView({
       } else {
         setPromoDiscount(0)
         setIsPromoSuccess(false)
-        setPromoStatus(res?.message || "Invalid or unrecognized privilege code.")
+        setPromoStatus(
+          res?.message || "Invalid or unrecognized privilege code.",
+        )
       }
     } catch {
       setPromoDiscount(0)
@@ -422,7 +424,7 @@ export default function CheckoutView({
   const maxDobStr = useMemo(() => {
     const d = new Date()
 
-    d.setFullYear(d.getFullYear() - 21)
+    d.setFullYear(d.getFullYear() - 18)
 
     return d.toISOString().split("T")[0]
   }, [])
@@ -514,7 +516,7 @@ export default function CheckoutView({
 
         rateApplied: 0,
 
-        rateLabel: "$0/day",
+        rateLabel: "€0/day",
 
         durationText: "0 Days",
       }
@@ -549,7 +551,9 @@ export default function CheckoutView({
     }
 
     if (!car) {
-      alert("No vehicle selected. Please choose a vehicle from the fleet catalog.")
+      alert(
+        "No vehicle selected. Please choose a vehicle from the fleet catalog.",
+      )
       return
     }
 
@@ -563,7 +567,7 @@ export default function CheckoutView({
       return
     }
 
-    // Validation 2: Driver Minimum Age (21+)
+    // Validation 2: Driver Minimum Age (18+)
 
     if (driver.dateOfBirth) {
       const dobParsed = Date.parse(driver.dateOfBirth)
@@ -584,9 +588,9 @@ export default function CheckoutView({
 
       if (m < 0 || (m === 0 && refDate.getDate() < bDate.getDate())) age--
 
-      if (age < 21) {
+      if (age < 18) {
         alert(
-          `Driver must be at least 21 years old to rent a vehicle. (Calculated age: ${age} years old)`,
+          `Driver must be at least 18 years old to rent a vehicle. (Calculated age: ${age} years old)`,
         )
 
         return
@@ -681,11 +685,16 @@ export default function CheckoutView({
 
         bookingId: randomId,
 
-        promoCode: promoDiscount > 0 ? promoCode.trim().toUpperCase() : undefined,
+        promoCode:
+          promoDiscount > 0 ? promoCode.trim().toUpperCase() : undefined,
 
-        discountPercent: promoDiscount > 0 ? Math.round(promoDiscount * 100) : undefined,
+        discountPercent:
+          promoDiscount > 0 ? Math.round(promoDiscount * 100) : undefined,
 
-        discountAmount: promoDiscount > 0 ? Number((rawRentalTotal * promoDiscount).toFixed(2)) : undefined,
+        discountAmount:
+          promoDiscount > 0
+            ? Number((rawRentalTotal * promoDiscount).toFixed(2))
+            : undefined,
       })
 
       setIsSubmitting(false)
@@ -891,11 +900,11 @@ export default function CheckoutView({
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
                   <span>
-                    Date of Birth (21+ Only){" "}
+                    Date of Birth (18+ Only){" "}
                     <span className="text-red-500">*</span>
                   </span>
                   <span className="text-[10px] text-gray-400 font-normal">
-                    Must be 21+
+                    Must be 18+
                   </span>
                 </label>
                 <input
@@ -1121,7 +1130,7 @@ export default function CheckoutView({
                   directly to our <strong>Fleet Operations Manager</strong>.
                   When the manager accepts your request, your vehicle is prepped
                   and held at the hub. You will pay{" "}
-                  <strong>${totalAmount.toFixed(2)}</strong> at vehicle pickup.
+                  <strong>€{totalAmount.toFixed(2)}</strong> at vehicle pickup.
                 </p>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-[11px] text-emerald-700 font-semibold">
                   <span>• No credit card required</span>
@@ -1411,7 +1420,7 @@ export default function CheckoutView({
                     </div>
                   </div>
                   <span className="font-mono font-bold text-xs text-emerald-700">
-                    -${(rawRentalTotal * promoDiscount).toFixed(2)}
+                    -€{(rawRentalTotal * promoDiscount).toFixed(2)}
                   </span>
                 </div>
               ) : (
@@ -1425,7 +1434,9 @@ export default function CheckoutView({
                       type="text"
                       placeholder="ENTER PRIVILEGE CODE"
                       value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      onChange={(e) =>
+                        setPromoCode(e.target.value.toUpperCase())
+                      }
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault()
@@ -1467,34 +1478,37 @@ export default function CheckoutView({
                     ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
                     : pricingResult.tier === "monthly"
                       ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : `Vehicle Rental ($${car.pricePerDay} × ${days} ${
+                      : `Vehicle Rental (€${car.pricePerDay} × ${days} ${
                           days === 1 ? "day" : "days"
                         })`}
                 </span>
                 <span className="font-semibold text-gray-900">
-                  ${rawRentalTotal.toFixed(2)}
+                  €{rawRentalTotal.toFixed(2)}
                 </span>
               </div>
               {promoDiscount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-bold">
                   <span className="flex items-center gap-1.5 font-mono text-[11px]">
                     <TagIcon size={12} />
-                    Privilege Voucher ({promoCode} • {Math.round(promoDiscount * 100)}% OFF)
+                    Privilege Voucher ({promoCode} •{" "}
+                    {Math.round(promoDiscount * 100)}% OFF)
                   </span>
-                  <span className="font-mono">-${(rawRentalTotal * promoDiscount).toFixed(2)}</span>
+                  <span className="font-mono">
+                    -€{(rawRentalTotal * promoDiscount).toFixed(2)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Estimated Taxes &amp; Fees (10%)</span>
                 <span className="font-semibold text-gray-900">
-                  ${taxesAndFees.toFixed(2)}
+                  €{taxesAndFees.toFixed(2)}
                 </span>
               </div>
 
               <div className="flex justify-between pt-3 border-t border-gray-200 text-sm font-extrabold text-[#17191C] font-heading">
                 <span>Total Due on Pickup</span>
                 <span className="text-[#F97316] text-xl font-black">
-                  ${totalAmount.toFixed(2)}
+                  €{totalAmount.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -1508,7 +1522,7 @@ export default function CheckoutView({
               >
                 <LockIcon size={16} />
                 <span>
-                  Sign In to Request Car (${totalAmount.toFixed(2)} on Pickup)
+                  Sign In to Request Car (€{totalAmount.toFixed(2)} on Pickup)
                 </span>
               </button>
             ) : (
@@ -1530,7 +1544,7 @@ export default function CheckoutView({
                   <>
                     <ZapIcon size={16} />
                     <span>
-                      Submit Request to Manager (${totalAmount.toFixed(2)} on
+                      Submit Request to Manager (€{totalAmount.toFixed(2)} on
                       Pickup)
                     </span>
                   </>
@@ -1554,7 +1568,7 @@ export default function CheckoutView({
             Total Due on Pickup
           </span>
           <span className="text-xl font-black text-[#F97316] font-heading">
-            ${totalAmount.toFixed(2)}
+            €{totalAmount.toFixed(2)}
           </span>
         </div>
         {!currentUser ? (

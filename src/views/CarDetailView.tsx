@@ -135,51 +135,42 @@ export default function CarDetailView({
     }
   }, [car?.id, bookingState.pickupDate, bookingState.returnDate])
 
-  if (!car) {
-    return (
-      <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-28 px-4 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center bg-white p-8 rounded-xl border border-stone-200 shadow-xs">
-          <h2 className="text-xl font-black text-stone-900 font-heading mb-2">
-            No Vehicle Selected
-          </h2>
-          <p className="text-xs text-stone-500 leading-relaxed mb-6">
-            Please choose a certified vehicle from our fleet catalog to inspect full specifications.
-          </p>
-          <button
-            onClick={onNavigateListing}
-            className="w-full py-2.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <ArrowLeftIcon size={14} /> Back to Fleet Catalog
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   const galleryImages =
-    car.gallery && car.gallery.length > 0 ? car.gallery : [car.image]
+    car?.gallery && car.gallery.length > 0
+      ? car.gallery
+      : car?.image
+        ? [car.image]
+        : []
 
   const handlePrevPhoto = () => {
     setSelectedPhotoIndex((prev) =>
-      prev === 0 ? galleryImages.length - 1 : prev - 1,
+      prev === 0
+        ? galleryImages.length > 0
+          ? galleryImages.length - 1
+          : 0
+        : prev - 1,
     )
   }
 
   const handleNextPhoto = () => {
     setSelectedPhotoIndex((prev) =>
-      prev === galleryImages.length - 1 ? 0 : prev + 1,
+      prev === (galleryImages.length > 0 ? galleryImages.length - 1 : 0)
+        ? 0
+        : prev + 1,
     )
   }
 
   // Find similar vehicles
-  const similarCars = allCars
-    .filter(
-      (c) =>
-        c.id !== car.id &&
-        (c.type === car.type ||
-          Math.abs(c.pricePerDay - car.pricePerDay) <= 35),
-    )
-    .slice(0, 3)
+  const similarCars = car
+    ? allCars
+        .filter(
+          (c) =>
+            c.id !== car.id &&
+            (c.type === car.type ||
+              Math.abs(c.pricePerDay - car.pricePerDay) <= 35),
+        )
+        .slice(0, 3)
+    : []
 
   // Live dynamic calculations
   const days = useMemo(() => {
@@ -235,7 +226,17 @@ export default function CarDetailView({
     const rHour = parseHour(bookingState.returnTime)
     return Math.max(0, rHour - pHour)
   }, [isSameDayBooking, bookingState.pickupTime, bookingState.returnTime])
+
   const pricingResult = useMemo(() => {
+    if (!car) {
+      return {
+        tier: "daily" as const,
+        basePrice: 0,
+        rateApplied: 0,
+        rateLabel: "€0/day",
+        durationText: "0 Days",
+      }
+    }
     return calculateRentalPrice({
       car,
       isSameDay: isSameDayBooking,
@@ -246,9 +247,7 @@ export default function CarDetailView({
 
   const baseRental = pricingResult.basePrice
   const discountMultiplier =
-    promoApplied && discountPercent > 0
-      ? 1 - discountPercent / 100
-      : 1.0
+    promoApplied && discountPercent > 0 ? 1 - discountPercent / 100 : 1.0
   const discountedBase = Number((baseRental * discountMultiplier).toFixed(2))
   const promoDiscountAmount = Number((baseRental - discountedBase).toFixed(2))
   const taxes = Number((discountedBase * 0.1).toFixed(2)) // 10% standard tax
@@ -284,7 +283,9 @@ export default function CarDetailView({
         setPromoApplied(false)
         setDiscountPercent(0)
         setIsQuoteSuccess(false)
-        setQuoteMessage(res?.message || "Invalid or unrecognized privilege code.")
+        setQuoteMessage(
+          res?.message || "Invalid or unrecognized privilege code.",
+        )
         setBookingState((prev) => ({
           ...prev,
           promoCode: undefined,
@@ -316,20 +317,22 @@ export default function CarDetailView({
 
   if (!car) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-black text-stone-900">
-          Vehicle Not Found
-        </h2>
-        <p className="text-stone-500 text-sm max-w-md mx-auto">
-          No vehicle is currently selected or matching this identifier in the
-          database.
-        </p>
-        <button
-          onClick={onNavigateListing}
-          className="px-6 py-3 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold rounded-2xl text-xs transition shadow-sm cursor-pointer"
-        >
-          Browse Fleet Catalog →
-        </button>
+      <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-28 px-4 flex items-center justify-center">
+        <div className="max-w-md mx-auto text-center bg-white p-8 rounded-xl border border-stone-200 shadow-xs">
+          <h2 className="text-xl font-black text-stone-900 font-heading mb-2">
+            No Vehicle Selected
+          </h2>
+          <p className="text-xs text-stone-500 leading-relaxed mb-6">
+            Please choose a certified vehicle from our fleet catalog to inspect
+            full specifications.
+          </p>
+          <button
+            onClick={onNavigateListing}
+            className="w-full py-2.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <ArrowLeftIcon size={14} /> Back to Fleet Catalog
+          </button>
+        </div>
       </div>
     )
   }
@@ -676,15 +679,17 @@ export default function CarDetailView({
                   each rental.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {(Array.isArray(car?.features) ? car.features : []).map((feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100"
-                    >
-                      <CheckIcon size={14} className="text-[#F97316]" />
-                      <span>{feature}</span>
-                    </div>
-                  ))}
+                  {(Array.isArray(car?.features) ? car.features : []).map(
+                    (feature) => (
+                      <div
+                        key={feature}
+                        className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100"
+                      >
+                        <CheckIcon size={14} className="text-[#F97316]" />
+                        <span>{feature}</span>
+                      </div>
+                    ),
+                  )}
                   <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100">
                     <CheckIcon size={14} className="text-[#F97316]" />
                     <span>Emergency SOS Roadside</span>
@@ -706,7 +711,7 @@ export default function CarDetailView({
                       Hourly Flex
                     </span>
                     <p className="text-2xl font-black text-[#17191C] font-heading mt-1">
-                      ${car.pricePerHour}
+                      €{car.pricePerHour}
                     </p>
                     <span className="text-[11px] text-gray-400">
                       Fuel &amp; 30 miles included
@@ -720,7 +725,7 @@ export default function CarDetailView({
                       Daily Standard
                     </span>
                     <p className="text-2xl font-black text-[#F97316] font-heading mt-1">
-                      ${car.pricePerDay}
+                      €{car.pricePerDay}
                     </p>
                     <span className="text-[11px] text-gray-500">
                       Unlimited miles across state
@@ -734,7 +739,7 @@ export default function CarDetailView({
                       Monthly (30+ Days)
                     </span>
                     <p className="text-2xl font-black text-emerald-900 font-heading mt-1">
-                      ${car.pricePerMonth || Math.round(car.pricePerDay * 22)}
+                      €{car.pricePerMonth || Math.round(car.pricePerDay * 22)}
                     </p>
                     <span className="text-[11px] text-emerald-700 font-bold">
                       Includes garage perks &amp; ~27% off
@@ -817,7 +822,7 @@ export default function CarDetailView({
                     {sCar.name}
                   </h4>
                   <p className="text-xs font-bold text-[#F97316] mt-1">
-                    ${sCar.pricePerDay} /day
+                    €{sCar.pricePerDay} /day
                   </p>
                 </div>
               ))}
@@ -833,7 +838,7 @@ export default function CarDetailView({
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-3xl font-extrabold text-[#17191C] font-heading">
-                    ${car.pricePerDay}
+                    €{car.pricePerDay}
                   </span>
                   <span className="text-xs font-semibold text-gray-500">
                     {" "}
@@ -841,7 +846,7 @@ export default function CarDetailView({
                   </span>
                 </div>
                 <span className="text-xs font-semibold text-gray-400">
-                  ${car.pricePerHour} / hour
+                  €{car.pricePerHour} / hour
                 </span>
               </div>
 
@@ -994,7 +999,7 @@ export default function CarDetailView({
                       </div>
                     </div>
                     <span className="font-mono font-bold text-xs text-emerald-700">
-                      -${promoDiscountAmount.toFixed(2)}
+                      -€{promoDiscountAmount.toFixed(2)}
                     </span>
                   </div>
                 ) : (
@@ -1008,7 +1013,9 @@ export default function CarDetailView({
                         type="text"
                         placeholder="ENTER PRIVILEGE CODE"
                         value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        onChange={(e) =>
+                          setPromoCode(e.target.value.toUpperCase())
+                        }
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault()
@@ -1051,12 +1058,12 @@ export default function CarDetailView({
                     ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
                     : pricingResult.tier === "monthly"
                       ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : `Base ($${car.pricePerDay} × ${days} ${
+                      : `Base (€${car.pricePerDay} × ${days} ${
                           days === 1 ? "day" : "days"
                         })`}
                 </span>
                 <span className="font-semibold text-gray-900">
-                  ${baseRental.toFixed(2)}
+                  €{baseRental.toFixed(2)}
                 </span>
               </div>
               {promoApplied && (
@@ -1065,19 +1072,21 @@ export default function CarDetailView({
                     <TagIcon size={12} />
                     Privilege Voucher ({promoCode} • {discountPercent}% OFF)
                   </span>
-                  <span className="font-mono">-${promoDiscountAmount.toFixed(2)}</span>
+                  <span className="font-mono">
+                    -€{promoDiscountAmount.toFixed(2)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Estimated Taxes &amp; Fees (10%)</span>
                 <span className="font-semibold text-gray-900">
-                  ${taxes.toFixed(2)}
+                  €{taxes.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between pt-2 border-t border-gray-200 text-base font-extrabold text-[#17191C] font-heading">
                 <span>Estimated Total</span>
                 <span className="text-[#F97316] text-xl font-black">
-                  ${grandTotal.toFixed(2)}
+                  €{grandTotal.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -1089,7 +1098,10 @@ export default function CarDetailView({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 font-extrabold text-stone-900">
                       <span className="w-5 h-5 rounded-md bg-amber-200/60 text-amber-800 flex items-center justify-center text-xs">
-                        <AlertTriangleIcon size={13} className="text-amber-800" />
+                        <AlertTriangleIcon
+                          size={13}
+                          className="text-amber-800"
+                        />
                       </span>
                       <span>Schedule Conflict</span>
                     </div>
@@ -1180,12 +1192,12 @@ export default function CarDetailView({
         <div>
           <div className="flex items-baseline gap-1">
             <span className="text-xl font-black text-stone-900 font-heading">
-              ${car.pricePerDay}
+              €{car.pricePerDay}
             </span>
             <span className="text-xs text-stone-500 font-semibold">/day</span>
           </div>
           <p className="text-[11px] font-bold text-emerald-700">
-            ${grandTotal.toFixed(2)} total • {days}{" "}
+            €{grandTotal.toFixed(2)} total • {days}{" "}
             {days === 1 ? "day" : "days"}
           </p>
         </div>

@@ -127,15 +127,20 @@ export default function GarageMapViewer({
               // Extract clean, intelligible location string preserving city and region
               const addr = data.address || {}
               const road = addr.road || addr.street || addr.pedestrian || ""
-              const suburb = addr.suburb || addr.neighbourhood || addr.residential || ""
-              const city = addr.city || addr.town || addr.municipality || addr.county || ""
+              const suburb =
+                addr.suburb || addr.neighbourhood || addr.residential || ""
+              const city =
+                addr.city || addr.town || addr.municipality || addr.county || ""
               const state = addr.state || ""
               const postcode = addr.postcode || ""
 
-              const cleanParts = [road, suburb, city, state, postcode].filter(Boolean)
-              const resolvedAddress = cleanParts.length >= 2 
-                ? cleanParts.join(", ") 
-                : data.display_name
+              const cleanParts = [road, suburb, city, state, postcode].filter(
+                Boolean,
+              )
+              const resolvedAddress =
+                cleanParts.length >= 2
+                  ? cleanParts.join(", ")
+                  : data.display_name
 
               setCurrentAddress(resolvedAddress)
               if (onLocationChange)

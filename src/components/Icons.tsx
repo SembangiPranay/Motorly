@@ -1013,11 +1013,7 @@ export function MonitorIcon({
   )
 }
 
-export function SunIcon({
-  size = 20,
-  className = "",
-  ...props
-}: IconProps) {
+export function SunIcon({ size = 20, className = "", ...props }: IconProps) {
   return (
     <svg
       width={size}
@@ -1044,11 +1040,7 @@ export function SunIcon({
   )
 }
 
-export function MoonIcon({
-  size = 20,
-  className = "",
-  ...props
-}: IconProps) {
+export function MoonIcon({ size = 20, className = "", ...props }: IconProps) {
   return (
     <svg
       width={size}
@@ -1067,11 +1059,7 @@ export function MoonIcon({
   )
 }
 
-export function GlobeIcon({
-  size = 20,
-  className = "",
-  ...props
-}: IconProps) {
+export function GlobeIcon({ size = 20, className = "", ...props }: IconProps) {
   return (
     <svg
       width={size}
@@ -1092,11 +1080,7 @@ export function GlobeIcon({
   )
 }
 
-export function LogOutIcon({
-  size = 20,
-  className = "",
-  ...props
-}: IconProps) {
+export function LogOutIcon({ size = 20, className = "", ...props }: IconProps) {
   return (
     <svg
       width={size}

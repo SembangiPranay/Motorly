@@ -83,8 +83,8 @@ export default function ConfirmationModal({
 👤 *Customer:* ${customerFullName}
 📞 *Phone:* ${customer.phone || "Not provided"}
 
-💰 *Total:* $${totalAmount.toFixed(2)}
-🔒 *Security Deposit:* $200
+💰 *Total:* €${totalAmount.toFixed(2)}
+🔒 *Security Deposit:* €200
 
 ⚡ *Review & Approve:*
 ${adminApprovalLink}
@@ -257,7 +257,7 @@ _MOTORLY | Smarter Car Rentals_`
                 Pay on Pickup
               </p>
               <p className="font-black text-base text-stone-900 dark:text-white font-mono">
-                ${totalAmount.toFixed(2)}
+                €{totalAmount.toFixed(2)}
               </p>
             </div>
           </div>
@@ -331,14 +331,20 @@ _MOTORLY | Smarter Car Rentals_`
                 rel="noopener noreferrer"
                 className="py-2.5 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
               >
-                <PhoneIcon size={14} className="text-emerald-600 dark:text-emerald-400" />
+                <PhoneIcon
+                  size={14}
+                  className="text-emerald-600 dark:text-emerald-400"
+                />
                 <span>{isMobile ? "Open WhatsApp" : "Open WhatsApp Web"}</span>
               </a>
               <a
                 href={mailtoUrl}
                 className="py-2.5 px-3 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 border border-stone-200 dark:border-stone-700 font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
               >
-                <MailIcon size={14} className="text-stone-600 dark:text-stone-400" />
+                <MailIcon
+                  size={14}
+                  className="text-stone-600 dark:text-stone-400"
+                />
                 <span>Re-send Email</span>
               </a>
             </div>

@@ -331,7 +331,9 @@ class ApiService {
 
   async lookupBooking(id: string): Promise<BookingRecord | null> {
     if (!id || !id.trim()) return null
-    const res = await this.request(`/bookings/lookup/${encodeURIComponent(id.trim())}`)
+    const res = await this.request(
+      `/bookings/lookup/${encodeURIComponent(id.trim())}`,
+    )
     if (!res.ok) return null
     return this.safeJson(res, null)
   }

@@ -121,10 +121,15 @@ export default function AdminView({
 
   // Completed Trips & Invoice Archive State
   const [completedSearchQuery, setCompletedSearchQuery] = useState("")
-  const [completedDateFilter, setCompletedDateFilter] = useState<"all" | "7d" | "30d" | "month">("all")
-  const [completedCategoryFilter, setCompletedCategoryFilter] = useState<string>("all")
-  const [completedViewMode, setCompletedViewMode] = useState<"cards" | "table">("cards")
-  const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<BookingRecord | null>(null)
+  const [completedDateFilter, setCompletedDateFilter] =
+    useState<"all" | "7d" | "30d" | "month">("all")
+  const [completedCategoryFilter, setCompletedCategoryFilter] =
+    useState<string>("all")
+  const [completedViewMode, setCompletedViewMode] = useState<"cards" | "table">(
+    "cards",
+  )
+  const [selectedInvoiceBooking, setSelectedInvoiceBooking] =
+    useState<BookingRecord | null>(null)
 
   // Mobile sidebar drawer state
 
@@ -152,7 +157,6 @@ export default function AdminView({
 
   const [syncHubFeedback, setSyncHubFeedback] = useState<string | null>(null)
 
-
   // Completed Bookings Filtering
   const filteredCompletedBookings = useMemo(() => {
     return bookings
@@ -165,21 +169,18 @@ export default function AdminView({
           (b.customer as any).name ||
           `${b.customer.firstName || ""} ${b.customer.lastName || ""}`.trim()
         const customerLicense =
-          b.driver?.licenseNumber ||
-          (b.customer as any).licenseNumber ||
-          ""
+          b.driver?.licenseNumber || (b.customer as any).licenseNumber || ""
         return (
           b.id.toLowerCase().includes(q) ||
           customerName.toLowerCase().includes(q) ||
           (b.customer.phone && b.customer.phone.includes(q)) ||
           (b.customer.email && b.customer.email.toLowerCase().includes(q)) ||
           customerLicense.toLowerCase().includes(q) ||
-          (car && (
-            car.brand.toLowerCase().includes(q) ||
-            car.model.toLowerCase().includes(q) ||
-            car.name.toLowerCase().includes(q) ||
-            (car.plateNumber && car.plateNumber.toLowerCase().includes(q))
-          ))
+          (car &&
+            (car.brand.toLowerCase().includes(q) ||
+              car.model.toLowerCase().includes(q) ||
+              car.name.toLowerCase().includes(q) ||
+              (car.plateNumber && car.plateNumber.toLowerCase().includes(q))))
         )
       })
       .filter((b) => {
@@ -205,8 +206,18 @@ export default function AdminView({
         }
         return true
       })
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-  }, [bookings, cars, completedSearchQuery, completedCategoryFilter, completedDateFilter])
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime(),
+      )
+  }, [
+    bookings,
+    cars,
+    completedSearchQuery,
+    completedCategoryFilter,
+    completedDateFilter,
+  ])
 
   const completedStats = useMemo(() => {
     const allCompleted = bookings.filter((b) => b.status === "Completed")
@@ -244,7 +255,7 @@ export default function AdminView({
       "Pickup Date",
       "Return Date",
       "Extension Status",
-      "Total Settled Amount ($)",
+      "Total Settled Amount (€)",
       "Status",
       "Created Date",
     ]
@@ -265,7 +276,9 @@ export default function AdminView({
         `"${(b.customer.phone || "").replace(/"/g, '""')}"`,
         `"${(b.customer.email || "").replace(/"/g, '""')}"`,
         `"${customerLicense.replace(/"/g, '""')}"`,
-        `"${car ? `${car.brand} ${car.model}` : b.requestedCategory || "Fleet"}"`,
+        `"${
+          car ? `${car.brand} ${car.model}` : b.requestedCategory || "Fleet"
+        }"`,
         `"${car?.plateNumber || "FL-908-MTR"}"`,
         `"${b.pickupDate}"`,
         `"${b.returnDate}"`,
@@ -1815,7 +1828,7 @@ export default function AdminView({
         setIsExtensionModalOpen(false)
 
         notify(
-          `Extension quotation of $${extensionQuoteData.totalQuotedAmount} dispatched to customer.`,
+          `Extension quotation of €${extensionQuoteData.totalQuotedAmount} dispatched to customer.`,
         )
       }
     } catch (err: any) {
@@ -2320,7 +2333,7 @@ export default function AdminView({
         setCarModalTab("rates")
       } else if (carModalTab === "rates") {
         if (!carFormData.pricePerDay || Number(carFormData.pricePerDay) <= 0) {
-          alert("Please enter a valid daily rental rate ($/day).")
+          alert("Please enter a valid daily rental rate (€/day).")
           return
         }
         setCarModalTab("insurance")
@@ -2470,7 +2483,8 @@ export default function AdminView({
           b.status !== "Cancelled"))
 
     const extensionRequests = bookings.filter(
-      (b) => b.extensionStatus === "Requested" || b.extensionStatus === "Pending",
+      (b) =>
+        b.extensionStatus === "Requested" || b.extensionStatus === "Pending",
     ).length
 
     return {
@@ -2592,7 +2606,8 @@ export default function AdminView({
     }
 
     const getPriority = (b: BookingRecord): number => {
-      if (b.extensionStatus === "Requested" || b.extensionStatus === "Pending") return -1
+      if (b.extensionStatus === "Requested" || b.extensionStatus === "Pending")
+        return -1
 
       if (isPendingBooking(b)) return 0
 
@@ -2966,21 +2981,45 @@ export default function AdminView({
                 className="lg:hidden p-2 rounded-xl border border-stone-200 dark:border-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 cursor-pointer shrink-0"
                 aria-label="Open Sidebar"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               </button>
 
               {/* Mobile Branded Logo with Character */}
               <div className="flex items-center gap-2 lg:hidden select-none">
                 <div className="w-6 h-5 relative flex items-end shrink-0">
-                  <svg viewBox="0 0 28 24" fill="none" className="w-full h-full">
-                    <path d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z" fill="#F97316" />
-                    <path d="M21 22L26 5L24 22H21Z" fill="#EA580C" opacity="0.8" />
+                  <svg
+                    viewBox="0 0 28 24"
+                    fill="none"
+                    className="w-full h-full"
+                  >
+                    <path
+                      d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z"
+                      fill="#F97316"
+                    />
+                    <path
+                      d="M21 22L26 5L24 22H21Z"
+                      fill="#EA580C"
+                      opacity="0.8"
+                    />
                   </svg>
                 </div>
                 <span className="font-heading font-black text-xs tracking-tight text-stone-900 dark:text-white">
-                  MOTORLY <span className="text-[9px] font-mono font-bold text-[#F97316] uppercase ml-0.5">CONSOLE</span>
+                  MOTORLY{" "}
+                  <span className="text-[9px] font-mono font-bold text-[#F97316] uppercase ml-0.5">
+                    CONSOLE
+                  </span>
                 </span>
               </div>
 
@@ -3092,7 +3131,10 @@ export default function AdminView({
                 }`}
                 title="Sign out of console"
               >
-                <LogOutIcon size={14} className="text-rose-600 dark:text-rose-400" />
+                <LogOutIcon
+                  size={14}
+                  className="text-rose-600 dark:text-rose-400"
+                />
                 <span className="hidden xl:inline text-xs">Exit</span>
               </button>
 
@@ -3196,7 +3238,10 @@ export default function AdminView({
                                   </span>
                                 </p>
                                 <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-0.5">
-                                  <CarIcon size={14} className="text-[#F97316] inline" />{" "}
+                                  <CarIcon
+                                    size={14}
+                                    className="text-[#F97316] inline"
+                                  />{" "}
                                   {cars.find((c) => c.id === b.matchedCarId)
                                     ?.name ||
                                     b.requestedCategory ||
@@ -3257,7 +3302,9 @@ export default function AdminView({
                 <StarIcon
                   size={14}
                   filled={reviewsEnabled}
-                  className={reviewsEnabled ? "text-amber-500" : "text-stone-400"}
+                  className={
+                    reviewsEnabled ? "text-amber-500" : "text-stone-400"
+                  }
                 />
                 <span className="hidden 2xl:inline text-[11px]">
                   {reviewsEnabled ? "Reviews ON" : "Reviews OFF"}
@@ -3321,7 +3368,8 @@ export default function AdminView({
               <h2 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-stone-900 dark:text-white uppercase mt-1">
                 {activeTab === "promos" && "PRIVILEGES & COUPON REGISTRY"}
                 {activeTab === "manifest" && "ORDERS & DISPATCH REGISTRY"}
-                {activeTab === "completed" && "COMPLETED ORDERS & INVOICE ARCHIVE"}
+                {activeTab === "completed" &&
+                  "COMPLETED ORDERS & INVOICE ARCHIVE"}
                 {activeTab === "fleet" && "FLEET & ASSET INVENTORY"}
                 {activeTab === "crm" && "CUSTOMERS & VERIFIED DRIVER CRM"}
                 {activeTab === "walkin" &&
@@ -3442,7 +3490,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       WHATSAPP DISPATCH NUMBER
                     </p>
-                    <span className="text-emerald-500"><PhoneIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <PhoneIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-2xl font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.contact_phone || "Not Configured"}
@@ -3464,7 +3514,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       DISPATCH NOTIFICATIONS EMAIL
                     </p>
-                    <span className="text-[#F97316]"><MailIcon size={14} /></span>
+                    <span className="text-[#F97316]">
+                      <MailIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-base sm:text-lg font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.contact_email || "Not Configured"}
@@ -3486,7 +3538,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       OPERATING HUB / GARAGE
                     </p>
-                    <span className="text-sky-500"><LocationIcon size={14} /></span>
+                    <span className="text-sky-500">
+                      <LocationIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-base font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.hub_address
@@ -3510,7 +3564,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       DATABASE STATUS
                     </p>
-                    <span className="text-emerald-500"><ShieldIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <ShieldIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-3xl font-black font-mono my-1 text-emerald-500">
                     LIVE
@@ -3534,7 +3590,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       ACTIVE PRIVILEGES
                     </p>
-                    <span className="text-emerald-500"><TagIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <TagIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {promoStats.activeCount}
@@ -3556,7 +3614,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       DISMANTLED CODES
                     </p>
-                    <span className="text-amber-500"><ShieldIcon size={14} /></span>
+                    <span className="text-amber-500">
+                      <ShieldIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {promoStats.inactiveCount}
@@ -3578,10 +3638,14 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       #1 TOP USED VOUCHER
                     </p>
-                    <span className="text-amber-500"><TagIcon size={14} /></span>
+                    <span className="text-amber-500">
+                      <TagIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-2xl font-black font-mono my-1 text-stone-900 dark:text-white tracking-wider truncate">
-                    {promoStats.topVoucher ? promoStats.topVoucher.code : "NONE"}
+                    {promoStats.topVoucher
+                      ? promoStats.topVoucher.code
+                      : "NONE"}
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400 truncate">
                     {promoStats.topVoucher
@@ -3601,7 +3665,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       TOTAL REDEMPTIONS
                     </p>
-                    <span className="text-emerald-500"><ZapIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <ZapIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {promoStats.totalRedemptions}
@@ -3626,7 +3692,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       ACTIVE RESERVATIONS
                     </p>
-                    <span className="text-sky-500"><CarIcon size={14} /></span>
+                    <span className="text-sky-500">
+                      <CarIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.rented}
@@ -3648,7 +3716,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       PENDING &amp; EXTENSIONS
                     </p>
-                    <span className="text-amber-500"><ZapIcon size={14} /></span>
+                    <span className="text-amber-500">
+                      <ZapIcon size={14} />
+                    </span>
                   </div>
                   <div className="flex items-baseline gap-2 my-0.5 sm:my-1">
                     <p
@@ -3685,7 +3755,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       COMPLETED TRIPS
                     </p>
-                    <span className="text-emerald-500"><CheckIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <CheckIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {bookings.filter((b) => b.status === "Completed").length}
@@ -3731,7 +3803,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       REGISTERED FLEET
                     </p>
-                    <span className="text-stone-400"><CarIcon size={14} /></span>
+                    <span className="text-stone-400">
+                      <CarIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.total}
@@ -3753,7 +3827,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       AVAILABLE IN GARAGE
                     </p>
-                    <span className="text-emerald-500"><CheckIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <CheckIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.available}
@@ -3774,7 +3850,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       MAINTENANCE &amp; WASH
                     </p>
-                    <span className="text-rose-500"><WrenchIcon size={14} /></span>
+                    <span className="text-rose-500">
+                      <WrenchIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {stats.maintenance + stats.cleaning}
@@ -3795,7 +3873,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       FLEET UTILIZATION
                     </p>
-                    <span className="text-emerald-500"><ZapIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <ZapIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-3xl font-black font-mono my-1 text-emerald-500">
                     {stats.utilization}%
@@ -3822,7 +3902,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       TOTAL CLIENT DIRECTORY
                     </p>
-                    <span className="text-stone-400"><UserIcon size={14} /></span>
+                    <span className="text-stone-400">
+                      <UserIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {customers.length || 12}
@@ -3844,7 +3926,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       ACTIVE SERVICES / WORK
                     </p>
-                    <span className="text-amber-500"><WrenchIcon size={14} /></span>
+                    <span className="text-amber-500">
+                      <WrenchIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {maintenanceLogs.filter((m) => m.status === "In Progress")
@@ -3866,7 +3950,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       COUNTER SPEED
                     </p>
-                    <span className="text-sky-500"><ZapIcon size={14} /></span>
+                    <span className="text-sky-500">
+                      <ZapIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     3.5 Min
@@ -3887,7 +3973,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       CLIENT SATISFACTION
                     </p>
-                    <span className="text-amber-500"><SparklesIcon size={14} /></span>
+                    <span className="text-amber-500">
+                      <SparklesIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     4.9 / 5.0
@@ -3912,7 +4000,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       COMPLETED ORDERS
                     </p>
-                    <span className="text-emerald-500"><CheckIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <CheckIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {completedStats.totalCount}
@@ -3934,10 +4024,12 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       SETTLED REVENUE
                     </p>
-                    <span className="text-emerald-500"><ZapIcon size={14} /></span>
+                    <span className="text-emerald-500">
+                      <ZapIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
-                    ${completedStats.totalRevenue.toFixed(2)}
+                    €{completedStats.totalRevenue.toFixed(2)}
                   </p>
                   <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                     Cleared in registry
@@ -3955,7 +4047,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       EXTENSIONS MONETIZED
                     </p>
-                    <span className="text-amber-500"><SparklesIcon size={14} /></span>
+                    <span className="text-amber-500">
+                      <SparklesIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {completedStats.withExtensions}
@@ -3976,7 +4070,9 @@ export default function AdminView({
                     <p className="text-[10px] font-bold uppercase tracking-wider font-mono text-stone-500 dark:text-stone-400">
                       RETURN AUDIT PASS
                     </p>
-                    <span className="text-sky-500"><ShieldIcon size={14} /></span>
+                    <span className="text-sky-500">
+                      <ShieldIcon size={14} />
+                    </span>
                   </div>
                   <p className="text-xl sm:text-3xl font-black font-mono my-0.5 sm:my-1 text-stone-900 dark:text-white">
                     {completedStats.passRate}
@@ -4230,7 +4326,9 @@ export default function AdminView({
                               {b.checklistIn?.damageFound ? (
                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 flex items-center gap-1">
                                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                  Damage ({b.checklistIn.damagePhotos?.length || 0} Photos)
+                                  Damage (
+                                  {b.checklistIn.damagePhotos?.length || 0}{" "}
+                                  Photos)
                                 </span>
                               ) : (
                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -4240,7 +4338,7 @@ export default function AdminView({
                             </div>
                             <div className="text-right">
                               <span className="font-mono font-black text-sm text-stone-900 dark:text-white">
-                                ${Number(b.totalAmount || 0).toFixed(2)}
+                                €{Number(b.totalAmount || 0).toFixed(2)}
                               </span>
                               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-bold">
                                 Settled
@@ -4251,7 +4349,10 @@ export default function AdminView({
                           {/* Extension Banner */}
                           {isExtension && (
                             <div className="mt-3 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium flex items-center gap-2">
-                              <CheckIcon size={14} className="shrink-0 text-emerald-500" />
+                              <CheckIcon
+                                size={14}
+                                className="shrink-0 text-emerald-500"
+                              />
                               <span className="truncate">
                                 {b.notes?.includes("Extended")
                                   ? b.notes
@@ -4270,7 +4371,8 @@ export default function AdminView({
                                 {customerName}
                               </h5>
                               <p className="text-[11px] font-mono text-stone-500 dark:text-stone-400 mt-0.5 truncate">
-                                {b.customer.phone || "+1 (555) 000-0000"} • {b.customer.email}
+                                {b.customer.phone || "+1 (555) 000-0000"} •{" "}
+                                {b.customer.email}
                               </p>
                               <div className="mt-1 flex items-center gap-1.5">
                                 <span
@@ -4280,7 +4382,8 @@ export default function AdminView({
                                       : "bg-stone-100 text-stone-700 border-stone-200"
                                   }`}
                                 >
-                                  Lic: {b.driver?.licenseNumber || "FL-VERIFIED"}
+                                  Lic:{" "}
+                                  {b.driver?.licenseNumber || "FL-VERIFIED"}
                                 </span>
                               </div>
                             </div>
@@ -4303,7 +4406,9 @@ export default function AdminView({
                             </div>
                             <div className="min-w-0 flex-1">
                               <h6 className="font-bold text-xs text-stone-900 dark:text-white truncate">
-                                {car?.name || b.requestedCategory || "Fleet Vehicle"}
+                                {car?.name ||
+                                  b.requestedCategory ||
+                                  "Fleet Vehicle"}
                               </h6>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shrink-0">
@@ -4371,8 +4476,17 @@ export default function AdminView({
                             }`}
                             title="Inspect vehicle return sheet & damage photos"
                           >
-                            <ShieldIcon size={13} className={b.checklistIn?.damageFound ? "text-rose-500" : "text-emerald-500"} />
-                            <span>{b.checklistIn?.damageFound ? "Damage" : "Audit"}</span>
+                            <ShieldIcon
+                              size={13}
+                              className={
+                                b.checklistIn?.damageFound
+                                  ? "text-rose-500"
+                                  : "text-emerald-500"
+                              }
+                            />
+                            <span>
+                              {b.checklistIn?.damageFound ? "Damage" : "Audit"}
+                            </span>
                           </button>
                           <button
                             type="button"
@@ -4409,12 +4523,24 @@ export default function AdminView({
                             : "bg-stone-50/90 border-stone-200 text-stone-500"
                         }`}
                       >
-                        <th className="px-5 py-3.5 w-36 whitespace-nowrap">Invoice ID</th>
-                        <th className="px-5 py-3.5 w-52 whitespace-nowrap">Customer Client</th>
-                        <th className="px-5 py-3.5 w-48 whitespace-nowrap">Vehicle &amp; Plate</th>
-                        <th className="px-5 py-3.5 w-60 whitespace-nowrap">Rental Timeline</th>
-                        <th className="px-5 py-3.5 w-32 text-right whitespace-nowrap">Settled Total</th>
-                        <th className="px-5 py-3.5 w-44 text-center whitespace-nowrap">Invoice Actions</th>
+                        <th className="px-5 py-3.5 w-36 whitespace-nowrap">
+                          Invoice ID
+                        </th>
+                        <th className="px-5 py-3.5 w-52 whitespace-nowrap">
+                          Customer Client
+                        </th>
+                        <th className="px-5 py-3.5 w-48 whitespace-nowrap">
+                          Vehicle &amp; Plate
+                        </th>
+                        <th className="px-5 py-3.5 w-60 whitespace-nowrap">
+                          Rental Timeline
+                        </th>
+                        <th className="px-5 py-3.5 w-32 text-right whitespace-nowrap">
+                          Settled Total
+                        </th>
+                        <th className="px-5 py-3.5 w-44 text-center whitespace-nowrap">
+                          Invoice Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody
@@ -4453,7 +4579,8 @@ export default function AdminView({
                                 </span>
                                 {b.checklistIn?.damageFound ? (
                                   <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30 inline-block">
-                                    DAMAGE ({b.checklistIn.damagePhotos?.length || 0})
+                                    DAMAGE (
+                                    {b.checklistIn.damagePhotos?.length || 0})
                                   </span>
                                 ) : (
                                   <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-block">
@@ -4479,7 +4606,9 @@ export default function AdminView({
                             {/* Vehicle */}
                             <td className="px-5 py-3.5 align-middle">
                               <div className="font-bold text-xs text-stone-900 dark:text-white">
-                                {car?.name || b.requestedCategory || "Fleet Vehicle"}
+                                {car?.name ||
+                                  b.requestedCategory ||
+                                  "Fleet Vehicle"}
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="font-mono font-bold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shrink-0">
@@ -4506,7 +4635,7 @@ export default function AdminView({
                             {/* Settled Total */}
                             <td className="px-5 py-3.5 align-middle text-right">
                               <span className="font-mono font-black text-sm text-stone-900 dark:text-white block">
-                                ${Number(b.totalAmount || 0).toFixed(2)}
+                                €{Number(b.totalAmount || 0).toFixed(2)}
                               </span>
                               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                                 Paid &amp; Settled
@@ -4537,8 +4666,19 @@ export default function AdminView({
                                   }`}
                                   title="Inspect return check & damage photos"
                                 >
-                                  <ShieldIcon size={12} className={b.checklistIn?.damageFound ? "text-rose-500" : "text-emerald-500"} />
-                                  <span>{b.checklistIn?.damageFound ? "Damage" : "Audit"}</span>
+                                  <ShieldIcon
+                                    size={12}
+                                    className={
+                                      b.checklistIn?.damageFound
+                                        ? "text-rose-500"
+                                        : "text-emerald-500"
+                                    }
+                                  />
+                                  <span>
+                                    {b.checklistIn?.damageFound
+                                      ? "Damage"
+                                      : "Audit"}
+                                  </span>
                                 </button>
                                 <button
                                   type="button"
@@ -4783,13 +4923,18 @@ export default function AdminView({
 
                     const formattedAmount = Number(
                       b.totalAmount || 0,
-                    ).toLocaleString("en-US", {
+                    ).toLocaleString("en-IE", {
                       style: "currency",
 
-                      currency: "USD",
+                      currency: "EUR",
                     })
 
-                    const isPendingReview = !b.approvedByAdmin && b.status !== "Cancelled" && b.status !== "Completed" && b.status !== "Checked Out" && b.status !== "Assigned"
+                    const isPendingReview =
+                      !b.approvedByAdmin &&
+                      b.status !== "Cancelled" &&
+                      b.status !== "Completed" &&
+                      b.status !== "Checked Out" &&
+                      b.status !== "Assigned"
 
                     return (
                       <div
@@ -4876,17 +5021,28 @@ export default function AdminView({
                         </div>
 
                         {/* Flow F: Extension Request Alert Banner on Card */}
-                        {(b.extensionStatus === "Requested" || b.extensionStatus === "Pending") && (
+                        {(b.extensionStatus === "Requested" ||
+                          b.extensionStatus === "Pending") && (
                           <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-pulse">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <ClockIcon size={14} className="text-amber-600 shrink-0" />
+                              <ClockIcon
+                                size={14}
+                                className="text-amber-600 shrink-0"
+                              />
                               <div className="min-w-0">
                                 <p className="font-bold text-[11px] leading-tight">
-                                  Extension Requested: +{b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1} {b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"}
+                                  Extension Requested: +
+                                  {b.extensionRequest?.durationValue ??
+                                    b.extensionRequest?.extraDuration ??
+                                    1}{" "}
+                                  {b.extensionRequest?.durationUnit ??
+                                    b.extensionRequest?.unit ??
+                                    "days"}
                                 </p>
                                 {b.extensionRequest?.customerNotes && (
                                   <p className="text-[10px] text-amber-700 dark:text-amber-300 truncate">
-                                    &quot;{b.extensionRequest.customerNotes}&quot;
+                                    &quot;{b.extensionRequest.customerNotes}
+                                    &quot;
                                   </p>
                                 )}
                               </div>
@@ -4907,8 +5063,13 @@ export default function AdminView({
                           <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200 text-[11px] flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <span className="font-bold flex items-center gap-1">
-                                <SparklesIcon size={13} className="text-sky-500 shrink-0" />
-                                Quoted: ${b.extensionQuote?.totalQuotedAmount} ({b.extensionQuote?.rateAmount}/{b.extensionQuote?.rateType})
+                                <SparklesIcon
+                                  size={13}
+                                  className="text-sky-500 shrink-0"
+                                />
+                                Quoted: €{b.extensionQuote?.totalQuotedAmount}{" "}
+                                (€{b.extensionQuote?.rateAmount}/
+                                {b.extensionQuote?.rateType})
                               </span>
                               <span className="text-[10px] text-stone-500 dark:text-stone-400 block truncate">
                                 Awaiting customer approval in app
@@ -4928,8 +5089,16 @@ export default function AdminView({
                         )}
                         {b.extensionStatus === "Approved" && (
                           <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1.5">
-                            <CheckIcon size={12} className="text-emerald-500 shrink-0" />
-                            <span>Extension Approved (+{b.extensionRequest?.durationValue ?? 1} {b.extensionRequest?.durationUnit ?? "days"}) • Extended to {b.returnDate}</span>
+                            <CheckIcon
+                              size={12}
+                              className="text-emerald-500 shrink-0"
+                            />
+                            <span>
+                              Extension Approved (+
+                              {b.extensionRequest?.durationValue ?? 1}{" "}
+                              {b.extensionRequest?.durationUnit ?? "days"}) •
+                              Extended to {b.returnDate}
+                            </span>
                           </div>
                         )}
 
@@ -4988,7 +5157,10 @@ export default function AdminView({
                           ) : (
                             <div className="flex items-center justify-between w-full">
                               <span className="text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1.5">
-                                <AlertTriangleIcon size={13} className="text-amber-500 inline" />
+                                <AlertTriangleIcon
+                                  size={13}
+                                  className="text-amber-500 inline"
+                                />
                                 <span>Vehicle unassigned</span>
                               </span>
                               <button
@@ -5030,7 +5202,10 @@ export default function AdminView({
                             {getBookingDurationInfo(b.pickupDate, b.returnDate)
                               .hours < 24 && (
                               <span className="text-[9.5px] font-black text-[#F97316] bg-orange-100/90 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900/60 shrink-0">
-                                <ZapIcon size={13} className="text-[#F97316] inline" />{" "}
+                                <ZapIcon
+                                  size={13}
+                                  className="text-[#F97316] inline"
+                                />{" "}
                                 {
                                   getBookingDurationInfo(
                                     b.pickupDate,
@@ -5096,7 +5271,10 @@ export default function AdminView({
                                 onClick={() => handleOpenKeyHandoff(b)}
                                 className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                <KeyIcon size={12} className="inline text-amber-500" />
+                                <KeyIcon
+                                  size={12}
+                                  className="inline text-amber-500"
+                                />
                                 <span>Handover Keys</span>
                               </button>
                             )}
@@ -5145,7 +5323,10 @@ export default function AdminView({
                                   onClick={() => handleOpenReturnInspection(b)}
                                   className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                                 >
-                                  <FlagIcon size={12} className="inline text-emerald-500" />
+                                  <FlagIcon
+                                    size={12}
+                                    className="inline text-emerald-500"
+                                  />
                                   <span>Return Check</span>
                                 </button>
                               )}
@@ -5168,7 +5349,10 @@ export default function AdminView({
                               className="px-2 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
                               title="Download Trip Invoice PNG"
                             >
-                              <DownloadIcon size={12} className="inline text-sky-500" />
+                              <DownloadIcon
+                                size={12}
+                                className="inline text-sky-500"
+                              />
                               <span className="hidden sm:inline">Invoice</span>
                             </button>
                             <button
@@ -5224,13 +5408,18 @@ export default function AdminView({
 
                         const formattedAmount = Number(
                           b.totalAmount || 0,
-                        ).toLocaleString("en-US", {
+                        ).toLocaleString("en-IE", {
                           style: "currency",
 
-                          currency: "USD",
+                          currency: "EUR",
                         })
 
-                        const isPendingReview = !b.approvedByAdmin && b.status !== "Cancelled" && b.status !== "Completed" && b.status !== "Checked Out" && b.status !== "Assigned"
+                        const isPendingReview =
+                          !b.approvedByAdmin &&
+                          b.status !== "Cancelled" &&
+                          b.status !== "Completed" &&
+                          b.status !== "Checked Out" &&
+                          b.status !== "Assigned"
 
                         return (
                           <div
@@ -5312,17 +5501,28 @@ export default function AdminView({
                             </div>
 
                             {/* Flow F: Extension Request Alert Banner on Card */}
-                            {(b.extensionStatus === "Requested" || b.extensionStatus === "Pending") && (
+                            {(b.extensionStatus === "Requested" ||
+                              b.extensionStatus === "Pending") && (
                               <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-pulse">
                                 <div className="flex items-center gap-1.5 min-w-0">
-                                  <ClockIcon size={14} className="text-amber-600 shrink-0" />
+                                  <ClockIcon
+                                    size={14}
+                                    className="text-amber-600 shrink-0"
+                                  />
                                   <div className="min-w-0">
                                     <p className="font-bold text-[11px] leading-tight">
-                                      Extension Requested: +{b.extensionRequest?.durationValue ?? b.extensionRequest?.extraDuration ?? 1} {b.extensionRequest?.durationUnit ?? b.extensionRequest?.unit ?? "days"}
+                                      Extension Requested: +
+                                      {b.extensionRequest?.durationValue ??
+                                        b.extensionRequest?.extraDuration ??
+                                        1}{" "}
+                                      {b.extensionRequest?.durationUnit ??
+                                        b.extensionRequest?.unit ??
+                                        "days"}
                                     </p>
                                     {b.extensionRequest?.customerNotes && (
                                       <p className="text-[10px] text-amber-700 dark:text-amber-300 truncate">
-                                        &quot;{b.extensionRequest.customerNotes}&quot;
+                                        &quot;{b.extensionRequest.customerNotes}
+                                        &quot;
                                       </p>
                                     )}
                                   </div>
@@ -5343,8 +5543,14 @@ export default function AdminView({
                               <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200 text-[11px] flex items-center justify-between gap-2">
                                 <div className="min-w-0">
                                   <span className="font-bold flex items-center gap-1">
-                                    <SparklesIcon size={13} className="text-sky-500 shrink-0" />
-                                    Quoted: ${b.extensionQuote?.totalQuotedAmount} ({b.extensionQuote?.rateAmount}/{b.extensionQuote?.rateType})
+                                    <SparklesIcon
+                                      size={13}
+                                      className="text-sky-500 shrink-0"
+                                    />
+                                    Quoted: €
+                                    {b.extensionQuote?.totalQuotedAmount} (€
+                                    {b.extensionQuote?.rateAmount}/
+                                    {b.extensionQuote?.rateType})
                                   </span>
                                   <span className="text-[10px] text-stone-500 dark:text-stone-400 block truncate">
                                     Awaiting customer approval in app
@@ -5364,8 +5570,16 @@ export default function AdminView({
                             )}
                             {b.extensionStatus === "Approved" && (
                               <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1.5">
-                                <CheckIcon size={12} className="text-emerald-500 shrink-0" />
-                                <span>Extension Approved (+{b.extensionRequest?.durationValue ?? 1} {b.extensionRequest?.durationUnit ?? "days"}) • Extended to {b.returnDate}</span>
+                                <CheckIcon
+                                  size={12}
+                                  className="text-emerald-500 shrink-0"
+                                />
+                                <span>
+                                  Extension Approved (+
+                                  {b.extensionRequest?.durationValue ?? 1}{" "}
+                                  {b.extensionRequest?.durationUnit ?? "days"})
+                                  • Extended to {b.returnDate}
+                                </span>
                               </div>
                             )}
 
@@ -5425,7 +5639,10 @@ export default function AdminView({
                               ) : (
                                 <div className="flex items-center justify-between w-full">
                                   <span className="text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-1.5">
-                                    <AlertTriangleIcon size={13} className="text-amber-500 inline" />
+                                    <AlertTriangleIcon
+                                      size={13}
+                                      className="text-amber-500 inline"
+                                    />
                                     <span>Vehicle unassigned</span>
                                   </span>
                                   <button
@@ -5469,7 +5686,10 @@ export default function AdminView({
                                   b.returnDate,
                                 ).hours < 24 && (
                                   <span className="text-[9.5px] font-black text-[#F97316] bg-orange-100/90 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900/60 shrink-0">
-                                    <ZapIcon size={11} className="inline text-[#F97316]" />{" "}
+                                    <ZapIcon
+                                      size={11}
+                                      className="inline text-[#F97316]"
+                                    />{" "}
                                     {
                                       getBookingDurationInfo(
                                         b.pickupDate,
@@ -5550,49 +5770,55 @@ export default function AdminView({
                                       onClick={() => handleOpenKeyHandoff(b)}
                                       className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                                     >
-                                      <KeyIcon size={12} className="inline text-amber-500" />
+                                      <KeyIcon
+                                        size={12}
+                                        className="inline text-amber-500"
+                                      />
                                       <span>Handover Keys</span>
                                     </button>
                                   )}
 
-                                 {/* Flow F: Quote Extension CTA in Desktop Cards */}
-                                 {(b.extensionStatus === "Requested" ||
-                                   b.extensionStatus === "Pending") && (
-                                   <button
-                                     type="button"
-                                      onClick={() => handleOpenExtensionQuote(b)}
-                                     className="px-3.5 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
-                                   >
-                                     <ZapIcon size={13} />
-                                     <span>Quote Extension</span>
-                                   </button>
-                                 )}
+                                {/* Flow F: Quote Extension CTA in Desktop Cards */}
+                                {(b.extensionStatus === "Requested" ||
+                                  b.extensionStatus === "Pending") && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenExtensionQuote(b)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
+                                  >
+                                    <ZapIcon size={13} />
+                                    <span>Quote Extension</span>
+                                  </button>
+                                )}
 
-                                 {b.extensionStatus === "Quoted" && (
-                                   <button
-                                     type="button"
-                                     onClick={() => handleOpenExtensionQuote(b)}
-                                     className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                   >
-                                     <SparklesIcon size={13} />
-                                     <span>Modify Quote</span>
-                                   </button>
-                                 )}
+                                {b.extensionStatus === "Quoted" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenExtensionQuote(b)}
+                                    className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                  >
+                                    <SparklesIcon size={13} />
+                                    <span>Modify Quote</span>
+                                  </button>
+                                )}
 
-                                 {b.status === "Checked Out" &&
-                                   b.extensionStatus !== "Requested" &&
-                                   b.extensionStatus !== "Pending" && (
-                                     <button
-                                       type="button"
-                                       onClick={() =>
-                                         handleOpenReturnInspection(b)
-                                       }
-                                       className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                     >
-                                       <FlagIcon size={12} className="inline text-emerald-500" />
-                                       <span>Return Check</span>
-                                     </button>
-                                   )}
+                                {b.status === "Checked Out" &&
+                                  b.extensionStatus !== "Requested" &&
+                                  b.extensionStatus !== "Pending" && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleOpenReturnInspection(b)
+                                      }
+                                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                      <FlagIcon
+                                        size={12}
+                                        className="inline text-emerald-500"
+                                      />
+                                      <span>Return Check</span>
+                                    </button>
+                                  )}
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
@@ -5985,7 +6211,10 @@ export default function AdminView({
 
                                   {/* Operational Signals in neat secondary row */}
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    {(b.approvedByAdmin || b.status === "Completed" || b.status === "Checked Out" || b.status === "Assigned") ? (
+                                    {b.approvedByAdmin ||
+                                    b.status === "Completed" ||
+                                    b.status === "Checked Out" ||
+                                    b.status === "Assigned" ? (
                                       <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" />
                                         Accepted
@@ -6055,7 +6284,7 @@ export default function AdminView({
                                     isDark ? "text-white" : "text-stone-900"
                                   }`}
                                 >
-                                  ${b.totalAmount.toFixed(2)}
+                                  €{b.totalAmount.toFixed(2)}
                                 </div>
                                 <div className="text-[10px] font-mono text-stone-400 mt-0.5">
                                   {b.status === "Completed"
@@ -6154,7 +6383,10 @@ export default function AdminView({
                                     }`}
                                     title="Download Official Trip Invoice PNG"
                                   >
-                                    <DownloadIcon size={12} className="inline mr-1" />
+                                    <DownloadIcon
+                                      size={12}
+                                      className="inline mr-1"
+                                    />
                                     <span className="hidden xl:inline text-[10px]">
                                       Invoice
                                     </span>
@@ -6373,7 +6605,10 @@ export default function AdminView({
                                 />
                                 {c.gallery && c.gallery.length > 1 && (
                                   <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
-                                    <CameraIcon size={13} className="inline text-stone-500" />
+                                    <CameraIcon
+                                      size={13}
+                                      className="inline text-stone-500"
+                                    />
                                     <span>{c.gallery.length}</span>
                                   </span>
                                 )}
@@ -6483,7 +6718,7 @@ export default function AdminView({
                                 </select>
 
                                 <span className="font-mono font-bold text-xs text-stone-900 dark:text-white">
-                                  ${c.pricePerDay}
+                                  €{c.pricePerDay}
                                   <span className="text-[10px] font-normal text-stone-400">
                                     /day
                                   </span>
@@ -6596,7 +6831,10 @@ export default function AdminView({
                                     />
                                     {c.gallery && c.gallery.length > 1 && (
                                       <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
-                                        <CameraIcon size={10} className="inline mr-1" />
+                                        <CameraIcon
+                                          size={10}
+                                          className="inline mr-1"
+                                        />
                                         <span>{c.gallery.length}</span>
                                       </span>
                                     )}
@@ -6734,10 +6972,10 @@ export default function AdminView({
                                     isDark ? "text-white" : "text-stone-900"
                                   }`}
                                 >
-                                  ${c.pricePerDay}/day
+                                  €{c.pricePerDay}/day
                                 </span>
                                 <span className="text-[11px] text-stone-400 block font-normal">
-                                  ${c.pricePerHour || 8}/hr • $
+                                  €{c.pricePerHour || 8}/hr • €
                                   {c.pricePerMonth ||
                                     Math.round(c.pricePerDay * 22)}
                                   /mo
@@ -6850,10 +7088,10 @@ export default function AdminView({
                               isDark ? "text-white" : "text-stone-900"
                             }`}
                           >
-                            ${c.pricePerDay}/day
+                            €{c.pricePerDay}/day
                           </span>
                           <span className="font-mono text-[10px] text-stone-400 block font-medium">
-                            ${c.pricePerHour || 8}/hr • $
+                            €{c.pricePerHour || 8}/hr • €
                             {c.pricePerMonth || Math.round(c.pricePerDay * 22)}
                             /mo
                           </span>
@@ -6927,7 +7165,10 @@ export default function AdminView({
                 </div>
               </div>
 
-              <form onSubmit={handleWalkinSubmit} className="mt-4 sm:mt-6 space-y-4 sm:space-y-6">
+              <form
+                onSubmit={handleWalkinSubmit}
+                className="mt-4 sm:mt-6 space-y-4 sm:space-y-6"
+              >
                 {/* Step 1: Customer Details */}
                 <div>
                   <h4
@@ -7161,7 +7402,7 @@ export default function AdminView({
                                   isDark ? "text-stone-400" : "text-stone-500"
                                 }`}
                               >
-                                {car.plateNumber} • ${car.pricePerDay}/day
+                                {car.plateNumber} • €{car.pricePerDay}/day
                               </p>
                             </div>
                           </div>
@@ -7339,7 +7580,9 @@ export default function AdminView({
                       isDark ? "text-stone-400" : "text-stone-500"
                     }`}
                   >
-                    Confidential concession vouchers. These codes are strictly visible to the Studio Director and protected from public inspection.
+                    Confidential concession vouchers. These codes are strictly
+                    visible to the Studio Director and protected from public
+                    inspection.
                   </p>
                 </div>
                 <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -7377,7 +7620,8 @@ export default function AdminView({
                           colSpan={7}
                           className="px-5 py-12 text-center text-stone-500 font-mono text-xs"
                         >
-                          No privilege vouchers configured yet. Click "Create New Privilege" above to mint a concession code.
+                          No privilege vouchers configured yet. Click "Create
+                          New Privilege" above to mint a concession code.
                         </td>
                       </tr>
                     ) : (
@@ -8604,7 +8848,11 @@ export default function AdminView({
                       : "Verified"}
                   </span>
                 </div>
-              ) : (!inspectedBooking.approvedByAdmin && inspectedBooking.status !== "Completed" && inspectedBooking.status !== "Checked Out" && inspectedBooking.status !== "Cancelled" && inspectedBooking.status !== "Assigned") ? (
+              ) : !inspectedBooking.approvedByAdmin &&
+                inspectedBooking.status !== "Completed" &&
+                inspectedBooking.status !== "Checked Out" &&
+                inspectedBooking.status !== "Cancelled" &&
+                inspectedBooking.status !== "Assigned" ? (
                 <div
                   className={`p-3.5 rounded-xl border flex items-center justify-between text-xs transition ${
                     isDark
@@ -8946,14 +9194,14 @@ export default function AdminView({
                       Quotation Dispatched to Customer
                     </span>
                     <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                      +$
+                      +€
                       {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
                         2,
                       )}
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                    Rate: ${inspectedBooking.extensionQuote.rateAmount} /{" "}
+                    Rate: €{inspectedBooking.extensionQuote.rateAmount} /{" "}
                     {inspectedBooking.extensionQuote.rateType} • Awaiting
                     customer approval in self-service portal.
                   </p>
@@ -8972,7 +9220,7 @@ export default function AdminView({
                 >
                   <span className="font-bold flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Extension Approved &amp; Added to Billing (+$
+                    Extension Approved &amp; Added to Billing (+€
                     {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
                       2,
                     )}
@@ -9393,7 +9641,7 @@ export default function AdminView({
 
                         .map((c) => (
                           <option key={c.id} value={c.id}>
-                            {c.name} ({c.plateNumber}) - {c.type} ($
+                            {c.name} ({c.plateNumber}) - {c.type} (€
                             {c.pricePerDay}/day)
                           </option>
                         ))}
@@ -9474,7 +9722,7 @@ export default function AdminView({
                 >
                   <span>Total Billing:</span>
                   <span className="text-emerald-500">
-                    ${inspectedBooking.totalAmount.toFixed(2)}
+                    €{inspectedBooking.totalAmount.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -9511,28 +9759,41 @@ export default function AdminView({
                       </span>
                     </div>
                     <span className="text-[10px] font-mono text-stone-400">
-                      Audited {inspectedBooking.checklistIn.timestamp ? new Date(inspectedBooking.checklistIn.timestamp).toLocaleDateString() : "Certified"}
+                      Audited{" "}
+                      {inspectedBooking.checklistIn.timestamp
+                        ? new Date(
+                            inspectedBooking.checklistIn.timestamp,
+                          ).toLocaleDateString()
+                        : "Certified"}
                     </span>
                   </div>
 
                   {/* Return Metrics: Odometer, Fuel, Auditor */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px]">
                     <div className="p-2 rounded-xl bg-white/70 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800">
-                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">Return Odometer</span>
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">
+                        Return Odometer
+                      </span>
                       <span className="font-bold text-stone-900 dark:text-white">
-                        {inspectedBooking.checklistIn.odometerIn.toLocaleString()} mi
+                        {inspectedBooking.checklistIn.odometerIn.toLocaleString()}{" "}
+                        mi
                       </span>
                     </div>
                     <div className="p-2 rounded-xl bg-white/70 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800">
-                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">Return Fuel</span>
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">
+                        Return Fuel
+                      </span>
                       <span className="font-bold text-stone-900 dark:text-white">
                         {inspectedBooking.checklistIn.fuelLevelIn}
                       </span>
                     </div>
                     <div className="p-2 rounded-xl bg-white/70 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 col-span-2 sm:col-span-1">
-                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">Certified Auditor</span>
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 block">
+                        Certified Auditor
+                      </span>
                       <span className="font-bold text-stone-900 dark:text-white truncate block">
-                        {inspectedBooking.checklistIn.inspectorStaff || "Lead Auditor"}
+                        {inspectedBooking.checklistIn.inspectorStaff ||
+                          "Lead Auditor"}
                       </span>
                     </div>
                   </div>
@@ -9543,7 +9804,8 @@ export default function AdminView({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-600 text-white font-mono">
-                            {inspectedBooking.checklistIn.damageSeverity || "Damage Incident"}
+                            {inspectedBooking.checklistIn.damageSeverity ||
+                              "Damage Incident"}
                           </span>
                           {inspectedBooking.checklistIn.damageLocation && (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-mono">
@@ -9553,54 +9815,72 @@ export default function AdminView({
                         </div>
                         {Number(inspectedBooking.checklistIn.damageFee) > 0 && (
                           <span className="font-mono font-bold text-xs text-rose-600 dark:text-rose-400">
-                            Repair Surcharge: ${Number(inspectedBooking.checklistIn.damageFee).toFixed(2)}
+                            Repair Surcharge: $
+                            {Number(
+                              inspectedBooking.checklistIn.damageFee,
+                            ).toFixed(2)}
                           </span>
                         )}
                       </div>
 
                       {inspectedBooking.checklistIn.damageNotes && (
                         <p className="text-xs text-stone-800 dark:text-stone-200 font-medium leading-relaxed">
-                          <strong className="text-rose-600 dark:text-rose-400 font-bold">Auditor Notes:</strong> {inspectedBooking.checklistIn.damageNotes}
+                          <strong className="text-rose-600 dark:text-rose-400 font-bold">
+                            Auditor Notes:
+                          </strong>{" "}
+                          {inspectedBooking.checklistIn.damageNotes}
                         </p>
                       )}
 
                       {/* Attached Damage Photos */}
-                      {inspectedBooking.checklistIn.damagePhotos && inspectedBooking.checklistIn.damagePhotos.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-rose-700 dark:text-rose-400 font-mono block">
-                            Documented Photo Evidence ({inspectedBooking.checklistIn.damagePhotos.length} photos):
-                          </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {inspectedBooking.checklistIn.damagePhotos.map((photo, pIdx) => (
-                              <div
-                                key={pIdx}
-                                onClick={() =>
-                                  setZoomedPhoto({
-                                    url: photo,
-                                    title: `Damage Audit Photo #${pIdx + 1} (${inspectedBooking.id})`,
-                                  })
-                                }
-                                className="group relative aspect-video rounded-xl overflow-hidden border border-rose-300 dark:border-rose-800 cursor-pointer shadow-xs bg-black"
-                              >
-                                <img
-                                  src={photo}
-                                  alt={`Damage Evidence ${pIdx + 1}`}
-                                  className="w-full h-full object-cover transition group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition pointer-events-none" />
-                                <span className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
-                                  #{pIdx + 1} Click to zoom
-                                </span>
-                              </div>
-                            ))}
+                      {inspectedBooking.checklistIn.damagePhotos &&
+                        inspectedBooking.checklistIn.damagePhotos.length >
+                          0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-rose-700 dark:text-rose-400 font-mono block">
+                              Documented Photo Evidence (
+                              {inspectedBooking.checklistIn.damagePhotos.length}{" "}
+                              photos):
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {inspectedBooking.checklistIn.damagePhotos.map(
+                                (photo, pIdx) => (
+                                  <div
+                                    key={pIdx}
+                                    onClick={() =>
+                                      setZoomedPhoto({
+                                        url: photo,
+                                        title: `Damage Audit Photo #${pIdx + 1} (${inspectedBooking.id})`,
+                                      })
+                                    }
+                                    className="group relative aspect-video rounded-xl overflow-hidden border border-rose-300 dark:border-rose-800 cursor-pointer shadow-xs bg-black"
+                                  >
+                                    <img
+                                      src={photo}
+                                      alt={`Damage Evidence ${pIdx + 1}`}
+                                      className="w-full h-full object-cover transition group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition pointer-events-none" />
+                                    <span className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                      #{pIdx + 1} Click to zoom
+                                    </span>
+                                  </div>
+                                ),
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   ) : (
                     <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-                      <CheckIcon size={14} className="text-emerald-500 shrink-0" />
-                      <span>Zero new damage recorded. Vehicle cleared return audit with full deposit release.</span>
+                      <CheckIcon
+                        size={14}
+                        className="text-emerald-500 shrink-0"
+                      />
+                      <span>
+                        Zero new damage recorded. Vehicle cleared return audit
+                        with full deposit release.
+                      </span>
                     </div>
                   )}
                 </div>
@@ -9908,7 +10188,7 @@ export default function AdminView({
                           const val = e.target.value.replace(/[^0-9]/g, "")
                           setCarFormData({
                             ...carFormData,
-                            year: val === "" ? ("" as any) : val,
+                            year: val === "" ? "" as any : val,
                           })
                         }}
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -10355,7 +10635,7 @@ export default function AdminView({
                           const val = e.target.value.replace(/[^0-9]/g, "")
                           setCarFormData({
                             ...carFormData,
-                            seats: val === "" ? ("" as any) : val,
+                            seats: val === "" ? "" as any : val,
                           })
                         }}
                         className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -10454,12 +10734,12 @@ export default function AdminView({
                           isDark ? "text-stone-300" : "text-stone-800"
                         }`}
                       >
-                        Price Per Day ($){" "}
+                        Price Per Day (€){" "}
                         <span className="text-red-500">*</span>
                       </label>
                       <div className="relative flex items-center">
                         <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
-                          $
+                          €
                         </span>
                         <input
                           type="text"
@@ -10470,7 +10750,7 @@ export default function AdminView({
                             const val = e.target.value.replace(/[^0-9.]/g, "")
                             setCarFormData({
                               ...carFormData,
-                              pricePerDay: val === "" ? ("" as any) : val,
+                              pricePerDay: val === "" ? "" as any : val,
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-black transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -10481,10 +10761,14 @@ export default function AdminView({
                         />
                       </div>
                       <p className="text-[10px] text-stone-400 mt-1 font-mono">
-                        Weekly Est: $
-                        {((Number(carFormData.pricePerDay) || 55) * 7).toFixed(0)} •
-                        Monthly Est: $
-                        {((Number(carFormData.pricePerDay) || 55) * 30).toFixed(0)}
+                        Weekly Est: €
+                        {((Number(carFormData.pricePerDay) || 55) * 7).toFixed(
+                          0,
+                        )}{" "}
+                        • Monthly Est: €
+                        {((Number(carFormData.pricePerDay) || 55) * 30).toFixed(
+                          0,
+                        )}
                       </p>
                     </div>
 
@@ -10495,11 +10779,11 @@ export default function AdminView({
                           isDark ? "text-stone-300" : "text-stone-800"
                         }`}
                       >
-                        Price Per Hour ($/hr)
+                        Price Per Hour (€/hr)
                       </label>
                       <div className="relative flex items-center">
                         <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
-                          $
+                          €
                         </span>
                         <input
                           type="text"
@@ -10510,7 +10794,7 @@ export default function AdminView({
                             const val = e.target.value.replace(/[^0-9.]/g, "")
                             setCarFormData({
                               ...carFormData,
-                              pricePerHour: val === "" ? ("" as any) : val,
+                              pricePerHour: val === "" ? "" as any : val,
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -10530,7 +10814,7 @@ export default function AdminView({
                             isDark ? "text-stone-300" : "text-stone-800"
                           }`}
                         >
-                          Price Per Month ($/mo)
+                          Price Per Month (€/mo)
                         </label>
                         <button
                           type="button"
@@ -10552,7 +10836,7 @@ export default function AdminView({
                       </div>
                       <div className="relative flex items-center">
                         <span className="absolute left-3.5 font-bold text-stone-400 text-sm">
-                          $
+                          €
                         </span>
                         <input
                           type="text"
@@ -10563,7 +10847,7 @@ export default function AdminView({
                             const val = e.target.value.replace(/[^0-9.]/g, "")
                             setCarFormData({
                               ...carFormData,
-                              pricePerMonth: val === "" ? ("" as any) : val,
+                              pricePerMonth: val === "" ? "" as any : val,
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-sm font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
@@ -10574,11 +10858,12 @@ export default function AdminView({
                         />
                       </div>
                       <p className="text-[10px] text-stone-400 mt-1 font-mono">
-                        Effective: $
+                        Effective: €
                         {(
                           (Number(carFormData.pricePerMonth) ||
-                            Math.round((Number(carFormData.pricePerDay) || 55) * 22)) /
-                          30
+                            Math.round(
+                              (Number(carFormData.pricePerDay) || 55) * 22,
+                            )) / 30
                         ).toFixed(1)}
                         /day
                       </p>
@@ -10726,7 +11011,7 @@ export default function AdminView({
                           !carFormData.pricePerDay ||
                           Number(carFormData.pricePerDay) <= 0
                         ) {
-                          alert("Please specify a valid daily rate ($/day).")
+                          alert("Please specify a valid daily rate (€/day).")
                           return
                         }
                         setCarModalTab("insurance")
@@ -10873,11 +11158,11 @@ export default function AdminView({
                           isDark ? "text-stone-300" : "text-stone-800"
                         }`}
                       >
-                        Vehicle Purchase Price ($)
+                        Vehicle Purchase Price (€)
                       </label>
                       <div className="relative flex items-center">
                         <span className="absolute left-3.5 font-bold text-stone-400 text-xs">
-                          $
+                          €
                         </span>
                         <input
                           type="number"
@@ -10889,7 +11174,8 @@ export default function AdminView({
                             const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-                              purchaseCost: val === "" ? ("" as any) : Number(val),
+                              purchaseCost:
+                                val === "" ? "" as any : Number(val),
                             })
                           }}
                           className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
@@ -10921,7 +11207,8 @@ export default function AdminView({
                             const val = e.target.value
                             setCarFormData({
                               ...carFormData,
-                              currentOdometer: val === "" ? ("" as any) : Number(val),
+                              currentOdometer:
+                                val === "" ? "" as any : Number(val),
                             })
                           }}
                           className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
@@ -11275,14 +11562,14 @@ export default function AdminView({
                     >
                       <div>
                         <span className="text-xl font-black text-[#F97316] font-heading">
-                          ${carFormData.pricePerDay || 55}
+                          €{carFormData.pricePerDay || 55}
                         </span>
                         <span className="text-[10px] text-stone-400 font-semibold">
                           {" "}
                           / day
                         </span>
                         <span className="text-[10px] text-stone-400 block font-medium">
-                          ${carFormData.pricePerHour || 8}/hr • $
+                          €{carFormData.pricePerHour || 8}/hr • €
                           {carFormData.pricePerMonth ||
                             Math.round((carFormData.pricePerDay || 55) * 22)}
                           /mo
@@ -11432,7 +11719,7 @@ export default function AdminView({
                     const val = e.target.value
                     setNewPromoData({
                       ...newPromoData,
-                      discountPercent: val === "" ? ("" as any) : Number(val),
+                      discountPercent: val === "" ? "" as any : Number(val),
                     })
                   }}
                   className={`w-full px-3 py-2 rounded-xl text-sm font-mono focus:outline-none focus:border-emerald-500 transition ${
@@ -11599,7 +11886,7 @@ export default function AdminView({
                       isDark ? "text-stone-400" : "text-stone-600"
                     }`}
                   >
-                    Cost ($)
+                    Cost (€)
                   </label>
                   <input
                     type="number"
@@ -11610,7 +11897,10 @@ export default function AdminView({
                     onChange={(e) =>
                       setNewMntData({
                         ...newMntData,
-                        cost: e.target.value === "" ? ("" as any) : Number(e.target.value),
+                        cost:
+                          e.target.value === ""
+                            ? "" as any
+                            : Number(e.target.value),
                       })
                     }
                     className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
@@ -11637,7 +11927,10 @@ export default function AdminView({
                     onChange={(e) =>
                       setNewMntData({
                         ...newMntData,
-                        odometer: e.target.value === "" ? ("" as any) : Number(e.target.value),
+                        odometer:
+                          e.target.value === ""
+                            ? "" as any
+                            : Number(e.target.value),
                       })
                     }
                     className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition ${
@@ -12073,9 +12366,9 @@ export default function AdminView({
                     : "bg-emerald-50 border-emerald-200 text-emerald-800"
                 }`}
               >
-                <strong>Clock Start Notice:</strong> Submitting will record
-                this exact timestamp, start the customer's live rental timer,
-                and transition this vehicle to <strong>Rented</strong>.
+                <strong>Clock Start Notice:</strong> Submitting will record this
+                exact timestamp, start the customer's live rental timer, and
+                transition this vehicle to <strong>Rented</strong>.
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -12237,7 +12530,7 @@ export default function AdminView({
                       isDark ? "text-stone-400" : "text-stone-600"
                     }`}
                   >
-                    Rate Amount ($)
+                    Rate Amount (€)
                   </label>
                   <input
                     type="number"
@@ -12272,7 +12565,7 @@ export default function AdminView({
                     isDark ? "text-stone-400" : "text-stone-600"
                   }`}
                 >
-                  Total Extension Quoted ($)
+                  Total Extension Quoted (€)
                 </label>
                 <input
                   type="number"
@@ -12595,7 +12888,10 @@ export default function AdminView({
                           Damage Severity Class
                         </label>
                         <select
-                          value={returnChecklist.damageSeverity || "Minor Scratch / Scuff"}
+                          value={
+                            returnChecklist.damageSeverity ||
+                            "Minor Scratch / Scuff"
+                          }
                           onChange={(e) =>
                             setReturnChecklist({
                               ...returnChecklist,
@@ -12608,12 +12904,24 @@ export default function AdminView({
                               : "bg-white border border-stone-200 text-stone-900"
                           }`}
                         >
-                          <option value="Minor Scratch / Scuff">Minor Scratch / Surface Scuff</option>
-                          <option value="Body Dent / Panel Crease">Body Dent / Panel Crease</option>
-                          <option value="Wheel / Rim Curb Rash">Wheel / Rim Curb Rash</option>
-                          <option value="Glass / Windshield Crack">Glass / Windshield Crack</option>
-                          <option value="Bumper / Trim Displacement">Bumper / Trim Displacement</option>
-                          <option value="Mechanical / Underbody Impact">Mechanical / Underbody Impact</option>
+                          <option value="Minor Scratch / Scuff">
+                            Minor Scratch / Surface Scuff
+                          </option>
+                          <option value="Body Dent / Panel Crease">
+                            Body Dent / Panel Crease
+                          </option>
+                          <option value="Wheel / Rim Curb Rash">
+                            Wheel / Rim Curb Rash
+                          </option>
+                          <option value="Glass / Windshield Crack">
+                            Glass / Windshield Crack
+                          </option>
+                          <option value="Bumper / Trim Displacement">
+                            Bumper / Trim Displacement
+                          </option>
+                          <option value="Mechanical / Underbody Impact">
+                            Mechanical / Underbody Impact
+                          </option>
                         </select>
                       </div>
 
@@ -12667,10 +12975,12 @@ export default function AdminView({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
                         <label className="block text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-1">
-                          Estimated Repair Cost / Deductible ($)
+                          Estimated Repair Cost / Deductible (€)
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-bold">$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-xs font-bold">
+                            €
+                          </span>
                           <input
                             type="number"
                             min="0"
@@ -12693,7 +13003,8 @@ export default function AdminView({
 
                       <div className="flex flex-col justify-end">
                         <p className="text-[10px] text-stone-500 dark:text-stone-400">
-                          * Vehicle will be routed directly to Fleet Maintenance for shop inspection.
+                          * Vehicle will be routed directly to Fleet Maintenance
+                          for shop inspection.
                         </p>
                       </div>
                     </div>
@@ -12703,7 +13014,10 @@ export default function AdminView({
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-bold text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
                           <CameraIcon size={14} className="text-rose-500" />
-                          <span>Damage Inspection Photos ({returnChecklist.damagePhotos?.length || 0})</span>
+                          <span>
+                            Damage Inspection Photos (
+                            {returnChecklist.damagePhotos?.length || 0})
+                          </span>
                         </label>
                         <span className="text-[10px] text-stone-500 dark:text-stone-400 font-mono">
                           Click photo to preview full size
@@ -12711,46 +13025,51 @@ export default function AdminView({
                       </div>
 
                       {/* Photo Gallery Grid */}
-                      {returnChecklist.damagePhotos && returnChecklist.damagePhotos.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                          {returnChecklist.damagePhotos.map((photoUrl, idx) => (
-                            <div
-                              key={idx}
-                              className="relative group rounded-xl overflow-hidden border border-rose-300 dark:border-rose-800 bg-black aspect-video flex items-center justify-center cursor-pointer shadow-xs"
-                              onClick={() =>
-                                setZoomedPhoto({
-                                  url: photoUrl,
-                                  title: `Damage Inspection Photo #${idx + 1} - ${returnModalBooking?.id || "Audit"}`,
-                                })
-                              }
-                            >
-                              <img
-                                src={photoUrl}
-                                alt={`Damage ${idx + 1}`}
-                                className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
-                              />
-                              <span className="absolute top-1 left-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
-                                #{idx + 1}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const nextPhotos = (returnChecklist.damagePhotos || []).filter((_, i) => i !== idx)
-                                  setReturnChecklist({
-                                    ...returnChecklist,
-                                    damagePhotos: nextPhotos,
-                                  })
-                                }}
-                                className="absolute top-1 right-1 w-6 h-6 rounded-md bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center opacity-90 hover:opacity-100 transition shadow-xs cursor-pointer"
-                                title="Remove photo"
-                              >
-                                <TrashIcon size={12} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {returnChecklist.damagePhotos &&
+                        returnChecklist.damagePhotos.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                            {returnChecklist.damagePhotos.map(
+                              (photoUrl, idx) => (
+                                <div
+                                  key={idx}
+                                  className="relative group rounded-xl overflow-hidden border border-rose-300 dark:border-rose-800 bg-black aspect-video flex items-center justify-center cursor-pointer shadow-xs"
+                                  onClick={() =>
+                                    setZoomedPhoto({
+                                      url: photoUrl,
+                                      title: `Damage Inspection Photo #${idx + 1} - ${returnModalBooking?.id || "Audit"}`,
+                                    })
+                                  }
+                                >
+                                  <img
+                                    src={photoUrl}
+                                    alt={`Damage ${idx + 1}`}
+                                    className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                                  />
+                                  <span className="absolute top-1 left-1 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
+                                    #{idx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const nextPhotos = (
+                                        returnChecklist.damagePhotos || []
+                                      ).filter((_, i) => i !== idx)
+                                      setReturnChecklist({
+                                        ...returnChecklist,
+                                        damagePhotos: nextPhotos,
+                                      })
+                                    }}
+                                    className="absolute top-1 right-1 w-6 h-6 rounded-md bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center opacity-90 hover:opacity-100 transition shadow-xs cursor-pointer"
+                                    title="Remove photo"
+                                  >
+                                    <TrashIcon size={12} />
+                                  </button>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        )}
 
                       {/* Upload Controls & Fast Preset Triggers */}
                       <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -12766,12 +13085,17 @@ export default function AdminView({
                             onChange={async (e) => {
                               const files = Array.from(e.target.files || [])
                               if (files.length === 0) return
-                              const compressed = await Promise.all(files.map((f) => compressVehiclePhoto(f)))
+                              const compressed = await Promise.all(
+                                files.map((f) => compressVehiclePhoto(f)),
+                              )
                               const valid = compressed.filter(Boolean)
                               if (valid.length > 0) {
                                 setReturnChecklist({
                                   ...returnChecklist,
-                                  damagePhotos: [...(returnChecklist.damagePhotos || []), ...valid],
+                                  damagePhotos: [
+                                    ...(returnChecklist.damagePhotos || []),
+                                    ...valid,
+                                  ],
                                 })
                               }
                               e.target.value = ""
@@ -12783,10 +13107,14 @@ export default function AdminView({
                         <button
                           type="button"
                           onClick={() => {
-                            const sample = "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80"
+                            const sample =
+                              "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80"
                             setReturnChecklist({
                               ...returnChecklist,
-                              damagePhotos: [...(returnChecklist.damagePhotos || []), sample],
+                              damagePhotos: [
+                                ...(returnChecklist.damagePhotos || []),
+                                sample,
+                              ],
                             })
                           }}
                           className="px-2.5 py-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-white/60 dark:bg-stone-900 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 transition cursor-pointer"
@@ -12796,10 +13124,14 @@ export default function AdminView({
                         <button
                           type="button"
                           onClick={() => {
-                            const sample = "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=800&q=80"
+                            const sample =
+                              "https://images.unsplash.com/photo-1590362891991-f776e747a588?auto=format&fit=crop&w=800&q=80"
                             setReturnChecklist({
                               ...returnChecklist,
-                              damagePhotos: [...(returnChecklist.damagePhotos || []), sample],
+                              damagePhotos: [
+                                ...(returnChecklist.damagePhotos || []),
+                                sample,
+                              ],
                             })
                           }}
                           className="px-2.5 py-1.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-white/60 dark:bg-stone-900 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100/50 transition cursor-pointer"
@@ -13351,11 +13683,7 @@ export default function AdminView({
                   onClick={toggleTheme}
                   className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold border border-stone-200 dark:border-stone-700 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>
-                    {isDark
-                      ? "Light Mode"
-                      : "Dark Mode"}
-                  </span>
+                  <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
                 </button>
 
                 <button
@@ -13500,7 +13828,7 @@ export default function AdminView({
                     </p>
 
                     <div className="mt-2 text-xs font-mono font-bold text-[#F97316]">
-                      ${deletingCar.pricePerDay}/day • $
+                      €{deletingCar.pricePerDay}/day • €
                       {deletingCar.pricePerHour || 8}/hr
                     </div>
                   </div>
@@ -13513,7 +13841,10 @@ export default function AdminView({
                       Location Hub
                     </span>
                     <span className="font-medium text-stone-700 dark:text-stone-300 truncate block">
-                      <LocationIcon size={12} className="inline mr-1 text-[#F97316]" />
+                      <LocationIcon
+                        size={12}
+                        className="inline mr-1 text-[#F97316]"
+                      />
                       {deletingCar.location ||
                         deletingCar.garageName ||
                         "MIA Hub"}
@@ -13524,7 +13855,10 @@ export default function AdminView({
                       Assigned Bay
                     </span>
                     <span className="font-medium text-stone-700 dark:text-stone-300 block">
-                      <TagIcon size={12} className="inline mr-1 text-stone-400" />
+                      <TagIcon
+                        size={12}
+                        className="inline mr-1 text-stone-400"
+                      />
                       {deletingCar.garageBay || "Bay 14-B"}
                     </span>
                   </div>

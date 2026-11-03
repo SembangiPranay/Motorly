@@ -72,7 +72,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
               </div>
               <div className="p-3.5 bg-white rounded-2xl border border-stone-200/80 shadow-2xs">
                 <div className="text-2xl font-black text-stone-900 font-heading">
-                  $0
+                  €0
                 </div>
                 <div className="text-[11px] text-stone-500 font-medium mt-0.5">
                   Hidden Airport Fees

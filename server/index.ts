@@ -71,31 +71,41 @@ async function reconcileDatabaseInvariants() {
 
     // 4. Invariant: Restore MTR-852655 and any settled/completed bookings accidentally cancelled or declined
     if (db.isSupabase && db.pool) {
-      await db.pool.query(`
+      await db.pool
+        .query(`
         UPDATE bookings
         SET status = 'Completed', approved_by_admin = 1
         WHERE id = 'MTR-852655'
            OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
-      `).catch(() => {})
+      `)
+        .catch(() => {})
 
-      await db.pool.query(`
+      await db.pool
+        .query(`
         UPDATE bookings
         SET approved_by_admin = 1
         WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
-      `).catch(() => {})
+      `)
+        .catch(() => {})
     } else {
-      await db.prepare(`
+      await db
+        .prepare(`
         UPDATE bookings
         SET status = 'Completed', approved_by_admin = 1
         WHERE id = 'MTR-852655'
            OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
-      `).run().catch(() => {})
+      `)
+        .run()
+        .catch(() => {})
 
-      await db.prepare(`
+      await db
+        .prepare(`
         UPDATE bookings
         SET approved_by_admin = 1
         WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
-      `).run().catch(() => {})
+      `)
+        .run()
+        .catch(() => {})
     }
 
     // 3. Invariant 3.2: Reconcile any 'Checked Out' bookings whose vehicle is currently marked 'Available' to 'Completed'
@@ -419,7 +429,9 @@ function formatBookingRow(row: any) {
       checklistIn = {
         ...parsed,
         fuelLevelIn: parsed.fuelLevelIn || parsed.fuelIn || "100%",
-        damagePhotos: Array.isArray(parsed.damagePhotos) ? parsed.damagePhotos : [],
+        damagePhotos: Array.isArray(parsed.damagePhotos)
+          ? parsed.damagePhotos
+          : [],
         damageNotes: parsed.damageNotes || parsed.inspectionNotes || "",
         damageSeverity: parsed.damageSeverity || "",
         damageLocation: parsed.damageLocation || "",
@@ -1347,8 +1359,10 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       Number(car.year) || 2024,
       car.type,
       Number(car.pricePerDay) || 50,
-      Number(car.pricePerHour) || Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)),
-      Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22),
+      Number(car.pricePerHour) ||
+        Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)),
+      Number(car.pricePerMonth) ||
+        Math.round((Number(car.pricePerDay) || 50) * 22),
       car.image,
       galleryJson,
       Number(car.seats) || 5,
@@ -2246,10 +2260,19 @@ const handleManagerApproval = async (
   }
 
   if (booking.status === "Completed") {
-    return res.status(400).json({ error: "Cannot accept a trip that has already been returned and completed." })
+    return res
+      .status(400)
+      .json({
+        error:
+          "Cannot accept a trip that has already been returned and completed.",
+      })
   }
   if (booking.status === "Checked Out") {
-    return res.status(400).json({ error: "Cannot decline an active trip that is currently on the road." })
+    return res
+      .status(400)
+      .json({
+        error: "Cannot decline an active trip that is currently on the road.",
+      })
   }
 
   if (booking.status === "Cancelled") {
@@ -2335,10 +2358,19 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
   }
 
   if (booking.status === "Completed") {
-    return res.status(400).json({ error: "Cannot decline a trip that has already been returned and completed." })
+    return res
+      .status(400)
+      .json({
+        error:
+          "Cannot decline a trip that has already been returned and completed.",
+      })
   }
   if (booking.status === "Checked Out") {
-    return res.status(400).json({ error: "Cannot decline an active trip that is currently on the road." })
+    return res
+      .status(400)
+      .json({
+        error: "Cannot decline an active trip that is currently on the road.",
+      })
   }
 
   await db
@@ -2459,9 +2491,17 @@ app.post(
     // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
     const user = req.user
     if (user?.role !== "admin") {
-      const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : ""
-      const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : ""
-      const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean)
+      const userPhoneClean = user?.phone
+        ? String(user.phone).replace(/\D/g, "")
+        : ""
+      const bookingPhoneClean = booking.customer_phone
+        ? String(booking.customer_phone).replace(/\D/g, "")
+        : ""
+      const phoneMatches = Boolean(
+        userPhoneClean &&
+          bookingPhoneClean &&
+          userPhoneClean === bookingPhoneClean,
+      )
 
       const isOwner =
         (booking.user_id && booking.user_id === user?.userId) ||
@@ -2525,7 +2565,8 @@ app.post(
 
     let extReq: any = {}
     try {
-      if (booking.extension_request) extReq = JSON.parse(booking.extension_request)
+      if (booking.extension_request)
+        extReq = JSON.parse(booking.extension_request)
     } catch {}
 
     const quoteObj = {
@@ -2575,9 +2616,17 @@ app.post(
     // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
     const user = req.user
     if (user?.role !== "admin") {
-      const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : ""
-      const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : ""
-      const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean)
+      const userPhoneClean = user?.phone
+        ? String(user.phone).replace(/\D/g, "")
+        : ""
+      const bookingPhoneClean = booking.customer_phone
+        ? String(booking.customer_phone).replace(/\D/g, "")
+        : ""
+      const phoneMatches = Boolean(
+        userPhoneClean &&
+          bookingPhoneClean &&
+          userPhoneClean === bookingPhoneClean,
+      )
 
       const isOwner =
         (booking.user_id && booking.user_id === user?.userId) ||
@@ -2625,7 +2674,9 @@ app.post(
       newReturnTimestamp += extraDuration * 86400 * 1000
     }
 
-    const origTimeMatch = (booking.return_date || "").match(/\d{1,2}:\d{2}\s*(?:AM|PM)?/i)
+    const origTimeMatch = (booking.return_date || "").match(
+      /\d{1,2}:\d{2}\s*(?:AM|PM)?/i,
+    )
     const timeSuffix = origTimeMatch ? ` ${origTimeMatch[0]}` : ""
     const dateFormatted = new Date(newReturnTimestamp).toLocaleDateString(
       "en-US",
@@ -2681,9 +2732,17 @@ app.post(
     // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
     const user = req.user
     if (user?.role !== "admin") {
-      const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : ""
-      const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : ""
-      const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean)
+      const userPhoneClean = user?.phone
+        ? String(user.phone).replace(/\D/g, "")
+        : ""
+      const bookingPhoneClean = booking.customer_phone
+        ? String(booking.customer_phone).replace(/\D/g, "")
+        : ""
+      const phoneMatches = Boolean(
+        userPhoneClean &&
+          bookingPhoneClean &&
+          userPhoneClean === bookingPhoneClean,
+      )
 
       const isOwner =
         (booking.user_id && booking.user_id === user?.userId) ||
@@ -2769,7 +2828,9 @@ app.post(
       damageNotes: damageNotes || inspectionNotes || "",
       damageSeverity: damageSeverity || (isDamage ? "Minor Cosmetic" : ""),
       damageLocation: damageLocation || (isDamage ? "Exterior Panel" : ""),
-      damagePhotos: Array.isArray(damagePhotos) ? damagePhotos.filter(Boolean) : [],
+      damagePhotos: Array.isArray(damagePhotos)
+        ? damagePhotos.filter(Boolean)
+        : [],
       damageFee: Number(damageFee) || 0,
       cleanlinessPass: Boolean(cleanlinessPass !== false),
       cleanlinessPassed: Boolean(cleanlinessPass !== false),
@@ -3394,7 +3455,9 @@ app.delete("/api/promos/:code", requireAdmin, async (req, res) => {
 app.post("/api/promos/validate", async (req, res) => {
   const { code } = req.body
   if (!code || typeof code !== "string" || !code.trim()) {
-    return res.status(200).json({ valid: false, message: "Please provide a privilege code." })
+    return res
+      .status(200)
+      .json({ valid: false, message: "Please provide a privilege code." })
   }
 
   const promoCode = code.trim().toUpperCase()
@@ -3411,7 +3474,10 @@ app.post("/api/promos/validate", async (req, res) => {
   if (!promo.is_active) {
     return res
       .status(200)
-      .json({ valid: false, message: "This privilege code has been deactivated." })
+      .json({
+        valid: false,
+        message: "This privilege code has been deactivated.",
+      })
   }
 
   if (promo.expiry_date) {
