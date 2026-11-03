@@ -2649,25 +2649,69 @@ export default function AdminView({
     }
   }
 
-  // Automated Overdue / Trip-Elapsed Notification System (Bug 4)
+  // Real-time ticker for ride completion notification
+  const [tickerNow, setTickerNow] = useState(Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setTickerNow(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [])
 
-  const overdueBookings = useMemo(() => {
-    const now = Date.now()
+  // Automated Ride Completion & Return Notification System (Accounts for Booking End Date & Approved Extensions)
+  const getEffectiveBookingReturnInfo = (b: BookingRecord) => {
+    let dateStr = b.returnDate || ""
+    let isExtended = false
+    let extensionLabel = ""
 
+    if (b.extensionStatus === "Approved") {
+      isExtended = true
+      const extReq = b.extensionRequest
+      if (extReq?.durationValue) {
+        extensionLabel = `+${extReq.durationValue} ${extReq.durationUnit || "days"}`
+      }
+    }
+
+    // Parse return date accurately
+    let returnTs = Date.parse(dateStr)
+    if (isNaN(returnTs) && dateStr) {
+      const cleaned = dateStr.replace(/([0-9]+)(st|nd|rd|th)/gi, "$1")
+      returnTs = Date.parse(cleaned)
+    }
+
+    if (isExtended && b.extensionQuote?.newReturnDate) {
+      const extQuoteTs = Date.parse(b.extensionQuote.newReturnDate)
+      if (!isNaN(extQuoteTs)) returnTs = extQuoteTs
+    }
+
+    const effectiveDate = !isNaN(returnTs) && returnTs > 0 ? new Date(returnTs) : null
+    const now = tickerNow
+    const isPastEndDate = effectiveDate ? now >= effectiveDate.getTime() : false
+    const diffMs = effectiveDate ? now - effectiveDate.getTime() : 0
+    const minutesPast = Math.max(0, Math.floor(diffMs / 60000))
+    const hoursPast = Math.max(0, Math.floor(diffMs / 3600000))
+
+    return {
+      effectiveDate,
+      dateStr,
+      isExtended,
+      extensionLabel,
+      isPastEndDate,
+      minutesPast,
+      hoursPast,
+    }
+  }
+
+  // Active bookings where rental period (original or extended) has completed and vehicle is due for return audit
+  const completedRidesDue = useMemo(() => {
     return bookings.filter((b) => {
       if (b.status !== "Checked Out") return false
-
-      try {
-        const returnTs = Date.parse(b.returnDate)
-
-        if (!isNaN(returnTs) && returnTs < now) {
-          return true
-        }
-      } catch {}
-
-      return false
+      const info = getEffectiveBookingReturnInfo(b)
+      return info.isPastEndDate
     })
-  }, [bookings])
+  }, [bookings, tickerNow])
+
+  const overdueBookings = useMemo(() => {
+    return completedRidesDue
+  }, [completedRidesDue])
 
   // Active Extension Requests Awaiting Manager Action
   const pendingExtensionBookings = useMemo(() => {
@@ -3887,6 +3931,130 @@ export default function AdminView({
                           type="button"
                           onClick={() => setInspectedBooking(eb)}
                           className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                            isDark
+                              ? "bg-stone-800 hover:bg-stone-700 text-stone-200"
+                              : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                          }`}
+                          title="Open Full Reservation Manifest"
+                        >
+                          Manifest →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              PROMINENT RIDE COMPLETION & VEHICLE RETURN ALERTS BANNER
+              Fires on-screen notification for every ride completion according to booking end date (including extensions)
+              ======================================================== */}
+          {completedRidesDue.length > 0 && (
+            <div className="rounded-2xl border border-emerald-500 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-cyan-500/15 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-cyan-950/40 p-4 sm:p-5 shadow-sm space-y-3 animate-fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                    <CheckCircleIcon size={20} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-heading font-black text-sm sm:text-base text-stone-900 dark:text-white uppercase tracking-tight">
+                        🏁 Ride Completed: {completedRidesDue.length} Vehicle{completedRidesDue.length > 1 ? "s" : ""} Due for Return Audit
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-600 text-white animate-pulse">
+                        Booking End Date Reached
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
+                      The scheduled rental duration (accounting for approved extensions) has concluded. Please inspect return odometer, fuel level, and release deposit.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("manifest")
+                      setManifestStatusFilter("checked-out")
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>View In-Drive Fleet</span>
+                    <ArrowRightIcon size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual completed rides cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-1">
+                {completedRidesDue.map((b) => {
+                  const car = cars.find((c) => c.id === b.matchedCarId)
+                  const returnInfo = getEffectiveBookingReturnInfo(b)
+                  return (
+                    <div
+                      key={`top-complete-${b.id}`}
+                      className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition ${
+                        isDark
+                          ? "bg-[#18191D] border-emerald-500/40 text-stone-200"
+                          : "bg-white/95 border-emerald-300 text-stone-900 shadow-xs"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-xs">
+                              {b.id}
+                            </span>
+                            <span className="text-stone-400">•</span>
+                            <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                              {car ? `${car.brand} ${car.name}` : "Vehicle Assigned"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                            Driver: <span className="font-medium text-stone-700 dark:text-stone-300">{b.customerName}</span> ({b.customerPhone})
+                          </p>
+                        </div>
+                        {returnInfo.isExtended ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                            {returnInfo.extensionLabel || "Extended"}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                            Trip Complete
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 text-[11px] space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-stone-500">Scheduled End:</span>
+                          <span className="font-mono font-bold text-stone-800 dark:text-stone-200">
+                            {returnInfo.dateStr}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-stone-500">Status Elapsed:</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {returnInfo.hoursPast > 0 ? `${returnInfo.hoursPast}h ${returnInfo.minutesPast % 60}m past end time` : `${returnInfo.minutesPast}m past end time`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1 border-t border-stone-100 dark:border-stone-800">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReturnModal(b)}
+                          className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <CheckCircleIcon size={13} />
+                          <span>Check-In &amp; Audit Return</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInspectedBooking(b)}
+                          className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                             isDark
                               ? "bg-stone-800 hover:bg-stone-700 text-stone-200"
                               : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
@@ -9198,17 +9366,17 @@ export default function AdminView({
         >
           {/* Modal Top Header */}
           <div
-            className={`p-5 sm:p-6 border-b flex items-center justify-between shrink-0 ${
+            className={`p-3 sm:p-5 lg:p-6 border-b flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 shrink-0 ${
               isDark
                 ? "bg-[#17191C] border-stone-800"
                 : "bg-white border-stone-200 shadow-2xs"
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 type="button"
                 onClick={() => setInspectedBooking(null)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
                     : "bg-stone-100 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 text-stone-700 border border-stone-200 shadow-2xs"
@@ -9218,12 +9386,12 @@ export default function AdminView({
                 <ArrowLeftIcon size={14} />
                 <span>Back</span>
               </button>
-              <div>
-                <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider block">
-                  RESERVATION INSPECTION MANIFEST • FULL PAGE VIEW
+              <div className="min-w-0">
+                <span className="text-[9px] sm:text-[10px] font-mono font-bold text-[#F97316] uppercase tracking-wider block truncate">
+                  RESERVATION MANIFEST • FULL VIEW
                 </span>
                 <h3
-                  className={`text-xl font-black font-mono mt-0.5 leading-none ${
+                  className={`text-lg sm:text-xl font-black font-mono mt-0.5 leading-none truncate ${
                     isDark ? "text-white" : "text-stone-900"
                   }`}
                 >
@@ -9231,7 +9399,7 @@ export default function AdminView({
                 </h3>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -9245,11 +9413,11 @@ export default function AdminView({
                     studioContact,
                   )
                 }}
-                className="px-3 py-2 rounded-xl text-xs font-bold bg-stone-800 hover:bg-stone-900 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-stone-800 hover:bg-stone-900 text-white shadow-sm transition flex items-center gap-1 cursor-pointer"
                 title="Download official high-resolution PNG invoice for this trip"
               >
-                <DownloadIcon size={12} className="inline mr-1" />
-                <span>Download PNG</span>
+                <DownloadIcon size={12} className="inline mr-0.5 sm:mr-1" />
+                <span><span className="hidden sm:inline">Download </span>PNG</span>
               </button>
               <button
                 type="button"
@@ -9264,16 +9432,16 @@ export default function AdminView({
                     studioContact,
                   )
                 }}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1 cursor-pointer"
                 title="Download official printable A4 PDF invoice for this trip"
               >
-                <DownloadIcon size={12} className="inline mr-1" />
-                <span>Download PDF</span>
+                <DownloadIcon size={12} className="inline mr-0.5 sm:mr-1" />
+                <span><span className="hidden sm:inline">Download </span>PDF</span>
               </button>
               <button
                 type="button"
                 onClick={() => setInspectedBooking(null)}
-                className={`w-9 h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-bold cursor-pointer transition ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white"
                     : "bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 shadow-2xs"
@@ -10947,7 +11115,7 @@ export default function AdminView({
           {/* Bottom Actions */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className={`pt-6 border-t flex gap-3 ${
+            className={`pt-4 sm:pt-6 border-t flex flex-col sm:flex-row gap-2 sm:gap-3 ${
               isDark ? "border-stone-800" : "border-stone-200"
             }`}
           >
@@ -12779,7 +12947,7 @@ export default function AdminView({
           MODAL: CREATE PROMO CODE
           ======================================================== */}
       {isPromoModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div
             className={`border rounded-2xl max-w-md w-full p-6 shadow-2xl transition ${
               isDark
@@ -12932,7 +13100,7 @@ export default function AdminView({
           MODAL: CREATE MAINTENANCE LOG
           ======================================================== */}
       {isMntModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div
             className={`border rounded-2xl max-w-lg w-full p-6 shadow-2xl transition ${
               isDark
@@ -13117,7 +13285,7 @@ export default function AdminView({
           MODAL: DRIVER LICENSE PREVIEW
           ======================================================== */}
       {inspectedLicense && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div
             className={`border rounded-xl max-w-md w-full p-6 shadow-2xl transition ${
               isDark
@@ -13227,7 +13395,7 @@ export default function AdminView({
           MODAL: KEY HANDOVER CHECKLIST (Flow E: Timer Starts)
           ======================================================== */}
       {isKeyModalOpen && keyModalBooking && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div
             className={`border rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
               isDark
@@ -13719,9 +13887,9 @@ export default function AdminView({
           MODAL: EXTENSION QUOTATION CONSOLE (Flow F)
           ======================================================== */}
       {isExtensionModalOpen && extensionBooking && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div
-            className={`border rounded-xl max-w-lg w-full p-6 shadow-2xl transition ${
+            className={`border rounded-xl max-w-lg w-full p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
               isDark
                 ? "bg-[#17191C] border-stone-800 text-white"
                 : "bg-white border-stone-200 text-stone-900"
@@ -13962,7 +14130,7 @@ export default function AdminView({
           MODAL: RETURN VEHICLE INSPECTION & AUDIT (Flow G)
           ======================================================== */}
       {isReturnModalOpen && returnModalBooking && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[150] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div
             className={`border rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto transition ${
               isDark
@@ -14558,7 +14726,7 @@ export default function AdminView({
           ======================================================== */}
       {zoomedPhoto && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in"
           onClick={() => setZoomedPhoto(null)}
         >
           <div

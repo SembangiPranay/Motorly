@@ -32,6 +32,18 @@ interface MyBookingsViewProps {
   onNavigateListing: () => void
 }
 
+// Helper to detect if scheduled rental period has concluded (accounts for extensions)
+function isBookingRentalPeriodConcluded(b: BookingRecord): boolean {
+  if (b.status !== "Checked Out" && !b.keysHandedAt) return false
+  let dateStr = b.returnDate || ""
+  let returnTs = Date.parse(dateStr)
+  if (isNaN(returnTs) && dateStr) {
+    const cleaned = dateStr.replace(/([0-9]+)(st|nd|rd|th)/gi, "$1")
+    returnTs = Date.parse(cleaned)
+  }
+  return !isNaN(returnTs) && returnTs > 0 && Date.now() >= returnTs
+}
+
 export default function MyBookingsView({
   cars,
   currentUser,
@@ -839,7 +851,27 @@ export default function MyBookingsView({
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-6">
+                  {/* On-Screen Ride Completion Notice for Customers */}
+                  {activeBookings.some((b) => isBookingRentalPeriodConcluded(b)) && (
+                    <div className="p-4 sm:p-5 rounded-2xl border border-emerald-500 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 shadow-sm space-y-2 animate-fade-in">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shrink-0">
+                          🏁
+                        </span>
+                        <div>
+                          <h4 className="font-heading font-black text-sm sm:text-base text-emerald-950 uppercase tracking-tight">
+                            Rental Duration Concluded • Return Check-In Active
+                          </h4>
+                          <p className="text-xs text-emerald-800 mt-0.5">
+                            Your scheduled booking duration (including approved extensions) has ended. Please drive to the assigned garage bay to complete vehicle check-in and security deposit release.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-6">
                   {activeBookings.map((b) => {
                     const matedCar = cars.find((c) => c.id === b.matchedCarId)
                     const isMated = Boolean(b.matchedCarId && matedCar)
@@ -940,9 +972,16 @@ export default function MyBookingsView({
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                                     Vehicle is in your possession
                                   </span>
-                                  <span className="font-mono text-[11px] text-stone-500">
-                                    Scheduled Return: {b.returnDate}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    {isBookingRentalPeriodConcluded(b) && (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        🏁 Rental Period Concluded
+                                      </span>
+                                    )}
+                                    <span className="font-mono text-[11px] text-stone-500">
+                                      Scheduled Return: {b.returnDate}
+                                    </span>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1254,6 +1293,7 @@ export default function MyBookingsView({
                       </div>
                     )
                   })}
+                  </div>
                 </div>
               )}
             </div>
