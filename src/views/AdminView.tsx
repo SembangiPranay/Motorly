@@ -177,12 +177,12 @@ export default function AdminView({
     hub_lat?: number
     hub_lng?: number
   }>({
-    contact_phone: "+1 (555) 234-5678",
+    contact_phone: "+91 99887 76655",
     contact_email: "concierge@motorly.com",
     admin_name: "Studio Director",
-    hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+    hub_address: "3rd Street, Masjid Banda, Hyderabad, Telangana, 500084",
     google_maps_url: "",
-    support_phone: "+1 (800) 555-MOTOR",
+    support_phone: "+91 99887 76655",
     hub_lat: 25.7959,
     hub_lng: -80.287,
   })
@@ -1244,6 +1244,21 @@ export default function AdminView({
 
   // Insurance optional details toggle for car modal
   const [addInsuranceDetails, setAddInsuranceDetails] = useState<boolean>(false)
+
+  // Dynamic hub address resolver: replaces placeholders with admin's saved operating hub
+  const getCleanHubAddress = (rawLocation?: string) => {
+    const adminHub = studioContact?.hub_address?.trim()
+    if (!rawLocation) return adminHub || "Operating Fleet Hub"
+    const isPlaceholder =
+      rawLocation.includes("Miami") ||
+      rawLocation.includes("Main Garage") ||
+      rawLocation.includes("European Atelier") ||
+      rawLocation.includes("Central Hub") ||
+      rawLocation.includes("Central Operations") ||
+      rawLocation.includes("Bay 4")
+    if (isPlaceholder && adminHub) return adminHub
+    return rawLocation.replace(/\s*\([A-Z]{3,4}\)/, "").trim()
+  }
 
   // Guard against duplicate vehicle creations / rapid double clicks
   const [isSavingCar, setIsSavingCar] = useState<boolean>(false)
@@ -2654,6 +2669,23 @@ export default function AdminView({
     })
   }, [bookings])
 
+  // Active Extension Requests Awaiting Manager Action
+  const pendingExtensionBookings = useMemo(() => {
+    return bookings.filter(
+      (b) =>
+        b.status !== "Cancelled" &&
+        b.status !== "Completed" &&
+        (b.extensionStatus === "Requested" ||
+          b.extensionStatus === "Pending" ||
+          (b.notes &&
+            (b.notes.includes("Extension requested") ||
+              b.notes.includes("EXTENSION REQUEST") ||
+              b.notes.includes("Customer requested extra")) &&
+            b.extensionStatus !== "Approved" &&
+            b.extensionStatus !== "Declined")),
+    )
+  }, [bookings])
+
   // Dynamic Category Counts for Orders & Dispatch Registry
 
   const manifestCounts = useMemo(() => {
@@ -3331,7 +3363,7 @@ export default function AdminView({
                 <span className="hidden xl:inline text-xs">Exit</span>
               </button>
 
-              {/* Overdue Notification Bell */}
+              {/* Overdue & Extension Notification Bell */}
               <div className="relative">
                 <button
                   type="button"
@@ -3341,18 +3373,22 @@ export default function AdminView({
                       ? "bg-orange-500/15 text-[#F97316] border-orange-500/40"
                       : overdueBookings.length > 0
                         ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                        : isDark
-                          ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
-                          : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
+                        : pendingExtensionBookings.length > 0
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                          : isDark
+                            ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                            : "bg-white hover:bg-stone-50 text-stone-700 border-stone-200 shadow-2xs"
                   }`}
                   title="Notifications & Fleet Alerts"
                 >
                   <BellIcon size={16} />
-                  {overdueBookings.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
-                      {overdueBookings.length}
+                  {overdueBookings.length > 0 || pendingExtensionBookings.length > 0 ? (
+                    <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-pulse ${
+                      overdueBookings.length > 0 ? "bg-rose-600" : "bg-amber-500"
+                    }`}>
+                      {overdueBookings.length + pendingExtensionBookings.length}
                     </span>
-                  )}
+                  ) : null}
                 </button>
 
                 {/* Notifications Dropdown Popover */}
@@ -3374,11 +3410,16 @@ export default function AdminView({
                             Fleet Alerts Center
                           </h4>
                           <p className="text-[10px] text-stone-500">
-                            Real-time rental return monitoring
+                            Real-time extensions &amp; return monitoring
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
+                        {pendingExtensionBookings.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
+                            {pendingExtensionBookings.length} Ext
+                          </span>
+                        )}
                         {overdueBookings.length > 0 && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-600 text-white">
                             {overdueBookings.length} Overdue
@@ -3394,80 +3435,162 @@ export default function AdminView({
                       </div>
                     </div>
 
-                    <div className="mt-3 max-h-72 overflow-y-auto space-y-2.5 pr-1">
-                      {overdueBookings.length === 0 ? (
+                    <div className="mt-3 max-h-80 overflow-y-auto space-y-3 pr-1">
+                      {/* Section 1: Pending Extension Requests */}
+                      {pendingExtensionBookings.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <ZapIcon size={12} /> Pending Extension Requests ({pendingExtensionBookings.length})
+                          </p>
+                          {pendingExtensionBookings.map((b) => {
+                            const car = cars.find((c) => c.id === b.matchedCarId)
+                            const extReq = b.extensionRequest
+                            const durationText = extReq?.durationValue
+                              ? `+${extReq.durationValue} ${extReq.durationUnit || "days"}`
+                              : "+Extra Duration"
+                            return (
+                              <div
+                                key={`ext-${b.id}`}
+                                className={`p-3 rounded-xl border transition ${
+                                  isDark
+                                    ? "bg-amber-950/20 border-amber-500/40 hover:border-amber-500/70"
+                                    : "bg-amber-50/80 border-amber-200 hover:border-amber-300"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                                        {b.id}
+                                      </span>
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500 text-white font-mono">
+                                        {durationText}
+                                      </span>
+                                    </div>
+                                    <p className="font-bold text-xs mt-1 text-stone-900 dark:text-white">
+                                      {b.customer.firstName} {b.customer.lastName}
+                                    </p>
+                                    <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-0.5">
+                                      {car ? `${car.brand} ${car.model}` : "Rental Car"}
+                                    </p>
+                                    {extReq?.reason && (
+                                      <p className="text-[10px] text-amber-700 dark:text-amber-400 italic mt-0.5 line-clamp-1">
+                                        "{extReq.reason}"
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-amber-200/60 dark:border-amber-500/30">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setInspectedBooking(b)
+                                      setIsNotificationOpen(false)
+                                    }}
+                                    className="text-[11px] font-medium text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 cursor-pointer"
+                                  >
+                                    Inspect Manifest
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleOpenExtensionModal(b)
+                                      setIsNotificationOpen(false)
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs flex items-center gap-1"
+                                  >
+                                    <ZapIcon size={12} />
+                                    <span>Quote &amp; Approve →</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Section 2: Overdue Vehicle Returns */}
+                      {overdueBookings.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                            Overdue Vehicle Returns ({overdueBookings.length})
+                          </p>
+                          {overdueBookings.map((b) => (
+                            <div
+                              key={`od-${b.id}`}
+                              className={`p-3 rounded-xl border transition ${
+                                isDark
+                                  ? "bg-stone-900/90 border-rose-500/40 hover:border-rose-500/70"
+                                  : "bg-rose-50/80 border-rose-200 hover:border-rose-300"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <span className="text-[10px] font-mono font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block" />
+                                    Rental Duration Finished
+                                  </span>
+                                  <p className="font-bold text-xs mt-1 text-stone-900 dark:text-white">
+                                    {b.customer.firstName} {b.customer.lastName}{" "}
+                                    <span className="font-mono text-stone-500 font-normal">
+                                      ({b.id})
+                                    </span>
+                                  </p>
+                                  <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-0.5">
+                                    <CarIcon
+                                      size={14}
+                                      className="text-[#F97316] inline"
+                                    />{" "}
+                                    {cars.find((c) => c.id === b.matchedCarId)
+                                      ?.name ||
+                                      b.requestedCategory ||
+                                      "Rental Vehicle"}
+                                  </p>
+                                  <p className="text-[10px] font-mono text-rose-600 dark:text-rose-400 mt-0.5">
+                                    Scheduled Return:{" "}
+                                    {formatFullDateTime(b.returnDate)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-rose-200/50 dark:border-rose-500/20">
+                                <span className="text-[10px] text-stone-500 font-mono">
+                                  Action needed:
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveTab("manifest")
+
+                                    setManifestStatusFilter("Checked Out")
+
+                                    setInspectedBooking(b)
+
+                                    setIsNotificationOpen(false)
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs"
+                                >
+                                  Inspect &amp; Return →
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* If both zero */}
+                      {overdueBookings.length === 0 && pendingExtensionBookings.length === 0 && (
                         <div className="py-7 text-center">
                           <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-2 text-sm font-black">
                             ✓
                           </div>
                           <p className="font-bold text-xs">
-                            All Clear & On Schedule
+                            All Clear &amp; On Schedule
                           </p>
                           <p className="text-[11px] text-stone-500 mt-0.5">
-                            No overdue rentals. All vehicles operating within
-                            scheduled trip time.
+                            No overdue rentals or pending extension requests. Fleet operating normally.
                           </p>
                         </div>
-                      ) : (
-                        overdueBookings.map((b) => (
-                          <div
-                            key={b.id}
-                            className={`p-3 rounded-xl border transition ${
-                              isDark
-                                ? "bg-stone-900/90 border-rose-500/40 hover:border-rose-500/70"
-                                : "bg-rose-50/80 border-rose-200 hover:border-rose-300"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <span className="text-[10px] font-mono font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping inline-block" />
-                                  Rental Duration Finished
-                                </span>
-                                <p className="font-bold text-xs mt-1 text-stone-900 dark:text-white">
-                                  {b.customer.firstName} {b.customer.lastName}{" "}
-                                  <span className="font-mono text-stone-500 font-normal">
-                                    ({b.id})
-                                  </span>
-                                </p>
-                                <p className="text-[11px] text-stone-600 dark:text-stone-300 mt-0.5">
-                                  <CarIcon
-                                    size={14}
-                                    className="text-[#F97316] inline"
-                                  />{" "}
-                                  {cars.find((c) => c.id === b.matchedCarId)
-                                    ?.name ||
-                                    b.requestedCategory ||
-                                    "Rental Vehicle"}
-                                </p>
-                                <p className="text-[10px] font-mono text-rose-600 dark:text-rose-400 mt-0.5">
-                                  Scheduled Return:{" "}
-                                  {formatFullDateTime(b.returnDate)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-rose-200/50 dark:border-rose-500/20">
-                              <span className="text-[10px] text-stone-500 font-mono">
-                                Action needed:
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveTab("manifest")
-
-                                  setManifestStatusFilter("Checked Out")
-
-                                  setInspectedBooking(b)
-
-                                  setIsNotificationOpen(false)
-                                }}
-                                className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition cursor-pointer shadow-2xs"
-                              >
-                                Inspect & Return →
-                              </button>
-                            </div>
-                          </div>
-                        ))
                       )}
                     </div>
                   </div>
@@ -3666,6 +3789,121 @@ export default function AdminView({
           </div>
 
           {/* ========================================================
+              PROMINENT EXTENSION REQUESTS ALERT BANNER (TOP OF DASHBOARD)
+              Shows at the very top of dashboard whenever extension requests are pending
+              ======================================================== */}
+          {pendingExtensionBookings.length > 0 && (
+            <div className="rounded-2xl border border-amber-400 bg-linear-to-r from-amber-500/15 via-orange-500/10 to-amber-500/20 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/50 p-4 sm:p-5 shadow-sm space-y-3 animate-fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                    <ZapIcon size={20} className="animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-heading font-black text-sm sm:text-base text-stone-900 dark:text-white uppercase tracking-tight">
+                        ⚡ Action Required: {pendingExtensionBookings.length} Rental Extension Request{pendingExtensionBookings.length > 1 ? "s" : ""}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-white animate-pulse">
+                        Awaiting Manager Review &amp; Quote
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
+                      Active drivers have requested extended rental durations. Review requested dates, price adjustment, and grant clearance.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("manifest")
+                      setManifestStatusFilter("extensions")
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Filter Extensions Tab</span>
+                    <ArrowRightIcon size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual pending requests cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-1">
+                {pendingExtensionBookings.map((eb) => {
+                  const car = cars.find((c) => c.id === eb.matchedCarId)
+                  const extReq = eb.extensionRequest
+                  const durationText = extReq?.durationValue
+                    ? `+${extReq.durationValue} ${extReq.durationUnit || "days"}`
+                    : "+Extra Duration"
+                  return (
+                    <div
+                      key={`top-ext-${eb.id}`}
+                      className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition ${
+                        isDark
+                          ? "bg-[#18191D] border-amber-500/40 text-stone-200"
+                          : "bg-white/95 border-amber-300 text-stone-900 shadow-xs"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-xs text-[#F97316]">
+                              {eb.id}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60">
+                              {durationText}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-xs text-stone-900 dark:text-white mt-1">
+                            {car ? `${car.brand} ${car.model}` : "Staged Fleet Car"}
+                            {car?.plateNumber && (
+                              <span className="ml-1 text-[10px] font-mono text-stone-400">
+                                ({car.plateNumber})
+                              </span>
+                            )}
+                          </h4>
+                          <p className="text-[11px] text-stone-500 truncate mt-0.5">
+                            Driver: {eb.customer.firstName} {eb.customer.lastName} • {eb.customer.phone || eb.customer.email}
+                          </p>
+                          {extReq?.reason && (
+                            <p className="text-[11px] text-amber-700 dark:text-amber-400 italic line-clamp-1 mt-1">
+                              "{extReq.reason}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-stone-200/60 dark:border-stone-800">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenExtensionModal(eb)}
+                          className="flex-1 py-1.5 px-3 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <ZapIcon size={12} />
+                          <span>Quote &amp; Approve</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInspectedBooking(eb)}
+                          className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                            isDark
+                              ? "bg-stone-800 hover:bg-stone-700 text-stone-200"
+                              : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                          }`}
+                          title="Open Full Reservation Manifest"
+                        >
+                          Manifest →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
               4 BETTER CARDS OF INFO (Matches Reference Image)
               Top uppercase label + Icon | Bold Value | Detail with dot
               ======================================================== */}
@@ -3737,9 +3975,9 @@ export default function AdminView({
                   </div>
                   <p className="text-base font-black font-mono my-1 text-stone-900 dark:text-white truncate">
                     {studioContact.hub_address
-                      ? studioContact.hub_address.split("•")[0] ||
+                      ? studioContact.hub_address.split(",")[0] ||
                         studioContact.hub_address
-                      : "Miami Terminal"}
+                      : "Central Fleet Hub"}
                   </p>
                   <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">
                     Stationed vehicle dispatch counter
@@ -5098,12 +5336,7 @@ export default function AdminView({
                       (b.customer?.firstName?.[0] || "C") +
                       (b.customer?.lastName?.[0] || "")
 
-                    const cleanLocation =
-                      b.pickupLocation &&
-                      !b.pickupLocation.includes("Miami") &&
-                      !b.pickupLocation.includes("Main Garage")
-                        ? b.pickupLocation.replace(/\s*\([A-Z]{3,4}\)/, "")
-                        : studioContact.hub_address || "MOTORLY Central Operations Hub"
+                    const cleanLocation = getCleanHubAddress(b.pickupLocation)
 
                     const formattedAmount = Number(
                       b.totalAmount || 0,
@@ -5423,18 +5656,19 @@ export default function AdminView({
                           </div>
                         </div>
 
-                        {/* Action Toolbar */}
+                        {/* Action Toolbar: Structured 2-Row Layout Preventing Overlap */}
                         <div
-                          className="pt-2 border-t border-stone-100 dark:border-stone-800/80 flex flex-wrap items-center justify-between gap-1.5"
+                          className="pt-2.5 border-t border-stone-100 dark:border-stone-800/80 flex flex-col gap-2"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {isPendingReview && (
-                              <>
+                          {/* Row 1: Primary Lifecycle CTA */}
+                          <div className="w-full">
+                            {isPendingReview ? (
+                              <div className="grid grid-cols-2 gap-2 w-full">
                                 <button
                                   type="button"
                                   onClick={() => handleApproveBooking(b.id)}
-                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                  className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                                   title="Accept reservation request"
                                 >
                                   <CheckIcon size={13} />
@@ -5443,98 +5677,88 @@ export default function AdminView({
                                 <button
                                   type="button"
                                   onClick={() => handleDeclineBooking(b.id)}
-                                  className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer whitespace-nowrap"
+                                  className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer whitespace-nowrap text-center"
                                   title="Decline reservation request"
                                 >
                                   Decline
                                 </button>
-                              </>
-                            )}
-
-                            {!isPendingReview && b.status === "Assigned" && (
+                              </div>
+                            ) : !isPendingReview && b.status === "Pending Assignment" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleAutoMate(b)}
+                                className="w-full py-2 px-3 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <ZapIcon size={13} />
+                                <span>Auto-Assign Vehicle</span>
+                              </button>
+                            ) : !isPendingReview && b.status === "Assigned" ? (
                               <button
                                 type="button"
                                 onClick={() => handleOpenKeyHandoff(b)}
-                                className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                <KeyIcon
-                                  size={12}
-                                  className="inline text-amber-500"
-                                />
+                                <KeyIcon size={13} className="text-amber-400" />
                                 <span>Handover Keys</span>
                               </button>
-                            )}
-
-                            {!isPendingReview &&
-                              b.status === "Pending Assignment" && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAutoMate(b)}
-                                  className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                >
-                                  <ZapIcon size={13} />
-                                  <span>Auto-Assign</span>
-                                </button>
-                              )}
-
-                            {/* Flow F: Quote Extension Button */}
-                            {(b.extensionStatus === "Requested" ||
-                              b.extensionStatus === "Pending") && (
+                            ) : (b.extensionStatus === "Requested" || b.extensionStatus === "Pending") ? (
                               <button
                                 type="button"
                                 onClick={() => handleOpenExtensionQuote(b)}
-                                className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
+                                className="w-full py-2 px-3.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
                               >
                                 <ZapIcon size={13} />
                                 <span>Quote Extension</span>
                               </button>
-                            )}
-
-                            {b.extensionStatus === "Quoted" && (
+                            ) : b.extensionStatus === "Quoted" ? (
                               <button
                                 type="button"
                                 onClick={() => handleOpenExtensionQuote(b)}
-                                className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                               >
                                 <SparklesIcon size={13} />
                                 <span>Modify Quote</span>
                               </button>
+                            ) : b.status === "Checked Out" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenReturnInspection(b)}
+                                className="w-full py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <FlagIcon size={13} className="text-purple-300" />
+                                <span>Return Inspection</span>
+                              </button>
+                            ) : b.status === "Returned" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenReturnInspection(b)}
+                                className="w-full py-2 px-3.5 rounded-xl bg-stone-700 hover:bg-stone-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <CheckIcon size={13} />
+                                <span>Verify Audit</span>
+                              </button>
+                            ) : (
+                              <div className="py-1 px-3 text-center text-xs font-mono text-stone-400">
+                                {b.status === "Completed" ? "✓ Trip Concluded" : "Reservation Active"}
+                              </div>
                             )}
-
-                            {b.status === "Checked Out" &&
-                              b.extensionStatus !== "Requested" &&
-                              b.extensionStatus !== "Pending" && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenReturnInspection(b)}
-                                  className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                >
-                                  <FlagIcon
-                                    size={12}
-                                    className="inline text-emerald-500"
-                                  />
-                                  <span>Return Check</span>
-                                </button>
-                              )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Row 2: Secondary Utility CTAs: Invoice & Details */}
+                          <div className="grid grid-cols-2 gap-2 w-full">
                             <button
                               type="button"
                               onClick={() => setSelectedInvoiceBooking(b)}
-                              className="px-2 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
+                              className="py-1.5 px-3 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-1.5 cursor-pointer border border-stone-200 dark:border-stone-700"
                               title="View & Download Official Invoice (PNG / PDF)"
                             >
-                              <DownloadIcon
-                                size={12}
-                                className="inline text-sky-500"
-                              />
-                              <span className="hidden sm:inline">Invoice</span>
+                              <DownloadIcon size={13} className="text-stone-500" />
+                              <span>Invoice</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setInspectedBooking(b)}
-                              className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition shrink-0 flex items-center gap-1 cursor-pointer"
+                              className="py-1.5 px-3 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-1.5 cursor-pointer border border-stone-200 dark:border-stone-700"
                             >
                               <span>Details</span>
                               <ArrowRightIcon size={12} />
@@ -5578,12 +5802,7 @@ export default function AdminView({
                           (b.customer?.firstName?.[0] || "C") +
                           (b.customer?.lastName?.[0] || "")
 
-                        const cleanLocation =
-                          b.pickupLocation &&
-                          !b.pickupLocation.includes("Miami") &&
-                          !b.pickupLocation.includes("Main Garage")
-                            ? b.pickupLocation.replace(/\s*\([A-Z]{3,4}\)/, "")
-                            : studioContact.hub_address || "MOTORLY Central Operations Hub"
+                        const cleanLocation = getCleanHubAddress(b.pickupLocation)
 
                         const formattedAmount = Number(
                           b.totalAmount || 0,
@@ -5904,18 +6123,19 @@ export default function AdminView({
                               </div>
                             </div>
 
-                            {/* Action Toolbar */}
+                            {/* Action Toolbar: Structured 2-Row Layout Preventing Overlap */}
                             <div
-                              className="pt-2 border-t border-stone-100 dark:border-stone-800/80 flex flex-wrap items-center justify-between gap-1.5"
+                              className="pt-2.5 border-t border-stone-100 dark:border-stone-800/80 flex flex-col gap-2"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {isPendingReview && (
-                                  <>
+                              {/* Row 1: Primary Lifecycle CTA */}
+                              <div className="w-full">
+                                {isPendingReview ? (
+                                  <div className="grid grid-cols-2 gap-2 w-full">
                                     <button
                                       type="button"
                                       onClick={() => handleApproveBooking(b.id)}
-                                      className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                      className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                                       title="Accept reservation request"
                                     >
                                       <CheckIcon size={13} />
@@ -5924,98 +6144,88 @@ export default function AdminView({
                                     <button
                                       type="button"
                                       onClick={() => handleDeclineBooking(b.id)}
-                                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer whitespace-nowrap"
+                                      className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer whitespace-nowrap text-center"
                                       title="Decline reservation request"
                                     >
                                       Decline
                                     </button>
-                                  </>
-                                )}
-
-                                {!isPendingReview &&
-                                  b.status === "Pending Assignment" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAutoMate(b)}
-                                      className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                    >
-                                      <ZapIcon size={13} />
-                                      <span>Auto-Assign</span>
-                                    </button>
-                                  )}
-
-                                {!isPendingReview &&
-                                  b.status === "Assigned" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenKeyHandoff(b)}
-                                      className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                    >
-                                      <KeyIcon
-                                        size={12}
-                                        className="inline text-amber-500"
-                                      />
-                                      <span>Handover Keys</span>
-                                    </button>
-                                  )}
-
-                                {/* Flow F: Quote Extension CTA in Desktop Cards */}
-                                {(b.extensionStatus === "Requested" ||
-                                  b.extensionStatus === "Pending") && (
+                                  </div>
+                                ) : !isPendingReview && b.status === "Pending Assignment" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAutoMate(b)}
+                                    className="w-full py-2 px-3 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                  >
+                                    <ZapIcon size={13} />
+                                    <span>Auto-Assign Vehicle</span>
+                                  </button>
+                                ) : !isPendingReview && b.status === "Assigned" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenKeyHandoff(b)}
+                                    className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                  >
+                                    <KeyIcon size={13} className="text-amber-400" />
+                                    <span>Handover Keys</span>
+                                  </button>
+                                ) : (b.extensionStatus === "Requested" || b.extensionStatus === "Pending") ? (
                                   <button
                                     type="button"
                                     onClick={() => handleOpenExtensionQuote(b)}
-                                    className="px-3.5 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
+                                    className="w-full py-2 px-3.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
                                   >
                                     <ZapIcon size={13} />
                                     <span>Quote Extension</span>
                                   </button>
-                                )}
-
-                                {b.extensionStatus === "Quoted" && (
+                                ) : b.extensionStatus === "Quoted" ? (
                                   <button
                                     type="button"
                                     onClick={() => handleOpenExtensionQuote(b)}
-                                    className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                                   >
                                     <SparklesIcon size={13} />
                                     <span>Modify Quote</span>
                                   </button>
+                                ) : b.status === "Checked Out" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenReturnInspection(b)}
+                                    className="w-full py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                  >
+                                    <FlagIcon size={13} className="text-purple-300" />
+                                    <span>Return Inspection</span>
+                                  </button>
+                                ) : b.status === "Returned" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenReturnInspection(b)}
+                                    className="w-full py-2 px-3.5 rounded-xl bg-stone-700 hover:bg-stone-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                  >
+                                    <CheckIcon size={13} />
+                                    <span>Verify Audit</span>
+                                  </button>
+                                ) : (
+                                  <div className="py-1 px-3 text-center text-xs font-mono text-stone-400">
+                                    {b.status === "Completed" ? "✓ Trip Concluded" : "Reservation Active"}
+                                  </div>
                                 )}
-
-                                {b.status === "Checked Out" &&
-                                  b.extensionStatus !== "Requested" &&
-                                  b.extensionStatus !== "Pending" && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleOpenReturnInspection(b)
-                                      }
-                                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                                    >
-                                      <FlagIcon
-                                        size={12}
-                                        className="inline text-emerald-500"
-                                      />
-                                      <span>Return Check</span>
-                                    </button>
-                                  )}
                               </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                              {/* Row 2: Secondary Utility CTAs: Invoice & Details */}
+                              <div className="grid grid-cols-2 gap-2 w-full">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedInvoiceBooking(b)}
-                                  className="p-1.5 px-2.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center gap-1 cursor-pointer border border-stone-200 dark:border-stone-700"
+                                  className="py-1.5 px-3 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-1.5 cursor-pointer border border-stone-200 dark:border-stone-700"
                                   title="View & Download Official Invoice (PNG / PDF)"
                                 >
-                                  <DownloadIcon size={14} />
+                                  <DownloadIcon size={13} className="text-stone-500" />
                                   <span>Invoice</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setInspectedBooking(b)}
-                                  className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition shrink-0 flex items-center gap-1 cursor-pointer"
+                                  className="py-1.5 px-3 rounded-xl font-bold text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 transition flex items-center justify-center gap-1.5 cursor-pointer border border-stone-200 dark:border-stone-700"
                                 >
                                   <span>Details</span>
                                   <ArrowRightIcon size={12} />
@@ -6783,13 +6993,7 @@ export default function AdminView({
                       </div>
                     ) : (
                       filteredFleet.map((c) => {
-                        const cleanHub = (c.location || "Miami MIA")
-
-                          .replace(/International Airport/i, "Intl")
-
-                          .replace(/Airport/i, "Hub")
-
-                          .trim()
+                        const cleanHub = getCleanHubAddress(c.location || c.garageAddress)
 
                         return (
                           <div
@@ -8636,7 +8840,7 @@ export default function AdminView({
                               hub_address: e.target.value,
                             })
                           }
-                          placeholder="Terminal Garage B • Bay 4 HQ, Miami Airport"
+                          placeholder="3rd Street, Masjid Banda, Hyderabad, Telangana, 500084"
                           className={`flex-1 px-4 py-3 rounded-2xl text-sm font-medium border transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
                             isDark
                               ? "bg-stone-900 border-stone-700 text-white placeholder-stone-600"
@@ -9301,287 +9505,152 @@ export default function AdminView({
               )}
             </div>
 
-            {/* RENTAL TIME, SCHEDULE & DURATION CARD */}
-            {(() => {
-              const durationInfo = getBookingDurationInfo(
-                inspectedBooking.pickupDate,
-
-                inspectedBooking.returnDate,
-              )
-
-              const pickupTimeStr = formatReadableTime(
-                inspectedBooking.pickupDate?.includes(":")
-                  ? inspectedBooking.pickupDate
-                  : undefined,
-
-                "10:00 AM",
-              )
-
-              const returnTimeStr = formatReadableTime(
-                inspectedBooking.returnDate?.includes(":")
-                  ? inspectedBooking.returnDate
-                  : undefined,
-
-                "10:00 AM",
-              )
-
-              const elapsedClock = getElapsedClock(
-                inspectedBooking.keysHandedAt,
-
-                inspectedBooking.checklistIn?.timestamp,
-              )
-
-              return (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className={`my-3 p-4 rounded-xl border transition ${
-                    isDark
-                      ? "bg-stone-900/60 border-stone-800 text-white"
-                      : "bg-white border-stone-200 text-stone-900 shadow-xs"
-                  }`}
-                >
-                  <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-[#F97316] flex items-center justify-center font-bold">
-                        <ClockIcon size={15} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                          Rental Time &amp; Duration
-                        </h4>
-                        <p className="text-[11px] text-stone-400 dark:text-stone-500">
-                          Booked schedule &amp; active rental duration
-                        </p>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20">
-                      ⏱️ {durationInfo.label}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3.5">
-                    {/* Pickup Details */}
-                    <div
-                      className={`p-3 rounded-xl border ${
-                        isDark
-                          ? "bg-stone-950 border-stone-800"
-                          : "bg-stone-50 border-stone-200"
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        Pickup Schedule
-                      </span>
-                      <p className="font-bold text-sm text-stone-900 dark:text-white mt-1">
-                        {inspectedBooking.pickupDate}
-                      </p>
-                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
-                        Scheduled Time: {pickupTimeStr}
-                      </p>
-                      <p
-                        className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
-                        title={inspectedBooking.pickupLocation}
-                      >
-                        {inspectedBooking.pickupLocation}
-                      </p>
-                    </div>
-
-                    {/* Return Details */}
-                    <div
-                      className={`p-3 rounded-xl border ${
-                        isDark
-                          ? "bg-stone-950 border-stone-800"
-                          : "bg-stone-50 border-stone-200"
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-rose-500" />
-                        Return Schedule
-                      </span>
-                      <p className="font-bold text-sm text-stone-900 dark:text-white mt-1">
-                        {inspectedBooking.returnDate}
-                      </p>
-                      <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mt-0.5">
-                        Scheduled Time: {returnTimeStr}
-                      </p>
-                      <p
-                        className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
-                        title={inspectedBooking.returnLocation}
-                      >
-                        {inspectedBooking.returnLocation}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Active Clock Duration Bar if Dispatched */}
-                  {inspectedBooking.keysHandedAt && (
-                    <div
-                      className={`mt-3 p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
-                        isDark
-                          ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300"
-                          : "bg-emerald-50 border-emerald-200 text-emerald-950"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                        <span className="font-semibold">
-                          Rental Clock Started:{" "}
-                          <span className="font-normal">
-                            {formatFullDateTime(inspectedBooking.keysHandedAt)}
-                          </span>
-                        </span>
-                      </div>
-                      <span
-                        className={`px-2.5 py-0.5 rounded text-[11px] font-bold border shrink-0 ${
-                          isDark
-                            ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
-                            : "bg-white text-emerald-900 border-emerald-300 shadow-2xs"
-                        }`}
-                      >
-                        {inspectedBooking.status === "Completed"
-                          ? "Completed Duration"
-                          : "Elapsed Time"}
-                        : {elapsedClock}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Flow F: Extension Request Alert Banner */}
-            {(inspectedBooking.extensionStatus === "Pending" ||
-              inspectedBooking.extensionStatus === "Requested") && (
+            {/* TWO-COLUMN EXECUTIVE LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* LEFT COLUMN: Vehicle Details, Driver Dossier, Key Handover Checklist (lg:col-span-7 space-y-5) */}
+              <div className="lg:col-span-7 space-y-5">
+              {/* Mated Vehicle Card & Exact Garage Hub */}
               <div
                 onClick={(e) => e.stopPropagation()}
-                className={`mb-4 p-4 rounded-xl border text-xs space-y-2 transition ${
+                className={`p-4 rounded-xl border transition ${
                   isDark
-                    ? "bg-amber-950/40 border-amber-500/50 text-amber-200"
-                    : "bg-amber-50 border-amber-200 text-amber-950"
+                    ? "bg-stone-900/60 border-stone-800"
+                    : "bg-stone-50 border-stone-200"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-sm">
-                    Customer Requested Rental Extension
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 uppercase">
-                    Action Required
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                    <CarIcon size={14} className="text-sky-500" /> Staged
+                    Vehicle & Garage Allocation
+                  </h4>
+                  {inspectedBooking.matchedCarId && (
+                    <button
+                      onClick={() => handleUnmateCar(inspectedBooking.id)}
+                      className="text-[11px] text-rose-500 hover:text-rose-600 font-semibold cursor-pointer"
+                    >
+                      Unmate / Release
+                    </button>
+                  )}
                 </div>
-                <div
-                  className={`p-2.5 rounded-lg border space-y-1 ${
-                    isDark
-                      ? "bg-stone-950 border-stone-800 text-stone-300"
-                      : "bg-white border-stone-200 text-stone-700"
-                  }`}
-                >
-                  <p>
-                    Extra Time Requested:{" "}
-                    <strong
-                      className={`font-mono ${
-                        isDark ? "text-white" : "text-stone-900"
+
+                {inspectedBooking.matchedCarId ? (
+                  (() => {
+                    const c = cars.find(
+                      (x) => x.id === inspectedBooking.matchedCarId,
+                    )
+
+                    return c ? (
+                      <div className="space-y-3">
+                        <div
+                          className={`flex items-center gap-4 p-3 rounded-lg border ${
+                            isDark
+                              ? "bg-stone-950 border-stone-800"
+                              : "bg-white border-stone-200"
+                          }`}
+                        >
+                          <div className="w-16 h-12 rounded bg-stone-200 dark:bg-stone-800 overflow-hidden shrink-0">
+                            <img
+                              src={c.image}
+                              alt={c.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`font-bold text-sm ${
+                                  isDark ? "text-white" : "text-stone-900"
+                                }`}
+                              >
+                                {c.name}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${
+                                  isDark
+                                    ? "bg-stone-800 text-amber-400 border-stone-700"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                                }`}
+                              >
+                                {c.plateNumber}
+                              </span>
+                            </div>
+                            <p
+                              className={`text-[11px] mt-0.5 ${
+                                isDark ? "text-stone-400" : "text-stone-500"
+                              }`}
+                            >
+                              {c.type} • {c.location || studioContact.hub_address} • {formatFuelDisplay(c.mileage, c.fuelType)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Flow A/B: Exact Garage Hub & Bay Location */}
+                        <div
+                          className={`p-3 rounded-lg border text-xs space-y-1 ${
+                            isDark
+                              ? "bg-stone-950 border-stone-800"
+                              : "bg-white border-stone-200"
+                          }`}
+                        >
+                          <span className="text-[10px] uppercase font-bold text-stone-500 block">
+                            Assigned Garage Hub & Stall
+                          </span>
+                          <p
+                            className={`font-bold ${
+                              isDark ? "text-white" : "text-stone-900"
+                            }`}
+                          >
+                            {getCleanHubAddress(c.garageName)}
+                          </p>
+                          <p
+                            className={`font-mono text-[11px] ${
+                              isDark ? "text-stone-400" : "text-stone-500"
+                            }`}
+                          >
+                            {getCleanHubAddress(c.garageAddress)}
+                          </p>
+                          <p className="text-amber-600 font-mono font-bold text-[11px]">
+                            Allocated Bay: {c.garageBay || "Bay 14-B"}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null
+                  })()
+                ) : (
+                  <div>
+                    <p className="text-xs text-amber-600 font-semibold mb-2">
+                      No vehicle currently mated. Select an available car below:
+                    </p>
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value)
+                          handleMateCar(inspectedBooking.id, e.target.value)
+                      }}
+                      defaultValue=""
+                      className={`w-full px-3 py-2 rounded-lg text-xs transition ${
+                        isDark
+                          ? "bg-stone-950 border border-stone-700 text-white"
+                          : "bg-white border border-stone-200 text-stone-900"
                       }`}
                     >
-                      +{inspectedBooking.extensionRequest?.durationValue}{" "}
-                      {inspectedBooking.extensionRequest?.durationUnit}
-                    </strong>
-                  </p>
-                  <p>
-                    Customer Notes:{" "}
-                    <em
-                      className={isDark ? "text-stone-400" : "text-stone-600"}
-                    >
-                      "
-                      {inspectedBooking.extensionRequest?.reason ||
-                        "Trip extended."}
-                      "
-                    </em>
-                  </p>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => handleOpenExtensionQuote(inspectedBooking)}
-                    className="flex-1 py-2 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shadow-sm"
-                  >
-                    Create &amp; Send Quotation →
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleDeclineExtensionRequest(inspectedBooking.id)
-                    }
-                    className={`py-2 px-3 rounded-lg text-xs font-semibold transition ${
-                      isDark
-                        ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
-                        : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
-                    }`}
-                  >
-                    Decline
-                  </button>
-                </div>
-              </div>
-            )}
+                      <option value="" disabled>
+                        -- Choose Vehicle to Mate --
+                      </option>
+                      {cars
 
-            {inspectedBooking.extensionStatus === "Quoted" &&
-              inspectedBooking.extensionQuote && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className={`mb-4 p-3 rounded-xl border text-xs space-y-1 transition ${
-                    isDark
-                      ? "bg-sky-950/40 border-sky-500/40 text-sky-200"
-                      : "bg-sky-50 border-sky-200 text-sky-950"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sky-700 dark:text-sky-400">
-                      Quotation Dispatched to Customer
-                    </span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                      +€
-                      {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
-                        2,
-                      )}
-                    </span>
+                        .filter((c) => c.status === "Available")
+
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.plateNumber}) - {c.type} (€
+                            {c.pricePerDay}/day)
+                          </option>
+                        ))}
+                    </select>
                   </div>
-                  <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                    Rate: €{inspectedBooking.extensionQuote.rateAmount} /{" "}
-                    {inspectedBooking.extensionQuote.rateType} • Awaiting
-                    customer approval in self-service portal.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
 
-            {inspectedBooking.extensionStatus === "Approved" &&
-              inspectedBooking.extensionQuote && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className={`mb-4 p-3.5 rounded-xl border text-xs flex items-center justify-between transition ${
-                    isDark
-                      ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-950"
-                  }`}
-                >
-                  <span className="font-bold flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Extension Approved &amp; Added to Billing (+€
-                    {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
-                      2,
-                    )}
-                    )
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
-                      isDark
-                        ? "bg-emerald-900/40 text-emerald-300 border-emerald-700"
-                        : "bg-white text-emerald-900 border-emerald-300 shadow-2xs"
-                    }`}
-                  >
-                    Bill Total Updated
-                  </span>
-                </div>
-              )}
-
-            {/* Customer Profile & Verification */}
-            <div className="space-y-4">
               <div
                 onClick={(e) => e.stopPropagation()}
                 className={`p-4 rounded-xl border transition ${
@@ -9848,150 +9917,6 @@ export default function AdminView({
                 </div>
               </div>
 
-              {/* Mated Vehicle Card & Exact Garage Hub */}
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className={`p-4 rounded-xl border transition ${
-                  isDark
-                    ? "bg-stone-900/60 border-stone-800"
-                    : "bg-stone-50 border-stone-200"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-                    <CarIcon size={14} className="text-sky-500" /> Staged
-                    Vehicle & Garage Allocation
-                  </h4>
-                  {inspectedBooking.matchedCarId && (
-                    <button
-                      onClick={() => handleUnmateCar(inspectedBooking.id)}
-                      className="text-[11px] text-rose-500 hover:text-rose-600 font-semibold cursor-pointer"
-                    >
-                      Unmate / Release
-                    </button>
-                  )}
-                </div>
-
-                {inspectedBooking.matchedCarId ? (
-                  (() => {
-                    const c = cars.find(
-                      (x) => x.id === inspectedBooking.matchedCarId,
-                    )
-
-                    return c ? (
-                      <div className="space-y-3">
-                        <div
-                          className={`flex items-center gap-4 p-3 rounded-lg border ${
-                            isDark
-                              ? "bg-stone-950 border-stone-800"
-                              : "bg-white border-stone-200"
-                          }`}
-                        >
-                          <div className="w-16 h-12 rounded bg-stone-200 dark:bg-stone-800 overflow-hidden shrink-0">
-                            <img
-                              src={c.image}
-                              alt={c.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <span
-                                className={`font-bold text-sm ${
-                                  isDark ? "text-white" : "text-stone-900"
-                                }`}
-                              >
-                                {c.name}
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${
-                                  isDark
-                                    ? "bg-stone-800 text-amber-400 border-stone-700"
-                                    : "bg-amber-50 text-amber-700 border-amber-200"
-                                }`}
-                              >
-                                {c.plateNumber}
-                              </span>
-                            </div>
-                            <p
-                              className={`text-[11px] mt-0.5 ${
-                                isDark ? "text-stone-400" : "text-stone-500"
-                              }`}
-                            >
-                              {c.type} • {c.location || studioContact.hub_address} • {formatFuelDisplay(c.mileage, c.fuelType)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Flow A/B: Exact Garage Hub & Bay Location */}
-                        <div
-                          className={`p-3 rounded-lg border text-xs space-y-1 ${
-                            isDark
-                              ? "bg-stone-950 border-stone-800"
-                              : "bg-white border-stone-200"
-                          }`}
-                        >
-                          <span className="text-[10px] uppercase font-bold text-stone-500 block">
-                            Assigned Garage Hub & Stall
-                          </span>
-                          <p
-                            className={`font-bold ${
-                              isDark ? "text-white" : "text-stone-900"
-                            }`}
-                          >
-                            {c.garageName ||
-                              "MOTORLY Central Hub & Garage Bay 4"}
-                          </p>
-                          <p
-                            className={`font-mono text-[11px] ${
-                              isDark ? "text-stone-400" : "text-stone-500"
-                            }`}
-                          >
-                            {c.garageAddress ||
-                              "4200 NW 21st St, Miami, FL 33142"}
-                          </p>
-                          <p className="text-amber-600 font-mono font-bold text-[11px]">
-                            Allocated Bay: {c.garageBay || "Bay 14-B"}
-                          </p>
-                        </div>
-                      </div>
-                    ) : null
-                  })()
-                ) : (
-                  <div>
-                    <p className="text-xs text-amber-600 font-semibold mb-2">
-                      No vehicle currently mated. Select an available car below:
-                    </p>
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value)
-                          handleMateCar(inspectedBooking.id, e.target.value)
-                      }}
-                      defaultValue=""
-                      className={`w-full px-3 py-2 rounded-lg text-xs transition ${
-                        isDark
-                          ? "bg-stone-950 border border-stone-700 text-white"
-                          : "bg-white border border-stone-200 text-stone-900"
-                      }`}
-                    >
-                      <option value="" disabled>
-                        -- Choose Vehicle to Mate --
-                      </option>
-                      {cars
-
-                        .filter((c) => c.status === "Available")
-
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} ({c.plateNumber}) - {c.type} (€
-                            {c.pricePerDay}/day)
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
               {/* FLOW E: Embedded Key Handover & Departure Station */}
               {inspectedBooking.status === "Assigned" && (
                 <div
@@ -10216,6 +10141,158 @@ export default function AdminView({
                     : "bg-stone-50 border-stone-200"
                 }`}
               >
+              </div>
+
+              {/* RIGHT COLUMN: Rental Schedule, Billing, Extension, Return Audit (lg:col-span-5 space-y-5) */}
+              <div className="lg:col-span-5 space-y-5">
+            {/* RENTAL TIME, SCHEDULE & DURATION CARD */}
+            {(() => {
+              const durationInfo = getBookingDurationInfo(
+                inspectedBooking.pickupDate,
+
+                inspectedBooking.returnDate,
+              )
+
+              const pickupTimeStr = formatReadableTime(
+                inspectedBooking.pickupDate?.includes(":")
+                  ? inspectedBooking.pickupDate
+                  : undefined,
+
+                "10:00 AM",
+              )
+
+              const returnTimeStr = formatReadableTime(
+                inspectedBooking.returnDate?.includes(":")
+                  ? inspectedBooking.returnDate
+                  : undefined,
+
+                "10:00 AM",
+              )
+
+              const elapsedClock = getElapsedClock(
+                inspectedBooking.keysHandedAt,
+
+                inspectedBooking.checklistIn?.timestamp,
+              )
+
+              return (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`my-3 p-4 rounded-xl border transition ${
+                    isDark
+                      ? "bg-stone-900/60 border-stone-800 text-white"
+                      : "bg-white border-stone-200 text-stone-900 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-stone-200 dark:border-stone-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-[#F97316] flex items-center justify-center font-bold">
+                        <ClockIcon size={15} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                          Rental Time &amp; Duration
+                        </h4>
+                        <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                          Booked schedule &amp; active rental duration
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20">
+                      ⏱️ {durationInfo.label}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3.5">
+                    {/* Pickup Details */}
+                    <div
+                      className={`p-3 rounded-xl border ${
+                        isDark
+                          ? "bg-stone-950 border-stone-800"
+                          : "bg-stone-50 border-stone-200"
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Pickup Schedule
+                      </span>
+                      <p className="font-bold text-sm text-stone-900 dark:text-white mt-1">
+                        {inspectedBooking.pickupDate}
+                      </p>
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                        Scheduled Time: {pickupTimeStr}
+                      </p>
+                      <p
+                        className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
+                        title={inspectedBooking.pickupLocation}
+                      >
+                        {inspectedBooking.pickupLocation}
+                      </p>
+                    </div>
+
+                    {/* Return Details */}
+                    <div
+                      className={`p-3 rounded-xl border ${
+                        isDark
+                          ? "bg-stone-950 border-stone-800"
+                          : "bg-stone-50 border-stone-200"
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-500" />
+                        Return Schedule
+                      </span>
+                      <p className="font-bold text-sm text-stone-900 dark:text-white mt-1">
+                        {inspectedBooking.returnDate}
+                      </p>
+                      <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mt-0.5">
+                        Scheduled Time: {returnTimeStr}
+                      </p>
+                      <p
+                        className="text-[11px] text-stone-500 dark:text-stone-400 mt-1 truncate"
+                        title={inspectedBooking.returnLocation}
+                      >
+                        {inspectedBooking.returnLocation}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Active Clock Duration Bar if Dispatched */}
+                  {inspectedBooking.keysHandedAt && (
+                    <div
+                      className={`mt-3 p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+                        isDark
+                          ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-950"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className="font-semibold">
+                          Rental Clock Started:{" "}
+                          <span className="font-normal">
+                            {formatFullDateTime(inspectedBooking.keysHandedAt)}
+                          </span>
+                        </span>
+                      </div>
+                      <span
+                        className={`px-2.5 py-0.5 rounded text-[11px] font-bold border shrink-0 ${
+                          isDark
+                            ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
+                            : "bg-white text-emerald-900 border-emerald-300 shadow-2xs"
+                        }`}
+                      >
+                        {inspectedBooking.status === "Completed"
+                          ? "Completed Duration"
+                          : "Elapsed Time"}
+                        : {elapsedClock}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
                 <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
                   Trip Logistics
                 </h4>
@@ -10283,6 +10360,137 @@ export default function AdminView({
                   </span>
                 </div>
               </div>
+
+            {/* Flow F: Extension Request Alert Banner */}
+            {(inspectedBooking.extensionStatus === "Pending" ||
+              inspectedBooking.extensionStatus === "Requested") && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={`mb-4 p-4 rounded-xl border text-xs space-y-2 transition ${
+                  isDark
+                    ? "bg-amber-950/40 border-amber-500/50 text-amber-200"
+                    : "bg-amber-50 border-amber-200 text-amber-950"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-sm">
+                    Customer Requested Rental Extension
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 uppercase">
+                    Action Required
+                  </span>
+                </div>
+                <div
+                  className={`p-2.5 rounded-lg border space-y-1 ${
+                    isDark
+                      ? "bg-stone-950 border-stone-800 text-stone-300"
+                      : "bg-white border-stone-200 text-stone-700"
+                  }`}
+                >
+                  <p>
+                    Extra Time Requested:{" "}
+                    <strong
+                      className={`font-mono ${
+                        isDark ? "text-white" : "text-stone-900"
+                      }`}
+                    >
+                      +{inspectedBooking.extensionRequest?.durationValue}{" "}
+                      {inspectedBooking.extensionRequest?.durationUnit}
+                    </strong>
+                  </p>
+                  <p>
+                    Customer Notes:{" "}
+                    <em
+                      className={isDark ? "text-stone-400" : "text-stone-600"}
+                    >
+                      "
+                      {inspectedBooking.extensionRequest?.reason ||
+                        "Trip extended."}
+                      "
+                    </em>
+                  </p>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => handleOpenExtensionQuote(inspectedBooking)}
+                    className="flex-1 py-2 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs transition shadow-sm"
+                  >
+                    Create &amp; Send Quotation →
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleDeclineExtensionRequest(inspectedBooking.id)
+                    }
+                    className={`py-2 px-3 rounded-lg text-xs font-semibold transition ${
+                      isDark
+                        ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
+                        : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                    }`}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {inspectedBooking.extensionStatus === "Quoted" &&
+              inspectedBooking.extensionQuote && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`mb-4 p-3 rounded-xl border text-xs space-y-1 transition ${
+                    isDark
+                      ? "bg-sky-950/40 border-sky-500/40 text-sky-200"
+                      : "bg-sky-50 border-sky-200 text-sky-950"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sky-700 dark:text-sky-400">
+                      Quotation Dispatched to Customer
+                    </span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                      +€
+                      {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
+                        2,
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                    Rate: €{inspectedBooking.extensionQuote.rateAmount} /{" "}
+                    {inspectedBooking.extensionQuote.rateType} • Awaiting
+                    customer approval in self-service portal.
+                  </p>
+                </div>
+              )}
+
+            {inspectedBooking.extensionStatus === "Approved" &&
+              inspectedBooking.extensionQuote && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`mb-4 p-3.5 rounded-xl border text-xs flex items-center justify-between transition ${
+                    isDark
+                      ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
+                      : "bg-emerald-50 border-emerald-200 text-emerald-950"
+                  }`}
+                >
+                  <span className="font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Extension Approved &amp; Added to Billing (+€
+                    {inspectedBooking.extensionQuote.totalQuotedAmount.toFixed(
+                      2,
+                    )}
+                    )
+                  </span>
+                  <span
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                      isDark
+                        ? "bg-emerald-900/40 text-emerald-300 border-emerald-700"
+                        : "bg-white text-emerald-900 border-emerald-300 shadow-2xs"
+                    }`}
+                  >
+                    Bill Total Updated
+                  </span>
+                </div>
+              )}
 
               {/* Flow G: Return Inspection Summary if Completed */}
               {inspectedBooking.checklistIn && (
@@ -10442,6 +10650,7 @@ export default function AdminView({
                   )}
                 </div>
               )}
+              </div>
             </div>
           </div>
 

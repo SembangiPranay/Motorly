@@ -137,14 +137,12 @@ class ApiService {
       )
     }
 
-    const isCustomerReq =
-      role === "customer" ||
-      (Boolean(customerToken) &&
-        mergedHeaders?.["Authorization"] === `Bearer ${customerToken}`) ||
-      endpoint.startsWith("/users/") ||
-      endpoint === "/auth/customer-profile"
+    // Only wipe customer session if the 401 is specifically from an authenticated profile endpoint
+    const isCustomerSessionExpired =
+      endpoint === "/auth/customer-profile" ||
+      endpoint === "/users/profile"
 
-    if (isCustomerReq) {
+    if (isCustomerSessionExpired) {
       localStorage.removeItem("motorly_customer_token")
       localStorage.removeItem("motorly_customer_user")
       window.dispatchEvent(
@@ -750,14 +748,23 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
+    const role = this.hasAdminToken() ? "admin" : "customer"
     const res = await this.request(
       `/bookings/${bookingId}/approve-extension`,
       {
         method: "POST",
       },
-      "customer",
+      role,
     )
-    if (!res.ok) throw new Error("Failed to approve quotation")
+    if (!res.ok) {
+      let errMsg = "Failed to approve quotation"
+      try {
+        const body = await res.json()
+        if (body.error) errMsg = body.error
+        else if (body.message) errMsg = body.message
+      } catch {}
+      throw new Error(errMsg)
+    }
     return res.json()
   }
 
@@ -766,14 +773,23 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
+    const role = this.hasAdminToken() ? "admin" : "customer"
     const res = await this.request(
       `/bookings/${bookingId}/decline-extension`,
       {
         method: "POST",
       },
-      "customer",
+      role,
     )
-    if (!res.ok) throw new Error("Failed to decline extension")
+    if (!res.ok) {
+      let errMsg = "Failed to decline extension"
+      try {
+        const body = await res.json()
+        if (body.error) errMsg = body.error
+        else if (body.message) errMsg = body.message
+      } catch {}
+      throw new Error(errMsg)
+    }
     return res.json()
   }
 

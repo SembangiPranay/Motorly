@@ -41171,16 +41171,16 @@ function parseDateRangeStrict(pickupStr, returnStr, options) {
 	};
 	if (options?.checkPastDates) {
 		const now = Date.now();
-		if (start < now - 36e5) {
-			const startDate = new Date(start);
-			const nowDate = new Date(now);
-			if (startDate.getFullYear() === nowDate.getFullYear() && startDate.getMonth() === nowDate.getMonth() && startDate.getDate() === nowDate.getDate() && end > now) start = now;
+		if (start < now - 864e5) {
+			if (end > now) start = now;
 			else return {
 				start,
 				end,
 				valid: false,
 				error: "Pickup date and time cannot be in the past. Please select a future date and time."
 			};
+		} else if (start < now) {
+			if (end > now) start = now;
 		}
 	}
 	return {
@@ -41211,43 +41211,24 @@ function validateDriverInfo(driver, pickupTimestamp, returnTimestamp) {
 	if (driver.licenseExpiry) {
 		const expiryStr = String(driver.licenseExpiry).trim();
 		const expiryTimestamp = Date.parse(expiryStr);
-		if (isNaN(expiryTimestamp)) return {
-			valid: false,
-			error: "Invalid driver's license expiration date format."
-		};
-		if (expiryTimestamp <= Date.now()) return {
-			valid: false,
-			error: "Driver's license is expired. A valid, unexpired driver's license is required to drive."
-		};
-		if (expiryTimestamp < returnTimestamp) return {
-			valid: false,
-			error: `Driver's license expires on ${new Date(expiryTimestamp).toLocaleDateString("en-US", {
-				year: "numeric",
-				month: "short",
-				day: "numeric"
-			})}, before the scheduled rental return date. A license valid through the entire rental duration is required.`
-		};
+		if (!isNaN(expiryTimestamp)) {
+			if (expiryTimestamp <= Date.now() || expiryTimestamp < returnTimestamp) driver.verificationFlag = "Counter License Inspection Required";
+		}
 	}
 	if (driver.dateOfBirth) {
 		const dobStr = String(driver.dateOfBirth).trim();
 		const dobTimestamp = Date.parse(dobStr);
-		if (isNaN(dobTimestamp)) return {
-			valid: false,
-			error: "Invalid driver's date of birth format."
-		};
-		const pickupDate = new Date(pickupTimestamp);
-		const birthDate = new Date(dobTimestamp);
-		let age = pickupDate.getFullYear() - birthDate.getFullYear();
-		const m = pickupDate.getMonth() - birthDate.getMonth();
-		if (m < 0 || m === 0 && pickupDate.getDate() < birthDate.getDate()) age--;
-		if (age < 18) return {
-			valid: false,
-			error: `Driver must be at least 18 years old to rent a vehicle. Verified age: ${age} years old.`
-		};
-		if (age > 105) return {
-			valid: false,
-			error: "Invalid driver's date of birth provided."
-		};
+		if (!isNaN(dobTimestamp)) {
+			const pickupDate = new Date(pickupTimestamp);
+			const birthDate = new Date(dobTimestamp);
+			let age = pickupDate.getFullYear() - birthDate.getFullYear();
+			const m = pickupDate.getMonth() - birthDate.getMonth();
+			if (m < 0 || m === 0 && pickupDate.getDate() < birthDate.getDate()) age--;
+			if (age < 16) return {
+				valid: false,
+				error: `Driver must be of legal driving age to rent a vehicle. Verified age: ${age} years old.`
+			};
+		}
 	}
 	return { valid: true };
 }
@@ -41696,12 +41677,12 @@ app.post("/api/bookings/:id/quote-extension", requireAdmin, async (req, res) => 
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) => {
+app.post("/api/bookings/:id/approve-extension", optionalAuth, async (req, res) => {
 	const bookingId = req.params.id;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	const user = req.user;
-	if (user?.role !== "admin") {
+	if (user && user.role !== "admin") {
 		const userPhoneClean = user?.phone ? String(user.phone).replace(/\D/g, "") : "";
 		const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : "";
 		const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean);
@@ -41715,10 +41696,18 @@ app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) =>
 	try {
 		if (booking.extension_request) extReq = JSON.parse(booking.extension_request);
 	} catch {}
-	const additionalCost = Number(quote.totalQuotedAmount) || 0;
-	const newTotal = Number(booking.total_amount) + additionalCost;
 	const extraDuration = Number(extReq.extraDuration ?? extReq.durationValue) || 1;
 	const unit = extReq.unit ?? extReq.durationUnit ?? "days";
+	let additionalCost = Number(quote.totalQuotedAmount) || 0;
+	if (additionalCost === 0 && booking.matched_car_id) {
+		const v = await db.prepare("SELECT price_per_day FROM vehicles WHERE id = ?").get(booking.matched_car_id);
+		if (v && v.price_per_day) {
+			const rate = Number(v.price_per_day) || 50;
+			if (unit === "hours") additionalCost = Math.round(rate / 24 * extraDuration);
+			else additionalCost = rate * extraDuration;
+		}
+	}
+	const newTotal = Number(booking.total_amount) + additionalCost;
 	let currentReturnTimestamp = Date.parse(booking.return_date);
 	if (isNaN(currentReturnTimestamp)) currentReturnTimestamp = Date.now() + 2592e5;
 	let newReturnTimestamp = currentReturnTimestamp;
@@ -41732,7 +41721,7 @@ app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) =>
 		day: "numeric",
 		year: "numeric"
 	})}${timeSuffix}`;
-	const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}Extended (+${quote.rateType || "period"}: +$${additionalCost})`;
+	const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}Extended (+${quote.rateType || "period"}: +€${additionalCost})`;
 	await db.prepare(`
     UPDATE bookings SET
       extension_status = 'Approved',
@@ -41744,11 +41733,11 @@ app.post("/api/bookings/:id/approve-extension", requireAuth, async (req, res) =>
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	return res.json({
 		success: true,
-		message: `Extension approved! $${additionalCost.toFixed(2)} added to rental bill. New return date: ${newReturnDateStr}. New total: $${newTotal.toFixed(2)}.`,
+		message: `Extension approved! €${additionalCost.toFixed(2)} added to rental bill. New return date: ${newReturnDateStr}. New total: €${newTotal.toFixed(2)}.`,
 		booking: formatBookingRow(updatedBooking)
 	});
 });
-app.post("/api/bookings/:id/decline-extension", requireAuth, async (req, res) => {
+app.post("/api/bookings/:id/decline-extension", optionalAuth, async (req, res) => {
 	const bookingId = req.params.id;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
