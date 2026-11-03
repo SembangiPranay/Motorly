@@ -36,6 +36,30 @@ import {
   SparklesIcon,
 } from "../components/Icons"
 
+const formatFuelDisplay = (mileage?: string, fuelType?: string): string => {
+  if (!mileage || !mileage.trim()) {
+    return fuelType === "Electric" ? "100% EV" : "45 Liters"
+  }
+  const clean = mileage.trim()
+  if (fuelType === "Electric") {
+    if (clean.includes("%") || clean.toLowerCase().includes("kwh") || clean.toLowerCase().includes("ev")) {
+      return clean
+    }
+    return `${clean} kWh`
+  }
+  if (/liters?|ltrs?|\bl\b/i.test(clean)) {
+    return clean
+  }
+  if (/mpg|mpge/i.test(clean)) {
+    const num = clean.replace(/[^0-9.]/g, "")
+    return num ? `${num} Liters` : "45 Liters"
+  }
+  if (/^\d+(\.\d+)?$/.test(clean)) {
+    return `${clean} Liters`
+  }
+  return `${clean} Liters`
+}
+
 interface ListingViewProps {
   cars: Car[]
 
@@ -1206,7 +1230,7 @@ export default function ListingView({
                               className="text-stone-400 shrink-0"
                             />
                             <span className="truncate">
-                              {car.mileage || "32 MPG"}
+                              {formatFuelDisplay(car.mileage, car.fuelType)}
                             </span>
                           </div>
                         </div>
@@ -1424,7 +1448,7 @@ export default function ListingView({
                         </span>
                         <span className="bg-stone-50 px-2.5 py-1 rounded-lg border border-stone-200/80 flex items-center gap-1.5">
                           <SparklesIcon size={13} className="text-stone-400" />
-                          {car.mileage || "32 MPG"}
+                          {formatFuelDisplay(car.mileage, car.fuelType)}
                         </span>
                       </div>
 
@@ -1712,7 +1736,8 @@ export default function ListingView({
                           <strong>Luggage:</strong> {car.luggage}
                         </p>
                         <p>
-                          <strong>MPG:</strong> {car.mileage}
+                          <strong>Tank / Battery:</strong>{" "}
+                          {formatFuelDisplay(car.mileage, car.fuelType)}
                         </p>
                       </div>
                       <button

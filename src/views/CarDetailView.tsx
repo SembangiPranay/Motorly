@@ -22,6 +22,30 @@ import {
   AlertTriangleIcon,
 } from "../components/Icons"
 
+const formatFuelDisplay = (mileage?: string, fuelType?: string): string => {
+  if (!mileage || !mileage.trim()) {
+    return fuelType === "Electric" ? "100% EV" : "45 Liters"
+  }
+  const clean = mileage.trim()
+  if (fuelType === "Electric") {
+    if (clean.includes("%") || clean.toLowerCase().includes("kwh") || clean.toLowerCase().includes("ev")) {
+      return clean
+    }
+    return `${clean} kWh`
+  }
+  if (/liters?|ltrs?|\bl\b/i.test(clean)) {
+    return clean
+  }
+  if (/mpg|mpge/i.test(clean)) {
+    const num = clean.replace(/[^0-9.]/g, "")
+    return num ? `${num} Liters` : "45 Liters"
+  }
+  if (/^\d+(\.\d+)?$/.test(clean)) {
+    return `${clean} Liters`
+  }
+  return `${clean} Liters`
+}
+
 interface CarDetailViewProps {
   car?: Car
   allCars: Car[]
@@ -502,10 +526,10 @@ export default function CarDetailView({
                 <FuelIcon size={18} className="text-[#F97316]" />
                 <div>
                   <p className="text-[10px] text-gray-400 font-semibold uppercase">
-                    Fuel &amp; MPG
+                    Fuel &amp; Tank Capacity
                   </p>
                   <p className="text-xs font-bold text-gray-800">
-                    {car.fuelType} ({car.mileage})
+                    {car.fuelType} ({formatFuelDisplay(car.mileage, car.fuelType)})
                   </p>
                 </div>
               </div>

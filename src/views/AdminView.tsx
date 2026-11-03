@@ -1249,14 +1249,17 @@ export default function AdminView({
   const getCleanHubAddress = (rawLocation?: string) => {
     const adminHub = studioContact?.hub_address?.trim()
     if (!rawLocation) return adminHub || "Operating Fleet Hub"
+    const lower = rawLocation.toLowerCase()
     const isPlaceholder =
-      rawLocation.includes("Miami") ||
-      rawLocation.includes("Main Garage") ||
-      rawLocation.includes("European Atelier") ||
-      rawLocation.includes("Central Hub") ||
-      rawLocation.includes("Central Operations") ||
-      rawLocation.includes("Bay 4")
-    if (isPlaceholder && adminHub) return adminHub
+      lower.includes("miami") ||
+      lower.includes("main garage") ||
+      lower.includes("european atelier") ||
+      lower.includes("atelier hub") ||
+      lower.includes("central hub") ||
+      lower.includes("central operations") ||
+      lower.includes("bay 4") ||
+      lower.includes("operating fleet hub")
+    if (isPlaceholder) return adminHub || "Operating Fleet Hub"
     return rawLocation.replace(/\s*\([A-Z]{3,4}\)/, "").trim()
   }
 
@@ -6742,33 +6745,24 @@ export default function AdminView({
                                     </span>
                                   )}
 
-                                  {/* Trip Invoice PNG Download */}
+                                  {/* Trip Invoice & Download Options (PNG / PDF) */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation()
-
-                                      const matched = cars.find(
-                                        (c) => c.id === b.matchedCarId,
-                                      )
-
-                                      downloadBookingInvoicePng(
-                                        b,
-                                        matched,
-                                        studioContact,
-                                      )
+                                      setSelectedInvoiceBooking(b)
                                     }}
-                                    className={`p-1.5 px-2 rounded-lg text-xs font-bold transition border flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
+                                    className={`p-1.5 px-2.5 rounded-lg text-xs font-bold transition border flex items-center justify-center gap-1 cursor-pointer shrink-0 ${
                                       isDark
                                         ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
                                         : "bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200"
                                     }`}
-                                    title="Download Official Trip Invoice PNG"
+                                    title="View & Download Official Invoice (PNG / PDF)"
                                   >
                                     <DownloadIcon
                                       size={12}
-                                      className="inline mr-1"
+                                      className="inline mr-1 text-orange-500"
                                     />
-                                    <span className="hidden xl:inline text-[10px]">
+                                    <span className="text-[10px]">
                                       Invoice
                                     </span>
                                   </button>
@@ -9600,14 +9594,22 @@ export default function AdminView({
                               isDark ? "text-white" : "text-stone-900"
                             }`}
                           >
-                            {getCleanHubAddress(c.garageName)}
+                            {c.garageName &&
+                            c.garageName !== c.garageAddress &&
+                            !c.garageName.includes("Street") &&
+                            !c.garageName.includes("terminal") &&
+                            !c.garageName.includes("Banda")
+                              ? c.garageName
+                              : "Operating Station & Dispatch Counter"}
                           </p>
                           <p
                             className={`font-mono text-[11px] ${
                               isDark ? "text-stone-400" : "text-stone-500"
                             }`}
                           >
-                            {getCleanHubAddress(c.garageAddress)}
+                            {getCleanHubAddress(
+                              c.garageAddress || c.garageName || studioContact.hub_address,
+                            )}
                           </p>
                           <p className="text-amber-600 font-mono font-bold text-[11px]">
                             Allocated Bay: {c.garageBay || "Bay 14-B"}
@@ -10132,15 +10134,6 @@ export default function AdminView({
                 </div>
               )}
 
-              {/* Itinerary */}
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className={`p-4 rounded-xl border text-xs space-y-2 transition ${
-                  isDark
-                    ? "bg-stone-900/60 border-stone-800"
-                    : "bg-stone-50 border-stone-200"
-                }`}
-              >
               </div>
 
               {/* RIGHT COLUMN: Rental Schedule, Billing, Extension, Return Audit (lg:col-span-5 space-y-5) */}
@@ -10650,7 +10643,6 @@ export default function AdminView({
                   )}
                 </div>
               )}
-              </div>
             </div>
           </div>
 
