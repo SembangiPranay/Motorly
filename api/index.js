@@ -40289,6 +40289,26 @@ async function reconcileDatabaseInvariants() {
                OR garage_name = ''
                OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
           `).run(activeHub.address, activeHub.address, activeHub.address).catch(() => {});
+				if (db.isSupabase && db.pool) await db.pool.query(`
+            UPDATE bookings
+            SET
+              pickup_location = $1,
+              return_location = $1
+            WHERE pickup_location ILIKE '%Miami%'
+               OR return_location ILIKE '%Miami%'
+               OR pickup_location ILIKE '%Main Garage%'
+               OR return_location ILIKE '%Main Garage%'
+          `, [activeHub.address]).catch(() => {});
+				else await db.prepare(`
+            UPDATE bookings
+            SET
+              pickup_location = ?,
+              return_location = ?
+            WHERE pickup_location LIKE '%Miami%'
+               OR return_location LIKE '%Miami%'
+               OR pickup_location LIKE '%Main Garage%'
+               OR return_location LIKE '%Main Garage%'
+          `).run(activeHub.address, activeHub.address).catch(() => {});
 			}
 		} catch (hubErr) {
 			console.warn("[DB Hub Sync Warning]", hubErr?.message);
@@ -40371,15 +40391,19 @@ app.get(["/api", "/api/health"], async (_req, res) => {
 		timestamp: (/* @__PURE__ */ new Date()).toISOString()
 	});
 });
+let cachedHubAddress = "MOTORLY Central Operations Hub";
 async function getActiveOperatingHub() {
 	try {
 		const rows = await db.prepare("SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')").all();
-		let address = "MOTORLY Central Operations Hub";
+		let address = cachedHubAddress || "MOTORLY Central Operations Hub";
 		let lat = null;
 		let lng = null;
 		const list = Array.isArray(rows) ? rows : [];
 		for (const r of list) {
-			if (r.key === "hub_address" && r.value) address = String(r.value).trim();
+			if (r.key === "hub_address" && r.value) {
+				address = String(r.value).trim();
+				cachedHubAddress = address;
+			}
 			if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value);
 			if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value);
 		}
@@ -40390,7 +40414,7 @@ async function getActiveOperatingHub() {
 		};
 	} catch {
 		return {
-			address: "MOTORLY Central Operations Hub",
+			address: cachedHubAddress || "MOTORLY Central Operations Hub",
 			lat: null,
 			lng: null
 		};
@@ -40529,6 +40553,10 @@ function formatBookingRow(row) {
 	const licenseBackFileName = hasBackBase64 ? "driver_license_back.jpg" : row.driver_license_back_file || void 0;
 	const licensePhotoFront = hasFrontBase64 ? `/api/bookings/${row.id}/download-license?side=front` : row.driver_license_file || void 0;
 	const licensePhotoBack = hasBackBase64 ? `/api/bookings/${row.id}/download-license?side=back` : row.driver_license_back_file || void 0;
+	const isStaleMiamiLoc = (loc) => !loc || loc.includes("Miami") || loc.includes("Main Garage");
+	const defaultHub = cachedHubAddress || "MOTORLY Central Operations Hub";
+	const cleanPickupLoc = !isStaleMiamiLoc(row.pickup_location) ? row.pickup_location : defaultHub;
+	const cleanReturnLoc = !isStaleMiamiLoc(row.return_location) ? row.return_location : defaultHub;
 	return {
 		id: row.id,
 		customer: {
@@ -40548,8 +40576,8 @@ function formatBookingRow(row) {
 			licensePhotoBack,
 			selfieFileName: row.driver_selfie_file || void 0
 		},
-		pickupLocation: row.pickup_location,
-		returnLocation: row.return_location,
+		pickupLocation: cleanPickupLoc,
+		returnLocation: cleanReturnLoc,
 		pickupDate: row.pickup_date,
 		returnDate: row.return_date,
 		requestedCategory: row.requested_category,
@@ -41420,7 +41448,7 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             ?, ?, ?, ?, ?,
             ?, ?, ?, 0, 'None', 0
           )
-        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation || "Miami International Airport (MIA)", b.returnLocation || "Miami International Airport (MIA)", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || null, validPromoCode);
+        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || null, validPromoCode);
 			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		});
 		return res.status(201).json(formatBookingRow(createdRow));
@@ -41967,7 +41995,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         ?, ?, ?, ?, ?,
         ?, ?, ?, 1, ?
       )
-    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation || car.location || "Miami International Airport (MIA)", b.returnLocation || car.location || "Miami International Airport (MIA)", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString());
+    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString());
 		await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 		const created = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		return res.status(201).json({

@@ -5099,8 +5099,11 @@ export default function AdminView({
                       (b.customer?.lastName?.[0] || "")
 
                     const cleanLocation =
-                      b.pickupLocation?.replace(/\s*\([A-Z]{3,4}\)/, "") ||
-                      "Main Garage Facility"
+                      b.pickupLocation &&
+                      !b.pickupLocation.includes("Miami") &&
+                      !b.pickupLocation.includes("Main Garage")
+                        ? b.pickupLocation.replace(/\s*\([A-Z]{3,4}\)/, "")
+                        : studioContact.hub_address || "MOTORLY Central Operations Hub"
 
                     const formattedAmount = Number(
                       b.totalAmount || 0,
@@ -5422,24 +5425,26 @@ export default function AdminView({
 
                         {/* Action Toolbar */}
                         <div
-                          className="pt-2 border-t border-stone-100 dark:border-stone-800/80 flex items-center justify-between gap-2"
+                          className="pt-2 border-t border-stone-100 dark:border-stone-800/80 flex flex-wrap items-center justify-between gap-1.5"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {isPendingReview && (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => handleApproveBooking(b.id)}
-                                  className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                  title="Accept reservation request"
                                 >
                                   <CheckIcon size={13} />
-                                  <span>Accept Request</span>
+                                  <span>Accept</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDeclineBooking(b.id)}
-                                  className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer"
+                                  className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer whitespace-nowrap"
+                                  title="Decline reservation request"
                                 >
                                   Decline
                                 </button>
@@ -5574,8 +5579,11 @@ export default function AdminView({
                           (b.customer?.lastName?.[0] || "")
 
                         const cleanLocation =
-                          b.pickupLocation?.replace(/\s*\([A-Z]{3,4}\)/, "") ||
-                          "Main Garage Facility"
+                          b.pickupLocation &&
+                          !b.pickupLocation.includes("Miami") &&
+                          !b.pickupLocation.includes("Main Garage")
+                            ? b.pickupLocation.replace(/\s*\([A-Z]{3,4}\)/, "")
+                            : studioContact.hub_address || "MOTORLY Central Operations Hub"
 
                         const formattedAmount = Number(
                           b.totalAmount || 0,
@@ -5898,24 +5906,26 @@ export default function AdminView({
 
                             {/* Action Toolbar */}
                             <div
-                              className="pt-2 border-t border-stone-100 dark:border-stone-800/80 flex items-center justify-between gap-2"
+                              className="pt-2 border-t border-stone-100 dark:border-stone-800/80 flex flex-wrap items-center justify-between gap-1.5"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 {isPendingReview && (
                                   <>
                                     <button
                                       type="button"
                                       onClick={() => handleApproveBooking(b.id)}
-                                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                      title="Accept reservation request"
                                     >
                                       <CheckIcon size={13} />
-                                      <span>Accept Request</span>
+                                      <span>Accept</span>
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleDeclineBooking(b.id)}
-                                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer"
+                                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 font-bold text-xs transition cursor-pointer whitespace-nowrap"
+                                      title="Decline reservation request"
                                     >
                                       Decline
                                     </button>
@@ -5992,7 +6002,7 @@ export default function AdminView({
                                   )}
                               </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedInvoiceBooking(b)}

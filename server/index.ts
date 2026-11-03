@@ -206,6 +206,41 @@ async function reconcileDatabaseInvariants() {
                OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
           `).run(activeHub.address, activeHub.address, activeHub.address).catch(() => {})
         }
+
+        // Purge Miami placeholder from existing bookings and synchronize to Operating Hub
+        if (db.isSupabase && db.pool) {
+          await db.pool
+            .query(
+              `
+            UPDATE bookings
+            SET
+              pickup_location = $1,
+              return_location = $1
+            WHERE pickup_location ILIKE '%Miami%'
+               OR return_location ILIKE '%Miami%'
+               OR pickup_location ILIKE '%Main Garage%'
+               OR return_location ILIKE '%Main Garage%'
+          `,
+              [activeHub.address],
+            )
+            .catch(() => {})
+        } else {
+          await db
+            .prepare(
+              `
+            UPDATE bookings
+            SET
+              pickup_location = ?,
+              return_location = ?
+            WHERE pickup_location LIKE '%Miami%'
+               OR return_location LIKE '%Miami%'
+               OR pickup_location LIKE '%Main Garage%'
+               OR return_location LIKE '%Main Garage%'
+          `,
+            )
+            .run(activeHub.address, activeHub.address)
+            .catch(() => {})
+        }
       }
     } catch (hubErr: any) {
       console.warn("[DB Hub Sync Warning]", hubErr?.message)
@@ -349,6 +384,8 @@ app.get(["/api", "/api/health"], async (_req, res) => {
   })
 })
 
+let cachedHubAddress: string = "MOTORLY Central Operations Hub"
+
 // Helper to retrieve active operating hub from settings
 async function getActiveOperatingHub(): Promise<{ address: string; lat: number | null; lng: number | null }> {
   try {
@@ -357,18 +394,21 @@ async function getActiveOperatingHub(): Promise<{ address: string; lat: number |
         "SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')",
       )
       .all()
-    let address = "MOTORLY Central Operations Hub"
+    let address = cachedHubAddress || "MOTORLY Central Operations Hub"
     let lat: number | null = null
     let lng: number | null = null
     const list = Array.isArray(rows) ? rows : []
     for (const r of list) {
-      if (r.key === "hub_address" && r.value) address = String(r.value).trim()
+      if (r.key === "hub_address" && r.value) {
+        address = String(r.value).trim()
+        cachedHubAddress = address
+      }
       if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value)
       if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value)
     }
     return { address, lat, lng }
   } catch {
-    return { address: "MOTORLY Central Operations Hub", lat: null, lng: null }
+    return { address: cachedHubAddress || "MOTORLY Central Operations Hub", lat: null, lng: null }
   }
 }
 
@@ -574,6 +614,19 @@ function formatBookingRow(row: any) {
     ? `/api/bookings/${row.id}/download-license?side=back`
     : row.driver_license_back_file || undefined
 
+  const isStaleMiamiLoc = (loc?: string) =>
+    !loc || loc.includes("Miami") || loc.includes("Main Garage")
+
+  const defaultHub = cachedHubAddress || "MOTORLY Central Operations Hub"
+
+  const cleanPickupLoc = !isStaleMiamiLoc(row.pickup_location)
+    ? row.pickup_location
+    : defaultHub
+
+  const cleanReturnLoc = !isStaleMiamiLoc(row.return_location)
+    ? row.return_location
+    : defaultHub
+
   return {
     id: row.id,
     customer: {
@@ -593,8 +646,8 @@ function formatBookingRow(row: any) {
       licensePhotoBack,
       selfieFileName: row.driver_selfie_file || undefined,
     },
-    pickupLocation: row.pickup_location,
-    returnLocation: row.return_location,
+    pickupLocation: cleanPickupLoc,
+    returnLocation: cleanReturnLoc,
     pickupDate: row.pickup_date,
     returnDate: row.return_date,
     requestedCategory: row.requested_category,
@@ -2192,8 +2245,12 @@ app.post(
                 b.driver?.licenseBackFileName ||
                 "dl_back_default.jpg",
               b.driver?.selfieFileName || null,
-              b.pickupLocation || "Miami International Airport (MIA)",
-              b.returnLocation || "Miami International Airport (MIA)",
+              b.pickupLocation && !b.pickupLocation.includes("Miami")
+                ? b.pickupLocation
+                : (cachedHubAddress || "MOTORLY Central Operations Hub"),
+              b.returnLocation && !b.returnLocation.includes("Miami")
+                ? b.returnLocation
+                : (cachedHubAddress || "MOTORLY Central Operations Hub"),
               pickupDate,
               returnDate,
               b.requestedCategory || "Sedan",
@@ -3368,8 +3425,16 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         b.licenseState || "Florida",
         b.licenseExpiry || "12/2029",
         b.licenseFileName || "counter_scanned_id.jpg",
-        b.pickupLocation || car.location || "Miami International Airport (MIA)",
-        b.returnLocation || car.location || "Miami International Airport (MIA)",
+        b.pickupLocation && !b.pickupLocation.includes("Miami")
+          ? b.pickupLocation
+          : car.location && !car.location.includes("Miami")
+            ? car.location
+            : (cachedHubAddress || "MOTORLY Central Operations Hub"),
+        b.returnLocation && !b.returnLocation.includes("Miami")
+          ? b.returnLocation
+          : car.location && !car.location.includes("Miami")
+            ? car.location
+            : (cachedHubAddress || "MOTORLY Central Operations Hub"),
         pickupDateStr,
         returnDateStr,
         car.type,
