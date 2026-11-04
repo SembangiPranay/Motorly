@@ -1629,16 +1629,20 @@ export default function AdminView({
 
       .reduce((sum, c) => sum + c.pricePerDay, 0)
 
-    const pendingMating = bookings.filter(
-      (b) =>
-        (!b.approvedByAdmin &&
-          b.status !== "Cancelled" &&
-          b.status !== "Completed" &&
-          b.status !== "Checked Out" &&
-          b.status !== "Returned") ||
-        b.status === "Pending Assignment" ||
-        !b.matchedCarId,
-    ).length
+    const pendingMating = bookings.filter((b) => {
+      if (
+        b.status === "Cancelled" ||
+        b.status === "Completed" ||
+        b.status === "Checked Out" ||
+        b.status === "Returned"
+      ) {
+        return false
+      }
+      if (b.status === "Assigned" && b.matchedCarId && b.approvedByAdmin) {
+        return false
+      }
+      return !b.matchedCarId || b.status === "Pending Assignment" || !b.approvedByAdmin
+    }).length
 
     const inDrive = bookings.filter((b) => b.status === "Checked Out").length
 
@@ -2751,17 +2755,35 @@ export default function AdminView({
     )
   }, [bookings])
 
-  // Dynamic Category Counts for Orders & Dispatch Registry
-
-  const manifestCounts = useMemo(() => {
-    const isPendingBooking = (b: BookingRecord) =>
-      (!b.approvedByAdmin &&
+  // New Customer Booking Requests Awaiting Manager Clearance & Vehicle Assignment
+  const pendingNewBookings = useMemo(() => {
+    return bookings.filter(
+      (b) =>
+        !b.approvedByAdmin &&
         b.status !== "Cancelled" &&
         b.status !== "Completed" &&
         b.status !== "Checked Out" &&
-        b.status !== "Returned") ||
-      b.status === "Pending Assignment" ||
-      !b.matchedCarId
+        b.status !== "Returned",
+    )
+  }, [bookings])
+
+  // Dynamic Category Counts for Orders & Dispatch Registry
+
+  const manifestCounts = useMemo(() => {
+    const isPendingBooking = (b: BookingRecord) => {
+      if (
+        b.status === "Cancelled" ||
+        b.status === "Completed" ||
+        b.status === "Checked Out" ||
+        b.status === "Returned"
+      ) {
+        return false
+      }
+      if (b.status === "Assigned" && b.matchedCarId && b.approvedByAdmin) {
+        return false
+      }
+      return !b.matchedCarId || b.status === "Pending Assignment" || !b.approvedByAdmin
+    }
 
     const isConfirmedBooking = (b: BookingRecord) =>
       !isPendingBooking(b) &&
@@ -2799,14 +2821,20 @@ export default function AdminView({
   // Filtered reservations with priority ordering (Pending requests first)
 
   const filteredBookings = useMemo(() => {
-    const isPendingBooking = (b: BookingRecord) =>
-      (!b.approvedByAdmin &&
-        b.status !== "Cancelled" &&
-        b.status !== "Completed" &&
-        b.status !== "Checked Out" &&
-        b.status !== "Returned") ||
-      b.status === "Pending Assignment" ||
-      !b.matchedCarId
+    const isPendingBooking = (b: BookingRecord) => {
+      if (
+        b.status === "Cancelled" ||
+        b.status === "Completed" ||
+        b.status === "Checked Out" ||
+        b.status === "Returned"
+      ) {
+        return false
+      }
+      if (b.status === "Assigned" && b.matchedCarId && b.approvedByAdmin) {
+        return false
+      }
+      return !b.matchedCarId || b.status === "Pending Assignment" || !b.approvedByAdmin
+    }
 
     const isConfirmedBooking = (b: BookingRecord) =>
       !isPendingBooking(b) &&
@@ -3505,11 +3533,11 @@ export default function AdminView({
                   title="Notifications & Fleet Alerts"
                 >
                   <BellIcon size={16} />
-                  {overdueBookings.length > 0 || pendingExtensionBookings.length > 0 ? (
+                  {pendingNewBookings.length > 0 || overdueBookings.length > 0 || pendingExtensionBookings.length > 0 ? (
                     <span className={`absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-pulse ${
-                      overdueBookings.length > 0 ? "bg-rose-600" : "bg-amber-500"
+                      pendingNewBookings.length > 0 ? "bg-blue-600" : overdueBookings.length > 0 ? "bg-rose-600" : "bg-amber-500"
                     }`}>
-                      {overdueBookings.length + pendingExtensionBookings.length}
+                      {pendingNewBookings.length + overdueBookings.length + pendingExtensionBookings.length}
                     </span>
                   ) : null}
                 </button>
@@ -3538,6 +3566,11 @@ export default function AdminView({
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
+                        {pendingNewBookings.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white animate-pulse">
+                            {pendingNewBookings.length} New
+                          </span>
+                        )}
                         {pendingExtensionBookings.length > 0 && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
                             {pendingExtensionBookings.length} Ext
@@ -3559,6 +3592,69 @@ export default function AdminView({
                     </div>
 
                     <div className="mt-3 max-h-80 overflow-y-auto space-y-3 pr-1">
+                      {/* Section 0: New Customer Booking Requests */}
+                      {pendingNewBookings.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                            <BellIcon size={12} /> New Booking Orders ({pendingNewBookings.length})
+                          </p>
+                          {pendingNewBookings.map((nb) => {
+                            const car = cars.find((c) => c.id === nb.matchedCarId)
+                            return (
+                              <div
+                                key={`popover-new-${nb.id}`}
+                                className={`p-3 rounded-xl border transition ${
+                                  isDark
+                                    ? "bg-blue-950/20 border-blue-500/40 hover:border-blue-500/70"
+                                    : "bg-blue-50/80 border-blue-200 hover:border-blue-300"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-mono font-bold text-xs text-[#F97316]">
+                                        {nb.id}
+                                      </span>
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-600 text-white uppercase font-mono">
+                                        Pending Review
+                                      </span>
+                                    </div>
+                                    <h5 className="font-bold text-xs text-stone-900 dark:text-white mt-1">
+                                      {nb.customer?.firstName} {nb.customer?.lastName} • {car?.name || nb.carType || "Vehicle Request"}
+                                    </h5>
+                                    <p className="text-[11px] text-stone-600 dark:text-stone-300 font-mono mt-0.5">
+                                      📅 {nb.pickupDate} → {nb.returnDate} • €{nb.totalAmount.toFixed(2)}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setIsNotificationOpen(false)
+                                        handleApproveBooking(nb.id)
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer text-center"
+                                    >
+                                      Accept
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setIsNotificationOpen(false)
+                                        setInspectedBooking(nb)
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 transition cursor-pointer text-center"
+                                    >
+                                      Inspect
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
                       {/* Section 1: Pending Extension Requests */}
                       {pendingExtensionBookings.length > 0 && (
                         <div className="space-y-2">
@@ -3701,8 +3797,8 @@ export default function AdminView({
                         </div>
                       )}
 
-                      {/* If both zero */}
-                      {overdueBookings.length === 0 && pendingExtensionBookings.length === 0 && (
+                      {/* If all zero */}
+                      {pendingNewBookings.length === 0 && overdueBookings.length === 0 && pendingExtensionBookings.length === 0 && (
                         <div className="py-7 text-center">
                           <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-2 text-sm font-black">
                             ✓
@@ -3910,6 +4006,121 @@ export default function AdminView({
               )}
             </div>
           </div>
+
+          {/* ========================================================
+              PROMINENT NEW BOOKING ORDERS ALERT BANNER (TOP OF DASHBOARD)
+              Shows at the very top of dashboard whenever new customer reservations are awaiting clearance
+              ======================================================== */}
+          {pendingNewBookings.length > 0 && (
+            <div className="rounded-2xl border border-blue-400 bg-linear-to-r from-blue-500/15 via-indigo-500/10 to-blue-500/20 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-blue-950/50 p-4 sm:p-5 shadow-sm space-y-3 animate-fade-in">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                    <BellIcon size={20} className="animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-heading font-black text-sm sm:text-base text-stone-900 dark:text-white uppercase tracking-tight">
+                        🔔 New Booking Alert: {pendingNewBookings.length} Reservation Request{pendingNewBookings.length > 1 ? "s" : ""} Awaiting Review
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-600 text-white animate-pulse">
+                        Awaiting Manager Clearance
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">
+                      New customer reservation bookings received. Accept request to approve dates and vehicle assignment, or review details in manifest.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("manifest")
+                      setManifestStatusFilter("needs-car")
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Filter Needs Car Tab</span>
+                    <ArrowRightIcon size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual pending requests cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-1">
+                {pendingNewBookings.map((nb) => {
+                  const car = cars.find((c) => c.id === nb.matchedCarId)
+                  return (
+                    <div
+                      key={`top-new-bk-${nb.id}`}
+                      className={`p-3.5 rounded-xl border flex flex-col justify-between gap-2.5 transition ${
+                        isDark
+                          ? "bg-[#18191D] border-blue-500/40 text-stone-200"
+                          : "bg-white/95 border-blue-300 text-stone-900 shadow-xs"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-xs text-[#F97316]">
+                              {nb.id}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300/60">
+                              €{nb.totalAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-xs text-stone-900 dark:text-white mt-1">
+                            {car ? `${car.brand || ""} ${car.name}` : (nb.carType || "Vehicle Request")}
+                          </h4>
+                          <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
+                            Customer: <strong>{nb.customer?.firstName} {nb.customer?.lastName}</strong> ({nb.customer?.phone || "No phone"})
+                          </p>
+                          <p className="text-[10px] font-mono text-stone-400 dark:text-stone-500">
+                            📅 {nb.pickupDate} → {nb.returnDate}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleApproveBooking(nb.id)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            title="Accept reservation request"
+                          >
+                            <CheckIcon size={12} />
+                            <span>Accept</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeclineBooking(nb.id)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 transition cursor-pointer"
+                            title="Decline reservation request"
+                          >
+                            <span>Decline</span>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setInspectedBooking(nb)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            isDark
+                              ? "bg-stone-800 hover:bg-stone-700 text-stone-200"
+                              : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200"
+                          }`}
+                          title="Open Full Reservation Manifest"
+                        >
+                          Manifest →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ========================================================
               PROMINENT EXTENSION REQUESTS ALERT BANNER (TOP OF DASHBOARD)

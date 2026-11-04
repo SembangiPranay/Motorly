@@ -190,6 +190,42 @@ _MOTORLY | Smarter Car Rentals_`
           </p>
         </div>
 
+        {/* PROMINENT WHATSAPP FASTER RESPONSE HERO CALLOUT CARD */}
+        <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 dark:bg-emerald-950/60 p-4 sm:p-5 shadow-md space-y-3 animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#25D366] text-white flex items-center justify-center font-black shadow-sm shrink-0">
+              <PhoneIcon size={22} className="animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#25D366] text-white shadow-2xs">
+                  ⚡ FASTEST APPROVAL
+                </span>
+                <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                  Marcus Vance • Garage Fleet Admin
+                </span>
+              </div>
+              <h3 className="font-heading font-black text-base sm:text-lg text-emerald-950 dark:text-emerald-100 leading-snug">
+                Use WhatsApp message for the faster response!
+              </h3>
+              <p className="text-xs text-emerald-900/90 dark:text-emerald-200/90 leading-relaxed">
+                This is our admin who takes care of the cars, keys, and garage staging. Send him this WhatsApp message directly so he can immediately review and approve your reservation request without delay!
+              </p>
+            </div>
+          </div>
+
+          <a
+            href={primaryWhatsAppUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-sm font-black shadow-md hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-center group"
+          >
+            <PhoneIcon size={18} />
+            <span>Send WhatsApp to Admin (+1 778-074-0223)</span>
+            <ArrowRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
+          </a>
+        </div>
+
         {/* Dispatch Telemetry Status Banner */}
         <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2.5">

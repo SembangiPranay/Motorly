@@ -1027,24 +1027,32 @@ export default function MyBookingsView({
                             </div>
                           </div>
                         ) : (
-                          <div className="mx-6 mt-5 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-                              <div>
-                                <span className="font-bold text-amber-900 block">
-                                  Awaiting Fleet Manager Acceptance
-                                </span>
-                                <span className="text-stone-600 text-[11px]">
-                                  Your reservation request has been sent to our
-                                  fleet manager. Zero advance payment charged —
-                                  you will pay at the garage upon key pickup
-                                  once accepted.
-                                </span>
+                          <div className="mx-4 sm:mx-6 mt-5 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-emerald-50/50 to-amber-50 border-2 border-emerald-500/40 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5 shadow-xs">
+                            <div className="flex items-start gap-3">
+                              <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping mt-1 shrink-0" />
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-black text-amber-950 text-sm">
+                                    Awaiting Fleet Manager Acceptance
+                                  </span>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                                    Review Pending
+                                  </span>
+                                </div>
+                                <p className="text-stone-700 text-xs leading-relaxed">
+                                  <strong>⚡ Use WhatsApp for faster response:</strong> This is our Fleet Admin (Marcus Vance • +1 778-074-0223) who takes care of the cars at the garage. Send him a WhatsApp message to accelerate your vehicle clearance and staging!
+                                </p>
                               </div>
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
-                              Review Pending
-                            </span>
+                            <a
+                              href={getWhatsAppUrls("7780740223", `🚗 MOTORLY RESERVATION #${b.id} APPROVAL REQUEST\n\nHello Fleet Admin Marcus,\nI have booked ${b.carType || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="py-2.5 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer self-stretch md:self-auto justify-center"
+                            >
+                              <PhoneIcon size={14} />
+                              <span>WhatsApp Admin for Faster Response</span>
+                            </a>
                           </div>
                         )}
 
