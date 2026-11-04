@@ -8505,7 +8505,7 @@ export default function AdminView({
                                   : "bg-stone-100 text-stone-700"
                               }`}
                             >
-                              {cust.name.charAt(0)}
+                              {(cust.name || cust.email || "C").charAt(0).toUpperCase()}
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">

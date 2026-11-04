@@ -559,12 +559,12 @@ export default function MyBookingsView({
           <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 mb-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-5">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#17191C] to-stone-700 text-white flex items-center justify-center font-bold text-2xl shadow-md">
-                {currentUser.name.charAt(0).toUpperCase()}
+                {(currentUser.name || currentUser.firstName || currentUser.email || "U").charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-black tracking-tight">
-                    {currentUser.name}
+                    {currentUser.name || `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || currentUser.email}
                   </h1>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
                     <SparklesIcon size={12} className="text-amber-500" />

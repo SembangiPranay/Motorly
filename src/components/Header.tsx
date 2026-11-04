@@ -256,10 +256,10 @@ export default function Header({
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-stone-200 text-xs font-bold text-stone-800 hover:border-orange-500 shadow-2xs transition cursor-pointer whitespace-nowrap"
                 >
                   <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
-                    {(currentUser.name || "U").charAt(0)}
+                    {(currentUser.name || currentUser.firstName || currentUser.email || "U").charAt(0).toUpperCase()}
                   </div>
                   <span className="truncate max-w-[90px] xl:max-w-[130px]">
-                    {(currentUser.name || "User").split(" ")[0]}
+                    {(currentUser.name || currentUser.firstName || currentUser.email || "User").split(" ")[0]}
                   </span>
                   <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded font-mono font-bold shrink-0">
                     {currentUser.vipTier || "Member"}
@@ -417,11 +417,11 @@ export default function Header({
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center text-xs font-bold">
-                        {currentUser.name.charAt(0)}
+                        {(currentUser.name || currentUser.firstName || currentUser.email || "U").charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <p className="text-xs font-bold text-stone-900 leading-tight">
-                          {currentUser.name}
+                          {currentUser.name || `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || currentUser.email}
                         </p>
                         <p className="text-[10px] text-stone-500">
                           {currentUser.email}

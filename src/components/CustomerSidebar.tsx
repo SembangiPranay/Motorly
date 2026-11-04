@@ -236,7 +236,7 @@ export default function CustomerSidebar({
           <div className="flex items-center justify-between px-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center font-bold text-[11px] shrink-0">
-                {(currentUser.name || "U").charAt(0).toUpperCase()}
+                {(currentUser.name || currentUser.firstName || currentUser.email || "U").charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
                 <p className="font-semibold text-stone-800 text-xs truncate">
