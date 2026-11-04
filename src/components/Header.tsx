@@ -234,20 +234,6 @@ export default function Header({
 
           {/* Right Action Elements - Never overflows on 14" or 16" laptops */}
           <div className="hidden lg:flex items-center gap-1.5 sm:gap-2 xl:gap-3 shrink-0">
-            {isAdminAuthenticated && (
-              <button
-                onClick={() => onNavigate("admin")}
-                className={`flex items-center gap-1.5 text-xs font-bold px-2.5 xl:px-3 py-1.5 sm:py-2 rounded-xl border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  currentView === "admin"
-                    ? "bg-[#17191C] text-white border-[#17191C]"
-                    : "bg-stone-900 hover:bg-black text-white border-stone-800 shadow-xs"
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="hidden xl:inline">Admin Console</span>
-                <span className="xl:hidden">Admin</span>
-              </button>
-            )}
 
             {currentUser ? (
               <div className="flex items-center gap-1.5 xl:gap-2 shrink-0">
@@ -399,18 +385,6 @@ export default function Header({
             >
               Contact Owner
             </button>
-            {isAdminAuthenticated && (
-              <button
-                onClick={() => {
-                  onNavigate("admin")
-
-                  setMobileMenuOpen(false)
-                }}
-                className="block w-full text-left py-2 font-bold text-[#F97316]"
-              >
-                Fleet Admin Portal
-              </button>
-            )}
             <div className="pt-2 flex flex-col gap-2">
               {currentUser ? (
                 <div className="space-y-2">

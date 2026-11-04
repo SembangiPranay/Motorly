@@ -266,22 +266,7 @@ export default function CustomerSidebar({
           </button>
         )}
 
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.history.pushState(null, "", "/admin")
-              }
-              onNavigate("admin")
-              if (onCloseMobile) onCloseMobile()
-            }}
-            className="text-[10px] text-stone-400 hover:text-stone-700 transition cursor-pointer font-light tracking-wide inline-flex items-center gap-1"
-          >
-            <span>Manager Portal</span>
-            <span>&rarr;</span>
-          </button>
-        </div>
+
       </div>
     </div>
   )

@@ -138,12 +138,6 @@ export default function Footer({
             <span className="hover:text-gray-400 cursor-pointer">
               Garage Policies
             </span>
-            <button
-              onClick={() => onNavigate("admin")}
-              className="text-stone-600 hover:text-stone-400 text-[11px] font-mono transition cursor-pointer"
-            >
-              Staff Portal
-            </button>
           </div>
         </div>
       </div>
