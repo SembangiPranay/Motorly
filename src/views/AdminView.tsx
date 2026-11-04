@@ -2794,7 +2794,7 @@ export default function AdminView({
     }
 
     if (isExtended && b.extensionQuote?.newReturnDate) {
-      const extQuoteTs = Date.parse(b.extensionQuote.newReturnDate)
+      const extQuoteTs = Date.parse(((b.extensionQuote as any).newReturnDate || b.returnDate))
       if (!isNaN(extQuoteTs)) returnTs = extQuoteTs
     }
 
@@ -4348,7 +4348,7 @@ export default function AdminView({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
-                    <CheckCircleIcon size={20} className="animate-pulse" />
+                    <CheckIcon size={20} className="animate-pulse" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -4405,7 +4405,7 @@ export default function AdminView({
                             </span>
                           </div>
                           <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                            Driver: <span className="font-medium text-stone-700 dark:text-stone-300">{b.customerName}</span> ({b.customerPhone})
+                            Driver: <span className="font-medium text-stone-700 dark:text-stone-300">{b.customer ? `${b.customer.firstName} ${b.customer.lastName}` : (b as any).customerName || "Customer"}</span> ({b.customer?.phone || (b as any).customerPhone || ""})
                           </p>
                         </div>
                         {returnInfo.isExtended ? (
@@ -4437,10 +4437,10 @@ export default function AdminView({
                       <div className="flex items-center gap-2 pt-1 border-t border-stone-100 dark:border-stone-800">
                         <button
                           type="button"
-                          onClick={() => handleOpenReturnModal(b)}
+                          onClick={() => handleOpenReturnInspection(b)}
                           className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                         >
-                          <CheckCircleIcon size={13} />
+                          <CheckIcon size={13} />
                           <span>Check-In &amp; Audit Return</span>
                         </button>
                         <button

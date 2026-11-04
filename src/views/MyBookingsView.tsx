@@ -19,7 +19,9 @@ import {
   StarIcon,
   ZapIcon,
   CameraIcon,
+  PhoneIcon,
 } from "../components/Icons"
+import { getWhatsAppUrls } from "../utils/whatsapp"
 import InvoiceModal from "../components/InvoiceModal"
 import GarageMapViewer from "../components/GarageMapViewer"
 
@@ -1045,7 +1047,7 @@ export default function MyBookingsView({
                               </div>
                             </div>
                             <a
-                              href={getWhatsAppUrls("7780740223", `🚗 MOTORLY RESERVATION #${b.id} APPROVAL REQUEST\n\nHello Fleet Admin Marcus,\nI have booked ${b.carType || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
+                              href={getWhatsAppUrls("7780740223", `🚗 MOTORLY RESERVATION #${b.id} APPROVAL REQUEST\n\nHello Fleet Admin Marcus,\nI have booked ${b.requestedCategory || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="py-2.5 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer self-stretch md:self-auto justify-center"
