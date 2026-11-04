@@ -513,33 +513,8 @@ export default function MyBookingsView({
   )
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-20">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-3 sm:pt-5 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Top Navigation Bar with Back to Home */}
-        <div className="flex items-center justify-between mb-6 pb-3 border-b border-stone-200/80">
-          <button
-            onClick={onNavigateHome}
-            type="button"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200 text-stone-800 text-xs sm:text-sm font-bold transition shadow-2xs cursor-pointer group"
-          >
-            <HomeIcon
-              size={16}
-              className="text-orange-500 group-hover:scale-110 transition-transform"
-            />
-            <span>Home</span>
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onNavigateListing}
-              type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 text-xs font-bold transition cursor-pointer"
-            >
-              <CarIcon size={14} />
-              <span>Explore Fleet</span>
-            </button>
-          </div>
-        </div>
-
         {/* Toast Alert */}
         {actionSuccess && (
           <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center justify-between shadow-sm animate-fade-in">
