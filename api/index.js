@@ -40815,7 +40815,12 @@ app.post("/api/auth/register", async (req, res) => {
 		role: "customer",
 		vipTier: "Standard"
 	}, "7d");
-	await db.prepare("INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)").run(token, userId);
+	try {
+		await db.prepare("DELETE FROM customer_sessions WHERE user_id = ?").run(userId);
+		await db.prepare("INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)").run(token, userId);
+	} catch (sessErr) {
+		console.warn("Session table insert warning (non-fatal):", sessErr);
+	}
 	const newUser = await db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
 	return res.status(201).json({
 		success: true,
@@ -40854,7 +40859,12 @@ app.post("/api/auth/customer-login", async (req, res) => {
 		role: user.role || "customer",
 		vipTier: user.vip_tier || "Standard"
 	}, "7d");
-	await db.prepare("INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)").run(token, user.id);
+	try {
+		await db.prepare("DELETE FROM customer_sessions WHERE user_id = ?").run(user.id);
+		await db.prepare("INSERT INTO customer_sessions (token, user_id) VALUES (?, ?)").run(token, user.id);
+	} catch (sessErr) {
+		console.warn("Session table insert warning (non-fatal):", sessErr);
+	}
 	return res.json({
 		success: true,
 		token,
