@@ -88,6 +88,19 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
     try {
+      const validViews: ViewMode[] = [
+        "home",
+        "listing",
+        "detail",
+        "checkout",
+        "admin",
+        "my-bookings",
+        "compare",
+        "auth",
+        "about",
+        "contact",
+      ]
+
       if (typeof window !== "undefined") {
         const pathname = window.location.pathname.toLowerCase()
 
@@ -100,41 +113,21 @@ export default function App() {
         }
 
         const params = new URLSearchParams(window.location.search)
+        const viewFromParam = params.get("view") as ViewMode | null
 
-        if (params.get("view") === "admin" || params.get("bookingId")) {
+        if (viewFromParam && validViews.includes(viewFromParam)) {
+          return viewFromParam
+        }
+
+        if (params.get("bookingId")) {
           return "admin"
         }
       }
 
-      const saved = localStorage.getItem(
-        "motorly_current_view",
-      ) as ViewMode | null
-
-      const hasAdminToken = Boolean(localStorage.getItem("motorly_admin_token"))
-
-      if (saved === "admin" && !hasAdminToken) return "home"
-
-      const validViews: ViewMode[] = [
-        "home",
-
-        "listing",
-
-        "detail",
-
-        "checkout",
-
-        "admin",
-
-        "my-bookings",
-
-        "compare",
-
-        "auth",
-
-        "about",
-
-        "contact",
-      ]
+      // Restore from persistent cache (localStorage)
+      const saved = typeof localStorage !== "undefined"
+        ? (localStorage.getItem("motorly_current_view") as ViewMode | null)
+        : null
 
       if (saved && validViews.includes(saved)) {
         return saved
@@ -144,13 +137,37 @@ export default function App() {
     return "home"
   })
 
-  // Persist currentView to localStorage whenever it changes
-
+  // Persist currentView to localStorage and keep browser URL search params synchronized
   useEffect(() => {
     try {
       localStorage.setItem("motorly_current_view", currentView)
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href)
+        if (currentView === "home") {
+          url.searchParams.delete("view")
+          if (url.pathname === "/admin") {
+            window.history.replaceState(null, "", "/" + (url.search ? url.search : ""))
+          } else {
+            window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""))
+          }
+        } else if (currentView === "admin") {
+          url.searchParams.set("view", "admin")
+          window.history.replaceState(null, "", url.toString())
+        } else if (currentView === "detail" && selectedCarId) {
+          url.searchParams.set("view", "detail")
+          url.searchParams.set("car", selectedCarId)
+          window.history.replaceState(null, "", url.toString())
+        } else if (currentView === "checkout" && selectedCarId) {
+          url.searchParams.set("view", "checkout")
+          url.searchParams.set("car", selectedCarId)
+          window.history.replaceState(null, "", url.toString())
+        } else {
+          url.searchParams.set("view", currentView)
+          window.history.replaceState(null, "", url.toString())
+        }
+      }
     } catch {}
-  }, [currentView])
+  }, [currentView, selectedCarId])
 
   // Direct Deep Link Support (e.g. ?view=admin&bookingId=MTR-XXXXXX)
 
@@ -644,23 +661,25 @@ export default function App() {
     }
   }
 
-  // Guard navigation to Admin view with dedicated /admin routing
+  // Guard navigation to Admin view with dedicated URL routing
 
   const handleNavigate = (view: ViewMode) => {
     if (view === "admin") {
       if (typeof window !== "undefined") {
-        window.history.pushState(null, "", "/admin")
+        const url = new URL(window.location.href)
+        url.searchParams.set("view", "admin")
+        window.history.pushState(null, "", url.toString())
       }
-
       setCurrentView("admin")
     } else if (view === "auth") {
       setAuthReturnView(currentView !== "auth" ? currentView : "home")
-
       setCurrentView("auth")
     } else {
       if (typeof window !== "undefined") {
         if (view === "home") {
-          window.history.pushState(null, "", "/")
+          const url = new URL(window.location.href)
+          url.searchParams.delete("view")
+          window.history.pushState(null, "", "/" + (url.search ? url.search : ""))
         } else if (view === "detail" && selectedCarId) {
           window.history.pushState(
             null,

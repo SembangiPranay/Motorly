@@ -144,9 +144,36 @@ export default function AdminView({
   // Navigation tabs (includes dedicated Settings tab)
 
   const [activeTab, setActiveTab] =
-    useState<"manifest" | "completed" | "fleet" | "walkin" | "promos" | "crm" | "maintenance" | "settings">(
-      "manifest",
-    )
+    useState<"manifest" | "completed" | "fleet" | "walkin" | "promos" | "crm" | "maintenance" | "settings">(() => {
+      try {
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search)
+          const tabParam = params.get("tab") as any
+          const validTabs = ["manifest", "completed", "fleet", "walkin", "promos", "crm", "maintenance", "settings"]
+          if (tabParam && validTabs.includes(tabParam)) return tabParam
+        }
+        const savedTab = typeof localStorage !== "undefined"
+          ? (localStorage.getItem("motorly_admin_active_tab") as any)
+          : null
+        const validTabs = ["manifest", "completed", "fleet", "walkin", "promos", "crm", "maintenance", "settings"]
+        if (savedTab && validTabs.includes(savedTab)) return savedTab
+      } catch {}
+      return "manifest"
+    })
+
+  // Synchronize activeTab to localStorage and browser URL query
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("motorly_admin_active_tab", activeTab)
+      }
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href)
+        url.searchParams.set("tab", activeTab)
+        window.history.replaceState(null, "", url.toString())
+      }
+    } catch {}
+  }, [activeTab])
 
   // Completed Trips & Invoice Archive State
   const [completedSearchQuery, setCompletedSearchQuery] = useState("")
@@ -892,10 +919,26 @@ export default function AdminView({
 
   const [fleetViewMode, setFleetViewMode] = useState<"table" | "grid">("table")
 
-  const [isCarModalOpen, setIsCarModalOpen] = useState(false)
+  const [isCarModalOpen, setIsCarModalOpen] = useState(() => {
+    try {
+      return typeof localStorage !== "undefined" && localStorage.getItem("motorly_admin_car_modal_open") === "true"
+    } catch {
+      return false
+    }
+  })
 
   const [carModalTab, setCarModalTab] =
-    useState<"identity" | "rates" | "insurance" | "garage">("identity")
+    useState<"identity" | "rates" | "insurance" | "garage">(() => {
+      try {
+        const saved = typeof localStorage !== "undefined"
+          ? (localStorage.getItem("motorly_admin_car_modal_tab") as any)
+          : null
+        if (saved && ["identity", "rates", "insurance", "garage"].includes(saved)) {
+          return saved
+        }
+      } catch {}
+      return "identity"
+    })
 
   const [zoomedPhoto, setZoomedPhoto] = useState<{
     url: string
@@ -903,7 +946,15 @@ export default function AdminView({
     title: string
   } | null>(null)
 
-  const [editingCar, setEditingCar] = useState<Car | null>(null)
+  const [editingCar, setEditingCar] = useState<Car | null>(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        const savedCar = localStorage.getItem("motorly_admin_editing_car_obj")
+        if (savedCar) return JSON.parse(savedCar)
+      }
+    } catch {}
+    return null
+  })
 
   const [deletingCar, setDeletingCar] = useState<Car | null>(null)
 
@@ -1178,41 +1229,35 @@ export default function AdminView({
     notify("Sample photo added to gallery.")
   }
 
-  const [carFormData, setCarFormData] = useState<Partial<Car>>({
-    name: "Toyota Camry SE",
-
-    brand: "Toyota",
-
-    model: "Camry SE",
-
-    year: 2024,
-
-    type: "Sedan",
-
-    pricePerDay: 55,
-
-    pricePerHour: 8,
-
-    pricePerMonth: 1210,
-
-    image:
-      "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
-
-    gallery: [
-      "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
-
-      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
-
-      "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
-    ],
-
-    seats: 5,
-
-    transmission: "Automatic",
-
-    fuelType: "Petrol",
-
-    mileage: "45 Liters",
+  const [carFormData, setCarFormData] = useState<Partial<Car>>(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        const savedDraft = localStorage.getItem("motorly_admin_car_draft")
+        if (savedDraft) {
+          return JSON.parse(savedDraft)
+        }
+      }
+    } catch {}
+    return {
+      name: "Toyota Camry SE",
+      brand: "Toyota",
+      model: "Camry SE",
+      year: 2024,
+      type: "Sedan",
+      pricePerDay: 55,
+      pricePerHour: 8,
+      pricePerMonth: 1210,
+      image:
+        "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
+      gallery: [
+        "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+      ],
+      seats: 5,
+      transmission: "Automatic",
+      fuelType: "Petrol",
+      mileage: "45 Liters",
 
     luggage: "3 Bags",
 
@@ -1248,6 +1293,7 @@ export default function AdminView({
     garageLng: 78.3582,
 
     garageBay: "Bay 1",
+    }
   })
 
   // Insurance optional details toggle for car modal
@@ -2361,6 +2407,51 @@ export default function AdminView({
 
   // --- FLEET ADD / EDIT / DELETE ---
 
+  // Auto-save vehicle draft to localStorage so refresh never loses user input
+  useEffect(() => {
+    try {
+      if (typeof localStorage === "undefined") return
+      if (isCarModalOpen) {
+        localStorage.setItem("motorly_admin_car_modal_open", "true")
+        localStorage.setItem("motorly_admin_car_modal_tab", carModalTab)
+        localStorage.setItem("motorly_admin_car_draft", JSON.stringify(carFormData))
+        if (editingCar) {
+          localStorage.setItem("motorly_admin_editing_car_obj", JSON.stringify(editingCar))
+        } else {
+          localStorage.removeItem("motorly_admin_editing_car_obj")
+        }
+      } else {
+        localStorage.removeItem("motorly_admin_car_modal_open")
+      }
+    } catch {}
+  }, [isCarModalOpen, carModalTab, carFormData, editingCar])
+
+  const handleCloseCarModal = () => {
+    setIsCarModalOpen(false)
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("motorly_admin_car_modal_open")
+        localStorage.removeItem("motorly_admin_car_draft")
+        localStorage.removeItem("motorly_admin_editing_car_obj")
+        localStorage.removeItem("motorly_admin_car_modal_tab")
+      }
+    } catch {}
+  }
+
+  const handleDiscardCarDraft = () => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("motorly_admin_car_modal_open")
+        localStorage.removeItem("motorly_admin_car_draft")
+        localStorage.removeItem("motorly_admin_editing_car_obj")
+        localStorage.removeItem("motorly_admin_car_modal_tab")
+      }
+    } catch {}
+    setIsCarModalOpen(false)
+    setEditingCar(null)
+    notify("Car draft discarded from local cache.")
+  }
+
   const handleOpenAddCar = () => {
     setEditingCar(null)
 
@@ -2639,7 +2730,7 @@ export default function AdminView({
         setCars(freshFleet)
       }
 
-      setIsCarModalOpen(false)
+      handleCloseCarModal()
     } catch (err: any) {
       alert("Failed to save car: " + (err?.message || "Unknown error"))
     } finally {
@@ -11617,7 +11708,7 @@ export default function AdminView({
               <button
                 type="button"
                 data-testid="back-car-modal"
-                onClick={() => setIsCarModalOpen(false)}
+                onClick={handleCloseCarModal}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700"
@@ -11638,6 +11729,10 @@ export default function AdminView({
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                     LIVE SYNC
                   </span>
+                  <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span>DRAFT CACHED • SAFE TO REFRESH</span>
+                  </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black font-heading tracking-tight">
                   {editingCar
@@ -11650,7 +11745,15 @@ export default function AdminView({
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
-                onClick={() => setIsCarModalOpen(false)}
+                onClick={handleDiscardCarDraft}
+                className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-rose-500 hover:bg-rose-500/10 border border-rose-500/20 transition cursor-pointer"
+                title="Discard cached draft and reset to default"
+              >
+                Reset Draft
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseCarModal}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
@@ -11678,7 +11781,7 @@ export default function AdminView({
               <button
                 type="button"
                 data-testid="close-car-modal"
-                onClick={() => setIsCarModalOpen(false)}
+                onClick={handleCloseCarModal}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition cursor-pointer ${
                   isDark
                     ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
@@ -12370,7 +12473,7 @@ export default function AdminView({
                   <div className="pt-4 border-t border-stone-200/80 dark:border-stone-800 flex items-center justify-between gap-3">
                     <button
                       type="button"
-                      onClick={() => setIsCarModalOpen(false)}
+                      onClick={handleCloseCarModal}
                       className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                         isDark
                           ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
@@ -13359,7 +13462,7 @@ export default function AdminView({
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsCarModalOpen(false)}
+                  onClick={handleCloseCarModal}
                   className={`flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${
                     isDark
                       ? "bg-stone-800 hover:bg-stone-700 text-stone-300"
