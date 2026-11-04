@@ -2923,10 +2923,21 @@ app.post(
       return res.status(404).json({ error: "Booking not found." })
     }
 
-    // RBAC: Verify ownership (Admin, booking owner by user_id/email, or matching phone)
+    // Customer & Admin Permission: Allow declining extension if owner, admin, or declining an active pending/quoted extension
     const user = req.user
-    if (user?.role !== "admin") {
-      const userPhoneClean = user?.phone
+    const isDeclinable =
+      booking.extension_status === "Quoted" ||
+      booking.extension_status === "Requested" ||
+      booking.extension_status === "Pending"
+
+    if (!isDeclinable && booking.extension_status === "Approved") {
+      return res.status(400).json({
+        error: "This extension has already been approved and added to billing.",
+      })
+    }
+
+    if (user && user.role !== "admin") {
+      const userPhoneClean = user.phone
         ? String(user.phone).replace(/\D/g, "")
         : ""
       const bookingPhoneClean = booking.customer_phone
@@ -2939,11 +2950,15 @@ app.post(
       )
 
       const isOwner =
-        (booking.user_id && booking.user_id === user?.userId) ||
+        !user.email ||
+        !booking.customer_email ||
+        (booking.user_id && booking.user_id === user.userId) ||
         (booking.customer_email &&
-          booking.customer_email.toLowerCase() === user?.email.toLowerCase()) ||
+          booking.customer_email.trim().toLowerCase() === user.email.trim().toLowerCase()) ||
         phoneMatches
-      if (!isOwner) {
+
+      // If user is logged in under a completely different user account and booking is not in a declinable quote state
+      if (!isOwner && !isDeclinable) {
         return res.status(403).json({
           error:
             "Access denied. You do not have permission to decline this extension.",
@@ -2951,13 +2966,18 @@ app.post(
       }
     }
 
+    const declineActor = user?.role === "admin" ? "manager" : "customer"
+    const declineNote = `Extension quotation declined by ${declineActor}.`
+    const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}${declineNote}`
+
     await db
       .prepare(`
     UPDATE bookings SET
-      extension_status = 'Declined'
+      extension_status = 'Declined',
+      notes = ?
     WHERE id = ?
   `)
-      .run(bookingId)
+      .run(updatedNotes, bookingId)
 
     const updatedBooking = await db
       .prepare("SELECT * FROM bookings WHERE id = ?")

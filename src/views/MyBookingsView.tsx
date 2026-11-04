@@ -281,7 +281,7 @@ export default function MyBookingsView({
     if (!window.confirm("Are you sure you want to decline this quotation?"))
       return
     try {
-      const res = await api.declineExtension(bookingId)
+      const res = await api.declineExtension(bookingId, currentUser?.email)
       if (res.success) {
         setBookings((prev) => {
           const updated = prev.map((b) =>
@@ -1314,48 +1314,53 @@ export default function MyBookingsView({
                             </div>
 
                             <div className="space-y-2 mt-4">
-                              <button
-                                onClick={() =>
-                                  setSelectedVoucher({
-                                    booking: b,
-                                    car: matedCar,
-                                  })
-                                }
-                                className="w-full py-2 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-sm"
-                              >
-                                <QrCodeIcon size={14} />
-                                Digital Boarding Voucher
-                              </button>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedVoucher({
+                                      booking: b,
+                                      car: matedCar,
+                                    })
+                                  }
+                                  className="w-full py-2 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                                >
+                                  <QrCodeIcon size={14} />
+                                  <span>Digital Boarding Voucher</span>
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedCustomerInvoice({
-                                    booking: b,
-                                    car: matedCar,
-                                  })
-                                }
-                                className="w-full py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F97316] border border-orange-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs"
-                                title="View full tax invoice document on-screen without downloading"
-                              >
-                                <FileTextIcon size={14} />
-                                <span>View Invoice Document</span>
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedCustomerInvoice({
+                                      booking: b,
+                                      car: matedCar,
+                                    })
+                                  }
+                                  className="w-full py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F97316] border border-orange-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                                  title="View full tax invoice document on-screen without downloading"
+                                >
+                                  <FileTextIcon size={14} />
+                                  <span>View Invoice Document</span>
+                                </button>
+                              </div>
 
                               <div className="flex gap-2">
                                 <button
+                                  type="button"
                                   onClick={() => handleOpenExtensionModal(b)}
-                                  className="flex-1 py-1.5 px-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#F97316] text-[11px] font-bold transition border border-orange-200 flex items-center justify-center gap-1"
+                                  className="flex-1 py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F97316] text-xs font-bold transition border border-orange-200 flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
                                 >
-                                  <ClockIcon size={13} />
-                                  Need an Extension
+                                  <ClockIcon size={14} />
+                                  <span>Need an Extension</span>
                                 </button>
                                 {b.status !== "Checked Out" && (
                                   <button
+                                    type="button"
                                     onClick={() =>
                                       handleCancelReservation(b.id)
                                     }
-                                    className="py-1.5 px-2.5 rounded-lg bg-stone-100 hover:bg-rose-50 hover:text-rose-600 text-stone-600 text-[11px] font-medium transition"
+                                    className="py-2 px-3.5 rounded-xl bg-stone-100 hover:bg-rose-50 hover:text-rose-600 text-stone-600 text-xs font-bold transition cursor-pointer"
                                   >
                                     Cancel
                                   </button>
@@ -1383,7 +1388,94 @@ export default function MyBookingsView({
                 </h2>
 
                 <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
+                  {/* Mobile View: High-density responsive card list for past reservations */}
+                  <div className="md:hidden divide-y divide-stone-100 p-3 space-y-3">
+                    {pastBookings.map((b) => {
+                      const car = cars.find((c) => c.id === b.matchedCarId)
+                      const existingReview = myReviews.find(
+                        (r) => r.bookingId === b.id,
+                      )
+                      return (
+                        <div key={b.id} className="p-4 rounded-xl border border-stone-200 bg-white shadow-2xs space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="font-mono font-bold text-xs text-stone-900 block">{b.id}</span>
+                              <span className="text-xs font-bold text-stone-800 block mt-0.5">{car ? car.name : b.requestedCategory || "Standard Vehicle"}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono font-black text-sm text-[#F97316] block leading-tight">€{b.totalAmount.toFixed(2)}</span>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold mt-1 ${
+                                b.status === "Completed"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : "bg-stone-100 text-stone-600"
+                              }`}>
+                                {b.status === "Completed" ? "✓ Completed" : b.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-[11px] space-y-1 text-stone-600 bg-stone-50 p-2.5 rounded-lg border border-stone-100">
+                            <div className="flex items-center gap-1.5 font-mono text-stone-700 flex-wrap">
+                              <CalendarIcon size={12} className="text-[#F97316]" />
+                              <span>{b.pickupDate} → {b.returnDate}</span>
+                              {b.pickupDate?.split(" ")[0] === b.returnDate?.split(" ")[0] && (
+                                <span className="text-[9px] font-bold text-orange-700 bg-orange-100 px-1 rounded">Same Day</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-stone-500 truncate">
+                              <LocationIcon size={11} className="text-stone-400 shrink-0" />
+                              <span className="truncate">{b.pickupLocation}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCustomerInvoice({ booking: b, car })}
+                              className="flex-1 py-1.5 px-3 rounded-lg bg-orange-50 hover:bg-orange-100 text-[#F97316] font-bold text-xs border border-orange-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            >
+                              <FileTextIcon size={12} />
+                              <span>Invoice</span>
+                            </button>
+                            {b.checklistIn && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedInspectionBooking({ booking: b, car })}
+                                className="py-1.5 px-3 rounded-lg font-bold text-xs transition border bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200 cursor-pointer"
+                              >
+                                Inspection
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedVoucher({ booking: b, car })}
+                              className="py-1.5 px-2.5 rounded-lg font-bold text-xs text-stone-600 hover:text-stone-900 border border-stone-200 bg-white cursor-pointer"
+                            >
+                              Voucher
+                            </button>
+                            {reviewsEnabled && (
+                              existingReview ? (
+                                <span className="py-1.5 px-3 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200 flex items-center gap-1">
+                                  ★ {existingReview.rating}.0
+                                </span>
+                              ) : b.status === "Completed" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setReviewModalBooking({ booking: b, car })}
+                                  className="py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs flex items-center justify-center gap-1 transition shadow-2xs cursor-pointer"
+                                >
+                                  ★ Rate Trip
+                                </button>
+                              ) : null
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Desktop Spreadsheet Table View */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-semibold uppercase tracking-wider">

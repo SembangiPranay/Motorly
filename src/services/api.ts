@@ -771,7 +771,7 @@ class ApiService {
     return res.json()
   }
 
-  async declineExtension(bookingId: string): Promise<{
+  async declineExtension(bookingId: string, customerEmail?: string): Promise<{
     success: boolean
     message: string
     booking: BookingRecord
@@ -781,6 +781,7 @@ class ApiService {
       `/bookings/${bookingId}/decline-extension`,
       {
         method: "POST",
+        body: JSON.stringify({ email: customerEmail }),
       },
       role,
     )

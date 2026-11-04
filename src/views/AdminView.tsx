@@ -1943,15 +1943,22 @@ export default function AdminView({
 
     const total = rateAmount * durationVal
 
-    setExtensionQuoteData({
-      rateType,
-
-      rateAmount,
-
-      totalQuotedAmount: total,
-
-      notes: `Quotation for ${durationVal} ${unit} extension. Includes comprehensive fleet insurance.`,
-    })
+    const existingQuote = b.extensionQuote
+    if (existingQuote && b.extensionStatus === "Quoted") {
+      setExtensionQuoteData({
+        rateType: (existingQuote.rateType as any) || rateType,
+        rateAmount: existingQuote.rateAmount ?? rateAmount,
+        totalQuotedAmount: existingQuote.totalQuotedAmount ?? total,
+        notes: existingQuote.notes || `Quotation for ${durationVal} ${unit} extension. Includes comprehensive fleet insurance.`,
+      })
+    } else {
+      setExtensionQuoteData({
+        rateType,
+        rateAmount,
+        totalQuotedAmount: total,
+        notes: `Quotation for ${durationVal} ${unit} extension. Includes comprehensive fleet insurance.`,
+      })
+    }
 
     setIsExtensionModalOpen(true)
   }
@@ -9852,37 +9859,57 @@ export default function AdminView({
 
             {/* Flow F: High-Priority Extension Request Action Banner (Full-Width Top Alert) */}
             {(inspectedBooking.extensionStatus === "Pending" ||
-              inspectedBooking.extensionStatus === "Requested") && (
+              inspectedBooking.extensionStatus === "Requested" ||
+              inspectedBooking.extensionStatus === "Quoted") && (
               <div
                 onClick={(e) => e.stopPropagation()}
                 className={`p-4 sm:p-5 rounded-2xl border text-xs transition shadow-sm ${
-                  isDark
-                    ? "bg-amber-950/40 border-amber-500/60 text-amber-200"
-                    : "bg-amber-50 border-amber-300 text-amber-950"
+                  inspectedBooking.extensionStatus === "Quoted"
+                    ? isDark
+                      ? "bg-sky-950/40 border-sky-500/50 text-sky-200"
+                      : "bg-sky-50 border-sky-300 text-sky-950"
+                    : isDark
+                      ? "bg-amber-950/40 border-amber-500/60 text-amber-200"
+                      : "bg-amber-50 border-amber-300 text-amber-950"
                 }`}
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <ZapIcon size={20} />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      inspectedBooking.extensionStatus === "Quoted"
+                        ? "bg-sky-500/20 border border-sky-500/30 text-sky-600 dark:text-sky-400"
+                        : "bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400"
+                    }`}>
+                      {inspectedBooking.extensionStatus === "Quoted" ? <SparklesIcon size={20} /> : <ZapIcon size={20} />}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black font-heading tracking-tight text-amber-900 dark:text-amber-200">
-                          Customer Requested Rental Extension
+                        <h4 className="text-sm font-black font-heading tracking-tight">
+                          {inspectedBooking.extensionStatus === "Quoted"
+                            ? "Active Extension Quotation Dispatched"
+                            : "Customer Requested Rental Extension"}
                         </h4>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 uppercase tracking-wider">
-                          Action Required
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          inspectedBooking.extensionStatus === "Quoted"
+                            ? "bg-sky-500/20 text-sky-800 dark:text-sky-300"
+                            : "bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                        }`}>
+                          {inspectedBooking.extensionStatus === "Quoted" ? "Quoted • Awaiting Customer Approval" : "Action Required"}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs">
                         <span>
                           Extra Time Requested:{" "}
-                          <strong className="font-mono text-amber-950 dark:text-white font-bold">
-                            +{inspectedBooking.extensionRequest?.durationValue}{" "}
-                            {inspectedBooking.extensionRequest?.durationUnit}
+                          <strong className="font-mono font-bold">
+                            +{inspectedBooking.extensionRequest?.durationValue ?? 1}{" "}
+                            {inspectedBooking.extensionRequest?.durationUnit ?? "days"}
                           </strong>
                         </span>
+                        {inspectedBooking.extensionQuote && (
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            Current Quote: €{inspectedBooking.extensionQuote.totalQuotedAmount} (€{inspectedBooking.extensionQuote.rateAmount}/{inspectedBooking.extensionQuote.rateType})
+                          </span>
+                        )}
                         {inspectedBooking.extensionRequest?.reason && (
                           <span className="italic text-stone-600 dark:text-stone-300">
                             &quot;{inspectedBooking.extensionRequest.reason}&quot;
@@ -9896,10 +9923,23 @@ export default function AdminView({
                     <button
                       type="button"
                       onClick={() => handleOpenExtensionQuote(inspectedBooking)}
-                      className="px-4 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                      className={`px-4 py-2.5 rounded-xl text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer ${
+                        inspectedBooking.extensionStatus === "Quoted"
+                          ? "bg-sky-600 hover:bg-sky-700"
+                          : "bg-[#F97316] hover:bg-orange-600"
+                      }`}
                     >
-                      <ZapIcon size={14} />
-                      <span>Create Quotation &amp; Set Extra Pay →</span>
+                      {inspectedBooking.extensionStatus === "Quoted" ? (
+                        <>
+                          <SparklesIcon size={14} />
+                          <span>Modify / Re-Quote Extension →</span>
+                        </>
+                      ) : (
+                        <>
+                          <ZapIcon size={14} />
+                          <span>Create Quotation &amp; Set Extra Pay →</span>
+                        </>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -11042,14 +11082,15 @@ export default function AdminView({
               inspectedBooking.extensionQuote && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className={`mb-4 p-3 rounded-xl border text-xs space-y-1 transition ${
+                  className={`mb-4 p-3.5 rounded-xl border text-xs space-y-2.5 transition ${
                     isDark
                       ? "bg-sky-950/40 border-sky-500/40 text-sky-200"
                       : "bg-sky-50 border-sky-200 text-sky-950"
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sky-700 dark:text-sky-400">
+                    <span className="font-bold text-sky-700 dark:text-sky-400 flex items-center gap-1.5">
+                      <SparklesIcon size={14} className="text-sky-500" />
                       Quotation Dispatched to Customer
                     </span>
                     <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
@@ -11064,6 +11105,29 @@ export default function AdminView({
                     {inspectedBooking.extensionQuote.rateType} • Awaiting
                     customer approval in self-service portal.
                   </p>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenExtensionQuote(inspectedBooking)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <SparklesIcon size={13} />
+                      <span>Modify / Re-Quote Extension →</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDeclineExtensionRequest(inspectedBooking.id)
+                      }
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold transition border cursor-pointer ${
+                        isDark
+                          ? "bg-stone-800 hover:bg-stone-700 text-stone-300 border-stone-700"
+                          : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200"
+                      }`}
+                    >
+                      Decline
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -14051,8 +14115,17 @@ export default function AdminView({
                   FLOW F: EXTENSION PRICING CONSOLE
                 </span>
                 <h3 className="text-lg font-black mt-0.5 flex items-center gap-2">
-                  <ClockIcon size={18} className="text-amber-500" />
-                  Dispatch Extension Quotation
+                  {extensionBooking.extensionStatus === "Quoted" ? (
+                    <>
+                      <SparklesIcon size={18} className="text-sky-500" />
+                      <span>Modify / Re-quote Extension Quotation</span>
+                    </>
+                  ) : (
+                    <>
+                      <ClockIcon size={18} className="text-amber-500" />
+                      <span>Dispatch Extension Quotation</span>
+                    </>
+                  )}
                 </h3>
               </div>
               <button
@@ -14262,9 +14335,21 @@ export default function AdminView({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5"
+                  className={`flex-1 py-2.5 rounded-xl text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer ${
+                    extensionBooking.extensionStatus === "Quoted"
+                      ? "bg-sky-600 hover:bg-sky-700"
+                      : "bg-[#F97316] hover:bg-orange-600"
+                  }`}
                 >
-                  <ArrowRightIcon size={14} /> Send Quotation to Customer
+                  {extensionBooking.extensionStatus === "Quoted" ? (
+                    <>
+                      <SparklesIcon size={14} /> Update &amp; Re-send Quotation to Customer
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRightIcon size={14} /> Send Quotation to Customer
+                    </>
+                  )}
                 </button>
               </div>
             </form>
