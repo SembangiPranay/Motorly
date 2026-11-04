@@ -892,6 +892,27 @@ class ApiService {
     }
   }
 
+  async uploadBookingLicense(bookingId: string, data: {
+    licensePhotoFront?: string
+    licensePhotoBack?: string
+    licenseNumber?: string
+    licenseState?: string
+  }): Promise<{ success: boolean; booking: BookingRecord }> {
+    const res = await this.request(
+      `/bookings/${bookingId}/upload-license`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      "admin",
+    )
+    if (!res.ok) {
+      const err = await this.safeJson(res, {})
+      throw new Error(err?.error || err?.message || "Failed to upload license document.")
+    }
+    return res.json()
+  }
+
   async createCounterBooking(data: {
     firstName: string
     lastName: string
@@ -904,6 +925,9 @@ class ApiService {
     immediateCheckout?: boolean
     licenseNumber?: string
     licenseState?: string
+    licensePhotoFront?: string
+    licensePhotoBack?: string
+    licenseFileName?: string
     notes?: string
   }): Promise<{
     success: boolean

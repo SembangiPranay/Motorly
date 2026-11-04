@@ -160,8 +160,10 @@ export default function AdminView({
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] =
     useState<BookingRecord | null>(null)
 
-  // Mobile sidebar drawer state
+  // Sidebar responsive & dynamic collapse state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
+  // Mobile sidebar drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   const [globalAdminSearch, setGlobalAdminSearch] = useState("")
@@ -787,6 +789,12 @@ export default function AdminView({
     licenseNumber: "",
 
     licenseState: "Florida",
+
+    licensePhotoFront: "",
+
+    licensePhotoBack: "",
+
+    licenseFileName: "",
 
     carId: cars.find((c) => c.status === "Available")?.id || cars[0]?.id || "",
 
@@ -2188,6 +2196,12 @@ export default function AdminView({
 
         licenseState: walkinForm.licenseState,
 
+        licensePhotoFront: walkinForm.licensePhotoFront,
+
+        licensePhotoBack: walkinForm.licensePhotoBack,
+
+        licenseFileName: walkinForm.licenseFileName,
+
         carId: walkinForm.carId,
 
         pickupDate: walkinForm.pickupDate,
@@ -2978,14 +2992,14 @@ export default function AdminView({
 
   return (
     <div
-      className={`w-full max-w-full overflow-x-hidden min-h-screen font-sans transition-colors duration-200 flex flex-col lg:flex-row ${
+      className={`w-full h-screen overflow-hidden font-sans transition-colors duration-200 flex flex-col lg:flex-row ${
         isDark
           ? "dark bg-[#111215] text-[#F3F4F6]"
           : "bg-[#FAF7F2] text-[#17191C]"
       }`}
     >
       {/* ========================================================
-          1. LEFT SIDEBAR (Matches Reference Image Layout)
+          1. LEFT SIDEBAR (Pinned & Dynamic Collapsible)
           ======================================================== */}
       {/* Mobile Drawer Backdrop */}
       {isMobileSidebarOpen && (
@@ -2997,7 +3011,9 @@ export default function AdminView({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 lg:sticky lg:top-0 h-screen w-64 xl:w-72 border-r flex flex-col justify-between shrink-0 transition-transform duration-300 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 lg:relative h-screen overflow-y-auto ${
+          isSidebarCollapsed ? "lg:w-20" : "lg:w-64 xl:w-72"
+        } w-64 border-r flex flex-col justify-between shrink-0 transition-all duration-300 ${
           isMobileSidebarOpen
             ? "translate-x-0 shadow-2xl"
             : "-translate-x-full lg:translate-x-0"
@@ -3010,22 +3026,34 @@ export default function AdminView({
         {/* Top Branding & Status */}
         <div className="p-5 border-b border-stone-200/80 dark:border-stone-800/80">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-linear-to-br from-[#F97316] to-amber-500 text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm">
+            <div className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-2.5"}`}>
+              <div className="w-8 h-8 rounded-xl bg-linear-to-br from-[#F97316] to-amber-500 text-white flex items-center justify-center font-black text-sm tracking-wider shadow-sm shrink-0">
                 M
               </div>
-              <div>
-                <h1 className="font-heading font-black text-sm tracking-tight leading-tight">
-                  MOTORLY{" "}
-                  <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase">
-                    ATELIER
-                  </span>
-                </h1>
-                <p className="text-[10px] font-mono text-stone-400">
-                  STUDIO DIRECTOR CONSOLE
-                </p>
-              </div>
+              {!isSidebarCollapsed && (
+                <div>
+                  <h1 className="font-heading font-black text-sm tracking-tight leading-tight">
+                    MOTORLY{" "}
+                    <span className="text-[10px] font-mono font-bold text-[#F97316] uppercase">
+                      ATELIER
+                    </span>
+                  </h1>
+                  <p className="text-[10px] font-mono text-stone-400">
+                    STUDIO DIRECTOR CONSOLE
+                  </p>
+                </div>
+              )}
             </div>
+
+            {/* Desktop collapse toggle button */}
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:flex w-7 h-7 rounded-lg items-center justify-center text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-200/60 dark:hover:bg-stone-800 transition cursor-pointer"
+              title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <span className="font-mono font-bold text-sm leading-none">{isSidebarCollapsed ? "»" : "«"}</span>
+            </button>
 
             {/* Mobile close button */}
             <button
@@ -3036,23 +3064,31 @@ export default function AdminView({
             </button>
           </div>
 
-          {/* Database Live Status Pill (Matches Reference Image) */}
-          <div className="mt-4 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              DATABASE LIVE
-            </span>
-            <span className="text-[10px] font-mono text-stone-400">
-              14ms • Supabase
-            </span>
-          </div>
+          {/* Database Live Status Pill */}
+          {!isSidebarCollapsed ? (
+            <div className="mt-4 flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                DATABASE LIVE
+              </span>
+              <span className="text-[10px] font-mono text-stone-400">
+                14ms • Supabase
+              </span>
+            </div>
+          ) : (
+            <div className="mt-3 flex justify-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm" title="Database Live: 14ms Supabase" />
+            </div>
+          )}
         </div>
 
         {/* Navigation Items (Matches Reference Image Side Bar with Detailing) */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          <p className="px-3 pt-2 pb-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400">
-            Console Pages
-          </p>
+          {!isSidebarCollapsed && (
+            <p className="px-3 pt-2 pb-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-stone-400">
+              Console Pages
+            </p>
+          )}
 
           {[
             {
@@ -3176,7 +3212,9 @@ export default function AdminView({
 
                   setIsMobileSidebarOpen(false)
                 }}
-                className={`w-full px-3.5 py-2.5 rounded-2xl transition flex items-center justify-between text-xs cursor-pointer group ${
+                className={`w-full ${
+                  isSidebarCollapsed ? "px-2 py-3 justify-center" : "px-3.5 py-2.5 justify-between"
+                } rounded-2xl transition flex items-center text-xs cursor-pointer group relative ${
                   isActive
                     ? isDark
                       ? "bg-white text-stone-950 font-bold shadow-md"
@@ -3185,8 +3223,9 @@ export default function AdminView({
                       ? "text-stone-400 hover:text-stone-100 hover:bg-stone-800/60 font-semibold"
                       : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 font-semibold"
                 }`}
+                title={isSidebarCollapsed ? tab.label : undefined}
               >
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"}`}>
                   <span
                     className={
                       isActive
@@ -3198,41 +3237,74 @@ export default function AdminView({
                   >
                     {tab.icon}
                   </span>
-                  <span>{tab.label}</span>
+                  {!isSidebarCollapsed && <span>{tab.label}</span>}
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${tab.badgeColor} ${
-                    isActive && !isDark ? "bg-white/20 text-white" : ""
-                  }`}
-                >
-                  {tab.badge}
-                </span>
+                {!isSidebarCollapsed ? (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${tab.badgeColor} ${
+                      isActive && !isDark ? "bg-white/20 text-white" : ""
+                    }`}
+                  >
+                    {tab.badge}
+                  </span>
+                ) : (
+                  tab.badge && (
+                    <span
+                      className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
+                        isActive ? "bg-[#F97316]" : "bg-orange-500/80"
+                      }`}
+                      title={tab.badge}
+                    />
+                  )
+                )}
+                {/* Floating Tooltip when Collapsed */}
+                {isSidebarCollapsed && (
+                  <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-xl bg-stone-900 text-white text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl border border-stone-800 transition flex items-center gap-2">
+                    <span>{tab.label}</span>
+                    {tab.badge && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-stone-800 text-stone-300">
+                        {tab.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
               </button>
             )
           })}
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-stone-200/80 dark:border-stone-800/80 space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-stone-400 font-mono">
-            <span>MOTORLY OS v3.4</span>
+        <div className="p-3 border-t border-stone-200/80 dark:border-stone-800/80 flex flex-col items-center gap-2">
+          {!isSidebarCollapsed ? (
+            <div className="w-full flex items-center justify-between text-[11px] text-stone-400 font-mono">
+              <span>MOTORLY OS v3.4</span>
+              <button
+                onClick={handleRefreshData}
+                disabled={isSyncing}
+                className="text-[#F97316] hover:underline cursor-pointer flex items-center gap-1 font-bold"
+                title="Force database sync"
+              >
+                <span className={isSyncing ? "animate-spin" : ""}>↻</span>
+                <span>Sync</span>
+              </button>
+            </div>
+          ) : (
             <button
               onClick={handleRefreshData}
               disabled={isSyncing}
-              className="text-[#F97316] hover:underline cursor-pointer flex items-center gap-1 font-bold"
+              className="w-8 h-8 rounded-lg bg-orange-500/10 text-[#F97316] hover:bg-orange-500 hover:text-white flex items-center justify-center transition cursor-pointer"
               title="Force database sync"
             >
-              <span className={isSyncing ? "animate-spin" : ""}>↻</span>
-              <span>Sync</span>
+              <span className={isSyncing ? "animate-spin text-sm" : "text-sm font-bold"}>↻</span>
             </button>
-          </div>
+          )}
         </div>
       </aside>
 
       {/* ========================================================
-          2. RIGHT MAIN COLUMN (Top Nav + Main Content)
+          2. RIGHT MAIN COLUMN (Top Nav + Main Content - Independent Scroll)
           ======================================================== */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 h-screen overflow-y-auto flex flex-col min-w-0">
         {/* Top Navigation Bar */}
         <header
           className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors ${
@@ -7895,6 +7967,71 @@ export default function AdminView({
                         }`}
                       />
                     </div>
+
+                    {/* Real Driver License Document Upload Area */}
+                    <div className="col-span-2 pt-2">
+                      <label
+                        className={`block text-xs font-semibold mb-1.5 ${
+                          isDark ? "text-stone-300" : "text-stone-700"
+                        }`}
+                      >
+                        Physical Driver License Identification (Front Photo / Scan)
+                      </label>
+                      
+                      {walkinForm.licensePhotoFront ? (
+                        <div className="flex items-center gap-4 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/20">
+                          <img
+                            src={walkinForm.licensePhotoFront}
+                            alt="Scanned License Front"
+                            className="w-28 h-18 object-cover rounded-lg border border-emerald-500/30 shadow-xs"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 block truncate">
+                              ✓ {walkinForm.licenseFileName || "driver_license_front.jpg"}
+                            </span>
+                            <span className="text-[10px] text-stone-500 block mt-0.5">
+                              Real driver license document attached to booking manifest.
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setWalkinForm({ ...walkinForm, licensePhotoFront: "", licenseFileName: "" })}
+                              className="text-[11px] font-bold text-rose-600 hover:underline mt-1 cursor-pointer"
+                            >
+                              ✕ Remove &amp; Re-upload
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="border-2 border-dashed border-stone-300 dark:border-stone-700 hover:border-orange-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition bg-stone-50/50 dark:bg-stone-900/50">
+                          <CameraIcon size={22} className="text-[#F97316] mb-1.5" />
+                          <span className="text-xs font-bold text-stone-800 dark:text-stone-200">
+                            Upload or Snap Driver's License Document
+                          </span>
+                          <span className="text-[11px] text-stone-500 mt-0.5">
+                            PNG, JPG or WEBP (Saved directly to booking records)
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                const reader = new FileReader()
+                                reader.onload = (ev) => {
+                                  setWalkinForm({
+                                    ...walkinForm,
+                                    licensePhotoFront: ev.target?.result as string,
+                                    licenseFileName: file.name,
+                                  })
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -9400,6 +9537,15 @@ export default function AdminView({
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedInvoiceBooking(inspectedBooking)}
+                className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold bg-[#F97316] hover:bg-[#EA580C] text-white shadow-sm transition flex items-center gap-1 cursor-pointer"
+                title="View and inspect full rendered official tax invoice on-screen without downloading"
+              >
+                <FileTextIcon size={12} className="inline mr-0.5" />
+                <span>View Invoice</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {

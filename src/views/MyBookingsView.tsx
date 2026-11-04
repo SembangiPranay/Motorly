@@ -21,6 +21,7 @@ import {
   CameraIcon,
 } from "../components/Icons"
 import InvoiceModal from "../components/InvoiceModal"
+import GarageMapViewer from "../components/GarageMapViewer"
 
 interface MyBookingsViewProps {
   cars: Car[]
@@ -65,6 +66,7 @@ export default function MyBookingsView({
   const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false)
   const [selectedBookingForExtension, setSelectedBookingForExtension] =
     useState<BookingRecord | null>(null)
+  const [selectedGarageMapCar, setSelectedGarageMapCar] = useState<Car | null>(null)
   const [selectedCustomerInvoice, setSelectedCustomerInvoice] = useState<{
     booking: BookingRecord
     car?: Car
@@ -295,7 +297,7 @@ export default function MyBookingsView({
     }
   }
 
-  // Real-time polling to ensure customer immediately receives manager quotations
+  // Real-time polling to ensure customer immediately receives manager quotations without screen refresh
   useEffect(() => {
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible" && currentUser?.email) {
@@ -303,13 +305,20 @@ export default function MyBookingsView({
           .getCustomerBookings(currentUser.email)
           .then((fresh) => {
             if (Array.isArray(fresh) && fresh.length > 0) {
-              setBookings(fresh)
-              onBookingsChange?.(fresh)
+              setBookings((prev) => {
+                const prevSig = prev.map(b => `${b.id}-${b.status}-${b.extensionStatus}-${b.approvedByAdmin}-${b.totalAmount}`).join("|")
+                const freshSig = fresh.map(b => `${b.id}-${b.status}-${b.extensionStatus}-${b.approvedByAdmin}-${b.totalAmount}`).join("|")
+                if (prevSig !== freshSig) {
+                  onBookingsChange?.(fresh)
+                  return fresh
+                }
+                return prev
+              })
             }
           })
           .catch(() => {})
       }
-    }, 6000)
+    }, 10000)
     return () => clearInterval(pollInterval)
   }, [currentUser?.email])
 
@@ -382,7 +391,7 @@ export default function MyBookingsView({
       }
     }
     loadData()
-  }, [currentUser, allBookings])
+  }, [currentUser?.email, currentUser?.id])
 
   // Customer Login Handler
   const handleLogin = async (e: React.FormEvent) => {
@@ -955,6 +964,37 @@ export default function MyBookingsView({
                                     {matedCar?.garageAddress ||
                                       "4200 NW 21st St, Miami, FL 33142"}
                                   </p>
+                                  <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                                    <a
+                                      href={
+                                        matedCar?.garageLat && matedCar?.garageLng
+                                          ? `https://www.google.com/maps/search/?api=1&query=${matedCar.garageLat},${matedCar.garageLng}`
+                                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                              matedCar?.garageAddress ||
+                                                matedCar?.garageName ||
+                                                b.pickupLocation ||
+                                                "MOTORLY Operations Hub"
+                                            )}`
+                                      }
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-[#F97316] hover:bg-orange-50 border border-orange-200 shadow-2xs transition"
+                                      title="Open exact coordinates in Google Maps"
+                                    >
+                                      <LocationIcon size={13} className="text-[#F97316]" />
+                                      <span>Open in Google Maps ↗</span>
+                                    </a>
+                                    {matedCar && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedGarageMapCar(matedCar)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 shadow-2xs transition cursor-pointer"
+                                        title="View interactive garage layout and bay map"
+                                      >
+                                        <span>🗺️ View Staged Bay Map</span>
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl shrink-0 text-left sm:text-right">
                                   <span className="text-[10px] font-bold text-amber-800 uppercase block">
@@ -1204,9 +1244,28 @@ export default function MyBookingsView({
                                 className="text-[#F97316] shrink-0 mt-0.5"
                               />
                               <div className="text-xs">
-                                <p className="font-semibold text-stone-800">
-                                  Pickup Hub
-                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="font-semibold text-stone-800">
+                                    Pickup Hub
+                                  </p>
+                                  <a
+                                    href={
+                                      matedCar?.garageLat && matedCar?.garageLng
+                                        ? `https://www.google.com/maps/search/?api=1&query=${matedCar.garageLat},${matedCar.garageLng}`
+                                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                            b.pickupLocation ||
+                                              matedCar?.garageAddress ||
+                                              "MOTORLY Central Hub"
+                                          )}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-bold text-[#F97316] hover:underline inline-flex items-center gap-0.5"
+                                    title="View location on Google Maps"
+                                  >
+                                    Maps ↗
+                                  </a>
+                                </div>
                                 <p className="text-stone-500">
                                   {b.pickupLocation}
                                 </p>
@@ -1266,6 +1325,21 @@ export default function MyBookingsView({
                               >
                                 <QrCodeIcon size={14} />
                                 Digital Boarding Voucher
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSelectedCustomerInvoice({
+                                    booking: b,
+                                    car: matedCar,
+                                  })
+                                }
+                                className="w-full py-2 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#F97316] border border-orange-200 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs"
+                                title="View full tax invoice document on-screen without downloading"
+                              >
+                                <FileTextIcon size={14} />
+                                <span>View Invoice Document</span>
                               </button>
 
                               <div className="flex gap-2">

@@ -616,9 +616,25 @@ export default function CarDetailView({
                     <span className="text-[11px] text-gray-400 font-semibold block">
                       Garage Location
                     </span>
-                    <span className="text-sm font-bold text-gray-900">
+                    <span className="text-sm font-bold text-gray-900 block truncate">
                       {car.garageName || car.location || "Main Garage Facility"}
                     </span>
+                    <a
+                      href={
+                        car.garageLat && car.garageLng
+                          ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
+                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                              car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
+                            )}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#F97316] hover:text-[#EA580C] hover:underline mt-0.5"
+                      title="View exact garage coordinates on Google Maps"
+                    >
+                      <LocationIcon size={12} />
+                      <span>Open in Google Maps ↗</span>
+                    </a>
                   </div>
                 </div>
 
@@ -682,6 +698,27 @@ export default function CarDetailView({
                   garage facility. Use the interactive map below to find the
                   exact garage bay.
                 </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-stone-50 rounded-xl border border-stone-200">
+                  <div className="text-xs">
+                    <span className="font-bold text-stone-900 block">{car.garageName || "Main Operations Hub"}</span>
+                    <span className="text-stone-500">{car.garageAddress || "Garage Facility"} • Bay: {car.garageBay || "Assigned Stall"}</span>
+                  </div>
+                  <a
+                    href={
+                      car.garageLat && car.garageLng
+                        ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
+                          )}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition shadow-2xs"
+                  >
+                    <LocationIcon size={13} />
+                    <span>Open in Google Maps {car.garageLat && car.garageLng ? `(${car.garageLat.toFixed(4)}, ${car.garageLng.toFixed(4)})` : ""} ↗</span>
+                  </a>
+                </div>
                 <GarageMapViewer
                   garageName={car.garageName || "Main Garage Facility"}
                   garageAddress={
@@ -925,6 +962,21 @@ export default function CarDetailView({
                         Stall: {car.garageBay}
                       </span>
                     )}
+                    <a
+                      href={
+                        car.garageLat && car.garageLng
+                          ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
+                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                              car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
+                            )}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#F97316] hover:text-[#EA580C] bg-white border border-amber-300 px-2.5 py-1 rounded-lg hover:bg-orange-50 transition shadow-2xs"
+                    >
+                      <LocationIcon size={13} />
+                      <span>📍 View on Google Maps ↗</span>
+                    </a>
                   </div>
                 </div>
               </div>

@@ -41512,6 +41512,20 @@ app.get("/api/bookings/:id/download-license", requireAuth, async (req, res) => {
 	res.setHeader("Content-Disposition", `${isDownload ? "attachment" : "inline"}; filename="${fileName}"`);
 	return res.send(svgContent);
 });
+app.post("/api/bookings/:id/upload-license", requireAuth, async (req, res) => {
+	const bookingId = req.params.id;
+	const { licensePhotoFront, licensePhotoBack, licenseNumber, licenseState } = req.body || {};
+	if (!await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) return res.status(404).json({ error: "Booking not found." });
+	if (licensePhotoFront) await db.prepare("UPDATE bookings SET driver_license_file = ? WHERE id = ?").run(licensePhotoFront, bookingId);
+	if (licensePhotoBack) await db.prepare("UPDATE bookings SET driver_license_back_file = ? WHERE id = ?").run(licensePhotoBack, bookingId);
+	if (licenseNumber) await db.prepare("UPDATE bookings SET driver_license_num = ? WHERE id = ?").run(licenseNumber, bookingId);
+	if (licenseState) await db.prepare("UPDATE bookings SET driver_license_state = ? WHERE id = ?").run(licenseState, bookingId);
+	const updated = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	return res.json({
+		success: true,
+		booking: mapBookingRow(updated)
+	});
+});
 const handleManagerApproval = async (req, res) => {
 	const bookingId = req.params.id;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
@@ -41976,18 +41990,18 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
 		await tx.prepare(`
       INSERT INTO bookings (
         id, customer_first_name, customer_last_name, customer_email, customer_phone,
-        driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file,
+        driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file, driver_license_back_file,
         pickup_location, return_location, pickup_date, return_date,
         requested_category, matched_car_id, status, total_amount, created_at,
         odometer_out, fuel_level_out, notes, approved_by_admin, approved_at
       ) VALUES (
         ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, 1, ?
       )
-    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licenseFileName || "counter_scanned_id.jpg", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString());
+    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licensePhotoFront || b.licenseFile || b.licenseFileName || "counter_scanned_id.jpg", b.licensePhotoBack || "", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString());
 		await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 		const created = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		return res.status(201).json({

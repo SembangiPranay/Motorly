@@ -1199,6 +1199,22 @@ export default function ListingView({
                               Bay {car.garageBay}
                             </span>
                           )}
+                          <a
+                            href={
+                              car.garageLat && car.garageLng
+                                ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
+                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                    car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
+                                  )}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="ml-auto text-[10px] font-bold text-[#F97316] hover:text-[#EA580C] hover:underline shrink-0"
+                            title="View garage location on Google Maps"
+                          >
+                            Maps ↗
+                          </a>
                         </div>
 
                         {/* 4 Micro Specs Grid */}
@@ -1427,6 +1443,22 @@ export default function ListingView({
                             Bay {car.garageBay}
                           </span>
                         )}
+                        <a
+                          href={
+                            car.garageLat && car.garageLng
+                              ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                  car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
+                                )}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="ml-auto text-[11px] font-bold text-[#F97316] hover:text-[#EA580C] hover:underline shrink-0"
+                          title="View garage location on Google Maps"
+                        >
+                          Maps ↗
+                        </a>
                       </div>
 
                       {/* Specs row */}
