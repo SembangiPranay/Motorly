@@ -13101,7 +13101,7 @@ export default function AdminView({
                       lat={carFormData.garageLat}
                       lng={carFormData.garageLng}
                       isEditable={true}
-                      height="260px"
+                      height="340px"
                       onLocationChange={(lat, lng, address) => {
                         setCarFormData((prev) => ({
                           ...prev,

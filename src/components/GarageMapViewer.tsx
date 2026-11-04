@@ -20,7 +20,7 @@ export default function GarageMapViewer({
   lng = -80.287,
   isEditable = false,
   onLocationChange,
-  height = "280px",
+  height = "320px",
 }: GarageMapViewerProps) {
   const [copied, setCopied] = useState(false)
   const [currentLat, setCurrentLat] = useState(Number(lat) || 17.4646)
@@ -31,6 +31,10 @@ export default function GarageMapViewer({
   const [hasUnsavedPin, setHasUnsavedPin] = useState(false)
   const [isSavingLocation, setIsSavingLocation] = useState(false)
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("")
+
+  // Dynamic Smooth Zoom & Canvas Expansion state
+  const [zoomLevel, setZoomLevel] = useState(15)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const [isLocating, setIsLocating] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -72,6 +76,18 @@ export default function GarageMapViewer({
     }
   }, [lat, lng, garageAddress])
 
+  // Invalidate map size when expanded/collapsed for crisp rendering
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      const timer = setTimeout(() => {
+        try {
+          mapInstanceRef.current.invalidateSize()
+        } catch {}
+      }, 250)
+      return () => clearTimeout(timer)
+    }
+  }, [isExpanded])
+
   // Dynamically load Leaflet for real interactive drag & drop map
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -103,23 +119,45 @@ export default function GarageMapViewer({
     loadLeaflet()
   }, [])
 
-  // Initialize or update Leaflet Map
+  // Initialize or update Leaflet Map with smooth dynamic zooming
   useEffect(() => {
     if (!leafletReady || !mapContainerRef.current) return
     const L = (window as any).L
     if (!L) return
 
     if (!mapInstanceRef.current) {
+      // Dynamic Smooth Zooming options: scrollWheelZoom enabled, smooth animation, wheel debounce
       const map = L.map(mapContainerRef.current, {
         center: [currentLat, currentLng],
-        zoom: 15,
-        scrollWheelZoom: false,
+        zoom: zoomLevel,
+        minZoom: 3,
+        maxZoom: 19,
+        scrollWheelZoom: true, // Dynamically zoom in/out with mousewheel & trackpad
+        smoothWheelZoom: true,
+        smoothSensitivity: 1.5,
+        wheelPxPerZoomLevel: 60,
+        zoomAnimation: true,
+        zoomAnimationThreshold: 8,
+        fadeAnimation: true,
+        markerZoomAnimation: true,
+        doubleClickZoom: true,
+        touchZoom: true,
+        boxZoom: true,
+        keyboard: true,
       })
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "© OpenStreetMap contributors",
       }).addTo(map)
+
+      // Listen to zoom changes reactively to update the slider and badge
+      map.on("zoom", () => {
+        setZoomLevel(Math.round(map.getZoom()))
+      })
+      map.on("zoomend", () => {
+        setZoomLevel(Math.round(map.getZoom()))
+      })
 
       const pinIcon = L.divIcon({
         className: "motorly-custom-pin",
@@ -172,17 +210,58 @@ export default function GarageMapViewer({
       mapInstanceRef.current = map
       markerInstanceRef.current = marker
     } else {
-      // Update existing marker and center
-      mapInstanceRef.current.setView([currentLat, currentLng], mapInstanceRef.current.getZoom())
+      // Update existing marker and smooth flyTo center
+      mapInstanceRef.current.flyTo([currentLat, currentLng], mapInstanceRef.current.getZoom(), {
+        duration: 0.7,
+        easeLinearity: 0.25,
+      })
       if (markerInstanceRef.current) {
         markerInstanceRef.current.setLatLng([currentLat, currentLng])
       }
     }
-
-    return () => {
-      // Map cleanup if container removed
-    }
   }, [leafletReady, isEditable, garageBay])
+
+  // Dynamic Smooth Zoom In / Zoom Out Handlers
+  const handleSmoothZoom = (delta: number) => {
+    if (!mapInstanceRef.current) return
+    const map = mapInstanceRef.current
+    const target = Math.min(19, Math.max(3, Math.round(map.getZoom()) + delta))
+    map.flyTo([pointerLat, pointerLng], target, {
+      duration: 0.45,
+      easeLinearity: 0.25,
+    })
+    setZoomLevel(target)
+  }
+
+  const handleSetZoomLevel = (target: number) => {
+    if (!mapInstanceRef.current) return
+    const map = mapInstanceRef.current
+    const clamped = Math.min(19, Math.max(3, target))
+    map.flyTo([pointerLat, pointerLng], clamped, {
+      duration: 0.6,
+      easeLinearity: 0.25,
+    })
+    setZoomLevel(clamped)
+  }
+
+  // Recenter smooth animation on current pin
+  const handleRecenterPin = () => {
+    if (!mapInstanceRef.current) return
+    mapInstanceRef.current.flyTo([pointerLat, pointerLng], Math.max(15, zoomLevel), {
+      duration: 0.7,
+      easeLinearity: 0.25,
+    })
+  }
+
+  // Zoom out to broad overview to easily inspect long points across distances
+  const handleOverviewLongPoints = () => {
+    if (!mapInstanceRef.current) return
+    mapInstanceRef.current.flyTo([pointerLat, pointerLng], 9, {
+      duration: 0.9,
+      easeLinearity: 0.25,
+    })
+    setZoomLevel(9)
+  }
 
   // Explicit Save Pointer Location Button Action
   const handleSavePointerLocation = async () => {
@@ -281,7 +360,11 @@ export default function GarageMapViewer({
     setHasUnsavedPin(false)
 
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([hub.lat, hub.lng], 16)
+      mapInstanceRef.current.flyTo([hub.lat, hub.lng], 16, {
+        duration: 0.85,
+        easeLinearity: 0.25,
+      })
+      setZoomLevel(16)
     }
     if (markerInstanceRef.current) {
       markerInstanceRef.current.setLatLng([hub.lat, hub.lng])
@@ -311,7 +394,11 @@ export default function GarageMapViewer({
           setHasUnsavedPin(true)
 
           if (mapInstanceRef.current) {
-            mapInstanceRef.current.setView([userLat, userLng], 16)
+            mapInstanceRef.current.flyTo([userLat, userLng], 16, {
+              duration: 0.85,
+              easeLinearity: 0.25,
+            })
+            setZoomLevel(16)
           }
           if (markerInstanceRef.current) {
             markerInstanceRef.current.setLatLng([userLat, userLng])
@@ -353,7 +440,7 @@ export default function GarageMapViewer({
     )
   }
 
-  // Search Address on Map
+  // Search Address on Map with smooth flyTo
   const handleSearchAddress = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!searchQuery.trim()) return
@@ -379,7 +466,11 @@ export default function GarageMapViewer({
         setHasUnsavedPin(false)
 
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([searchedLat, searchedLng], 16)
+          mapInstanceRef.current.flyTo([searchedLat, searchedLng], 16, {
+            duration: 0.9,
+            easeLinearity: 0.25,
+          })
+          setZoomLevel(16)
         }
         if (markerInstanceRef.current) {
           markerInstanceRef.current.setLatLng([searchedLat, searchedLng])
@@ -410,8 +501,10 @@ export default function GarageMapViewer({
     pointerLat + 0.006
   }&layer=mapnik&marker=${pointerLat}%2C${pointerLng}`
 
+  const effectiveHeight = isExpanded ? "480px" : height
+
   return (
-    <div className="rounded-2xl overflow-hidden border border-stone-200/90 bg-white shadow-xs flex flex-col font-sans">
+    <div className="rounded-2xl overflow-hidden border border-stone-200/90 bg-white shadow-xs flex flex-col font-sans transition-all">
       {/* Map Header with Address & Action Controls */}
       <div className="p-3.5 bg-stone-50 border-b border-stone-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -566,9 +659,146 @@ export default function GarageMapViewer({
         </div>
       )}
 
+      {/* DYNAMIC SMOOTH ZOOM & LONG-POINTS NAVIGATION TOOLBAR */}
+      <div className="px-3.5 py-2 bg-stone-50/95 border-b border-stone-200/90 flex flex-wrap items-center justify-between gap-2.5 text-xs select-none">
+        {/* Left: Dynamic Smooth Zoom Controls & Slider */}
+        <div className="flex items-center flex-wrap gap-2.5">
+          <div className="flex items-center bg-white rounded-lg border border-stone-200 shadow-2xs p-0.5">
+            <button
+              id="smooth-zoom-out-btn"
+              type="button"
+              onClick={() => handleSmoothZoom(-1)}
+              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-stone-100 text-stone-700 font-black text-sm transition cursor-pointer"
+              title="Smooth Zoom Out (-1x)"
+            >
+              −
+            </button>
+            <span className="px-2 font-mono text-xs font-bold text-stone-800 min-w-[34px] text-center">
+              {zoomLevel}x
+            </span>
+            <button
+              id="smooth-zoom-in-btn"
+              type="button"
+              onClick={() => handleSmoothZoom(1)}
+              className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-stone-100 text-stone-700 font-black text-sm transition cursor-pointer"
+              title="Smooth Zoom In (+1x)"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Smooth Slider */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs">
+            <span className="text-[10px] font-bold text-stone-400">3x</span>
+            <input
+              id="map-zoom-slider"
+              type="range"
+              min="4"
+              max="19"
+              step="1"
+              value={zoomLevel}
+              onChange={(e) => handleSetZoomLevel(Number(e.target.value))}
+              className="w-20 md:w-28 h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-[#F97316]"
+              title={`Drag to dynamically zoom between 4x and 19x (Current: ${zoomLevel}x)`}
+            />
+            <span className="text-[10px] font-bold text-stone-400">19x</span>
+          </div>
+
+          {/* Strategic Quick Zoom Presets for Long Points & Distances */}
+          <div className="flex items-center gap-1 text-[10px] font-bold">
+            <span className="text-stone-400 uppercase tracking-wider text-[9px] mr-0.5">
+              Jump:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSetZoomLevel(8)}
+              className={`px-2 py-0.5 rounded-md border transition cursor-pointer ${
+                zoomLevel === 8
+                  ? "bg-[#F97316] text-white border-[#F97316]"
+                  : "bg-white hover:bg-stone-100 text-stone-600 border-stone-200"
+              }`}
+              title="Zoom out to region to view long point distances"
+            >
+              🌍 Region (8x)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetZoomLevel(12)}
+              className={`px-2 py-0.5 rounded-md border transition cursor-pointer ${
+                zoomLevel === 12
+                  ? "bg-[#F97316] text-white border-[#F97316]"
+                  : "bg-white hover:bg-stone-100 text-stone-600 border-stone-200"
+              }`}
+              title="Zoom to metropolitan city layout"
+            >
+              🏙️ City (12x)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetZoomLevel(15)}
+              className={`px-2 py-0.5 rounded-md border transition cursor-pointer ${
+                zoomLevel === 15
+                  ? "bg-[#F97316] text-white border-[#F97316]"
+                  : "bg-white hover:bg-stone-100 text-stone-600 border-stone-200"
+              }`}
+              title="Neighborhood sector view"
+            >
+              📍 Area (15x)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetZoomLevel(18)}
+              className={`px-2 py-0.5 rounded-md border transition cursor-pointer ${
+                zoomLevel === 18
+                  ? "bg-[#F97316] text-white border-[#F97316]"
+                  : "bg-white hover:bg-stone-100 text-stone-600 border-stone-200"
+              }`}
+              title="Detailed parking bay / garage stall view"
+            >
+              🏢 Stall (18x)
+            </button>
+          </div>
+        </div>
+
+        {/* Right: Recenter on Pin, Long Points Overview & Height Expand Toggle */}
+        <div className="flex items-center gap-1.5">
+          <button
+            id="recenter-pin-btn"
+            type="button"
+            onClick={handleRecenterPin}
+            className="px-2.5 py-1 rounded-lg bg-white hover:bg-orange-50 hover:text-[#F97316] text-stone-700 border border-stone-200 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+            title="Smoothly center map back onto garage pointer pin"
+          >
+            <span>🎯 Center Pin</span>
+          </button>
+          <button
+            id="overview-long-points-btn"
+            type="button"
+            onClick={handleOverviewLongPoints}
+            className="px-2.5 py-1 rounded-lg bg-white hover:bg-sky-50 hover:text-sky-600 text-stone-700 border border-stone-200 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+            title="Zoom out smoothly to see all distant long points and routes"
+          >
+            <span>🌐 Overview</span>
+          </button>
+          <button
+            id="toggle-map-expand-btn"
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition flex items-center gap-1 shadow-2xs cursor-pointer ${
+              isExpanded
+                ? "bg-[#17191C] text-white border-black"
+                : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200"
+            }`}
+            title={isExpanded ? "Collapse map height back to default" : "Expand map canvas to 480px for wide area navigation"}
+          >
+            <span>{isExpanded ? "⤡ Compact" : "⤢ Expand Map"}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Interactive Map Visual */}
-      <div className="relative w-full bg-stone-100" style={{ height }}>
-        {/* Leaflet map container div */}
+      <div className="relative w-full bg-stone-100 transition-all duration-300" style={{ height: effectiveHeight }}>
+        {/* Leaflet map container div with enabled scroll wheel */}
         <div ref={mapContainerRef} className="w-full h-full relative z-10" />
 
         {/* Fallback iframe container if Leaflet is loading */}
@@ -604,6 +834,12 @@ export default function GarageMapViewer({
             </button>
           </div>
         )}
+
+        {/* Dynamic Zoom & Gesture Badge Tooltip */}
+        <div className="absolute top-2 right-2 z-20 bg-[#17191C]/80 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-[10px] font-mono border border-white/10 pointer-events-none flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Mouse Wheel &amp; Smooth Zoom Active ({zoomLevel}x)</span>
+        </div>
 
         {/* Coordinates Overlay */}
         <div className="absolute bottom-2 left-2 z-20 bg-[#17191C]/85 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-[10px] font-mono border border-white/10 pointer-events-none flex items-center gap-2">
