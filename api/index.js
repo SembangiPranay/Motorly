@@ -39892,6 +39892,7 @@ async function initSupabaseTables(pool) {
   `);
 	await pool.query(`
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -40091,6 +40092,10 @@ function initSqliteTables() {
 		{
 			name: "inspection_passed",
 			type: "INTEGER DEFAULT 0"
+		},
+		{
+			name: "trip_reason",
+			type: "TEXT"
 		}
 	]) if (!bookingColumns.includes(col.name)) try {
 		sqlite.exec(`ALTER TABLE bookings ADD COLUMN ${col.name} ${col.type};`);
@@ -40591,6 +40596,7 @@ function formatBookingRow(row) {
 		fuelLevelOut: row.fuel_level_out || void 0,
 		fuelLevelIn: row.fuel_level_in || void 0,
 		notes: row.notes || void 0,
+		tripReason: row.trip_reason || (row.notes && row.notes.includes("Trip Purpose:") ? row.notes.split("Trip Purpose:")[1]?.split("-")[0]?.trim() : void 0) || "Travel & Leisure",
 		promoCode: row.promo_code || void 0,
 		approvedByAdmin: Boolean(row.approved_by_admin),
 		approvedAt: row.approved_at || void 0,
@@ -41351,7 +41357,7 @@ app.get("/api/bookings", requireAdmin, async (req, res) => {
         driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
         pickup_location, return_location, pickup_date, return_date,
         requested_category, matched_car_id, status, total_amount, created_at,
-        user_id, notes, promo_code, approved_by_admin, approved_at, keys_handed_at,
+        user_id, notes, trip_reason, promo_code, approved_by_admin, approved_at, keys_handed_at,
         extension_status, extension_request, extension_quote,
         checklist_out, checklist_in, inspection_notes, inspection_passed,
         odometer_out, odometer_in, fuel_level_out, fuel_level_in,
@@ -41430,16 +41436,18 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             driver_license_file, driver_license_back_file, driver_selfie_file,
             pickup_location, return_location, pickup_date, return_date,
             requested_category, matched_car_id, status, total_amount, created_at,
-            user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed
+            user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed,
+            trip_reason
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
-            ?, ?, ?, 0, 'None', 0
+            ?, ?, ?, 0, 'None', 0,
+            ?
           )
-        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || null, validPromoCode);
+        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure");
 			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		});
 		return res.status(201).json(formatBookingRow(createdRow));
@@ -42008,15 +42016,17 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file, driver_license_back_file,
         pickup_location, return_location, pickup_date, return_date,
         requested_category, matched_car_id, status, total_amount, created_at,
-        odometer_out, fuel_level_out, notes, approved_by_admin, approved_at
+        odometer_out, fuel_level_out, notes, approved_by_admin, approved_at,
+        trip_reason
       ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, ?, ?, 1, ?
+        ?, ?, ?, 1, ?,
+        ?
       )
-    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licensePhotoFront || b.licenseFile || b.licenseFileName || "counter_scanned_id.jpg", b.licensePhotoBack || "", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString());
+    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licensePhotoFront || b.licenseFile || b.licenseFileName || "counter_scanned_id.jpg", b.licensePhotoBack || "", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString(), b.tripReason || "Walk-In Counter Dispatch");
 		await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 		const created = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		return res.status(201).json({

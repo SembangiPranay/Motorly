@@ -75,6 +75,7 @@ export default function ConfirmationModal({
 📋 *Booking ID:* ${bookingId}
 🟡 *Status:* Pending Approval
 
+✈️ *Trip Purpose:* ${bookingState.tripReason || "Vacation & Leisure Travel"}
 🚘 *Vehicle:* ${car.name} (${car.year || 2024})
 📅 *Pickup:* ${bookingState.pickupDate} – ${bookingState.pickupTime || "10:00 AM"}
 📅 *Return:* ${bookingState.returnDate} – ${bookingState.returnTime || "10:00 AM"}
@@ -296,6 +297,16 @@ _MOTORLY | Smarter Car Rentals_`
                 €{totalAmount.toFixed(2)}
               </p>
             </div>
+          </div>
+
+          {/* Trip Purpose */}
+          <div className="pt-2.5 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between text-[11px]">
+            <span className="text-stone-400 dark:text-stone-500 font-semibold uppercase text-[10px] flex items-center gap-1">
+              <span>✈️</span> Trip Purpose
+            </span>
+            <span className="font-bold text-[#F97316] bg-orange-500/10 dark:bg-orange-950/40 border border-orange-500/20 px-2 py-0.5 rounded-md">
+              {bookingState.tripReason || "Vacation & Leisure Travel"}
+            </span>
           </div>
 
           {/* Schedule */}

@@ -1305,6 +1305,14 @@ export default function MyBookingsView({
                                 </p>
                               </div>
                             </div>
+                            {(b.tripReason || b.notes) && (
+                              <div className="flex items-center gap-1.5 pt-1 text-xs">
+                                <span className="font-semibold text-stone-500 text-[11px]">Trip Purpose:</span>
+                                <span className="font-bold text-[#F97316] bg-orange-50 border border-orange-200/80 px-2 py-0.5 rounded-md text-[11px] truncate max-w-[220px]">
+                                  {b.tripReason || b.notes}
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Pricing & Actions */}

@@ -57,6 +57,10 @@ interface CheckoutViewProps {
     discountPercent?: number
 
     discountAmount?: number
+
+    tripReason?: string
+
+    notes?: string
   }) => void
 
   onNavigateHome: () => void
@@ -219,6 +223,8 @@ export default function CheckoutView({
   )
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [tripReason, setTripReason] = useState<string>("Vacation & Leisure Travel")
+  const [tripDestination, setTripDestination] = useState<string>("")
 
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
@@ -695,6 +701,8 @@ export default function CheckoutView({
           promoDiscount > 0
             ? Number((rawRentalTotal * promoDiscount).toFixed(2))
             : undefined,
+        tripReason,
+        notes: tripDestination ? `${tripReason}: ${tripDestination}` : tripReason,
       })
 
       setIsSubmitting(false)
@@ -1100,6 +1108,66 @@ export default function CheckoutView({
             </div>
           </div>
 
+          {/* Section: Trip Purpose & Rental Reason */}
+          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-7 shadow-sm space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
+              <span className="w-7 h-7 rounded-xl bg-[#F97316] text-white text-xs font-black flex items-center justify-center shadow-xs">
+                ✈️
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-[#17191C] font-heading">
+                  Trip Purpose &amp; Rental Reason
+                </h2>
+                <p className="text-[11px] text-gray-400">
+                  Help our fleet manager prepare and stage your vehicle for your exact journey.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-gray-700">
+                Select Primary Rental Reason <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {[
+                  { id: "Vacation & Leisure Travel", icon: "🌴", label: "Vacation & Leisure" },
+                  { id: "Business & Corporate Travel", icon: "💼", label: "Business Travel" },
+                  { id: "Road Trip & Outstation", icon: "🚗", label: "Road Trip / Outstation" },
+                  { id: "Daily Commute & City Drive", icon: "🏙️", label: "Daily City Commute" },
+                  { id: "Special Event / Wedding", icon: "🎉", label: "Wedding / Event" },
+                  { id: "Temporary Vehicle Replacement", icon: "🔧", label: "Car in Service" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setTripReason(item.id)}
+                    className={`p-3 rounded-2xl border text-left transition-all flex flex-col gap-1 cursor-pointer ${
+                      tripReason === item.id
+                        ? "bg-orange-50/70 border-[#F97316] text-orange-950 shadow-xs ring-2 ring-orange-500/20"
+                        : "bg-gray-50/60 border-gray-200 hover:border-gray-300 text-gray-700"
+                    }`}
+                  >
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-xs font-bold">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Trip Destination / Specific Notes <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={tripDestination}
+                  onChange={(e) => setTripDestination(e.target.value)}
+                  placeholder="e.g. Srisailam Temple visit, Goa holiday, Hitec City Tech Conference"
+                  className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-[#F97316] focus:ring-2 focus:ring-orange-500/20 text-xs text-gray-800 transition"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Section 3: Simple & Clean Payment Policy - Pay on Pickup */}
           <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-7 shadow-sm space-y-4">
             <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
@@ -1232,6 +1300,16 @@ export default function CheckoutView({
                   Edit
                 </button>
               </div>
+            </div>
+
+            {/* Trip Purpose Summary */}
+            <div className="bg-orange-50/60 border border-orange-200/80 rounded-2xl p-3 flex items-center justify-between text-xs">
+              <span className="text-stone-600 font-semibold flex items-center gap-1.5">
+                <span>✈️</span> Trip Purpose:
+              </span>
+              <span className="font-bold text-stone-900 bg-white border border-orange-200 px-2 py-0.5 rounded-lg text-[11px] truncate max-w-[170px]">
+                {tripReason}
+              </span>
             </div>
 
             {/* Garage Location (Assigned by Garage Owner) */}

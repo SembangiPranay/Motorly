@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react"
-import { LocationIcon, ShieldIcon } from "./Icons"
+import React, { useState, useEffect, useRef } from "react"
+import { LocationIcon, ShieldIcon, CheckIcon } from "./Icons"
 
 interface GarageMapViewerProps {
   garageName?: string
@@ -20,27 +20,31 @@ export default function GarageMapViewer({
   lng = -80.287,
   isEditable = false,
   onLocationChange,
-  height = "260px",
+  height = "280px",
 }: GarageMapViewerProps) {
   const [copied, setCopied] = useState(false)
-  const [currentLat, setCurrentLat] = useState(lat)
-  const [currentLng, setCurrentLng] = useState(lng)
+  const [currentLat, setCurrentLat] = useState(Number(lat) || 17.4646)
+  const [currentLng, setCurrentLng] = useState(Number(lng) || 78.3582)
+  const [pointerLat, setPointerLat] = useState(Number(lat) || 17.4646)
+  const [pointerLng, setPointerLng] = useState(Number(lng) || 78.3582)
   const [currentAddress, setCurrentAddress] = useState(garageAddress)
+  const [hasUnsavedPin, setHasUnsavedPin] = useState(false)
+  const [isSavingLocation, setIsSavingLocation] = useState(false)
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("")
+
   const [isLocating, setIsLocating] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
-  const [userDistanceMiles, setUserDistanceMiles] = useState<number | null>(
-    null,
-  )
+  const [userDistanceMiles, setUserDistanceMiles] = useState<number | null>(null)
+  const [leafletReady, setLeafletReady] = useState(false)
 
-  // Haversine distance helper (miles)
-  const computeDistanceMiles = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number,
-  ) => {
-    const R = 3958.8 // Earth radius in miles
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<any>(null)
+  const markerInstanceRef = useRef<any>(null)
+
+  // Distance helper
+  const computeDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 3958.8
     const dLat = ((lat2 - lat1) * Math.PI) / 180
     const dLon = ((lon2 - lon1) * Math.PI) / 180
     const a =
@@ -53,49 +57,235 @@ export default function GarageMapViewer({
     return Number((R * c).toFixed(1))
   }
 
-  // Sync internal state whenever props change from parent form
+  // Sync internal state when parent props change
   useEffect(() => {
-    if (lat && !isNaN(lat)) setCurrentLat(lat)
-    if (lng && !isNaN(lng)) setCurrentLng(lng)
-    if (garageAddress) setCurrentAddress(garageAddress)
+    if (lat && !isNaN(lat)) {
+      setCurrentLat(Number(lat))
+      setPointerLat(Number(lat))
+    }
+    if (lng && !isNaN(lng)) {
+      setCurrentLng(Number(lng))
+      setPointerLng(Number(lng))
+    }
+    if (garageAddress) {
+      setCurrentAddress(garageAddress)
+    }
   }, [lat, lng, garageAddress])
+
+  // Dynamically load Leaflet for real interactive drag & drop map
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const loadLeaflet = () => {
+      if (!(window as any).L) {
+        if (!document.getElementById("leaflet-css")) {
+          const css = document.createElement("link")
+          css.id = "leaflet-css"
+          css.rel = "stylesheet"
+          css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          document.head.appendChild(css)
+        }
+
+        if (!document.getElementById("leaflet-js")) {
+          const script = document.createElement("script")
+          script.id = "leaflet-js"
+          script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          script.onload = () => {
+            setLeafletReady(true)
+          }
+          document.body.appendChild(script)
+        }
+      } else {
+        setLeafletReady(true)
+      }
+    }
+
+    loadLeaflet()
+  }, [])
+
+  // Initialize or update Leaflet Map
+  useEffect(() => {
+    if (!leafletReady || !mapContainerRef.current) return
+    const L = (window as any).L
+    if (!L) return
+
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center: [currentLat, currentLng],
+        zoom: 15,
+        scrollWheelZoom: false,
+      })
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map)
+
+      const pinIcon = L.divIcon({
+        className: "motorly-custom-pin",
+        html: `
+          <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: ${
+            isEditable ? "grab" : "default"
+          };">
+            <div style="background: #17191C; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.4); white-space: nowrap; margin-bottom: 2px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 4px;">
+              <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #F97316;"></span>
+              <span>${garageBay || "Staged Bay"}</span>
+            </div>
+            <div style="width: 30px; height: 30px; background: #F97316; border: 3px solid #FFFFFF; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 4px 12px rgba(249,115,22,0.6); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 8px; height: 8px; background: white; border-radius: 50%; transform: rotate(45deg);"></div>
+            </div>
+            <div style="width: 14px; height: 4px; background: rgba(0,0,0,0.3); border-radius: 50%; margin-top: 2px;"></div>
+          </div>
+        `,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      })
+
+      const marker = L.marker([currentLat, currentLng], {
+        draggable: isEditable,
+        icon: pinIcon,
+      }).addTo(map)
+
+      if (isEditable) {
+        marker.on("drag", (e: any) => {
+          const pos = e.target.getLatLng()
+          setPointerLat(Number(pos.lat.toFixed(5)))
+          setPointerLng(Number(pos.lng.toFixed(5)))
+          setHasUnsavedPin(true)
+        })
+
+        marker.on("dragend", (e: any) => {
+          const pos = e.target.getLatLng()
+          setPointerLat(Number(pos.lat.toFixed(5)))
+          setPointerLng(Number(pos.lng.toFixed(5)))
+          setHasUnsavedPin(true)
+        })
+
+        map.on("click", (e: any) => {
+          marker.setLatLng(e.latlng)
+          setPointerLat(Number(e.latlng.lat.toFixed(5)))
+          setPointerLng(Number(e.latlng.lng.toFixed(5)))
+          setHasUnsavedPin(true)
+        })
+      }
+
+      mapInstanceRef.current = map
+      markerInstanceRef.current = marker
+    } else {
+      // Update existing marker and center
+      mapInstanceRef.current.setView([currentLat, currentLng], mapInstanceRef.current.getZoom())
+      if (markerInstanceRef.current) {
+        markerInstanceRef.current.setLatLng([currentLat, currentLng])
+      }
+    }
+
+    return () => {
+      // Map cleanup if container removed
+    }
+  }, [leafletReady, isEditable, garageBay])
+
+  // Explicit Save Pointer Location Button Action
+  const handleSavePointerLocation = async () => {
+    setIsSavingLocation(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pointerLat}&lon=${pointerLng}`,
+      )
+      const data = await res.json()
+      let resolvedAddress = ""
+
+      if (data && data.display_name) {
+        const addr = data.address || {}
+        const road = addr.road || addr.street || addr.pedestrian || ""
+        const suburb = addr.suburb || addr.neighbourhood || addr.residential || ""
+        const city = addr.city || addr.town || addr.municipality || addr.county || ""
+        const state = addr.state || ""
+        const postcode = addr.postcode || ""
+
+        const cleanParts = [road, suburb, city, state, postcode].filter(Boolean)
+        resolvedAddress =
+          cleanParts.length >= 2
+            ? cleanParts.join(", ")
+            : data.display_name.split(",").slice(0, 4).join(", ").trim()
+      } else {
+        resolvedAddress = `Garage Facility Hub (${pointerLat.toFixed(4)}, ${pointerLng.toFixed(4)})`
+      }
+
+      setCurrentLat(pointerLat)
+      setCurrentLng(pointerLng)
+      setCurrentAddress(resolvedAddress)
+      setHasUnsavedPin(false)
+
+      if (onLocationChange) {
+        onLocationChange(pointerLat, pointerLng, resolvedAddress)
+      }
+
+      setSaveSuccessMsg(`✓ Saved! Address set to: ${resolvedAddress}`)
+      setTimeout(() => setSaveSuccessMsg(""), 4500)
+    } catch {
+      const fallback = `Garage Facility (${pointerLat.toFixed(4)}, ${pointerLng.toFixed(4)})`
+      setCurrentLat(pointerLat)
+      setCurrentLng(pointerLng)
+      setCurrentAddress(fallback)
+      setHasUnsavedPin(false)
+
+      if (onLocationChange) {
+        onLocationChange(pointerLat, pointerLng, fallback)
+      }
+
+      setSaveSuccessMsg(`✓ Saved GPS: ${pointerLat.toFixed(4)}, ${pointerLng.toFixed(4)}`)
+      setTimeout(() => setSaveSuccessMsg(""), 4500)
+    } finally {
+      setIsSavingLocation(false)
+    }
+  }
 
   // Pre-configured garage bay selector
   const PRESET_HUBS = [
     {
       name: "Main Garage Facility - Bay 1",
       address: "100 Industrial Parkway, Bay 1",
-      lat: 25.7725,
-      lng: -80.1878,
+      lat: 17.4646,
+      lng: 78.3582,
       bay: "Bay 1",
     },
     {
       name: "Main Garage Facility - Bay 2",
       address: "100 Industrial Parkway, Bay 2",
-      lat: 25.7728,
-      lng: -80.1875,
+      lat: 17.465,
+      lng: 78.3588,
       bay: "Bay 2",
     },
     {
       name: "Vehicle Inspection & Prep Bay",
       address: "100 Industrial Parkway, Bay 3",
-      lat: 25.7722,
-      lng: -80.188,
+      lat: 17.464,
+      lng: 78.3575,
       bay: "Prep Bay",
     },
     {
       name: "Customer Handoff Stall",
       address: "100 Industrial Parkway, Front Lot",
-      lat: 25.772,
-      lng: -80.1882,
+      lat: 17.4635,
+      lng: 78.359,
       bay: "Stall A",
     },
   ]
 
-  const handleSelectPreset = (hub: typeof PRESET_HUBS[0]) => {
+  const handleSelectPreset = (hub: (typeof PRESET_HUBS)[0]) => {
     setCurrentLat(hub.lat)
     setCurrentLng(hub.lng)
+    setPointerLat(hub.lat)
+    setPointerLng(hub.lng)
     setCurrentAddress(hub.address)
+    setHasUnsavedPin(false)
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([hub.lat, hub.lng], 16)
+    }
+    if (markerInstanceRef.current) {
+      markerInstanceRef.current.setLatLng([hub.lat, hub.lng])
+    }
     if (onLocationChange) {
       onLocationChange(hub.lat, hub.lng, hub.address)
     }
@@ -114,9 +304,18 @@ export default function GarageMapViewer({
         const userLng = Number(pos.coords.longitude.toFixed(5))
 
         if (isEditable) {
-          // Admin mode: Set garage to current location
           setCurrentLat(userLat)
           setCurrentLng(userLng)
+          setPointerLat(userLat)
+          setPointerLng(userLng)
+          setHasUnsavedPin(true)
+
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.setView([userLat, userLng], 16)
+          }
+          if (markerInstanceRef.current) {
+            markerInstanceRef.current.setLatLng([userLat, userLng])
+          }
 
           try {
             const res = await fetch(
@@ -124,45 +323,24 @@ export default function GarageMapViewer({
             )
             const data = await res.json()
             if (data && data.display_name) {
-              // Extract clean, intelligible location string preserving city and region
               const addr = data.address || {}
               const road = addr.road || addr.street || addr.pedestrian || ""
-              const suburb =
-                addr.suburb || addr.neighbourhood || addr.residential || ""
-              const city =
-                addr.city || addr.town || addr.municipality || addr.county || ""
+              const suburb = addr.suburb || addr.neighbourhood || addr.residential || ""
+              const city = addr.city || addr.town || addr.municipality || addr.county || ""
               const state = addr.state || ""
               const postcode = addr.postcode || ""
-
-              const cleanParts = [road, suburb, city, state, postcode].filter(
-                Boolean,
-              )
-              const resolvedAddress =
+              const cleanParts = [road, suburb, city, state, postcode].filter(Boolean)
+              const resolved =
                 cleanParts.length >= 2
                   ? cleanParts.join(", ")
-                  : data.display_name
-
-              setCurrentAddress(resolvedAddress)
-              if (onLocationChange)
-                onLocationChange(userLat, userLng, resolvedAddress)
-            } else {
-              const gpsStr = `GPS Facility (${userLat}, ${userLng})`
-              setCurrentAddress(gpsStr)
-              if (onLocationChange) onLocationChange(userLat, userLng, gpsStr)
+                  : data.display_name.split(",").slice(0, 4).join(", ").trim()
+              setCurrentAddress(resolved)
+              if (onLocationChange) onLocationChange(userLat, userLng, resolved)
+              setHasUnsavedPin(false)
             }
-          } catch {
-            const gpsStr = `GPS Facility (${userLat}, ${userLng})`
-            setCurrentAddress(gpsStr)
-            if (onLocationChange) onLocationChange(userLat, userLng, gpsStr)
-          }
+          } catch {}
         } else {
-          // Customer mode: Compute distance from user to this garage
-          const dist = computeDistanceMiles(
-            userLat,
-            userLng,
-            currentLat,
-            currentLng,
-          )
+          const dist = computeDistanceMiles(userLat, userLng, currentLat, currentLng)
           setUserDistanceMiles(dist)
         }
         setIsLocating(false)
@@ -191,16 +369,23 @@ export default function GarageMapViewer({
         const first = data[0]
         const searchedLat = Number(Number(first.lat).toFixed(5))
         const searchedLng = Number(Number(first.lon).toFixed(5))
-        const formatted = first.display_name
-          .split(",")
-          .slice(0, 4)
-          .join(",")
-          .trim()
+        const formatted = first.display_name.split(",").slice(0, 4).join(", ").trim()
+
         setCurrentLat(searchedLat)
         setCurrentLng(searchedLng)
+        setPointerLat(searchedLat)
+        setPointerLng(searchedLng)
         setCurrentAddress(formatted)
-        if (onLocationChange)
-          onLocationChange(searchedLat, searchedLng, formatted)
+        setHasUnsavedPin(false)
+
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([searchedLat, searchedLng], 16)
+        }
+        if (markerInstanceRef.current) {
+          markerInstanceRef.current.setLatLng([searchedLat, searchedLng])
+        }
+
+        if (onLocationChange) onLocationChange(searchedLat, searchedLng, formatted)
         setSearchQuery("")
       } else {
         alert("Address not found. Please try another street or city name.")
@@ -220,10 +405,10 @@ export default function GarageMapViewer({
 
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}`
   const openStreetMapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${
-    currentLng - 0.008
-  }%2C${currentLat - 0.006}%2C${currentLng + 0.008}%2C${
-    currentLat + 0.006
-  }&layer=mapnik&marker=${currentLat}%2C${currentLng}`
+    pointerLng - 0.008
+  }%2C${pointerLat - 0.006}%2C${pointerLng + 0.008}%2C${
+    pointerLat + 0.006
+  }&layer=mapnik&marker=${pointerLat}%2C${pointerLng}`
 
   return (
     <div className="rounded-2xl overflow-hidden border border-stone-200/90 bg-white shadow-xs flex flex-col font-sans">
@@ -234,12 +419,8 @@ export default function GarageMapViewer({
             <LocationIcon size={16} />
           </div>
           <div className="truncate">
-            <h4 className="font-bold text-stone-900 truncate text-xs">
-              {garageName}
-            </h4>
-            <p className="text-[11px] text-stone-500 truncate font-mono">
-              {currentAddress}
-            </p>
+            <h4 className="font-bold text-stone-900 truncate text-xs">{garageName}</h4>
+            <p className="text-[11px] text-stone-500 truncate font-mono">{currentAddress}</p>
           </div>
         </div>
 
@@ -290,11 +471,8 @@ export default function GarageMapViewer({
 
       {/* Admin Map Controls: Address Search & Quick Hub Presets */}
       {isEditable && (
-        <div className="px-3.5 py-2.5 bg-stone-100/80 border-b border-stone-200 space-y-2">
-          <form
-            onSubmit={handleSearchAddress}
-            className="flex items-center gap-2"
-          >
+        <div className="px-3.5 py-2.5 bg-stone-100/90 border-b border-stone-200 space-y-2">
+          <form onSubmit={handleSearchAddress} className="flex items-center gap-2">
             <input
               type="text"
               value={searchQuery}
@@ -326,39 +504,111 @@ export default function GarageMapViewer({
               </button>
             ))}
           </div>
+
+          {/* CRITICAL: Explicit "OK, Save This Pointer Location & Address" Action Card */}
+          <div
+            data-testid="save-pointer-banner"
+            className={`p-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-2.5 transition-all ${
+              hasUnsavedPin
+                ? "bg-amber-50 border-amber-300 shadow-xs ring-2 ring-amber-400/30"
+                : "bg-white border-stone-200"
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span
+                className={`w-3 h-3 rounded-full shrink-0 ${
+                  hasUnsavedPin ? "bg-amber-500 animate-ping" : "bg-emerald-500"
+                }`}
+              />
+              <div className="truncate">
+                <p className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <span>📍 Pointer GPS:</span>
+                  <span className="font-mono text-[#F97316]">
+                    {pointerLat.toFixed(5)}, {pointerLng.toFixed(5)}
+                  </span>
+                  {hasUnsavedPin && (
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500 text-white">
+                      New Pin Position
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-stone-500 truncate">
+                  Drag the map pointer or click anywhere on the map, then click the button to save
+                  this address.
+                </p>
+              </div>
+            </div>
+
+            <button
+              id="save-pointer-address-btn"
+              type="button"
+              onClick={handleSavePointerLocation}
+              disabled={isSavingLocation}
+              className={`px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                hasUnsavedPin
+                  ? "bg-[#F97316] hover:bg-orange-600 text-white ring-2 ring-orange-400 animate-pulse"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+              }`}
+            >
+              <CheckIcon size={14} />
+              <span>
+                {isSavingLocation ? "Saving Address..." : "OK, Save This Pointer Address & GPS"}
+              </span>
+            </button>
+          </div>
+
+          {saveSuccessMsg && (
+            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fade-in">
+              <CheckIcon size={14} className="text-emerald-600 shrink-0" />
+              <span>{saveSuccessMsg}</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* Interactive Map Visual */}
       <div className="relative w-full bg-stone-100" style={{ height }}>
-        <iframe
-          title="Garage Hub Map Location"
-          width="100%"
-          height="100%"
-          frameBorder="0"
-          scrolling="no"
-          marginHeight={0}
-          marginWidth={0}
-          src={openStreetMapEmbedUrl}
-          className="w-full h-full border-0 filter contrast-[1.02]"
-        />
+        {/* Leaflet map container div */}
+        <div ref={mapContainerRef} className="w-full h-full relative z-10" />
 
-        {/* Central Vehicle Garage Marker Beacon */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center">
-          <div className="px-2.5 py-1 rounded-full bg-[#17191C] text-white text-[10px] font-bold shadow-lg border border-white/20 whitespace-nowrap mb-1 flex items-center gap-1.5 animate-bounce">
-            <span className="w-2 h-2 rounded-full bg-[#F97316] animate-pulse" />
-            <span>{garageBay || "Garage Stall"}</span>
+        {/* Fallback iframe container if Leaflet is loading */}
+        {!leafletReady && (
+          <iframe
+            title="Garage Hub Map Location"
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            marginHeight={0}
+            marginWidth={0}
+            src={openStreetMapEmbedUrl}
+            className="w-full h-full border-0 filter contrast-[1.02]"
+          />
+        )}
+
+        {/* Floating Quick Action Overlay on Map (Always Accessible) */}
+        {isEditable && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-[#17191C]/90 backdrop-blur-md text-white px-3 py-1.5 rounded-full shadow-lg border border-white/20 text-xs pointer-events-auto">
+            <span className="text-amber-400 font-bold">📍 Pointer:</span>
+            <span className="font-mono text-[11px]">
+              {pointerLat.toFixed(4)}, {pointerLng.toFixed(4)}
+            </span>
+            <button
+              type="button"
+              onClick={handleSavePointerLocation}
+              disabled={isSavingLocation}
+              className="ml-1 px-2.5 py-0.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold text-[10px] shadow-sm transition flex items-center gap-1 cursor-pointer"
+            >
+              <CheckIcon size={11} />
+              <span>{isSavingLocation ? "Saving..." : "Save Address"}</span>
+            </button>
           </div>
-          <div className="w-5 h-5 rounded-full bg-[#F97316] border-2 border-white shadow-md flex items-center justify-center">
-            <div className="w-2 h-2 rounded-full bg-white" />
-          </div>
-          <div className="w-8 h-2 bg-black/30 rounded-full blur-[2px] mt-0.5" />
-        </div>
+        )}
 
         {/* Coordinates Overlay */}
-        <div className="absolute bottom-2 left-2 bg-[#17191C]/85 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-[10px] font-mono border border-white/10 pointer-events-none flex items-center gap-2">
+        <div className="absolute bottom-2 left-2 z-20 bg-[#17191C]/85 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-[10px] font-mono border border-white/10 pointer-events-none flex items-center gap-2">
           <span>
-            GPS: {currentLat.toFixed(4)}, {currentLng.toFixed(4)}
+            GPS: {pointerLat.toFixed(4)}, {pointerLng.toFixed(4)}
           </span>
           <span className="text-orange-400 font-bold">• STAGED</span>
         </div>

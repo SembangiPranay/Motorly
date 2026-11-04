@@ -3625,6 +3625,11 @@ export default function AdminView({
                                     <p className="text-[11px] text-stone-600 dark:text-stone-300 font-mono mt-0.5">
                                       📅 {nb.pickupDate} → {nb.returnDate} • €{nb.totalAmount.toFixed(2)}
                                     </p>
+                                    {(nb.tripReason || nb.notes) && (
+                                      <p className="text-[10px] text-orange-600 dark:text-orange-400 font-medium truncate mt-0.5">
+                                        ✈️ {nb.tripReason || nb.notes}
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="flex flex-col gap-1 shrink-0">
                                     <button
@@ -4079,6 +4084,12 @@ export default function AdminView({
                           <p className="text-[10px] font-mono text-stone-400 dark:text-stone-500">
                             📅 {nb.pickupDate} → {nb.returnDate}
                           </p>
+                          {(nb.tripReason || nb.notes) && (
+                            <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 mt-1 flex items-center gap-1">
+                              <span>✈️ Purpose:</span>
+                              <span className="font-bold truncate">{nb.tripReason || nb.notes}</span>
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -6130,6 +6141,16 @@ export default function AdminView({
                             </a>
                           </div>
                         </div>
+
+                        {/* Trip Purpose Banner */}
+                        {(b.tripReason || b.notes) && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200/80 dark:border-orange-800/40 text-[11px]">
+                            <span className="text-[#F97316] font-bold">✈️ Purpose:</span>
+                            <span className="font-semibold text-stone-800 dark:text-stone-200 truncate">
+                              {b.tripReason || b.notes}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Action Toolbar: Structured 2-Row Layout Preventing Overlap */}
                         <div
@@ -11203,6 +11224,14 @@ export default function AdminView({
                     </span>
                   </div>
                 )}
+                {(inspectedBooking.tripReason || inspectedBooking.notes) && (
+                  <div className="flex justify-between items-center pt-2 border-t border-stone-200/80 dark:border-stone-800 text-xs">
+                    <span className="text-stone-500 font-medium">Trip Purpose:</span>
+                    <span className="font-bold text-[#F97316] bg-orange-500/10 dark:bg-orange-950/40 border border-orange-500/20 px-2.5 py-0.5 rounded-md text-xs">
+                      {inspectedBooking.tripReason || inspectedBooking.notes}
+                    </span>
+                  </div>
+                )}
                 <div
                   className={`pt-2 border-t flex justify-between font-mono font-bold text-sm ${
                     isDark
@@ -13013,6 +13042,51 @@ export default function AdminView({
                           isDark
                             ? "bg-stone-900 border border-stone-700 text-sky-400"
                             : "bg-white border border-stone-300 text-sky-700 focus:bg-white"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                    <div>
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                        GPS Latitude <span className="text-stone-400 font-normal font-mono">(North/South, e.g. 17.4646)</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={carFormData.garageLat ?? 17.4646}
+                        onChange={(e) =>
+                          setCarFormData({
+                            ...carFormData,
+                            garageLat: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className={`w-full px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+                          isDark
+                            ? "bg-stone-900 border border-stone-700 text-white"
+                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? "text-stone-300" : "text-stone-800"}`}>
+                        GPS Longitude <span className="text-stone-400 font-normal font-mono">(East/West, e.g. 78.3582)</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={carFormData.garageLng ?? 78.3582}
+                        onChange={(e) =>
+                          setCarFormData({
+                            ...carFormData,
+                            garageLng: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className={`w-full px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+                          isDark
+                            ? "bg-stone-900 border border-stone-700 text-white"
+                            : "bg-white border border-stone-300 text-stone-900 focus:bg-white"
                         }`}
                       />
                     </div>

@@ -63,6 +63,7 @@ export interface BookingState {
   rentalPlan: "hourly" | "daily" | "weekly" | "monthly"
   promoCode?: string
   discountPercent?: number
+  tripReason?: string
 }
 
 export interface CustomerInfo {
@@ -178,6 +179,7 @@ export interface BookingRecord {
   fuelLevelOut?: string
   fuelLevelIn?: string
   notes?: string
+  tripReason?: string
   promoCode?: string
   // Step D: Admin Approval ("Green Signal")
   approvedByAdmin?: boolean

@@ -691,6 +691,7 @@ async function initSupabaseTables(pool: pg.Pool) {
   // High-performance secondary indexes for high-frequency search and relational filters
   await pool.query(`
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -825,6 +826,7 @@ function initSqliteTables() {
     { name: "extension_quote", type: "TEXT" },
     { name: "inspection_notes", type: "TEXT" },
     { name: "inspection_passed", type: "INTEGER DEFAULT 0" },
+    { name: "trip_reason", type: "TEXT" },
   ]
   for (const col of requiredBookingCols) {
     if (!bookingColumns.includes(col.name)) {

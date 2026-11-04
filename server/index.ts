@@ -661,6 +661,12 @@ function formatBookingRow(row: any) {
     fuelLevelOut: row.fuel_level_out || undefined,
     fuelLevelIn: row.fuel_level_in || undefined,
     notes: row.notes || undefined,
+    tripReason:
+      row.trip_reason ||
+      (row.notes && row.notes.includes("Trip Purpose:")
+        ? row.notes.split("Trip Purpose:")[1]?.split("-")[0]?.trim()
+        : undefined) ||
+      "Travel & Leisure",
     promoCode: row.promo_code || undefined,
     approvedByAdmin: Boolean(row.approved_by_admin),
     approvedAt: row.approved_at || undefined,
@@ -2047,7 +2053,7 @@ app.get("/api/bookings", requireAdmin, async (req, res) => {
         driver_dob, driver_license_num, driver_license_state, driver_license_expiry,
         pickup_location, return_location, pickup_date, return_date,
         requested_category, matched_car_id, status, total_amount, created_at,
-        user_id, notes, promo_code, approved_by_admin, approved_at, keys_handed_at,
+        user_id, notes, trip_reason, promo_code, approved_by_admin, approved_at, keys_handed_at,
         extension_status, extension_request, extension_quote,
         checklist_out, checklist_in, inspection_notes, inspection_passed,
         odometer_out, odometer_in, fuel_level_out, fuel_level_in,
@@ -2198,14 +2204,16 @@ app.post(
             driver_license_file, driver_license_back_file, driver_selfie_file,
             pickup_location, return_location, pickup_date, return_date,
             requested_category, matched_car_id, status, total_amount, created_at,
-            user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed
+            user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed,
+            trip_reason
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
-            ?, ?, ?, 0, 'None', 0
+            ?, ?, ?, 0, 'None', 0,
+            ?
           )
         `)
             .run(
@@ -2241,8 +2249,9 @@ app.post(
               Number(b.totalAmount) || 0,
               createdAtValue,
               validUserId,
-              b.notes || null,
+              b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null),
               validPromoCode,
+              b.tripReason || b.trip_reason || "Travel & Leisure",
             )
 
           const created = await tx
@@ -3462,13 +3471,15 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         driver_dob, driver_license_num, driver_license_state, driver_license_expiry, driver_license_file, driver_license_back_file,
         pickup_location, return_location, pickup_date, return_date,
         requested_category, matched_car_id, status, total_amount, created_at,
-        odometer_out, fuel_level_out, notes, approved_by_admin, approved_at
+        odometer_out, fuel_level_out, notes, approved_by_admin, approved_at,
+        trip_reason
       ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, ?, ?, 1, ?
+        ?, ?, ?, 1, ?,
+        ?
       )
     `)
       .run(
@@ -3505,6 +3516,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         b.fuelLevelOut || "100%",
         b.notes || "Express counter walk-in reservation.",
         new Date().toISOString(),
+        b.tripReason || "Walk-In Counter Dispatch",
       )
 
     // Lock vehicle

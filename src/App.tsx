@@ -700,7 +700,14 @@ export default function App() {
     discountPercent?: number
 
     discountAmount?: number
+
+    tripReason?: string
+
+    notes?: string
   }) => {
+    if (details.tripReason) {
+      setBookingState((prev) => ({ ...prev, tripReason: details.tripReason }))
+    }
     if (!currentUser) {
       setAuthReturnView("checkout")
 
@@ -757,6 +764,10 @@ export default function App() {
       createdAt: new Date().toISOString(),
 
       userId: currentUser?.id,
+
+      tripReason: details.tripReason || "Travel & Leisure",
+
+      notes: details.notes || (details.tripReason ? `Trip Purpose: ${details.tripReason}` : "Travel & Leisure"),
     }
 
     // Dynamic backend sync into Supabase PostgreSQL
