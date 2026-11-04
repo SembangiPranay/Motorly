@@ -41777,13 +41777,15 @@ app.post("/api/bookings/:id/decline-extension", optionalAuth, async (req, res) =
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	const user = req.user;
-	const isDeclinable = booking.extension_status === "Quoted" || booking.extension_status === "Requested" || booking.extension_status === "Pending";
-	if (!isDeclinable && booking.extension_status === "Approved") return res.status(400).json({ error: "This extension has already been approved and added to billing." });
+	const extStatusClean = String(booking.extension_status || "").trim().toLowerCase();
+	const isDeclinable = extStatusClean === "quoted" || extStatusClean === "requested" || extStatusClean === "pending" || Boolean(booking.extension_quote);
+	if (!isDeclinable && extStatusClean === "approved") return res.status(400).json({ error: "This extension has already been approved and added to billing." });
 	if (user && user.role !== "admin") {
 		const userPhoneClean = user.phone ? String(user.phone).replace(/\D/g, "") : "";
 		const bookingPhoneClean = booking.customer_phone ? String(booking.customer_phone).replace(/\D/g, "") : "";
 		const phoneMatches = Boolean(userPhoneClean && bookingPhoneClean && userPhoneClean === bookingPhoneClean);
-		if (!(!user.email || !booking.customer_email || booking.user_id && booking.user_id === user.userId || booking.customer_email && booking.customer_email.trim().toLowerCase() === user.email.trim().toLowerCase() || phoneMatches) && !isDeclinable) return res.status(403).json({ error: "Access denied. You do not have permission to decline this extension." });
+		const bodyEmail = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : "";
+		if (!(!user.email || !booking.customer_email || booking.user_id && booking.user_id === user.userId || booking.customer_email && booking.customer_email.trim().toLowerCase() === user.email.trim().toLowerCase() || bodyEmail && booking.customer_email && booking.customer_email.trim().toLowerCase() === bodyEmail || phoneMatches) && !isDeclinable) return res.status(403).json({ error: "Access denied. You do not have permission to decline this extension." });
 	}
 	const declineNote = `Extension quotation declined by ${user?.role === "admin" ? "manager" : "customer"}.`;
 	const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}${declineNote}`;

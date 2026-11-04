@@ -2944,12 +2944,14 @@ app.post(
 
     // Customer & Admin Permission: Allow declining extension if owner, admin, or declining an active pending/quoted extension
     const user = req.user
+    const extStatusClean = String(booking.extension_status || "").trim().toLowerCase()
     const isDeclinable =
-      booking.extension_status === "Quoted" ||
-      booking.extension_status === "Requested" ||
-      booking.extension_status === "Pending"
+      extStatusClean === "quoted" ||
+      extStatusClean === "requested" ||
+      extStatusClean === "pending" ||
+      Boolean(booking.extension_quote)
 
-    if (!isDeclinable && booking.extension_status === "Approved") {
+    if (!isDeclinable && extStatusClean === "approved") {
       return res.status(400).json({
         error: "This extension has already been approved and added to billing.",
       })
@@ -2968,15 +2970,17 @@ app.post(
           userPhoneClean === bookingPhoneClean,
       )
 
+      const bodyEmail = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : ""
+
       const isOwner =
         !user.email ||
         !booking.customer_email ||
         (booking.user_id && booking.user_id === user.userId) ||
         (booking.customer_email &&
           booking.customer_email.trim().toLowerCase() === user.email.trim().toLowerCase()) ||
+        (bodyEmail && booking.customer_email && booking.customer_email.trim().toLowerCase() === bodyEmail) ||
         phoneMatches
 
-      // If user is logged in under a completely different user account and booking is not in a declinable quote state
       if (!isOwner && !isDeclinable) {
         return res.status(403).json({
           error:
@@ -2984,7 +2988,6 @@ app.post(
         })
       }
     }
-
     const declineActor = user?.role === "admin" ? "manager" : "customer"
     const declineNote = `Extension quotation declined by ${declineActor}.`
     const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}${declineNote}`

@@ -69,7 +69,7 @@ class ApiService {
       (endpoint?.startsWith("/cars") && method && method !== "GET") ||
       (endpoint?.startsWith("/bookings/") &&
         (endpoint.includes("/approve") ||
-          endpoint.includes("/decline") ||
+          endpoint.endsWith("/decline") ||
           endpoint.includes("/handover-keys") ||
           endpoint.includes("/return-inspection") ||
           endpoint.includes("/cancel-admin") ||

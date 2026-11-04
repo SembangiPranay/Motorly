@@ -137,38 +137,6 @@ export default function App() {
     return "home"
   })
 
-  // Persist currentView to localStorage and keep browser URL search params synchronized
-  useEffect(() => {
-    try {
-      localStorage.setItem("motorly_current_view", currentView)
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href)
-        if (currentView === "home") {
-          url.searchParams.delete("view")
-          if (url.pathname === "/admin") {
-            window.history.replaceState(null, "", "/" + (url.search ? url.search : ""))
-          } else {
-            window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""))
-          }
-        } else if (currentView === "admin") {
-          url.searchParams.set("view", "admin")
-          window.history.replaceState(null, "", url.toString())
-        } else if (currentView === "detail" && selectedCarId) {
-          url.searchParams.set("view", "detail")
-          url.searchParams.set("car", selectedCarId)
-          window.history.replaceState(null, "", url.toString())
-        } else if (currentView === "checkout" && selectedCarId) {
-          url.searchParams.set("view", "checkout")
-          url.searchParams.set("car", selectedCarId)
-          window.history.replaceState(null, "", url.toString())
-        } else {
-          url.searchParams.set("view", currentView)
-          window.history.replaceState(null, "", url.toString())
-        }
-      }
-    } catch {}
-  }, [currentView, selectedCarId])
-
   // Direct Deep Link Support (e.g. ?view=admin&bookingId=MTR-XXXXXX)
 
   const [targetBookingId, setTargetBookingId] = useState<string | null>(() => {
@@ -281,6 +249,40 @@ export default function App() {
     } catch {}
     return localStorage.getItem("motorly_selected_car_id") || ""
   })
+
+
+  // Persist currentView to localStorage and keep browser URL search params synchronized
+  useEffect(() => {
+    try {
+      localStorage.setItem("motorly_current_view", currentView)
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href)
+        if (currentView === "home") {
+          url.searchParams.delete("view")
+          if (url.pathname === "/admin") {
+            window.history.replaceState(null, "", "/" + (url.search ? url.search : ""))
+          } else {
+            window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""))
+          }
+        } else if (currentView === "admin") {
+          url.searchParams.set("view", "admin")
+          window.history.replaceState(null, "", url.toString())
+        } else if (currentView === "detail" && selectedCarId) {
+          url.searchParams.set("view", "detail")
+          url.searchParams.set("car", selectedCarId)
+          window.history.replaceState(null, "", url.toString())
+        } else if (currentView === "checkout" && selectedCarId) {
+          url.searchParams.set("view", "checkout")
+          url.searchParams.set("car", selectedCarId)
+          window.history.replaceState(null, "", url.toString())
+        } else {
+          url.searchParams.set("view", currentView)
+          window.history.replaceState(null, "", url.toString())
+        }
+      }
+    } catch {}
+  }, [currentView, selectedCarId])
+
 
   const [favorites, setFavorites] = useState<string[]>([])
 
