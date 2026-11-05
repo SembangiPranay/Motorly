@@ -3138,7 +3138,7 @@ export default function AdminView({
       {/* Sidebar Container */}
       <aside
         className={`fixed top-0 bottom-0 left-0 z-50 lg:relative h-screen overflow-y-auto ${
-          isSidebarCollapsed ? "lg:w-20" : "lg:w-64 xl:w-72"
+          isSidebarCollapsed ? "lg:w-16" : "lg:w-56 xl:w-64"
         } w-64 border-r flex flex-col justify-between shrink-0 transition-all duration-300 ${
           isMobileSidebarOpen
             ? "translate-x-0 shadow-2xl"
@@ -3964,7 +3964,7 @@ export default function AdminView({
         </header>
 
         {/* Main Workspace Area */}
-        <main className="flex-1 max-w-[1600px] w-full mx-auto px-2 sm:px-6 lg:px-8 py-2.5 sm:py-6 space-y-3 sm:space-y-6">
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-2.5 sm:py-6 space-y-3 sm:space-y-6">
           {/* Toast Alert */}
           {notification && (
             <div
@@ -5499,7 +5499,7 @@ export default function AdminView({
               ) : (
                 /* Spreadsheet Table View */
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[960px] text-left text-xs border-collapse">
+                  <table className="w-full text-left text-xs border-collapse table-auto">
                     <thead>
                       <tr
                         className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
@@ -7749,9 +7749,9 @@ export default function AdminView({
                     )}
                   </div>
 
-                  {/* Desktop Manifest Table (>= lg screens or horizontal scroll) */}
-                  <div className="hidden lg:block overflow-x-auto">
-                    <table className="w-full min-w-[920px] text-left text-xs border-collapse">
+                  {/* Desktop Manifest Table (>= lg screens - Responsive full-fit without clipping) */}
+                  <div className="hidden lg:block overflow-x-auto w-full">
+                    <table className="w-full text-left text-xs border-collapse table-auto">
                       <thead>
                         <tr
                           className={`border-b text-[11px] font-bold uppercase tracking-wider font-mono ${
@@ -7760,22 +7760,22 @@ export default function AdminView({
                               : "bg-stone-50/90 border-stone-200 text-stone-500"
                           }`}
                         >
-                          <th className="px-5 py-3.5 w-72 whitespace-nowrap">
+                          <th className="px-3.5 py-3 w-[26%] whitespace-nowrap">
                             Vehicle / Specs
                           </th>
-                          <th className="px-5 py-3.5 w-52 whitespace-nowrap">
-                            Plate & Hub
+                          <th className="px-3.5 py-3 w-[23%] whitespace-nowrap">
+                            Plate &amp; Hub
                           </th>
-                          <th className="px-5 py-3.5 w-36 whitespace-nowrap">
+                          <th className="px-3 py-3 w-[16%] whitespace-nowrap">
                             Status Override
                           </th>
-                          <th className="px-5 py-3.5 w-40 whitespace-nowrap">
-                            Fuel / Tank Capacity
+                          <th className="px-3 py-3 w-[15%] whitespace-nowrap text-center">
+                            Fuel / Tank
                           </th>
-                          <th className="px-5 py-3.5 w-36 text-right whitespace-nowrap">
+                          <th className="px-3.5 py-3 w-[13%] text-right whitespace-nowrap">
                             Daily Rate
                           </th>
-                          <th className="px-5 py-3.5 w-28 text-center whitespace-nowrap">
+                          <th className="px-3 py-3 w-[7%] text-center whitespace-nowrap">
                             Actions
                           </th>
                         </tr>
@@ -7787,11 +7787,8 @@ export default function AdminView({
                       >
                         {filteredFleet.map((c) => {
                           const cleanHub = (c.location || studioContact.hub_address || "Operating Fleet Hub")
-
                             .replace(/International Airport/i, "Intl")
-
                             .replace(/Airport/i, "Hub")
-
                             .trim()
 
                           return (
@@ -7804,10 +7801,10 @@ export default function AdminView({
                               }`}
                             >
                               {/* Vehicle details */}
-                              <td className="px-5 py-3.5">
-                                <div className="flex items-center gap-3">
+                              <td className="px-3.5 py-2.5">
+                                <div className="flex items-center gap-2.5">
                                   <div
-                                    className={`w-12 h-9 rounded-lg overflow-hidden shrink-0 border relative ${
+                                    className={`w-11 h-8 rounded-lg overflow-hidden shrink-0 border relative ${
                                       isDark
                                         ? "bg-stone-800 border-stone-700"
                                         : "bg-stone-100 border-stone-200"
@@ -7821,23 +7818,24 @@ export default function AdminView({
                                     {c.gallery && c.gallery.length > 1 && (
                                       <span className="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-black/80 backdrop-blur-xs text-white text-[8px] font-bold font-mono flex items-center gap-0.5 shadow-xs">
                                         <CameraIcon
-                                          size={10}
-                                          className="inline mr-1"
+                                          size={9}
+                                          className="inline mr-0.5"
                                         />
                                         <span>{c.gallery.length}</span>
                                       </span>
                                     )}
                                   </div>
-                                  <div className="min-w-0">
+                                  <div className="min-w-0 max-w-[160px] lg:max-w-[190px] xl:max-w-[240px]">
                                     <div
-                                      className={`font-bold text-xs whitespace-nowrap ${
+                                      className={`font-bold text-xs truncate ${
                                         isDark ? "text-white" : "text-stone-900"
                                       }`}
+                                      title={c.name}
                                     >
                                       {c.name}
                                     </div>
                                     <div
-                                      className={`text-[11px] whitespace-nowrap mt-0.5 ${
+                                      className={`text-[10px] truncate mt-0.5 ${
                                         isDark
                                           ? "text-stone-400"
                                           : "text-stone-500"
@@ -7850,9 +7848,9 @@ export default function AdminView({
                               </td>
 
                               {/* Plate & Hub */}
-                              <td className="px-5 py-3.5">
+                              <td className="px-3.5 py-2.5">
                                 <span
-                                  className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] border inline-block whitespace-nowrap ${
+                                  className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] border inline-block whitespace-nowrap ${
                                     isDark
                                       ? "bg-stone-900 border-stone-700 text-stone-200"
                                       : "bg-stone-100 border-stone-200 text-stone-800"
@@ -7861,7 +7859,7 @@ export default function AdminView({
                                   {c.plateNumber || "N/A"}
                                 </span>
                                 <div
-                                  className={`text-[11px] mt-1 font-medium whitespace-nowrap ${
+                                  className={`text-[11px] mt-0.5 font-medium truncate max-w-[140px] lg:max-w-[170px] xl:max-w-[220px] ${
                                     isDark ? "text-stone-400" : "text-stone-500"
                                   }`}
                                   title={c.location || studioContact.hub_address}
@@ -7871,30 +7869,25 @@ export default function AdminView({
                               </td>
 
                               {/* Status Override */}
-                              <td className="px-5 py-3.5">
+                              <td className="px-3 py-2.5 whitespace-nowrap">
                                 <select
                                   value={c.status || "Available"}
                                   onChange={async (e) => {
-                                    const newStatus = e.target
-                                      .value as CarStatus
-
+                                    const newStatus = e.target.value as CarStatus
                                     const updated = await api.updateCarStatus(
                                       c.id,
-
                                       newStatus,
                                     )
-
                                     setCars((prev) =>
                                       prev.map((x) =>
                                         x.id === c.id ? updated : x,
                                       ),
                                     )
-
                                     notify(
                                       `${c.name} status updated to ${newStatus}.`,
                                     )
                                   }}
-                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
+                                  className={`px-2 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
                                     c.status === "Available"
                                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
                                       : c.status === "Rented"
@@ -7915,25 +7908,25 @@ export default function AdminView({
 
                               {/* Fuel & Tank Capacity in Liters */}
                               <td
-                                className={`px-5 py-3.5 font-mono ${
+                                className={`px-3 py-2.5 font-mono text-center whitespace-nowrap ${
                                   isDark ? "text-stone-300" : "text-stone-700"
                                 }`}
                               >
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-xs font-semibold">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-[11px] font-semibold">
                                   {formatFuelDisplay(c.mileage, c.fuelType)}
                                 </span>
                               </td>
 
                               {/* Daily, Hourly & Monthly Dynamic Rates */}
-                              <td className="px-5 py-3.5 text-right font-mono">
+                              <td className="px-3.5 py-2.5 text-right font-mono whitespace-nowrap">
                                 <span
-                                  className={`font-bold block ${
+                                  className={`font-bold block text-xs ${
                                     isDark ? "text-white" : "text-stone-900"
                                   }`}
                                 >
                                   €{c.pricePerDay}/day
                                 </span>
-                                <span className="text-[11px] text-stone-400 block font-normal">
+                                <span className="text-[10px] text-stone-400 block font-normal">
                                   €{c.pricePerHour || 8}/hr • €
                                   {c.pricePerMonth ||
                                     Math.round(c.pricePerDay * 22)}
@@ -7942,7 +7935,7 @@ export default function AdminView({
                               </td>
 
                               {/* Actions */}
-                              <td className="px-5 py-3.5 text-center">
+                              <td className="px-3 py-2.5 text-center whitespace-nowrap">
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     onClick={() => handleOpenEditCar(c)}
