@@ -14,6 +14,7 @@ import type {
 } from "./types"
 
 import { api } from "./services/api"
+import { CARS } from "./data/cars"
 
 import Header from "./components/Header"
 
@@ -68,8 +69,12 @@ export default function App() {
 
   const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => {
     try {
+      const token =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem("motorly_customer_token")
+          : null
+      if (!token) return null
       const saved = localStorage.getItem("motorly_customer_user")
-
       return saved ? JSON.parse(saved) : null
     } catch {
       return null
@@ -290,7 +295,7 @@ export default function App() {
 
   // Dynamic Fleet State (strictly synced with database)
 
-  const [cars, setCars] = useState<Car[]>([])
+  const [cars, setCars] = useState<Car[]>(CARS)
 
   // Dynamic Bookings State (strictly synced with database)
 
@@ -531,9 +536,9 @@ export default function App() {
   }, [currentView, selectedCarId])
 
   const activeCar = useMemo(() => {
-    if (!cars || cars.length === 0) return undefined
+    if (!cars || cars.length === 0) return CARS[0]
     const matched = cars.find((c) => c.id === selectedCarId)
-    return matched || cars[0]
+    return matched || cars[0] || CARS[0]
   }, [cars, selectedCarId])
 
   const handleToggleFavorite = (id: string) => {

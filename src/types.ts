@@ -8,6 +8,8 @@ export type BookingStatus = "Pending Assignment" | "Assigned" | "Checked Out" | 
 export interface Car {
   id: string
   name: string
+  firstName?: string
+  lastName?: string
   brand: string
   model: string
   year: number
@@ -115,6 +117,7 @@ export interface ExtensionRequest {
 }
 
 export interface ExtensionQuote {
+  newReturnDate?: string
   rateType?: "hour" | "day" | "month" | string
   rateAmount?: number
   totalQuotedAmount: number
@@ -170,6 +173,7 @@ export interface BookingRecord {
   returnDate: string
   requestedCategory?: VehicleType
   matchedCarId?: string
+  carType?: string
   status: BookingStatus
   totalAmount: number
   createdAt: string
@@ -201,6 +205,8 @@ export interface CustomerUser {
   id: string
   email: string
   name: string
+  firstName?: string
+  lastName?: string
   phone: string
   driverLicenseNum?: string
   driverLicenseState?: string

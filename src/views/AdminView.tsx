@@ -2287,17 +2287,14 @@ export default function AdminView({
 
         setWalkinForm({
           firstName: "",
-
           lastName: "",
-
           email: "",
-
           phone: "",
-
           licenseNumber: "",
-
           licenseState: "Florida",
-
+          licensePhotoFront: "",
+          licensePhotoBack: "",
+          licenseFileName: "",
           carId:
             cars.find((c) => c.status === "Available")?.id || cars[0]?.id || "",
 
@@ -2414,9 +2411,34 @@ export default function AdminView({
       if (isCarModalOpen) {
         localStorage.setItem("motorly_admin_car_modal_open", "true")
         localStorage.setItem("motorly_admin_car_modal_tab", carModalTab)
-        localStorage.setItem("motorly_admin_car_draft", JSON.stringify(carFormData))
+        // Strip out large Base64 Data URLs to prevent browser QuotaExceededError
+        const sanitizedDraft = { ...carFormData }
+        if (Array.isArray(sanitizedDraft.gallery)) {
+          sanitizedDraft.gallery = sanitizedDraft.gallery.filter(
+            (g) => typeof g === "string" && !g.startsWith("data:")
+          )
+        }
+        if (typeof sanitizedDraft.image === "string" && sanitizedDraft.image.startsWith("data:")) {
+          sanitizedDraft.image = ""
+        }
+        try {
+          localStorage.setItem("motorly_admin_car_draft", JSON.stringify(sanitizedDraft))
+        } catch (storageErr) {
+          console.warn("Storage quota limit reached for draft cache:", storageErr)
+        }
         if (editingCar) {
-          localStorage.setItem("motorly_admin_editing_car_obj", JSON.stringify(editingCar))
+          const sanitizedEditing = { ...editingCar }
+          if (Array.isArray(sanitizedEditing.gallery)) {
+            sanitizedEditing.gallery = sanitizedEditing.gallery.filter(
+              (g) => typeof g === "string" && !g.startsWith("data:")
+            )
+          }
+          if (typeof sanitizedEditing.image === "string" && sanitizedEditing.image.startsWith("data:")) {
+            sanitizedEditing.image = ""
+          }
+          try {
+            localStorage.setItem("motorly_admin_editing_car_obj", JSON.stringify(sanitizedEditing))
+          } catch {}
         } else {
           localStorage.removeItem("motorly_admin_editing_car_obj")
         }

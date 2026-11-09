@@ -1166,40 +1166,11 @@ var require_statuses = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var codes = require_codes();
 	/**
 	* Module exports.
 	* @public
 	*/
-	/**
-	* Create a map of message to status code.
-	* @private
-	*/
-	/**
-	* Create a list of all status codes.
-	* @private
-	*/
-	/**
-	* Get the status code for given message.
-	* @private
-	*/
-	/**
-	* Get the status message for given code.
-	* @private
-	*/
-	/**
-	* Get the status code.
-	*
-	* Given a number, this will throw if it is not a known status
-	* code, otherwise the code will be returned. Given a string,
-	* the string will be parsed for a number and return the code
-	* if valid, otherwise will lookup the code assuming this is
-	* the status message.
-	*
-	* @param {string|number} code
-	* @returns {number}
-	* @public
-	*/
-	var codes = require_codes();
 	module.exports = status;
 	status.message = codes;
 	status.code = createMessageToStatusCodeMap(codes);
@@ -1223,6 +1194,10 @@ var require_statuses = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		503: true,
 		504: true
 	};
+	/**
+	* Create a map of message to status code.
+	* @private
+	*/
 	function createMessageToStatusCodeMap(codes) {
 		var map = {};
 		Object.keys(codes).forEach(function forEachCode(code) {
@@ -1232,20 +1207,45 @@ var require_statuses = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		});
 		return map;
 	}
+	/**
+	* Create a list of all status codes.
+	* @private
+	*/
 	function createStatusCodeList(codes) {
 		return Object.keys(codes).map(function mapCode(code) {
 			return Number(code);
 		});
 	}
+	/**
+	* Get the status code for given message.
+	* @private
+	*/
 	function getStatusCode(message) {
 		var msg = message.toLowerCase();
 		if (!Object.prototype.hasOwnProperty.call(status.code, msg)) throw new Error("invalid status message: \"" + message + "\"");
 		return status.code[msg];
 	}
+	/**
+	* Get the status message for given code.
+	* @private
+	*/
 	function getStatusMessage(code) {
 		if (!Object.prototype.hasOwnProperty.call(status.message, code)) throw new Error("invalid status code: " + code);
 		return status.message[code];
 	}
+	/**
+	* Get the status code.
+	*
+	* Given a number, this will throw if it is not a known status
+	* code, otherwise the code will be returned. Given a string,
+	* the string will be parsed for a number and return the code
+	* if valid, otherwise will lookup the code assuming this is
+	* the status message.
+	*
+	* @param {string|number} code
+	* @returns {number}
+	* @public
+	*/
 	function status(code) {
 		if (typeof code === "number") return getStatusMessage(code);
 		if (typeof code !== "string") throw new TypeError("code must be a number or string");
@@ -1303,6 +1303,7 @@ var require_toidentifier = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = toIdentifier;
 	/**
 	* Trasform the given string into a JavaScript identifier
 	*
@@ -1310,7 +1311,6 @@ var require_toidentifier = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {string}
 	* @public
 	*/
-	module.exports = toIdentifier;
 	function toIdentifier(str) {
 		return str.split(" ").map(function(token) {
 			return token.slice(0, 1).toUpperCase() + token.slice(1);
@@ -1330,63 +1330,32 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var deprecate = require_depd()("http-errors");
+	var setPrototypeOf = require_setprototypeof();
+	var statuses = require_statuses();
+	var inherits = require_inherits();
+	var toIdentifier = require_toidentifier();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = createError;
+	module.exports.HttpError = createHttpErrorConstructor();
+	module.exports.isHttpError = createIsHttpErrorFunction(module.exports.HttpError);
+	populateConstructorExports(module.exports, statuses.codes, module.exports.HttpError);
 	/**
 	* Get the code class of a status code.
 	* @private
 	*/
+	function codeClass(status) {
+		return Number(String(status).charAt(0) + "00");
+	}
 	/**
 	* Create a new HTTP Error.
 	*
 	* @returns {Error}
 	* @public
 	*/
-	/**
-	* Create HTTP error abstract base class.
-	* @private
-	*/
-	/**
-	* Create a constructor for a client error.
-	* @private
-	*/
-	/**
-	* Create function to test is a value is a HttpError.
-	* @private
-	*/
-	/**
-	* Create a constructor for a server error.
-	* @private
-	*/
-	/**
-	* Set the name of a function, if possible.
-	* @private
-	*/
-	/**
-	* Populate the exports object with constructors for every error class.
-	* @private
-	*/
-	/**
-	* Get a class name from a name identifier.
-	*
-	* @param {string} name
-	* @returns {string}
-	* @private
-	*/
-	var deprecate = require_depd()("http-errors");
-	var setPrototypeOf = require_setprototypeof();
-	var statuses = require_statuses();
-	var inherits = require_inherits();
-	var toIdentifier = require_toidentifier();
-	module.exports = createError;
-	module.exports.HttpError = createHttpErrorConstructor();
-	module.exports.isHttpError = createIsHttpErrorFunction(module.exports.HttpError);
-	populateConstructorExports(module.exports, statuses.codes, module.exports.HttpError);
-	function codeClass(status) {
-		return Number(String(status).charAt(0) + "00");
-	}
 	function createError() {
 		var err;
 		var msg;
@@ -1417,6 +1386,10 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		for (var key in props) if (key !== "status" && key !== "statusCode") err[key] = props[key];
 		return err;
 	}
+	/**
+	* Create HTTP error abstract base class.
+	* @private
+	*/
 	function createHttpErrorConstructor() {
 		function HttpError() {
 			throw new TypeError("cannot construct abstract class");
@@ -1424,6 +1397,10 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		inherits(HttpError, Error);
 		return HttpError;
 	}
+	/**
+	* Create a constructor for a client error.
+	* @private
+	*/
 	function createClientErrorConstructor(HttpError, name, code) {
 		var className = toClassName(name);
 		function ClientError(message) {
@@ -1452,6 +1429,10 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		ClientError.prototype.expose = true;
 		return ClientError;
 	}
+	/**
+	* Create function to test is a value is a HttpError.
+	* @private
+	*/
 	function createIsHttpErrorFunction(HttpError) {
 		return function isHttpError(val) {
 			if (!val || typeof val !== "object") return false;
@@ -1459,6 +1440,10 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return val instanceof Error && typeof val.expose === "boolean" && typeof val.statusCode === "number" && val.status === val.statusCode;
 		};
 	}
+	/**
+	* Create a constructor for a server error.
+	* @private
+	*/
 	function createServerErrorConstructor(HttpError, name, code) {
 		var className = toClassName(name);
 		function ServerError(message) {
@@ -1487,6 +1472,10 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		ServerError.prototype.expose = false;
 		return ServerError;
 	}
+	/**
+	* Set the name of a function, if possible.
+	* @private
+	*/
 	function nameFunc(func, name) {
 		var desc = Object.getOwnPropertyDescriptor(func, "name");
 		if (desc && desc.configurable) {
@@ -1494,6 +1483,10 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			Object.defineProperty(func, "name", desc);
 		}
 	}
+	/**
+	* Populate the exports object with constructors for every error class.
+	* @private
+	*/
 	function populateConstructorExports(exports, codes, HttpError) {
 		codes.forEach(function forEachCode(code) {
 			var CodeError;
@@ -1510,6 +1503,13 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		});
 	}
+	/**
+	* Get a class name from a name identifier.
+	*
+	* @param {string} name
+	* @returns {string}
+	* @private
+	*/
 	function toClassName(name) {
 		return name.slice(-5) === "Error" ? name : name + "Error";
 	}
@@ -1527,10 +1527,24 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = bytes;
+	module.exports.format = format;
+	module.exports.parse = parse;
 	/**
 	* Module variables.
 	* @private
 	*/
+	var formatThousandsRegExp = /\B(?=(\d{3})+(?!\d))/g;
+	var formatDecimalsRegExp = /(?:\.0*|(\.[^0]+)0+)$/;
+	var map = {
+		b: 1,
+		kb: 1024,
+		mb: 1 << 20,
+		gb: 1 << 30,
+		tb: Math.pow(1024, 4),
+		pb: Math.pow(1024, 5)
+	};
+	var parseRegExp = /^((-|\+)?(\d+(?:\.\d+)?)) *(kb|mb|gb|tb|pb)$/i;
 	/**
 	* Convert the given value in bytes into a string or parse to string to an integer in bytes.
 	*
@@ -1545,6 +1559,11 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*
 	* @returns {string|number|null}
 	*/
+	function bytes(value, options) {
+		if (typeof value === "string") return parse(value);
+		if (typeof value === "number") return format(value, options);
+		return null;
+	}
 	/**
 	* Format the given value in bytes into a string.
 	*
@@ -1562,35 +1581,6 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {string|null}
 	* @public
 	*/
-	/**
-	* Parse the string value into an integer in bytes.
-	*
-	* If no unit is given, it is assumed the value is in bytes.
-	*
-	* @param {number|string} val
-	*
-	* @returns {number|null}
-	* @public
-	*/
-	module.exports = bytes;
-	module.exports.format = format;
-	module.exports.parse = parse;
-	var formatThousandsRegExp = /\B(?=(\d{3})+(?!\d))/g;
-	var formatDecimalsRegExp = /(?:\.0*|(\.[^0]+)0+)$/;
-	var map = {
-		b: 1,
-		kb: 1024,
-		mb: 1 << 20,
-		gb: 1 << 30,
-		tb: Math.pow(1024, 4),
-		pb: Math.pow(1024, 5)
-	};
-	var parseRegExp = /^((-|\+)?(\d+(?:\.\d+)?)) *(kb|mb|gb|tb|pb)$/i;
-	function bytes(value, options) {
-		if (typeof value === "string") return parse(value);
-		if (typeof value === "number") return format(value, options);
-		return null;
-	}
 	function format(value, options) {
 		if (!Number.isFinite(value)) return null;
 		var mag = Math.abs(value);
@@ -1614,6 +1604,16 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}).join(".");
 		return str + unitSeparator + unit;
 	}
+	/**
+	* Parse the string value into an integer in bytes.
+	*
+	* If no unit is given, it is assumed the value is in bytes.
+	*
+	* @param {number|string} val
+	*
+	* @returns {number|null}
+	* @public
+	*/
 	function parse(val) {
 		if (typeof val === "number" && !isNaN(val)) return val;
 		if (typeof val !== "string") return null;
@@ -2594,451 +2594,451 @@ var require_sbcs_data = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = {
-		437: "cp437",
-		737: "cp737",
-		775: "cp775",
-		850: "cp850",
-		852: "cp852",
-		855: "cp855",
-		856: "cp856",
-		857: "cp857",
-		858: "cp858",
-		860: "cp860",
-		861: "cp861",
-		862: "cp862",
-		863: "cp863",
-		864: "cp864",
-		865: "cp865",
-		866: "cp866",
-		869: "cp869",
-		874: "windows874",
-		922: "cp922",
-		1046: "cp1046",
-		1124: "cp1124",
-		1125: "cp1125",
-		1129: "cp1129",
-		1133: "cp1133",
-		1161: "cp1161",
-		1162: "cp1162",
-		1163: "cp1163",
-		1250: "windows1250",
-		1251: "windows1251",
-		1252: "windows1252",
-		1253: "windows1253",
-		1254: "windows1254",
-		1255: "windows1255",
-		1256: "windows1256",
-		1257: "windows1257",
-		1258: "windows1258",
-		28591: "iso88591",
-		28592: "iso88592",
-		28593: "iso88593",
-		28594: "iso88594",
-		28595: "iso88595",
-		28596: "iso88596",
-		28597: "iso88597",
-		28598: "iso88598",
-		28599: "iso88599",
-		28600: "iso885910",
-		28601: "iso885911",
-		28603: "iso885913",
-		28604: "iso885914",
-		28605: "iso885915",
-		28606: "iso885916",
-		windows874: {
-			type: "_sbcs",
-			chars: "€����…�����������‘’“”•–—��������\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
-		},
-		win874: "windows874",
-		cp874: "windows874",
-		windows1250: {
-			type: "_sbcs",
-			chars: "€�‚�„…†‡�‰Š‹ŚŤŽŹ�‘’“”•–—�™š›śťžź\xA0ˇ˘Ł¤Ą¦§¨©Ş«¬­®Ż°±˛ł´µ¶·¸ąş»Ľ˝ľżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
-		},
-		win1250: "windows1250",
-		cp1250: "windows1250",
-		windows1251: {
-			type: "_sbcs",
-			chars: "ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–—�™љ›њќћџ\xA0ЎўЈ¤Ґ¦§Ё©Є«¬­®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
-		},
-		win1251: "windows1251",
-		cp1251: "windows1251",
-		windows1252: {
-			type: "_sbcs",
-			chars: "€�‚ƒ„…†‡ˆ‰Š‹Œ�Ž��‘’“”•–—˜™š›œ�žŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		win1252: "windows1252",
-		cp1252: "windows1252",
-		windows1253: {
-			type: "_sbcs",
-			chars: "€�‚ƒ„…†‡�‰�‹�����‘’“”•–—�™�›����\xA0΅Ά£¤¥¦§¨©�«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
-		},
-		win1253: "windows1253",
-		cp1253: "windows1253",
-		windows1254: {
-			type: "_sbcs",
-			chars: "€�‚ƒ„…†‡ˆ‰Š‹Œ����‘’“”•–—˜™š›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
-		},
-		win1254: "windows1254",
-		cp1254: "windows1254",
-		windows1255: {
-			type: "_sbcs",
-			chars: "€�‚ƒ„…†‡ˆ‰�‹�����‘’“”•–—˜™�›����\xA0¡¢£₪¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾¿ְֱֲֳִֵֶַָֹֺֻּֽ־ֿ׀ׁׂ׃װױײ׳״�������אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
-		},
-		win1255: "windows1255",
-		cp1255: "windows1255",
-		windows1256: {
-			type: "_sbcs",
-			chars: "€پ‚ƒ„…†‡ˆ‰ٹ‹Œچژڈگ‘’“”•–—ک™ڑ›œ‌‍ں\xA0،¢£¤¥¦§¨©ھ«¬­®¯°±²³´µ¶·¸¹؛»¼½¾؟ہءآأؤإئابةتثجحخدذرزسشصض×طظعغـفقكàلâمنهوçèéêëىيîïًٌٍَôُِ÷ّùْûü‎‏ے"
-		},
-		win1256: "windows1256",
-		cp1256: "windows1256",
-		windows1257: {
-			type: "_sbcs",
-			chars: "€�‚�„…†‡�‰�‹�¨ˇ¸�‘’“”•–—�™�›�¯˛�\xA0�¢£¤�¦§Ø©Ŗ«¬­®Æ°±²³´µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž˙"
-		},
-		win1257: "windows1257",
-		cp1257: "windows1257",
-		windows1258: {
-			type: "_sbcs",
-			chars: "€�‚ƒ„…†‡ˆ‰�‹Œ����‘’“”•–—˜™�›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
-		},
-		win1258: "windows1258",
-		cp1258: "windows1258",
-		iso88591: {
-			type: "_sbcs",
-			chars: "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		cp28591: "iso88591",
-		iso88592: {
-			type: "_sbcs",
-			chars: "\xA0Ą˘Ł¤ĽŚ§¨ŠŞŤŹ­ŽŻ°ą˛ł´ľśˇ¸šşťź˝žżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
-		},
-		cp28592: "iso88592",
-		iso88593: {
-			type: "_sbcs",
-			chars: "\xA0Ħ˘£¤�Ĥ§¨İŞĞĴ­�Ż°ħ²³´µĥ·¸ışğĵ½�żÀÁÂ�ÄĊĈÇÈÉÊËÌÍÎÏ�ÑÒÓÔĠÖ×ĜÙÚÛÜŬŜßàáâ�äċĉçèéêëìíîï�ñòóôġö÷ĝùúûüŭŝ˙"
-		},
-		cp28593: "iso88593",
-		iso88594: {
-			type: "_sbcs",
-			chars: "\xA0ĄĸŖ¤ĨĻ§¨ŠĒĢŦ­Ž¯°ą˛ŗ´ĩļˇ¸šēģŧŊžŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎĪĐŅŌĶÔÕÖ×ØŲÚÛÜŨŪßāáâãäåæįčéęëėíîīđņōķôõö÷øųúûüũū˙"
-		},
-		cp28594: "iso88594",
-		iso88595: {
-			type: "_sbcs",
-			chars: "\xA0ЁЂЃЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђѓєѕіїјљњћќ§ўџ"
-		},
-		cp28595: "iso88595",
-		iso88596: {
-			type: "_sbcs",
-			chars: "\xA0���¤�������،­�������������؛���؟�ءآأؤإئابةتثجحخدذرزسشصضطظعغ�����ـفقكلمنهوىيًٌٍَُِّْ�������������"
-		},
-		cp28596: "iso88596",
-		iso88597: {
-			type: "_sbcs",
-			chars: "\xA0‘’£€₯¦§¨©ͺ«¬­�―°±²³΄΅Ά·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
-		},
-		cp28597: "iso88597",
-		iso88598: {
-			type: "_sbcs",
-			chars: "\xA0�¢£¤¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾��������������������������������‗אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
-		},
-		cp28598: "iso88598",
-		iso88599: {
-			type: "_sbcs",
-			chars: "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
-		},
-		cp28599: "iso88599",
-		iso885910: {
-			type: "_sbcs",
-			chars: "\xA0ĄĒĢĪĨĶ§ĻĐŠŦŽ­ŪŊ°ąēģīĩķ·ļđšŧž―ūŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎÏÐŅŌÓÔÕÖŨØŲÚÛÜÝÞßāáâãäåæįčéęëėíîïðņōóôõöũøųúûüýþĸ"
-		},
-		cp28600: "iso885910",
-		iso885911: {
-			type: "_sbcs",
-			chars: "\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
-		},
-		cp28601: "iso885911",
-		iso885913: {
-			type: "_sbcs",
-			chars: "\xA0”¢£¤„¦§Ø©Ŗ«¬­®Æ°±²³“µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž’"
-		},
-		cp28603: "iso885913",
-		iso885914: {
-			type: "_sbcs",
-			chars: "\xA0Ḃḃ£ĊċḊ§Ẁ©ẂḋỲ­®ŸḞḟĠġṀṁ¶ṖẁṗẃṠỳẄẅṡÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŴÑÒÓÔÕÖṪØÙÚÛÜÝŶßàáâãäåæçèéêëìíîïŵñòóôõöṫøùúûüýŷÿ"
-		},
-		cp28604: "iso885914",
-		iso885915: {
-			type: "_sbcs",
-			chars: "\xA0¡¢£€¥Š§š©ª«¬­®¯°±²³Žµ¶·ž¹º»ŒœŸ¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		cp28605: "iso885915",
-		iso885916: {
-			type: "_sbcs",
-			chars: "\xA0ĄąŁ€„Š§š©Ș«Ź­źŻ°±ČłŽ”¶·žčș»ŒœŸżÀÁÂĂÄĆÆÇÈÉÊËÌÍÎÏĐŃÒÓÔŐÖŚŰÙÚÛÜĘȚßàáâăäćæçèéêëìíîïđńòóôőöśűùúûüęțÿ"
-		},
-		cp28606: "iso885916",
-		cp437: {
-			type: "_sbcs",
-			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm437: "cp437",
-		csibm437: "cp437",
-		cp737: {
-			type: "_sbcs",
-			chars: "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρσςτυφχψ░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀ωάέήϊίόύϋώΆΈΉΊΌΎΏ±≥≤ΪΫ÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm737: "cp737",
-		csibm737: "cp737",
-		cp775: {
-			type: "_sbcs",
-			chars: "ĆüéāäģåćłēŖŗīŹÄÅÉæÆōöĢ¢ŚśÖÜø£Ø×¤ĀĪóŻżź”¦©®¬½¼Ł«»░▒▓│┤ĄČĘĖ╣║╗╝ĮŠ┐└┴┬├─┼ŲŪ╚╔╩╦╠═╬Žąčęėįšųūž┘┌█▄▌▐▀ÓßŌŃõÕµńĶķĻļņĒŅ’­±“¾¶§÷„°∙·¹³²■\xA0"
-		},
-		ibm775: "cp775",
-		csibm775: "cp775",
-		cp850: {
-			type: "_sbcs",
-			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		ibm850: "cp850",
-		csibm850: "cp850",
-		cp852: {
-			type: "_sbcs",
-			chars: "ÇüéâäůćçłëŐőîŹÄĆÉĹĺôöĽľŚśÖÜŤťŁ×čáíóúĄąŽžĘę¬źČş«»░▒▓│┤ÁÂĚŞ╣║╗╝Żż┐└┴┬├─┼Ăă╚╔╩╦╠═╬¤đĐĎËďŇÍÎě┘┌█▄ŢŮ▀ÓßÔŃńňŠšŔÚŕŰýÝţ´­˝˛ˇ˘§÷¸°¨˙űŘř■\xA0"
-		},
-		ibm852: "cp852",
-		csibm852: "cp852",
-		cp855: {
-			type: "_sbcs",
-			chars: "ђЂѓЃёЁєЄѕЅіІїЇјЈљЉњЊћЋќЌўЎџЏюЮъЪаАбБцЦдДеЕфФгГ«»░▒▓│┤хХиИ╣║╗╝йЙ┐└┴┬├─┼кК╚╔╩╦╠═╬¤лЛмМнНоОп┘┌█▄Пя▀ЯрРсСтТуУжЖвВьЬ№­ыЫзЗшШэЭщЩчЧ§■\xA0"
-		},
-		ibm855: "cp855",
-		csibm855: "cp855",
-		cp856: {
-			type: "_sbcs",
-			chars: "אבגדהוזחטיךכלםמןנסעףפץצקרשת�£�×����������®¬½¼�«»░▒▓│┤���©╣║╗╝¢¥┐└┴┬├─┼��╚╔╩╦╠═╬¤���������┘┌█▄¦�▀������µ�������¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		ibm856: "cp856",
-		csibm856: "cp856",
-		cp857: {
-			type: "_sbcs",
-			chars: "ÇüéâäàåçêëèïîıÄÅÉæÆôöòûùİÖÜø£ØŞşáíóúñÑĞğ¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ºªÊËÈ�ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµ�×ÚÛÙìÿ¯´­±�¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		ibm857: "cp857",
-		csibm857: "cp857",
-		cp858: {
-			type: "_sbcs",
-			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈ€ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		ibm858: "cp858",
-		csibm858: "cp858",
-		cp860: {
-			type: "_sbcs",
-			chars: "ÇüéâãàÁçêÊèÍÔìÃÂÉÀÈôõòÚùÌÕÜ¢£Ù₧ÓáíóúñÑªº¿Ò¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm860: "cp860",
-		csibm860: "cp860",
-		cp861: {
-			type: "_sbcs",
-			chars: "ÇüéâäàåçêëèÐðÞÄÅÉæÆôöþûÝýÖÜø£Ø₧ƒáíóúÁÍÓÚ¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm861: "cp861",
-		csibm861: "cp861",
-		cp862: {
-			type: "_sbcs",
-			chars: "אבגדהוזחטיךכלםמןנסעףפץצקרשת¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm862: "cp862",
-		csibm862: "cp862",
-		cp863: {
-			type: "_sbcs",
-			chars: "ÇüéâÂà¶çêëèïî‗À§ÉÈÊôËÏûù¤ÔÜ¢£ÙÛƒ¦´óú¨¸³¯Î⌐¬½¼¾«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm863: "cp863",
-		csibm863: "cp863",
-		cp864: {
-			type: "_sbcs",
-			chars: "\0\x07\b	\n\v\f\r\x1B !\"#$٪&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°·∙√▒─│┼┤┬├┴┐┌└┘β∞φ±½¼≈«»ﻷﻸ��ﻻﻼ�\xA0­ﺂ£¤ﺄ��ﺎﺏﺕﺙ،ﺝﺡﺥ٠١٢٣٤٥٦٧٨٩ﻑ؛ﺱﺵﺹ؟¢ﺀﺁﺃﺅﻊﺋﺍﺑﺓﺗﺛﺟﺣﺧﺩﺫﺭﺯﺳﺷﺻﺿﻁﻅﻋﻏ¦¬÷×ﻉـﻓﻗﻛﻟﻣﻧﻫﻭﻯﻳﺽﻌﻎﻍﻡﹽّﻥﻩﻬﻰﻲﻐﻕﻵﻶﻝﻙﻱ■�"
-		},
-		ibm864: "cp864",
-		csibm864: "cp864",
-		cp865: {
-			type: "_sbcs",
-			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø₧ƒáíóúñÑªº¿⌐¬½¼¡«¤░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		ibm865: "cp865",
-		csibm865: "cp865",
-		cp866: {
-			type: "_sbcs",
-			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёЄєЇїЎў°∙·√№¤■\xA0"
-		},
-		ibm866: "cp866",
-		csibm866: "cp866",
-		cp869: {
-			type: "_sbcs",
-			chars: "������Ά�·¬¦‘’Έ―ΉΊΪΌ��ΎΫ©Ώ²³ά£έήίϊΐόύΑΒΓΔΕΖΗ½ΘΙ«»░▒▓│┤ΚΛΜΝ╣║╗╝ΞΟ┐└┴┬├─┼ΠΡ╚╔╩╦╠═╬ΣΤΥΦΧΨΩαβγ┘┌█▄δε▀ζηθικλμνξοπρσςτ΄­±υφχ§ψ΅°¨ωϋΰώ■\xA0"
-		},
-		ibm869: "cp869",
-		csibm869: "cp869",
-		cp922: {
-			type: "_sbcs",
-			chars: "\xA0¡¢£¤¥¦§¨©ª«¬­®‾°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŠÑÒÓÔÕÖ×ØÙÚÛÜÝŽßàáâãäåæçèéêëìíîïšñòóôõö÷øùúûüýžÿ"
-		},
-		ibm922: "cp922",
-		csibm922: "cp922",
-		cp1046: {
-			type: "_sbcs",
-			chars: "ﺈ×÷ﹱ■│─┐┌└┘ﹹﹻﹽﹿﹷﺊﻰﻳﻲﻎﻏﻐﻶﻸﻺﻼ\xA0¤ﺋﺑﺗﺛﺟﺣ،­ﺧﺳ٠١٢٣٤٥٦٧٨٩ﺷ؛ﺻﺿﻊ؟ﻋءآأؤإئابةتثجحخدذرزسشصضطﻇعغﻌﺂﺄﺎﻓـفقكلمنهوىيًٌٍَُِّْﻗﻛﻟﻵﻷﻹﻻﻣﻧﻬﻩ�"
-		},
-		ibm1046: "cp1046",
-		csibm1046: "cp1046",
-		cp1124: {
-			type: "_sbcs",
-			chars: "\xA0ЁЂҐЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђґєѕіїјљњћќ§ўџ"
-		},
-		ibm1124: "cp1124",
-		csibm1124: "cp1124",
-		cp1125: {
-			type: "_sbcs",
-			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёҐґЄєІіЇї·√№¤■\xA0"
-		},
-		ibm1125: "cp1125",
-		csibm1125: "cp1125",
-		cp1129: {
-			type: "_sbcs",
-			chars: "\xA0¡¢£¤¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
-		},
-		ibm1129: "cp1129",
-		csibm1129: "cp1129",
-		cp1133: {
-			type: "_sbcs",
-			chars: "\xA0ກຂຄງຈສຊຍດຕຖທນບປຜຝພຟມຢຣລວຫອຮ���ຯະາຳິີຶືຸູຼັົຽ���ເແໂໃໄ່້໊໋໌ໍໆ�ໜໝ₭����������������໐໑໒໓໔໕໖໗໘໙��¢¬¦�"
-		},
-		ibm1133: "cp1133",
-		csibm1133: "cp1133",
-		cp1161: {
-			type: "_sbcs",
-			chars: "��������������������������������่กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู้๊๋€฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛¢¬¦\xA0"
-		},
-		ibm1161: "cp1161",
-		csibm1161: "cp1161",
-		cp1162: {
-			type: "_sbcs",
-			chars: "€…‘’“”•–—\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
-		},
-		ibm1162: "cp1162",
-		csibm1162: "cp1162",
-		cp1163: {
-			type: "_sbcs",
-			chars: "\xA0¡¢£€¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
-		},
-		ibm1163: "cp1163",
-		csibm1163: "cp1163",
-		maccroatian: {
-			type: "_sbcs",
-			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®Š™´¨≠ŽØ∞±≤≥∆µ∂∑∏š∫ªºΩžø¿¡¬√ƒ≈Ć«Č…\xA0ÀÃÕŒœĐ—“”‘’÷◊�©⁄¤‹›Æ»–·‚„‰ÂćÁčÈÍÎÏÌÓÔđÒÚÛÙıˆ˜¯πË˚¸Êæˇ"
-		},
-		maccyrillic: {
-			type: "_sbcs",
-			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°¢£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµ∂ЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
-		},
-		macgreek: {
-			type: "_sbcs",
-			chars: "Ä¹²É³ÖÜ΅àâä΄¨çéèêë£™îï•½‰ôö¦­ùûü†ΓΔΘΛΞΠß®©ΣΪ§≠°·Α±≤≥¥ΒΕΖΗΙΚΜΦΫΨΩάΝ¬ΟΡ≈Τ«»…\xA0ΥΧΆΈœ–―“”‘’÷ΉΊΌΎέήίόΏύαβψδεφγηιξκλμνοπώρστθωςχυζϊϋΐΰ�"
-		},
-		maciceland: {
-			type: "_sbcs",
-			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûüÝ°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤ÐðÞþý·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		macroman: {
-			type: "_sbcs",
-			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		macromania: {
-			type: "_sbcs",
-			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ĂŞ∞±≤≥¥µ∂∑∏π∫ªºΩăş¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›Ţţ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		macthai: {
-			type: "_sbcs",
-			chars: "«»…“”�•‘’�\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู﻿​–—฿เแโใไๅๆ็่้๊๋์ํ™๏๐๑๒๓๔๕๖๗๘๙®©����"
-		},
-		macturkish: {
-			type: "_sbcs",
-			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸĞğİıŞş‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙ�ˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		macukraine: {
-			type: "_sbcs",
-			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°Ґ£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµґЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
-		},
-		koi8r: {
-			type: "_sbcs",
-			chars: "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ё╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡Ё╢╣╤╥╦╧╨╩╪╫╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		koi8u: {
-			type: "_sbcs",
-			chars: "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґ╝╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪Ґ╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		koi8ru: {
-			type: "_sbcs",
-			chars: "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґў╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪ҐЎ©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		koi8t: {
-			type: "_sbcs",
-			chars: "қғ‚Ғ„…†‡�‰ҳ‹ҲҷҶ�Қ‘’“”•–—�™�›�����ӯӮё¤ӣ¦§���«¬­®�°±²Ё�Ӣ¶·�№�»���©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		armscii8: {
-			type: "_sbcs",
-			chars: "\xA0�և։)(»«—.՝,-֊…՜՛՞ԱաԲբԳգԴդԵեԶզԷէԸըԹթԺժԻիԼլԽխԾծԿկՀհՁձՂղՃճՄմՅյՆնՇշՈոՉչՊպՋջՌռՍսՎվՏտՐրՑցՒւՓփՔքՕօՖֆ՚�"
-		},
-		rk1048: {
-			type: "_sbcs",
-			chars: "ЂЃ‚ѓ„…†‡€‰Љ‹ЊҚҺЏђ‘’“”•–—�™љ›њқһџ\xA0ҰұӘ¤Ө¦§Ё©Ғ«¬­®Ү°±Ііөµ¶·ё№ғ»әҢңүАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
-		},
-		tcvn: {
-			type: "_sbcs",
-			chars: "\0ÚỤỪỬỮ\x07\b	\n\v\f\rỨỰỲỶỸÝỴ\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÀẢÃÁẠẶẬÈẺẼÉẸỆÌỈĨÍỊÒỎÕÓỌỘỜỞỠỚỢÙỦŨ\xA0ĂÂÊÔƠƯĐăâêôơưđẶ̀̀̉̃́àảãáạẲằẳẵắẴẮẦẨẪẤỀặầẩẫấậèỂẻẽéẹềểễếệìỉỄẾỒĩíịòỔỏõóọồổỗốộờởỡớợùỖủũúụừửữứựỳỷỹýỵỐ"
-		},
-		georgianacademy: {
-			type: "_sbcs",
-			chars: "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰჱჲჳჴჵჶçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		georgianps: {
-			type: "_sbcs",
-			chars: "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზჱთიკლმნჲოპჟრსტჳუფქღყშჩცძწჭხჴჯჰჵæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		pt154: {
-			type: "_sbcs",
-			chars: "ҖҒӮғ„…ҶҮҲүҠӢҢҚҺҸҗ‘’“”•–—ҳҷҡӣңқһҹ\xA0ЎўЈӨҘҰ§Ё©Ә«¬ӯ®Ҝ°ұІіҙө¶·ё№ә»јҪҫҝАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
-		},
-		viscii: {
-			type: "_sbcs",
-			chars: "\0ẲẴẪ\x07\b	\n\v\f\rỶỸ\x1BỴ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ẠẮẰẶẤẦẨẬẼẸẾỀỂỄỆỐỒỔỖỘỢỚỜỞỊỎỌỈỦŨỤỲÕắằặấầẩậẽẹếềểễệốồổỗỠƠộờởịỰỨỪỬơớƯÀÁÂÃẢĂẳẵÈÉÊẺÌÍĨỳĐứÒÓÔạỷừửÙÚỹỵÝỡưàáâãảăữẫèéêẻìíĩỉđựòóôõỏọụùúũủýợỮ"
-		},
-		iso646cn: {
-			type: "_sbcs",
-			chars: "\0\x07\b	\n\v\f\r\x1B !\"#¥%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
-		},
-		iso646jp: {
-			type: "_sbcs",
-			chars: "\0\x07\b	\n\v\f\r\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
-		},
-		hproman8: {
-			type: "_sbcs",
-			chars: "\xA0ÀÂÈÊËÎÏ´ˋˆ¨˜ÙÛ₤¯Ýý°ÇçÑñ¡¿¤£¥§ƒ¢âêôûáéóúàèòùäëöüÅîØÆåíøæÄìÖÜÉïßÔÁÃãÐðÍÌÓÒÕõŠšÚŸÿÞþ·µ¶¾—¼½ªº«■»±�"
-		},
-		macintosh: {
-			type: "_sbcs",
-			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		ascii: {
-			type: "_sbcs",
-			chars: "��������������������������������������������������������������������������������������������������������������������������������"
-		},
-		tis620: {
-			type: "_sbcs",
-			chars: "���������������������������������กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		"437": "cp437",
+		"737": "cp737",
+		"775": "cp775",
+		"850": "cp850",
+		"852": "cp852",
+		"855": "cp855",
+		"856": "cp856",
+		"857": "cp857",
+		"858": "cp858",
+		"860": "cp860",
+		"861": "cp861",
+		"862": "cp862",
+		"863": "cp863",
+		"864": "cp864",
+		"865": "cp865",
+		"866": "cp866",
+		"869": "cp869",
+		"874": "windows874",
+		"922": "cp922",
+		"1046": "cp1046",
+		"1124": "cp1124",
+		"1125": "cp1125",
+		"1129": "cp1129",
+		"1133": "cp1133",
+		"1161": "cp1161",
+		"1162": "cp1162",
+		"1163": "cp1163",
+		"1250": "windows1250",
+		"1251": "windows1251",
+		"1252": "windows1252",
+		"1253": "windows1253",
+		"1254": "windows1254",
+		"1255": "windows1255",
+		"1256": "windows1256",
+		"1257": "windows1257",
+		"1258": "windows1258",
+		"28591": "iso88591",
+		"28592": "iso88592",
+		"28593": "iso88593",
+		"28594": "iso88594",
+		"28595": "iso88595",
+		"28596": "iso88596",
+		"28597": "iso88597",
+		"28598": "iso88598",
+		"28599": "iso88599",
+		"28600": "iso885910",
+		"28601": "iso885911",
+		"28603": "iso885913",
+		"28604": "iso885914",
+		"28605": "iso885915",
+		"28606": "iso885916",
+		"windows874": {
+			"type": "_sbcs",
+			"chars": "€����…�����������‘’“”•–—��������\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		},
+		"win874": "windows874",
+		"cp874": "windows874",
+		"windows1250": {
+			"type": "_sbcs",
+			"chars": "€�‚�„…†‡�‰Š‹ŚŤŽŹ�‘’“”•–—�™š›śťžź\xA0ˇ˘Ł¤Ą¦§¨©Ş«¬­®Ż°±˛ł´µ¶·¸ąş»Ľ˝ľżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
+		},
+		"win1250": "windows1250",
+		"cp1250": "windows1250",
+		"windows1251": {
+			"type": "_sbcs",
+			"chars": "ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–—�™љ›њќћџ\xA0ЎўЈ¤Ґ¦§Ё©Є«¬­®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
+		},
+		"win1251": "windows1251",
+		"cp1251": "windows1251",
+		"windows1252": {
+			"type": "_sbcs",
+			"chars": "€�‚ƒ„…†‡ˆ‰Š‹Œ�Ž��‘’“”•–—˜™š›œ�žŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		"win1252": "windows1252",
+		"cp1252": "windows1252",
+		"windows1253": {
+			"type": "_sbcs",
+			"chars": "€�‚ƒ„…†‡�‰�‹�����‘’“”•–—�™�›����\xA0΅Ά£¤¥¦§¨©�«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
+		},
+		"win1253": "windows1253",
+		"cp1253": "windows1253",
+		"windows1254": {
+			"type": "_sbcs",
+			"chars": "€�‚ƒ„…†‡ˆ‰Š‹Œ����‘’“”•–—˜™š›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
+		},
+		"win1254": "windows1254",
+		"cp1254": "windows1254",
+		"windows1255": {
+			"type": "_sbcs",
+			"chars": "€�‚ƒ„…†‡ˆ‰�‹�����‘’“”•–—˜™�›����\xA0¡¢£₪¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾¿ְֱֲֳִֵֶַָֹֺֻּֽ־ֿ׀ׁׂ׃װױײ׳״�������אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
+		},
+		"win1255": "windows1255",
+		"cp1255": "windows1255",
+		"windows1256": {
+			"type": "_sbcs",
+			"chars": "€پ‚ƒ„…†‡ˆ‰ٹ‹Œچژڈگ‘’“”•–—ک™ڑ›œ‌‍ں\xA0،¢£¤¥¦§¨©ھ«¬­®¯°±²³´µ¶·¸¹؛»¼½¾؟ہءآأؤإئابةتثجحخدذرزسشصض×طظعغـفقكàلâمنهوçèéêëىيîïًٌٍَôُِ÷ّùْûü‎‏ے"
+		},
+		"win1256": "windows1256",
+		"cp1256": "windows1256",
+		"windows1257": {
+			"type": "_sbcs",
+			"chars": "€�‚�„…†‡�‰�‹�¨ˇ¸�‘’“”•–—�™�›�¯˛�\xA0�¢£¤�¦§Ø©Ŗ«¬­®Æ°±²³´µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž˙"
+		},
+		"win1257": "windows1257",
+		"cp1257": "windows1257",
+		"windows1258": {
+			"type": "_sbcs",
+			"chars": "€�‚ƒ„…†‡ˆ‰�‹Œ����‘’“”•–—˜™�›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
+		},
+		"win1258": "windows1258",
+		"cp1258": "windows1258",
+		"iso88591": {
+			"type": "_sbcs",
+			"chars": "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		"cp28591": "iso88591",
+		"iso88592": {
+			"type": "_sbcs",
+			"chars": "\xA0Ą˘Ł¤ĽŚ§¨ŠŞŤŹ­ŽŻ°ą˛ł´ľśˇ¸šşťź˝žżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
+		},
+		"cp28592": "iso88592",
+		"iso88593": {
+			"type": "_sbcs",
+			"chars": "\xA0Ħ˘£¤�Ĥ§¨İŞĞĴ­�Ż°ħ²³´µĥ·¸ışğĵ½�żÀÁÂ�ÄĊĈÇÈÉÊËÌÍÎÏ�ÑÒÓÔĠÖ×ĜÙÚÛÜŬŜßàáâ�äċĉçèéêëìíîï�ñòóôġö÷ĝùúûüŭŝ˙"
+		},
+		"cp28593": "iso88593",
+		"iso88594": {
+			"type": "_sbcs",
+			"chars": "\xA0ĄĸŖ¤ĨĻ§¨ŠĒĢŦ­Ž¯°ą˛ŗ´ĩļˇ¸šēģŧŊžŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎĪĐŅŌĶÔÕÖ×ØŲÚÛÜŨŪßāáâãäåæįčéęëėíîīđņōķôõö÷øųúûüũū˙"
+		},
+		"cp28594": "iso88594",
+		"iso88595": {
+			"type": "_sbcs",
+			"chars": "\xA0ЁЂЃЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђѓєѕіїјљњћќ§ўџ"
+		},
+		"cp28595": "iso88595",
+		"iso88596": {
+			"type": "_sbcs",
+			"chars": "\xA0���¤�������،­�������������؛���؟�ءآأؤإئابةتثجحخدذرزسشصضطظعغ�����ـفقكلمنهوىيًٌٍَُِّْ�������������"
+		},
+		"cp28596": "iso88596",
+		"iso88597": {
+			"type": "_sbcs",
+			"chars": "\xA0‘’£€₯¦§¨©ͺ«¬­�―°±²³΄΅Ά·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
+		},
+		"cp28597": "iso88597",
+		"iso88598": {
+			"type": "_sbcs",
+			"chars": "\xA0�¢£¤¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾��������������������������������‗אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
+		},
+		"cp28598": "iso88598",
+		"iso88599": {
+			"type": "_sbcs",
+			"chars": "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
+		},
+		"cp28599": "iso88599",
+		"iso885910": {
+			"type": "_sbcs",
+			"chars": "\xA0ĄĒĢĪĨĶ§ĻĐŠŦŽ­ŪŊ°ąēģīĩķ·ļđšŧž―ūŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎÏÐŅŌÓÔÕÖŨØŲÚÛÜÝÞßāáâãäåæįčéęëėíîïðņōóôõöũøųúûüýþĸ"
+		},
+		"cp28600": "iso885910",
+		"iso885911": {
+			"type": "_sbcs",
+			"chars": "\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		},
+		"cp28601": "iso885911",
+		"iso885913": {
+			"type": "_sbcs",
+			"chars": "\xA0”¢£¤„¦§Ø©Ŗ«¬­®Æ°±²³“µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž’"
+		},
+		"cp28603": "iso885913",
+		"iso885914": {
+			"type": "_sbcs",
+			"chars": "\xA0Ḃḃ£ĊċḊ§Ẁ©ẂḋỲ­®ŸḞḟĠġṀṁ¶ṖẁṗẃṠỳẄẅṡÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŴÑÒÓÔÕÖṪØÙÚÛÜÝŶßàáâãäåæçèéêëìíîïŵñòóôõöṫøùúûüýŷÿ"
+		},
+		"cp28604": "iso885914",
+		"iso885915": {
+			"type": "_sbcs",
+			"chars": "\xA0¡¢£€¥Š§š©ª«¬­®¯°±²³Žµ¶·ž¹º»ŒœŸ¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		"cp28605": "iso885915",
+		"iso885916": {
+			"type": "_sbcs",
+			"chars": "\xA0ĄąŁ€„Š§š©Ș«Ź­źŻ°±ČłŽ”¶·žčș»ŒœŸżÀÁÂĂÄĆÆÇÈÉÊËÌÍÎÏĐŃÒÓÔŐÖŚŰÙÚÛÜĘȚßàáâăäćæçèéêëìíîïđńòóôőöśűùúûüęțÿ"
+		},
+		"cp28606": "iso885916",
+		"cp437": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm437": "cp437",
+		"csibm437": "cp437",
+		"cp737": {
+			"type": "_sbcs",
+			"chars": "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρσςτυφχψ░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀ωάέήϊίόύϋώΆΈΉΊΌΎΏ±≥≤ΪΫ÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm737": "cp737",
+		"csibm737": "cp737",
+		"cp775": {
+			"type": "_sbcs",
+			"chars": "ĆüéāäģåćłēŖŗīŹÄÅÉæÆōöĢ¢ŚśÖÜø£Ø×¤ĀĪóŻżź”¦©®¬½¼Ł«»░▒▓│┤ĄČĘĖ╣║╗╝ĮŠ┐└┴┬├─┼ŲŪ╚╔╩╦╠═╬Žąčęėįšųūž┘┌█▄▌▐▀ÓßŌŃõÕµńĶķĻļņĒŅ’­±“¾¶§÷„°∙·¹³²■\xA0"
+		},
+		"ibm775": "cp775",
+		"csibm775": "cp775",
+		"cp850": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		"ibm850": "cp850",
+		"csibm850": "cp850",
+		"cp852": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäůćçłëŐőîŹÄĆÉĹĺôöĽľŚśÖÜŤťŁ×čáíóúĄąŽžĘę¬źČş«»░▒▓│┤ÁÂĚŞ╣║╗╝Żż┐└┴┬├─┼Ăă╚╔╩╦╠═╬¤đĐĎËďŇÍÎě┘┌█▄ŢŮ▀ÓßÔŃńňŠšŔÚŕŰýÝţ´­˝˛ˇ˘§÷¸°¨˙űŘř■\xA0"
+		},
+		"ibm852": "cp852",
+		"csibm852": "cp852",
+		"cp855": {
+			"type": "_sbcs",
+			"chars": "ђЂѓЃёЁєЄѕЅіІїЇјЈљЉњЊћЋќЌўЎџЏюЮъЪаАбБцЦдДеЕфФгГ«»░▒▓│┤хХиИ╣║╗╝йЙ┐└┴┬├─┼кК╚╔╩╦╠═╬¤лЛмМнНоОп┘┌█▄Пя▀ЯрРсСтТуУжЖвВьЬ№­ыЫзЗшШэЭщЩчЧ§■\xA0"
+		},
+		"ibm855": "cp855",
+		"csibm855": "cp855",
+		"cp856": {
+			"type": "_sbcs",
+			"chars": "אבגדהוזחטיךכלםמןנסעףפץצקרשת�£�×����������®¬½¼�«»░▒▓│┤���©╣║╗╝¢¥┐└┴┬├─┼��╚╔╩╦╠═╬¤���������┘┌█▄¦�▀������µ�������¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		"ibm856": "cp856",
+		"csibm856": "cp856",
+		"cp857": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäàåçêëèïîıÄÅÉæÆôöòûùİÖÜø£ØŞşáíóúñÑĞğ¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ºªÊËÈ�ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµ�×ÚÛÙìÿ¯´­±�¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		"ibm857": "cp857",
+		"csibm857": "cp857",
+		"cp858": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈ€ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		"ibm858": "cp858",
+		"csibm858": "cp858",
+		"cp860": {
+			"type": "_sbcs",
+			"chars": "ÇüéâãàÁçêÊèÍÔìÃÂÉÀÈôõòÚùÌÕÜ¢£Ù₧ÓáíóúñÑªº¿Ò¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm860": "cp860",
+		"csibm860": "cp860",
+		"cp861": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäàåçêëèÐðÞÄÅÉæÆôöþûÝýÖÜø£Ø₧ƒáíóúÁÍÓÚ¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm861": "cp861",
+		"csibm861": "cp861",
+		"cp862": {
+			"type": "_sbcs",
+			"chars": "אבגדהוזחטיךכלםמןנסעףפץצקרשת¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm862": "cp862",
+		"csibm862": "cp862",
+		"cp863": {
+			"type": "_sbcs",
+			"chars": "ÇüéâÂà¶çêëèïî‗À§ÉÈÊôËÏûù¤ÔÜ¢£ÙÛƒ¦´óú¨¸³¯Î⌐¬½¼¾«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm863": "cp863",
+		"csibm863": "cp863",
+		"cp864": {
+			"type": "_sbcs",
+			"chars": "\0\x07\b	\n\v\f\r\x1B !\"#$٪&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°·∙√▒─│┼┤┬├┴┐┌└┘β∞φ±½¼≈«»ﻷﻸ��ﻻﻼ�\xA0­ﺂ£¤ﺄ��ﺎﺏﺕﺙ،ﺝﺡﺥ٠١٢٣٤٥٦٧٨٩ﻑ؛ﺱﺵﺹ؟¢ﺀﺁﺃﺅﻊﺋﺍﺑﺓﺗﺛﺟﺣﺧﺩﺫﺭﺯﺳﺷﺻﺿﻁﻅﻋﻏ¦¬÷×ﻉـﻓﻗﻛﻟﻣﻧﻫﻭﻯﻳﺽﻌﻎﻍﻡﹽّﻥﻩﻬﻰﻲﻐﻕﻵﻶﻝﻙﻱ■�"
+		},
+		"ibm864": "cp864",
+		"csibm864": "cp864",
+		"cp865": {
+			"type": "_sbcs",
+			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø₧ƒáíóúñÑªº¿⌐¬½¼¡«¤░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		"ibm865": "cp865",
+		"csibm865": "cp865",
+		"cp866": {
+			"type": "_sbcs",
+			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёЄєЇїЎў°∙·√№¤■\xA0"
+		},
+		"ibm866": "cp866",
+		"csibm866": "cp866",
+		"cp869": {
+			"type": "_sbcs",
+			"chars": "������Ά�·¬¦‘’Έ―ΉΊΪΌ��ΎΫ©Ώ²³ά£έήίϊΐόύΑΒΓΔΕΖΗ½ΘΙ«»░▒▓│┤ΚΛΜΝ╣║╗╝ΞΟ┐└┴┬├─┼ΠΡ╚╔╩╦╠═╬ΣΤΥΦΧΨΩαβγ┘┌█▄δε▀ζηθικλμνξοπρσςτ΄­±υφχ§ψ΅°¨ωϋΰώ■\xA0"
+		},
+		"ibm869": "cp869",
+		"csibm869": "cp869",
+		"cp922": {
+			"type": "_sbcs",
+			"chars": "\xA0¡¢£¤¥¦§¨©ª«¬­®‾°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŠÑÒÓÔÕÖ×ØÙÚÛÜÝŽßàáâãäåæçèéêëìíîïšñòóôõö÷øùúûüýžÿ"
+		},
+		"ibm922": "cp922",
+		"csibm922": "cp922",
+		"cp1046": {
+			"type": "_sbcs",
+			"chars": "ﺈ×÷ﹱ■│─┐┌└┘ﹹﹻﹽﹿﹷﺊﻰﻳﻲﻎﻏﻐﻶﻸﻺﻼ\xA0¤ﺋﺑﺗﺛﺟﺣ،­ﺧﺳ٠١٢٣٤٥٦٧٨٩ﺷ؛ﺻﺿﻊ؟ﻋءآأؤإئابةتثجحخدذرزسشصضطﻇعغﻌﺂﺄﺎﻓـفقكلمنهوىيًٌٍَُِّْﻗﻛﻟﻵﻷﻹﻻﻣﻧﻬﻩ�"
+		},
+		"ibm1046": "cp1046",
+		"csibm1046": "cp1046",
+		"cp1124": {
+			"type": "_sbcs",
+			"chars": "\xA0ЁЂҐЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђґєѕіїјљњћќ§ўџ"
+		},
+		"ibm1124": "cp1124",
+		"csibm1124": "cp1124",
+		"cp1125": {
+			"type": "_sbcs",
+			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёҐґЄєІіЇї·√№¤■\xA0"
+		},
+		"ibm1125": "cp1125",
+		"csibm1125": "cp1125",
+		"cp1129": {
+			"type": "_sbcs",
+			"chars": "\xA0¡¢£¤¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
+		},
+		"ibm1129": "cp1129",
+		"csibm1129": "cp1129",
+		"cp1133": {
+			"type": "_sbcs",
+			"chars": "\xA0ກຂຄງຈສຊຍດຕຖທນບປຜຝພຟມຢຣລວຫອຮ���ຯະາຳິີຶືຸູຼັົຽ���ເແໂໃໄ່້໊໋໌ໍໆ�ໜໝ₭����������������໐໑໒໓໔໕໖໗໘໙��¢¬¦�"
+		},
+		"ibm1133": "cp1133",
+		"csibm1133": "cp1133",
+		"cp1161": {
+			"type": "_sbcs",
+			"chars": "��������������������������������่กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู้๊๋€฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛¢¬¦\xA0"
+		},
+		"ibm1161": "cp1161",
+		"csibm1161": "cp1161",
+		"cp1162": {
+			"type": "_sbcs",
+			"chars": "€…‘’“”•–—\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		},
+		"ibm1162": "cp1162",
+		"csibm1162": "cp1162",
+		"cp1163": {
+			"type": "_sbcs",
+			"chars": "\xA0¡¢£€¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
+		},
+		"ibm1163": "cp1163",
+		"csibm1163": "cp1163",
+		"maccroatian": {
+			"type": "_sbcs",
+			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®Š™´¨≠ŽØ∞±≤≥∆µ∂∑∏š∫ªºΩžø¿¡¬√ƒ≈Ć«Č…\xA0ÀÃÕŒœĐ—“”‘’÷◊�©⁄¤‹›Æ»–·‚„‰ÂćÁčÈÍÎÏÌÓÔđÒÚÛÙıˆ˜¯πË˚¸Êæˇ"
+		},
+		"maccyrillic": {
+			"type": "_sbcs",
+			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°¢£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµ∂ЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
+		},
+		"macgreek": {
+			"type": "_sbcs",
+			"chars": "Ä¹²É³ÖÜ΅àâä΄¨çéèêë£™îï•½‰ôö¦­ùûü†ΓΔΘΛΞΠß®©ΣΪ§≠°·Α±≤≥¥ΒΕΖΗΙΚΜΦΫΨΩάΝ¬ΟΡ≈Τ«»…\xA0ΥΧΆΈœ–―“”‘’÷ΉΊΌΎέήίόΏύαβψδεφγηιξκλμνοπώρστθωςχυζϊϋΐΰ�"
+		},
+		"maciceland": {
+			"type": "_sbcs",
+			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûüÝ°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤ÐðÞþý·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		"macroman": {
+			"type": "_sbcs",
+			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		"macromania": {
+			"type": "_sbcs",
+			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ĂŞ∞±≤≥¥µ∂∑∏π∫ªºΩăş¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›Ţţ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		"macthai": {
+			"type": "_sbcs",
+			"chars": "«»…“”�•‘’�\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู﻿​–—฿เแโใไๅๆ็่้๊๋์ํ™๏๐๑๒๓๔๕๖๗๘๙®©����"
+		},
+		"macturkish": {
+			"type": "_sbcs",
+			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸĞğİıŞş‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙ�ˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		"macukraine": {
+			"type": "_sbcs",
+			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°Ґ£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµґЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
+		},
+		"koi8r": {
+			"type": "_sbcs",
+			"chars": "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ё╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡Ё╢╣╤╥╦╧╨╩╪╫╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		"koi8u": {
+			"type": "_sbcs",
+			"chars": "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґ╝╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪Ґ╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		"koi8ru": {
+			"type": "_sbcs",
+			"chars": "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґў╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪ҐЎ©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		"koi8t": {
+			"type": "_sbcs",
+			"chars": "қғ‚Ғ„…†‡�‰ҳ‹ҲҷҶ�Қ‘’“”•–—�™�›�����ӯӮё¤ӣ¦§���«¬­®�°±²Ё�Ӣ¶·�№�»���©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		"armscii8": {
+			"type": "_sbcs",
+			"chars": "\xA0�և։)(»«—.՝,-֊…՜՛՞ԱաԲբԳգԴդԵեԶզԷէԸըԹթԺժԻիԼլԽխԾծԿկՀհՁձՂղՃճՄմՅյՆնՇշՈոՉչՊպՋջՌռՍսՎվՏտՐրՑցՒւՓփՔքՕօՖֆ՚�"
+		},
+		"rk1048": {
+			"type": "_sbcs",
+			"chars": "ЂЃ‚ѓ„…†‡€‰Љ‹ЊҚҺЏђ‘’“”•–—�™љ›њқһџ\xA0ҰұӘ¤Ө¦§Ё©Ғ«¬­®Ү°±Ііөµ¶·ё№ғ»әҢңүАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
+		},
+		"tcvn": {
+			"type": "_sbcs",
+			"chars": "\0ÚỤỪỬỮ\x07\b	\n\v\f\rỨỰỲỶỸÝỴ\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÀẢÃÁẠẶẬÈẺẼÉẸỆÌỈĨÍỊÒỎÕÓỌỘỜỞỠỚỢÙỦŨ\xA0ĂÂÊÔƠƯĐăâêôơưđẶ̀̀̉̃́àảãáạẲằẳẵắẴẮẦẨẪẤỀặầẩẫấậèỂẻẽéẹềểễếệìỉỄẾỒĩíịòỔỏõóọồổỗốộờởỡớợùỖủũúụừửữứựỳỷỹýỵỐ"
+		},
+		"georgianacademy": {
+			"type": "_sbcs",
+			"chars": "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰჱჲჳჴჵჶçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		"georgianps": {
+			"type": "_sbcs",
+			"chars": "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზჱთიკლმნჲოპჟრსტჳუფქღყშჩცძწჭხჴჯჰჵæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		"pt154": {
+			"type": "_sbcs",
+			"chars": "ҖҒӮғ„…ҶҮҲүҠӢҢҚҺҸҗ‘’“”•–—ҳҷҡӣңқһҹ\xA0ЎўЈӨҘҰ§Ё©Ә«¬ӯ®Ҝ°ұІіҙө¶·ё№ә»јҪҫҝАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
+		},
+		"viscii": {
+			"type": "_sbcs",
+			"chars": "\0ẲẴẪ\x07\b	\n\v\f\rỶỸ\x1BỴ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ẠẮẰẶẤẦẨẬẼẸẾỀỂỄỆỐỒỔỖỘỢỚỜỞỊỎỌỈỦŨỤỲÕắằặấầẩậẽẹếềểễệốồổỗỠƠộờởịỰỨỪỬơớƯÀÁÂÃẢĂẳẵÈÉÊẺÌÍĨỳĐứÒÓÔạỷừửÙÚỹỵÝỡưàáâãảăữẫèéêẻìíĩỉđựòóôõỏọụùúũủýợỮ"
+		},
+		"iso646cn": {
+			"type": "_sbcs",
+			"chars": "\0\x07\b	\n\v\f\r\x1B !\"#¥%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
+		},
+		"iso646jp": {
+			"type": "_sbcs",
+			"chars": "\0\x07\b	\n\v\f\r\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
+		},
+		"hproman8": {
+			"type": "_sbcs",
+			"chars": "\xA0ÀÂÈÊËÎÏ´ˋˆ¨˜ÙÛ₤¯Ýý°ÇçÑñ¡¿¤£¥§ƒ¢âêôûáéóúàèòùäëöüÅîØÆåíøæÄìÖÜÉïßÔÁÃãÐðÍÌÓÒÕõŠšÚŸÿÞþ·µ¶¾—¼½ªº«■»±�"
+		},
+		"macintosh": {
+			"type": "_sbcs",
+			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		"ascii": {
+			"type": "_sbcs",
+			"chars": "��������������������������������������������������������������������������������������������������������������������������������"
+		},
+		"tis620": {
+			"type": "_sbcs",
+			"chars": "���������������������������������กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
 		}
 	};
 }));
@@ -10360,22 +10360,22 @@ var require_unpipe = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = unpipe;
 	/**
 	* Determine if there are Node.js pipe-like data listeners.
 	* @private
 	*/
+	function hasPipeDataListeners(stream) {
+		var listeners = stream.listeners("data");
+		for (var i = 0; i < listeners.length; i++) if (listeners[i].name === "ondata") return true;
+		return false;
+	}
 	/**
 	* Unpipe a stream from all destinations.
 	*
 	* @param {object} stream
 	* @public
 	*/
-	module.exports = unpipe;
-	function hasPipeDataListeners(stream) {
-		var listeners = stream.listeners("data");
-		for (var i = 0; i < listeners.length; i++) if (listeners[i].name === "ondata") return true;
-		return false;
-	}
 	function unpipe(stream) {
 		if (!stream) throw new TypeError("argument stream is required");
 		if (typeof stream.unpipe === "function") {
@@ -10405,60 +10405,27 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var asyncHooks = tryRequireAsyncHooks();
+	var bytes = require_bytes();
+	var createError = require_http_errors();
+	var iconv = require_lib$4();
+	var unpipe = require_unpipe();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = getRawBody;
 	/**
 	* Module variables.
 	* @private
 	*/
+	var ICONV_ENCODING_MESSAGE_REGEXP = /^Encoding not recognized: /;
 	/**
 	* Get the decoder for a given encoding.
 	*
 	* @param {string} encoding
 	* @private
 	*/
-	/**
-	* Get the raw body of a stream (typically HTTP).
-	*
-	* @param {object} stream
-	* @param {object|string|function} [options]
-	* @param {function} [callback]
-	* @public
-	*/
-	/**
-	* Halt a stream.
-	*
-	* @param {Object} stream
-	* @private
-	*/
-	/**
-	* Read the data from the stream.
-	*
-	* @param {object} stream
-	* @param {string} encoding
-	* @param {number} length
-	* @param {number} limit
-	* @param {function} callback
-	* @public
-	*/
-	/**
-	* Try to require async_hooks
-	* @private
-	*/
-	/**
-	* Wrap function with async resource, if possible.
-	* AsyncResource.bind static method backported.
-	* @private
-	*/
-	var asyncHooks = tryRequireAsyncHooks();
-	var bytes = require_bytes();
-	var createError = require_http_errors();
-	var iconv = require_lib$4();
-	var unpipe = require_unpipe();
-	module.exports = getRawBody;
-	var ICONV_ENCODING_MESSAGE_REGEXP = /^Encoding not recognized: /;
 	function getDecoder(encoding) {
 		if (!encoding) return null;
 		try {
@@ -10471,6 +10438,14 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	}
+	/**
+	* Get the raw body of a stream (typically HTTP).
+	*
+	* @param {object} stream
+	* @param {object|string|function} [options]
+	* @param {function} [callback]
+	* @public
+	*/
 	function getRawBody(stream, options, callback) {
 		var done = callback;
 		var opts = options || {};
@@ -10494,10 +10469,26 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		});
 	}
+	/**
+	* Halt a stream.
+	*
+	* @param {Object} stream
+	* @private
+	*/
 	function halt(stream) {
 		unpipe(stream);
 		if (typeof stream.pause === "function") stream.pause();
 	}
+	/**
+	* Read the data from the stream.
+	*
+	* @param {object} stream
+	* @param {string} encoding
+	* @param {number} length
+	* @param {number} limit
+	* @param {function} callback
+	* @public
+	*/
 	function readStream(stream, encoding, length, limit, callback) {
 		var complete = false;
 		var sync = true;
@@ -10577,6 +10568,10 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			stream.removeListener("close", cleanup);
 		}
 	}
+	/**
+	* Try to require async_hooks
+	* @private
+	*/
 	function tryRequireAsyncHooks() {
 		try {
 			return __require("async_hooks");
@@ -10584,6 +10579,11 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return {};
 		}
 	}
+	/**
+	* Wrap function with async resource, if possible.
+	* AsyncResource.bind static method backported.
+	* @private
+	*/
 	function wrap(fn) {
 		var res;
 		if (asyncHooks.AsyncResource) res = new asyncHooks.AsyncResource(fn.name || "bound-anonymous-fn");
@@ -10603,6 +10603,7 @@ var require_ee_first = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = first;
 	/**
 	* Get the first event in a set of event emitters and event pairs.
 	*
@@ -10610,11 +10611,6 @@ var require_ee_first = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {function} done
 	* @public
 	*/
-	/**
-	* Create the event listener.
-	* @private
-	*/
-	module.exports = first;
 	function first(stuff, done) {
 		if (!Array.isArray(stuff)) throw new TypeError("arg must be an array of [ee, events...] arrays");
 		var cleanups = [];
@@ -10650,6 +10646,10 @@ var require_ee_first = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		thunk.cancel = cleanup;
 		return thunk;
 	}
+	/**
+	* Create the event listener.
+	* @private
+	*/
 	function listener(event, done) {
 		return function onevent(arg1) {
 			var args = new Array(arguments.length);
@@ -10673,15 +10673,22 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = onFinished;
+	module.exports.isFinished = isFinished;
 	/**
 	* Module dependencies.
 	* @private
 	*/
+	var asyncHooks = tryRequireAsyncHooks();
+	var first = require_ee_first();
 	/**
 	* Variables.
 	* @private
 	*/
 	/* istanbul ignore next */
+	var defer = typeof setImmediate === "function" ? setImmediate : function(fn) {
+		process.nextTick(fn.bind.apply(fn, arguments));
+	};
 	/**
 	* Invoke callback when the response has finished, useful for
 	* cleaning up resources afterwards.
@@ -10691,59 +10698,6 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {object}
 	* @public
 	*/
-	/**
-	* Determine if message is already finished.
-	*
-	* @param {object} msg
-	* @return {boolean}
-	* @public
-	*/
-	/**
-	* Attach a finished listener to the message.
-	*
-	* @param {object} msg
-	* @param {function} callback
-	* @private
-	*/
-	// istanbul ignore next: node.js 0.8 patch
-	/**
-	* Attach the listener to the message.
-	*
-	* @param {object} msg
-	* @return {function}
-	* @private
-	*/
-	/**
-	* Create listener on message.
-	*
-	* @param {object} msg
-	* @return {function}
-	* @private
-	*/
-	/**
-	* Patch ServerResponse.prototype.assignSocket for node.js 0.8.
-	*
-	* @param {ServerResponse} res
-	* @param {function} callback
-	* @private
-	*/
-	// istanbul ignore next: node.js 0.8 patch
-	/**
-	* Try to require async_hooks
-	* @private
-	*/
-	/**
-	* Wrap function with async resource, if possible.
-	* AsyncResource.bind static method backported.
-	* @private
-	*/
-	module.exports = onFinished;
-	module.exports.isFinished = isFinished;
-	var asyncHooks = tryRequireAsyncHooks();
-	var first = require_ee_first();
-	var defer = typeof setImmediate === "function" ? setImmediate : function(fn) {
-		process.nextTick(fn.bind.apply(fn, arguments));
-	};
 	function onFinished(msg, listener) {
 		if (isFinished(msg) !== false) {
 			defer(listener, null, msg);
@@ -10752,11 +10706,25 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		attachListener(msg, wrap(listener));
 		return msg;
 	}
+	/**
+	* Determine if message is already finished.
+	*
+	* @param {object} msg
+	* @return {boolean}
+	* @public
+	*/
 	function isFinished(msg) {
 		var socket = msg.socket;
 		if (typeof msg.finished === "boolean") return Boolean(msg.finished || socket && !socket.writable);
 		if (typeof msg.complete === "boolean") return Boolean(msg.upgrade || !socket || !socket.readable || msg.complete && !msg.readable);
 	}
+	/**
+	* Attach a finished listener to the message.
+	*
+	* @param {object} msg
+	* @param {function} callback
+	* @private
+	*/
 	function attachFinishedListener(msg, callback) {
 		var eeMsg;
 		var eeSocket;
@@ -10787,8 +10755,17 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return;
 		}
 		msg.on("socket", onSocket);
-		if (msg.socket === void 0) patchAssignSocket(msg, onSocket);
+		if (msg.socket === void 0)
+ // istanbul ignore next: node.js 0.8 patch
+		patchAssignSocket(msg, onSocket);
 	}
+	/**
+	* Attach the listener to the message.
+	*
+	* @param {object} msg
+	* @return {function}
+	* @private
+	*/
 	function attachListener(msg, listener) {
 		var attached = msg.__onFinished;
 		if (!attached || !attached.queue) {
@@ -10797,6 +10774,13 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		attached.queue.push(listener);
 	}
+	/**
+	* Create listener on message.
+	*
+	* @param {object} msg
+	* @return {function}
+	* @private
+	*/
 	function createListener(msg) {
 		function listener(err) {
 			if (msg.__onFinished === listener) msg.__onFinished = null;
@@ -10808,6 +10792,14 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		listener.queue = [];
 		return listener;
 	}
+	/**
+	* Patch ServerResponse.prototype.assignSocket for node.js 0.8.
+	*
+	* @param {ServerResponse} res
+	* @param {function} callback
+	* @private
+	*/
+	// istanbul ignore next: node.js 0.8 patch
 	function patchAssignSocket(res, callback) {
 		var assignSocket = res.assignSocket;
 		if (typeof assignSocket !== "function") return;
@@ -10816,6 +10808,10 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			callback(socket);
 		};
 	}
+	/**
+	* Try to require async_hooks
+	* @private
+	*/
 	function tryRequireAsyncHooks() {
 		try {
 			return __require("async_hooks");
@@ -10823,6 +10819,11 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return {};
 		}
 	}
+	/**
+	* Wrap function with async resource, if possible.
+	* AsyncResource.bind static method backported.
+	* @private
+	*/
 	function wrap(fn) {
 		var res;
 		if (asyncHooks.AsyncResource) res = new asyncHooks.AsyncResource(fn.name || "bound-anonymous-fn");
@@ -10838,17 +10839,34 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Copyright(c) 2015 Douglas Christopher Wilson
 	* MIT Licensed
 	*/
+	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.format = format;
 	exports.parse = parse;
 	const TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
 	const TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+	/**
+	* RegExp to match chars that must be quoted-pair in RFC 9110 sec 5.6.4
+	*/
 	const QUOTE_REGEXP = /[\\"]/g;
+	/**
+	* RegExp to match type in RFC 9110 sec 8.3.1
+	*
+	* media-type = type "/" subtype
+	* type       = token
+	* subtype    = token
+	*/
 	const TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-	const NullObject = (() => {
+	/**
+	* Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
+	*/
+	const NullObject = /* @__PURE__ */ (() => {
 		const C = function() {};
 		C.prototype = Object.create(null);
 		return C;
 	})();
+	/**
+	* Format an object into a `Content-Type` header.
+	*/
 	function format(obj) {
 		const { type, parameters } = obj;
 		if (!type || !TYPE_REGEXP.test(type)) throw new TypeError(`Invalid type: ${type}`);
@@ -10859,6 +10877,9 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return result;
 	}
+	/**
+	* Parse a `Content-Type` header.
+	*/
 	function parse(header, options) {
 		const stopChar = options?.comma === true ? COMMA : 65536;
 		const len = header.length;
@@ -10881,6 +10902,9 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const DQUOTE = 34;
 	const BSLASH = 92;
 	const COMMA = 44;
+	/**
+	* Parses the parameters of a `Content-Type` header starting at the given index.
+	*/
 	function parseParameters(header, type, index, len, stopChar) {
 		const parameters = new NullObject();
 		parameter: while (index < len) {
@@ -10930,6 +10954,9 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			parameters
 		};
 	}
+	/**
+	* Skip over characters until a semicolon or other exit character.
+	*/
 	function skipValue(str, index, len, stopChar) {
 		while (index < len) {
 			const code = str.charCodeAt(index);
@@ -10938,6 +10965,11 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
+	/**
+	* Skip optional whitespace (OWS) in an HTTP header value.
+	*
+	* OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
+	*/
 	function skipOWS(header, index, len) {
 		while (index < len) {
 			const char = header.charCodeAt(index);
@@ -10946,6 +10978,11 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
+	/**
+	* Trim optional whitespace (OWS) from the end of a substring.
+	*
+	* OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
+	*/
 	function trailingOWS(header, start, end) {
 		while (end > start) {
 			const char = header.charCodeAt(end - 1);
@@ -10954,6 +10991,9 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return end;
 	}
+	/**
+	* Serialize a parameter value.
+	*/
 	function qstring(str) {
 		if (TOKEN_REGEXP.test(str)) return str;
 		if (TEXT_REGEXP.test(str)) return `"${str.replace(QUOTE_REGEXP, "\\$&")}"`;
@@ -18647,47 +18687,19 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Module dependencies.
 	* @private
 	*/
+	var db = require_mime_db();
+	var extname = __require("path").extname;
+	var mimeScore = require_mimeScore();
 	/**
 	* Module variables.
 	* @private
 	*/
+	var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
+	var TEXT_TYPE_REGEXP = /^text\//i;
 	/**
 	* Module exports.
 	* @public
 	*/
-	/**
-	* Get the default charset for a MIME type.
-	*
-	* @param {string} type
-	* @return {false|string}
-	*/
-	/**
-	* Create a full Content-Type header given a MIME type or extension.
-	*
-	* @param {string} str
-	* @return {false|string}
-	*/
-	/**
-	* Get the default extension for a MIME type.
-	*
-	* @param {string} type
-	* @return {false|string}
-	*/
-	/**
-	* Lookup the MIME type for a file path/extension.
-	*
-	* @param {string} path
-	* @return {false|string}
-	*/
-	/**
-	* Populate the extensions and types maps.
-	* @private
-	*/
-	var db = require_mime_db();
-	var extname = __require("path").extname;
-	var mimeScore = require_mimeScore();
-	var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
-	var TEXT_TYPE_REGEXP = /^text\//i;
 	exports.charset = charset;
 	exports.charsets = { lookup: charset };
 	exports.contentType = contentType;
@@ -18697,6 +18709,12 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.types = Object.create(null);
 	exports._extensionConflicts = [];
 	populateMaps(exports.extensions, exports.types);
+	/**
+	* Get the default charset for a MIME type.
+	*
+	* @param {string} type
+	* @return {false|string}
+	*/
 	function charset(type) {
 		if (!type || typeof type !== "string") return false;
 		var match = EXTRACT_TYPE_REGEXP.exec(type);
@@ -18705,6 +18723,12 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 		if (match && TEXT_TYPE_REGEXP.test(match[1])) return "UTF-8";
 		return false;
 	}
+	/**
+	* Create a full Content-Type header given a MIME type or extension.
+	*
+	* @param {string} str
+	* @return {false|string}
+	*/
 	function contentType(str) {
 		if (!str || typeof str !== "string") return false;
 		var mime = str.indexOf("/") === -1 ? exports.lookup(str) : str;
@@ -18715,6 +18739,12 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return mime;
 	}
+	/**
+	* Get the default extension for a MIME type.
+	*
+	* @param {string} type
+	* @return {false|string}
+	*/
 	function extension(type) {
 		if (!type || typeof type !== "string") return false;
 		var match = EXTRACT_TYPE_REGEXP.exec(type);
@@ -18722,12 +18752,22 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 		if (!exts || !exts.length) return false;
 		return exts[0];
 	}
+	/**
+	* Lookup the MIME type for a file path/extension.
+	*
+	* @param {string} path
+	* @return {false|string}
+	*/
 	function lookup(path) {
 		if (!path || typeof path !== "string") return false;
 		var extension = extname("x." + path).toLowerCase().slice(1);
 		if (!extension) return false;
 		return exports.types[extension] || false;
 	}
+	/**
+	* Populate the extensions and types maps.
+	* @private
+	*/
 	function populateMaps(extensions, types) {
 		Object.keys(db).forEach(function forEachMimeType(type) {
 			var exts = db[type].extensions;
@@ -18785,9 +18825,15 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* ALPHA =  %x41-5A / %x61-7A   ; A-Z / a-z
 	* DIGIT =  %x30-39             ; 0-9
 	*/
+	var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
+	var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
+	var TYPE_REGEXP = /^ *([A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126})\/([A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}) *$/;
 	/**
 	* Module exports.
 	*/
+	exports.format = format;
+	exports.parse = parse;
+	exports.test = test;
 	/**
 	* Format object to media type.
 	*
@@ -18795,30 +18841,6 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* @return {string}
 	* @public
 	*/
-	/**
-	* Test media type.
-	*
-	* @param {string} string
-	* @return {object}
-	* @public
-	*/
-	/**
-	* Parse media type to object.
-	*
-	* @param {string} string
-	* @return {object}
-	* @public
-	*/
-	/**
-	* Class for MediaType object.
-	* @public
-	*/
-	var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
-	var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
-	var TYPE_REGEXP = /^ *([A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126})\/([A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}) *$/;
-	exports.format = format;
-	exports.parse = parse;
-	exports.test = test;
 	function format(obj) {
 		if (!obj || typeof obj !== "object") throw new TypeError("argument obj is required");
 		var subtype = obj.subtype;
@@ -18833,10 +18855,24 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return string;
 	}
+	/**
+	* Test media type.
+	*
+	* @param {string} string
+	* @return {object}
+	* @public
+	*/
 	function test(string) {
 		if (typeof string !== "string") throw new TypeError("argument string is required to be a string");
 		return TYPE_REGEXP.test(string.toLowerCase());
 	}
+	/**
+	* Parse media type to object.
+	*
+	* @param {string} string
+	* @return {object}
+	* @public
+	*/
 	function parse(string) {
 		if (typeof string !== "string") throw new TypeError("argument string is required to be a string");
 		var match = TYPE_REGEXP.exec(string.toLowerCase());
@@ -18851,6 +18887,10 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return new MediaType(type, subtype, suffix);
 	}
+	/**
+	* Class for MediaType object.
+	* @public
+	*/
 	function MediaType(type, subtype, suffix) {
 		this.type = type;
 		this.subtype = subtype;
@@ -18870,10 +18910,18 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var contentType = require_dist$3();
+	var mime = require_mime_types();
+	var typer = require_media_typer();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = typeofrequest;
+	module.exports.is = typeis;
+	module.exports.hasBody = hasbody;
+	module.exports.normalize = normalize;
+	module.exports.match = mimeMatch;
 	/**
 	* Compare a `value` content-type with `types`.
 	* Each `type` can be an extension like `html`,
@@ -18887,6 +18935,21 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {Array} types
 	* @public
 	*/
+	function typeis(value, types_) {
+		if (value && typeof value === "object") value = value.headers["content-type"];
+		var i;
+		var types = types_;
+		var val = normalizeType(value);
+		if (!val) return false;
+		if (types && !Array.isArray(types)) {
+			types = new Array(arguments.length - 1);
+			for (i = 0; i < types.length; i++) types[i] = arguments[i + 1];
+		}
+		if (!types || !types.length) return val;
+		var type;
+		for (i = 0; i < types.length; i++) if (mimeMatch(normalize(type = types[i]), val)) return type[0] === "+" || type.indexOf("*") !== -1 ? val : type;
+		return false;
+	}
 	/**
 	* Check if a request has a request body.
 	* A request with a body __must__ either have `transfer-encoding`
@@ -18897,6 +18960,9 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @public
 	*/
+	function hasbody(req) {
+		return req.headers["transfer-encoding"] !== void 0 || !isNaN(req.headers["content-length"]);
+	}
 	/**
 	* Check if the incoming request contains the "Content-Type"
 	* header field, and it contains any of the give mime `type`s.
@@ -18923,6 +18989,12 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {(String|false|null)}
 	* @public
 	*/
+	function typeofrequest(req, types_) {
+		if (!hasbody(req)) return null;
+		var types = arguments.length > 2 ? Array.prototype.slice.call(arguments, 1) : types_;
+		var value = req.headers["content-type"];
+		return typeis(value, types);
+	}
 	/**
 	* Normalize a mime type.
 	* If it's a shorthand, expand it to a valid mime type.
@@ -18939,6 +19011,15 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String|false|null}
 	* @public
 	*/
+	function normalize(type) {
+		if (typeof type !== "string") return false;
+		switch (type) {
+			case "urlencoded": return "application/x-www-form-urlencoded";
+			case "multipart": return "multipart/*";
+		}
+		if (type[0] === "+") return "*/*" + type;
+		return type.indexOf("/") === -1 ? mime.lookup(type) : type;
+	}
 	/**
 	* Check if `expected` mime type
 	* matches `actual` mime type with
@@ -18949,54 +19030,6 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @public
 	*/
-	/**
-	* Normalize a type and remove parameters.
-	*
-	* @param {string} value
-	* @return {(string|null)}
-	* @private
-	*/
-	var contentType = require_dist$3();
-	var mime = require_mime_types();
-	var typer = require_media_typer();
-	module.exports = typeofrequest;
-	module.exports.is = typeis;
-	module.exports.hasBody = hasbody;
-	module.exports.normalize = normalize;
-	module.exports.match = mimeMatch;
-	function typeis(value, types_) {
-		if (value && typeof value === "object") value = value.headers["content-type"];
-		var i;
-		var types = types_;
-		var val = normalizeType(value);
-		if (!val) return false;
-		if (types && !Array.isArray(types)) {
-			types = new Array(arguments.length - 1);
-			for (i = 0; i < types.length; i++) types[i] = arguments[i + 1];
-		}
-		if (!types || !types.length) return val;
-		var type;
-		for (i = 0; i < types.length; i++) if (mimeMatch(normalize(type = types[i]), val)) return type[0] === "+" || type.indexOf("*") !== -1 ? val : type;
-		return false;
-	}
-	function hasbody(req) {
-		return req.headers["transfer-encoding"] !== void 0 || !isNaN(req.headers["content-length"]);
-	}
-	function typeofrequest(req, types_) {
-		if (!hasbody(req)) return null;
-		var types = arguments.length > 2 ? Array.prototype.slice.call(arguments, 1) : types_;
-		var value = req.headers["content-type"];
-		return typeis(value, types);
-	}
-	function normalize(type) {
-		if (typeof type !== "string") return false;
-		switch (type) {
-			case "urlencoded": return "application/x-www-form-urlencoded";
-			case "multipart": return "multipart/*";
-		}
-		if (type[0] === "+") return "*/*" + type;
-		return type.indexOf("/") === -1 ? mime.lookup(type) : type;
-	}
 	function mimeMatch(expected, actual) {
 		if (expected === false) return false;
 		var actualParts = actual.split("/");
@@ -19007,6 +19040,13 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (expectedParts[1] !== "*" && expectedParts[1] !== actualParts[1]) return false;
 		return true;
 	}
+	/**
+	* Normalize a type and remove parameters.
+	*
+	* @param {string} value
+	* @return {(string|null)}
+	* @private
+	*/
 	function normalizeType(value) {
 		if (!value) return null;
 		var type = contentType.parse(value, { parameters: false }).type;
@@ -19019,9 +19059,17 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module dependencies.
 	*/
+	const bytes = require_bytes();
+	const contentType = require_dist$3();
+	const typeis = require_type_is();
 	/**
 	* Module exports.
 	*/
+	module.exports = {
+		getCharset,
+		normalizeOptions,
+		passthrough
+	};
 	/**
 	* Get the charset of a request.
 	*
@@ -19029,6 +19077,11 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {string | undefined}
 	* @private
 	*/
+	function getCharset(req) {
+		const header = req.headers["content-type"];
+		if (!header) return void 0;
+		return contentType.parse(header).parameters.charset?.toLowerCase();
+	}
 	/**
 	* Get the simple type checker.
 	*
@@ -19036,6 +19089,11 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @private
 	*/
+	function typeChecker(type) {
+		return function checkType(req) {
+			return Boolean(typeis(req, type));
+		};
+	}
 	/**
 	* Normalizes the common options for all parsers.
 	*
@@ -19044,32 +19102,6 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Object}
 	* @private
 	*/
-	/**
-	* Passthrough function that returns input unchanged.
-	* Used by parsers that don't need to transform the data.
-	*
-	* @param {*} value
-	* @returns {*}
-	* @private
-	*/
-	const bytes = require_bytes();
-	const contentType = require_dist$3();
-	const typeis = require_type_is();
-	module.exports = {
-		getCharset,
-		normalizeOptions,
-		passthrough
-	};
-	function getCharset(req) {
-		const header = req.headers["content-type"];
-		if (!header) return void 0;
-		return contentType.parse(header).parameters.charset?.toLowerCase();
-	}
-	function typeChecker(type) {
-		return function checkType(req) {
-			return Boolean(typeis(req, type));
-		};
-	}
 	function normalizeOptions(options, defaultType) {
 		if (!defaultType) throw new TypeError("defaultType must be provided");
 		const inflate = options?.inflate !== false;
@@ -19087,6 +19119,14 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			shouldParse: typeof type !== "function" ? typeChecker(type) : type
 		};
 	}
+	/**
+	* Passthrough function that returns input unchanged.
+	* Used by parsers that don't need to transform the data.
+	*
+	* @param {*} value
+	* @returns {*}
+	* @private
+	*/
 	function passthrough(value) {
 		return value;
 	}
@@ -19103,9 +19143,17 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	const createError = require_http_errors();
+	const getBody = require_raw_body();
+	const iconv = require_lib$4();
+	const onFinished = require_on_finished();
+	const zlib = __require("node:zlib");
+	const hasBody = require_type_is().hasBody;
+	const { getCharset } = require_utils$4();
 	/**
 	* Module exports.
 	*/
+	module.exports = read;
 	/**
 	* Read a request into a buffer and parse.
 	*
@@ -19117,37 +19165,6 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {Object} options
 	* @private
 	*/
-	/**
-	* Get the content stream of the request.
-	*
-	* @param {Object} req
-	* @param {Function} debug
-	* @param {boolean} inflate
-	* @returns {Object}
-	* @private
-	*/
-	/**
-	* Create a decompression stream for the given encoding.
-	* @param {string} encoding
-	* @param {Function} debug
-	* @returns {Object}
-	* @private
-	*/
-	/**
-	* Dump the contents of a request.
-	*
-	* @param {Object} req
-	* @param {Function} callback
-	* @private
-	*/
-	const createError = require_http_errors();
-	const getBody = require_raw_body();
-	const iconv = require_lib$4();
-	const onFinished = require_on_finished();
-	const zlib = __require("node:zlib");
-	const hasBody = require_type_is().hasBody;
-	const { getCharset } = require_utils$4();
-	module.exports = read;
 	function read(req, res, next, parse, debug, options) {
 		if (onFinished.isFinished(req)) {
 			debug("body already parsed");
@@ -19238,6 +19255,15 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next();
 		});
 	}
+	/**
+	* Get the content stream of the request.
+	*
+	* @param {Object} req
+	* @param {Function} debug
+	* @param {boolean} inflate
+	* @returns {Object}
+	* @private
+	*/
 	function contentstream(req, debug, inflate) {
 		const encoding = (req.headers["content-encoding"] || "identity").toLowerCase();
 		const length = req.headers["content-length"];
@@ -19254,6 +19280,13 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		req.pipe(stream);
 		return stream;
 	}
+	/**
+	* Create a decompression stream for the given encoding.
+	* @param {string} encoding
+	* @param {Function} debug
+	* @returns {Object}
+	* @private
+	*/
 	function createDecompressionStream(encoding, debug) {
 		switch (encoding) {
 			case "deflate":
@@ -19271,6 +19304,13 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	}
+	/**
+	* Dump the contents of a request.
+	*
+	* @param {Object} req
+	* @param {Function} callback
+	* @private
+	*/
 	function dump(req, callback) {
 		if (onFinished.isFinished(req)) callback(null);
 		else {
@@ -19292,9 +19332,13 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	const debug = require_src()("body-parser:json");
+	const read = require_read();
+	const { normalizeOptions } = require_utils$4();
 	/**
 	* Module exports.
 	*/
+	module.exports = json;
 	/**
 	* RegExp to match the first non-space in a string.
 	*
@@ -19306,6 +19350,9 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*            %x0A /              ; Line feed or New line
 	*            %x0D )              ; Carriage return
 	*/
+	const FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/;
+	const JSON_SYNTAX_CHAR = "#";
+	const JSON_SYNTAX_REGEXP = /#+/g;
 	/**
 	* Create a middleware to parse JSON bodies.
 	*
@@ -19313,43 +19360,6 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
-	/**
-	* Create a JSON parse function
-	*
-	* @param {object} [options]
-	* @return {function}
-	* @private
-	*/
-	/**
-	* Create strict violation syntax error matching native error.
-	*
-	* @param {string} str
-	* @param {string} char
-	* @returns {Error}
-	* @private
-	*/ /* istanbul ignore next */
-	/**
-	* Get the first non-whitespace character in a string.
-	*
-	* @param {string} str
-	* @returns {string|undefined}
-	* @private
-	*/
-	/**
-	* Normalize a SyntaxError for JSON.parse.
-	*
-	* @param {SyntaxError} error
-	* @param {Object} obj
-	* @returns {SyntaxError}
-	* @private
-	*/
-	const debug = require_src()("body-parser:json");
-	const read = require_read();
-	const { normalizeOptions } = require_utils$4();
-	module.exports = json;
-	const FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/;
-	const JSON_SYNTAX_CHAR = "#";
-	const JSON_SYNTAX_REGEXP = /#+/g;
 	function json(options) {
 		const normalizedOptions = normalizeOptions(options, "application/json");
 		const parse = createJsonParser(options);
@@ -19361,6 +19371,13 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			read(req, res, next, parse, debug, readOptions);
 		};
 	}
+	/**
+	* Create a JSON parse function
+	*
+	* @param {object} [options]
+	* @return {function}
+	* @private
+	*/
 	function createJsonParser(options) {
 		const reviver = options?.reviver;
 		if (options?.strict !== false) return function parse(body) {
@@ -19393,13 +19410,21 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		};
 	}
+	/**
+	* Create strict violation syntax error matching native error.
+	*
+	* @param {string} str
+	* @param {string} char
+	* @returns {Error}
+	* @private
+	*/
 	function createStrictSyntaxError(str, char) {
 		const index = str.indexOf(char);
 		let partial = "";
 		if (index !== -1) partial = str.substring(0, index) + JSON_SYNTAX_CHAR.repeat(str.length - index);
 		try {
 			JSON.parse(partial);
-			throw new SyntaxError("strict violation");
+			/* istanbul ignore next */ throw new SyntaxError("strict violation");
 		} catch (e) {
 			return normalizeJsonSyntaxError(e, {
 				message: e.message.replace(JSON_SYNTAX_REGEXP, function(placeholder) {
@@ -19409,10 +19434,25 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	}
+	/**
+	* Get the first non-whitespace character in a string.
+	*
+	* @param {string} str
+	* @returns {string|undefined}
+	* @private
+	*/
 	function firstchar(str) {
 		const match = FIRST_CHAR_REGEXP.exec(str);
 		return match ? match[1] : void 0;
 	}
+	/**
+	* Normalize a SyntaxError for JSON.parse.
+	*
+	* @param {SyntaxError} error
+	* @param {Object} obj
+	* @returns {SyntaxError}
+	* @private
+	*/
 	function normalizeJsonSyntaxError(error, obj) {
 		const keys = Object.getOwnPropertyNames(error);
 		for (let i = 0; i < keys.length; i++) {
@@ -19435,9 +19475,13 @@ var require_raw = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module dependencies.
 	*/
+	const debug = require_src()("body-parser:raw");
+	const read = require_read();
+	const { normalizeOptions, passthrough } = require_utils$4();
 	/**
 	* Module exports.
 	*/
+	module.exports = raw;
 	/**
 	* Create a middleware to parse raw bodies.
 	*
@@ -19445,10 +19489,6 @@ var require_raw = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
-	const debug = require_src()("body-parser:raw");
-	const read = require_read();
-	const { normalizeOptions, passthrough } = require_utils$4();
-	module.exports = raw;
 	function raw(options) {
 		const readOptions = {
 			...normalizeOptions(options, "application/octet-stream"),
@@ -19470,9 +19510,13 @@ var require_text = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module dependencies.
 	*/
+	const debug = require_src()("body-parser:text");
+	const read = require_read();
+	const { normalizeOptions, passthrough } = require_utils$4();
 	/**
 	* Module exports.
 	*/
+	module.exports = text;
 	/**
 	* Create a middleware to parse text bodies.
 	*
@@ -19480,10 +19524,6 @@ var require_text = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
-	const debug = require_src()("body-parser:text");
-	const read = require_read();
-	const { normalizeOptions, passthrough } = require_utils$4();
-	module.exports = text;
 	function text(options) {
 		const normalizedOptions = normalizeOptions(options, "text/plain");
 		return function textParser(req, res, next) {
@@ -19556,12 +19596,12 @@ var require_object_inspect = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	var inspectSymbol = isSymbol(inspectCustom) ? inspectCustom : null;
 	var quotes = {
 		__proto__: null,
-		double: "\"",
+		"double": "\"",
 		single: "'"
 	};
 	var quoteREs = {
 		__proto__: null,
-		double: /(["\\])/g,
+		"double": /(["\\])/g,
 		single: /(['\\])/g
 	};
 	module.exports = function inspect_(obj, options, depth, seen) {
@@ -19887,26 +19927,13 @@ var require_object_inspect = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 //#endregion
 //#region node_modules/side-channel-list/index.js
 var require_side_channel_list = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('./list.d.ts').listGetNode} */
-	/** @type {typeof list | NonNullable<(typeof list)['next']>} */
-	/** @type {(typeof list)['next']} */
-	/** @type {NonNullable<typeof list.next>} */
-	/** @type {import('./list.d.ts').listGet} */
-	/** @type {import('./list.d.ts').listSet} */
-	/** @type {import('./list.d.ts').ListNode<typeof value, typeof key>} */
-	/** @type {import('./list.d.ts').listHas} */
-	/** @type {import('./list.d.ts').listDelete} */
-	/** @type {import('.')} */
-	/** @typedef {ReturnType<typeof getSideChannelList>} Channel */
-	/** @typedef {Parameters<Channel['get']>[0]} K */
-	/** @typedef {Parameters<Channel['set']>[1]} V */
-	/** @type {import('./list.d.ts').RootNode<V, K> | undefined} */
-	/** @type {Channel} */
-	/** @type {NonNullable<typeof $o>} */
 	var inspect = require_object_inspect();
 	var $TypeError = require_type();
+	/** @type {import('./list.d.ts').listGetNode} */
 	var listGetNode = function(list, key, isDelete) {
+		/** @type {typeof list | NonNullable<(typeof list)['next']>} */
 		var prev = list;
+		/** @type {(typeof list)['next']} */
 		var curr;
 		for (; (curr = prev.next) != null; prev = curr) if (curr.key === key) {
 			prev.next = curr.next;
@@ -19917,11 +19944,13 @@ var require_side_channel_list = /* @__PURE__ */ __commonJSMin(((exports, module)
 			return curr;
 		}
 	};
+	/** @type {import('./list.d.ts').listGet} */
 	var listGet = function(objects, key) {
 		if (!objects) return;
 		var node = listGetNode(objects, key);
 		return node && node.value;
 	};
+	/** @type {import('./list.d.ts').listSet} */
 	var listSet = function(objects, key, value) {
 		var node = listGetNode(objects, key);
 		if (node) node.value = value;
@@ -19931,20 +19960,27 @@ var require_side_channel_list = /* @__PURE__ */ __commonJSMin(((exports, module)
 			value
 		};
 	};
+	/** @type {import('./list.d.ts').listHas} */
 	var listHas = function(objects, key) {
 		if (!objects) return false;
 		return !!listGetNode(objects, key);
 	};
+	/** @type {import('./list.d.ts').listDelete} */
 	var listDelete = function(objects, key) {
 		if (objects) return listGetNode(objects, key, true);
 	};
+	/** @type {import('.')} */
 	module.exports = function getSideChannelList() {
-		var $o;
+		/** @typedef {ReturnType<typeof getSideChannelList>} Channel */
+		/** @typedef {Parameters<Channel['get']>[0]} K */
+		/** @typedef {Parameters<Channel['set']>[1]} V */
+		/** @type {import('./list.d.ts').RootNode<V, K> | undefined} */ var $o;
+		/** @type {Channel} */
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + inspect(key));
 			},
-			delete: function(key) {
+			"delete": function(key) {
 				var deletedNode = listDelete($o, key);
 				if (deletedNode && $o && !$o.next) $o = void 0;
 				return !!deletedNode;
@@ -20052,8 +20088,8 @@ var require_isNaN = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/math-intrinsics/sign.js
 var require_sign$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('./sign')} */
 	var $isNaN = require_isNaN();
+	/** @type {import('./sign')} */
 	module.exports = function sign(number) {
 		if ($isNaN(number) || number === 0) return number;
 		return number < 0 ? -1 : 1;
@@ -20093,11 +20129,10 @@ var require_es_define_property = /* @__PURE__ */ __commonJSMin(((exports, module
 //#region node_modules/has-symbols/shams.js
 var require_shams = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/** @type {import('./shams')} */
-	/** @type {{ [k in symbol]?: unknown }} */
-	/** @type {PropertyDescriptor} */
 	module.exports = function hasSymbols() {
 		if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") return false;
 		if (typeof Symbol.iterator === "symbol") return true;
+		/** @type {{ [k in symbol]?: unknown }} */
 		var obj = {};
 		var sym = Symbol("test");
 		var symObj = Object(sym);
@@ -20122,9 +20157,9 @@ var require_shams = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/has-symbols/index.js
 var require_has_symbols = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('.')} */
 	var origSymbol = typeof Symbol !== "undefined" && Symbol;
 	var hasSymbolSham = require_shams();
+	/** @type {import('.')} */
 	module.exports = function hasNativeSymbols() {
 		if (typeof origSymbol !== "function") return false;
 		if (typeof Symbol !== "function") return false;
@@ -20142,6 +20177,7 @@ var require_Reflect_getPrototypeOf = /* @__PURE__ */ __commonJSMin(((exports, mo
 //#endregion
 //#region node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('./Object.getPrototypeOf')} */
 	module.exports = require_es_object_atoms().getPrototypeOf || null;
 }));
 //#endregion
@@ -20223,20 +20259,20 @@ var require_reflectApply = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('./actualApply')} */
 	var bind = require_function_bind();
 	var $apply = require_functionApply();
 	var $call = require_functionCall();
+	/** @type {import('./actualApply')} */
 	module.exports = require_reflectApply() || bind.call($call, $apply);
 }));
 //#endregion
 //#region node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {(args: [Function, thisArg?: unknown, ...args: unknown[]]) => Function} TODO FIXME, find a way to use import('.') */
 	var bind = require_function_bind();
 	var $TypeError = require_type();
 	var $call = require_functionCall();
 	var $actualApply = require_actualApply();
+	/** @type {(args: [Function, thisArg?: unknown, ...args: unknown[]]) => Function} TODO FIXME, find a way to use import('.') */
 	module.exports = function callBindBasic(args) {
 		if (args.length < 1 || typeof args[0] !== "function") throw new $TypeError("a function is required");
 		return $actualApply(bind, $call, args);
@@ -20245,9 +20281,6 @@ var require_call_bind_apply_helpers = /* @__PURE__ */ __commonJSMin(((exports, m
 //#endregion
 //#region node_modules/dunder-proto/get.js
 var require_get = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {{ __proto__?: typeof Array.prototype }} */
-	/** @type {keyof typeof Object.prototype} */
-	/** @type {import('./get')} */ /** @type {import('./get')} */
 	var callBind = require_call_bind_apply_helpers();
 	var gOPD = require_gopd();
 	var hasProtoAccessor;
@@ -20259,6 +20292,7 @@ var require_get = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var desc = !!hasProtoAccessor && gOPD && gOPD(Object.prototype, "__proto__");
 	var $Object = Object;
 	var $getPrototypeOf = $Object.getPrototypeOf;
+	/** @type {import('./get')} */
 	module.exports = desc && typeof desc.get === "function" ? callBind([desc.get]) : typeof $getPrototypeOf === "function" ? function getDunder(value) {
 		return $getPrototypeOf(value == null ? value : $Object(value));
 	} : false;
@@ -20266,10 +20300,10 @@ var require_get = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/get-proto/index.js
 var require_get_proto = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('.')} */
 	var reflectGetProto = require_Reflect_getPrototypeOf();
 	var originalGetProto = require_Object_getPrototypeOf();
 	var getDunderProto = require_get();
+	/** @type {import('.')} */
 	module.exports = reflectGetProto ? function getProto(O) {
 		return reflectGetProto(O);
 	} : originalGetProto ? function getProto(O) {
@@ -20282,15 +20316,14 @@ var require_get_proto = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/hasown/index.js
 var require_hasown = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('.')} */
 	var call = Function.prototype.call;
 	var $hasOwn = Object.prototype.hasOwnProperty;
+	/** @type {import('.')} */
 	module.exports = require_function_bind().call(call, $hasOwn);
 }));
 //#endregion
 //#region node_modules/get-intrinsic/index.js
 var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** Used to match backslashes in property paths. */
 	var undefined;
 	var $Object = require_es_object_atoms();
 	var $Error = require_es_errors();
@@ -20318,7 +20351,7 @@ var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 	var throwTypeError = function() {
 		throw new $TypeError();
 	};
-	var ThrowTypeError = $gOPD ? (function() {
+	var ThrowTypeError = $gOPD ? function() {
 		try {
 			arguments.callee;
 			return throwTypeError;
@@ -20329,7 +20362,7 @@ var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 				return throwTypeError;
 			}
 		}
-	})() : throwTypeError;
+	}() : throwTypeError;
 	var hasSymbols = require_has_symbols()();
 	var getProto = require_get_proto();
 	var $ObjectGPO = require_Object_getPrototypeOf();
@@ -20617,11 +20650,11 @@ var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 //#endregion
 //#region node_modules/call-bound/index.js
 var require_call_bound = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {(thisArg: string, searchString: string, position?: number) => number} */
-	/** @type {import('.')} */ /** @type {(this: unknown, ...args: unknown[]) => unknown} */ /** @type {const} */
 	var GetIntrinsic = require_get_intrinsic();
 	var callBindBasic = require_call_bind_apply_helpers();
+	/** @type {(thisArg: string, searchString: string, position?: number) => number} */
 	var $indexOf = callBindBasic([GetIntrinsic("%String.prototype.indexOf%")]);
+	/** @type {import('.')} */
 	module.exports = function callBoundIntrinsic(name, allowMissing) {
 		var intrinsic = GetIntrinsic(name, !!allowMissing);
 		if (typeof intrinsic === "function" && $indexOf(name, ".prototype.") > -1) return callBindBasic([intrinsic]);
@@ -20631,33 +20664,33 @@ var require_call_bound = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/side-channel-map/index.js
 var require_side_channel_map = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => V} */
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K, value: V) => void} */
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
-	/** @type {<K, V>(thisArg: Map<K, V>) => number} */
-	/** @type {import('.')} */ /** @type {Exclude<import('.'), false>} */
-	/** @typedef {ReturnType<typeof getSideChannelMap>} Channel */
-	/** @typedef {Parameters<Channel['get']>[0]} K */
-	/** @typedef {Parameters<Channel['set']>[1]} V */
-	/** @type {Map<K, V> | undefined} */
-	/** @type {Channel} */ var GetIntrinsic = require_get_intrinsic();
+	var GetIntrinsic = require_get_intrinsic();
 	var callBound = require_call_bound();
 	var inspect = require_object_inspect();
 	var $TypeError = require_type();
 	var $Map = GetIntrinsic("%Map%", true);
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => V} */
 	var $mapGet = callBound("Map.prototype.get", true);
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K, value: V) => void} */
 	var $mapSet = callBound("Map.prototype.set", true);
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
 	var $mapHas = callBound("Map.prototype.has", true);
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
 	var $mapDelete = callBound("Map.prototype.delete", true);
+	/** @type {<K, V>(thisArg: Map<K, V>) => number} */
 	var $mapSize = callBound("Map.prototype.size", true);
+	/** @type {import('.')} */
 	module.exports = !!$Map && function getSideChannelMap() {
-		var $m;
+		/** @typedef {ReturnType<typeof getSideChannelMap>} Channel */
+		/** @typedef {Parameters<Channel['get']>[0]} K */
+		/** @typedef {Parameters<Channel['set']>[1]} V */
+		/** @type {Map<K, V> | undefined} */ var $m;
+		/** @type {Channel} */
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + inspect(key));
 			},
-			delete: function(key) {
+			"delete": function(key) {
 				if ($m) {
 					var result = $mapDelete($m, key);
 					if ($mapSize($m) === 0) $m = void 0;
@@ -20683,36 +20716,33 @@ var require_side_channel_map = /* @__PURE__ */ __commonJSMin(((exports, module) 
 //#endregion
 //#region node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => V} */
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K, value: V) => void} */
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
-	/** @type {import('.')} */ /** @type {Exclude<import('.'), false>} */
-	/** @typedef {ReturnType<typeof getSideChannelWeakMap>} Channel */
-	/** @typedef {Parameters<Channel['get']>[0]} K */
-	/** @typedef {Parameters<Channel['set']>[1]} V */
-	/** @type {WeakMap<K & object, V> | undefined} */
-	/** @type {Channel | undefined} */
-	/** @type {Channel} */
-	/** @type {NonNullable<typeof $m>} */
 	var GetIntrinsic = require_get_intrinsic();
 	var callBound = require_call_bound();
 	var inspect = require_object_inspect();
 	var getSideChannelMap = require_side_channel_map();
 	var $TypeError = require_type();
 	var $WeakMap = GetIntrinsic("%WeakMap%", true);
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => V} */
 	var $weakMapGet = callBound("WeakMap.prototype.get", true);
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K, value: V) => void} */
 	var $weakMapSet = callBound("WeakMap.prototype.set", true);
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
 	var $weakMapHas = callBound("WeakMap.prototype.has", true);
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
 	var $weakMapDelete = callBound("WeakMap.prototype.delete", true);
+	/** @type {import('.')} */
 	module.exports = $WeakMap ? function getSideChannelWeakMap() {
-		var $wm;
-		var $m;
+		/** @typedef {ReturnType<typeof getSideChannelWeakMap>} Channel */
+		/** @typedef {Parameters<Channel['get']>[0]} K */
+		/** @typedef {Parameters<Channel['set']>[1]} V */
+		/** @type {WeakMap<K & object, V> | undefined} */ var $wm;
+		/** @type {Channel | undefined} */ var $m;
+		/** @type {Channel} */
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + inspect(key));
 			},
-			delete: function(key) {
+			"delete": function(key) {
 				if ($WeakMap && key && (typeof key === "object" || typeof key === "function")) {
 					if ($wm) return $weakMapDelete($wm, key);
 				} else if (getSideChannelMap) {
@@ -20738,7 +20768,7 @@ var require_side_channel_weakmap = /* @__PURE__ */ __commonJSMin(((exports, modu
 					$weakMapSet($wm, key, value);
 				} else if (getSideChannelMap) {
 					if (!$m) $m = getSideChannelMap();
-					$m.set(key, value);
+					/** @type {NonNullable<typeof $m>} */ $m.set(key, value);
 				}
 			}
 		};
@@ -20748,22 +20778,21 @@ var require_side_channel_weakmap = /* @__PURE__ */ __commonJSMin(((exports, modu
 //#endregion
 //#region node_modules/side-channel/index.js
 var require_side_channel = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('.')} */
-	/** @typedef {ReturnType<typeof getSideChannel>} Channel */
-	/** @type {Channel | undefined} */
-	/** @type {Channel} */
 	var $TypeError = require_type();
 	var inspect = require_object_inspect();
 	var getSideChannelList = require_side_channel_list();
 	var getSideChannelMap = require_side_channel_map();
 	var makeChannel = require_side_channel_weakmap() || getSideChannelMap || getSideChannelList;
+	/** @type {import('.')} */
 	module.exports = function getSideChannel() {
-		var $channelData;
+		/** @typedef {ReturnType<typeof getSideChannel>} Channel */
+		/** @type {Channel | undefined} */ var $channelData;
+		/** @type {Channel} */
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + (key && Object(key) === key ? "the given object key" : inspect(key)));
 			},
-			delete: function(key) {
+			"delete": function(key) {
 				return !!$channelData && $channelData["delete"](key);
 			},
 			get: function(key) {
@@ -20790,7 +20819,7 @@ var require_formats = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		RFC3986: "RFC3986"
 	};
 	module.exports = {
-		default: Format.RFC3986,
+		"default": Format.RFC3986,
 		formatters: {
 			RFC1738: function(value) {
 				return replace.call(value, percentTwenties, "+");
@@ -20836,11 +20865,11 @@ var require_utils$3 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var getConflictIndex = function getConflictIndex(obj) {
 		return conflictChannel.get(obj);
 	};
-	var hexTable = (function() {
+	var hexTable = function() {
 		var array = [];
 		for (var i = 0; i < 256; ++i) array[array.length] = "%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase();
 		return array;
-	})();
+	}();
 	var compactQueue = function compactQueue(queue) {
 		while (queue.length > 1) {
 			var item = queue.pop();
@@ -21646,9 +21675,15 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	const createError = require_http_errors();
+	const debug = require_src()("body-parser:urlencoded");
+	const read = require_read();
+	const qs = require_lib$3();
+	const { normalizeOptions } = require_utils$4();
 	/**
 	* Module exports.
 	*/
+	module.exports = urlencoded;
 	/**
 	* Create a middleware to parse urlencoded bodies.
 	*
@@ -21656,26 +21691,6 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
-	/**
-	* Get the extended query parser.
-	*
-	* @param {Object} options
-	* @returns {Function}
-	* @private
-	*/
-	/**
-	* Count the number of parameters, stopping once limit reached
-	*
-	* @param {string} body
-	* @param {number} limit
-	* @returns {number|undefined} Returns undefined if limit exceeded
-	* @private
-	*/ const createError = require_http_errors();
-	const debug = require_src()("body-parser:urlencoded");
-	const read = require_read();
-	const qs = require_lib$3();
-	const { normalizeOptions } = require_utils$4();
-	module.exports = urlencoded;
 	function urlencoded(options) {
 		const normalizedOptions = normalizeOptions(options, "application/x-www-form-urlencoded");
 		if (normalizedOptions.defaultCharset !== "utf-8" && normalizedOptions.defaultCharset !== "iso-8859-1") throw new TypeError("option defaultCharset must be either utf-8 or iso-8859-1");
@@ -21688,6 +21703,13 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			read(req, res, next, parse, debug, readOptions);
 		};
 	}
+	/**
+	* Get the extended query parser.
+	*
+	* @param {Object} options
+	* @returns {Function}
+	* @private
+	*/
 	function createQueryParser(options) {
 		const extended = Boolean(options?.extended);
 		let parameterLimit = options?.parameterLimit !== void 0 ? options?.parameterLimit : 1e3;
@@ -21723,6 +21745,14 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		};
 	}
+	/**
+	* Count the number of parameters, stopping once limit reached
+	*
+	* @param {string} body
+	* @param {number} limit
+	* @returns {number|undefined} Returns undefined if limit exceeded
+	* @private
+	*/
 	function parameterCount(body, limit) {
 		let count = 0;
 		let index = -1;
@@ -21753,33 +21783,33 @@ var require_body_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @type {Function & Parsers}
 	*/
+	exports = module.exports = bodyParser;
 	/**
 	* JSON parser.
 	* @public
 	*/
+	exports.json = require_json();
 	/**
 	* Raw parser.
 	* @public
 	*/
+	exports.raw = require_raw();
 	/**
 	* Text parser.
 	* @public
 	*/
+	exports.text = require_text();
 	/**
 	* URL-encoded parser.
 	* @public
 	*/
+	exports.urlencoded = require_urlencoded();
 	/**
 	* Create a middleware to parse json and urlencoded bodies.
 	*
 	* @deprecated
 	* @public
 	*/
-	exports = module.exports = bodyParser;
-	exports.json = require_json();
-	exports.raw = require_raw();
-	exports.text = require_text();
-	exports.urlencoded = require_urlencoded();
 	function bodyParser() {
 		throw new Error("The bodyParser() generic has been split into individual middleware to use instead.");
 	}
@@ -21811,19 +21841,23 @@ var require_encodeurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = encodeUrl;
 	/**
 	* RegExp to match non-URL code points, *after* encoding (i.e. not including "%")
 	* and including invalid escape sequences.
 	* @private
 	*/
+	var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
 	/**
 	* RegExp to match unmatched surrogate pair.
 	* @private
 	*/
+	var UNMATCHED_SURROGATE_PAIR_REGEXP = /(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF]([^\uDC00-\uDFFF]|$)/g;
 	/**
 	* String to replace unmatched surrogate pair with.
 	* @private
 	*/
+	var UNMATCHED_SURROGATE_PAIR_REPLACE = "$1�$2";
 	/**
 	* Encode a URL to a percent-encoded form, excluding already-encoded sequences.
 	*
@@ -21841,10 +21875,6 @@ var require_encodeurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {string}
 	* @public
 	*/
-	module.exports = encodeUrl;
-	var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
-	var UNMATCHED_SURROGATE_PAIR_REGEXP = /(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF]([^\uDC00-\uDFFF]|$)/g;
-	var UNMATCHED_SURROGATE_PAIR_REPLACE = "$1�$2";
 	function encodeUrl(url) {
 		return String(url).replace(UNMATCHED_SURROGATE_PAIR_REGEXP, UNMATCHED_SURROGATE_PAIR_REPLACE).replace(ENCODE_CHARS_REGEXP, encodeURI);
 	}
@@ -21863,18 +21893,19 @@ var require_escape_html = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module variables.
 	* @private
 	*/
+	var matchHtmlRegExp = /["'&<>]/;
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = escapeHtml;
 	/**
 	* Escape special characters in the given string of html.
 	*
 	* @param  {string} string The string to escape for inserting into HTML
 	* @return {string}
 	* @public
-	*/ var matchHtmlRegExp = /["'&<>]/;
-	module.exports = escapeHtml;
+	*/
 	function escapeHtml(string) {
 		var str = "" + string;
 		var match = matchHtmlRegExp.exec(str);
@@ -21922,10 +21953,15 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var url = __require("url");
+	var parse = url.parse;
+	var Url = url.Url;
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = parseurl;
+	module.exports.original = originalurl;
 	/**
 	* Parse the `req` url with memoization.
 	*
@@ -21933,33 +21969,6 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Object}
 	* @public
 	*/
-	/**
-	* Parse the `req` original url with fallback and memoization.
-	*
-	* @param {ServerRequest} req
-	* @return {Object}
-	* @public
-	*/
-	/**
-	* Parse the `str` url with fast-path short-cut.
-	*
-	* @param {string} str
-	* @return {Object}
-	* @private
-	*/
-	/**
-	* Determine if parsed is still fresh for url.
-	*
-	* @param {string} url
-	* @param {object} parsedUrl
-	* @return {boolean}
-	* @private
-	*/
-	var url = __require("url");
-	var parse = url.parse;
-	var Url = url.Url;
-	module.exports = parseurl;
-	module.exports.original = originalurl;
 	function parseurl(req) {
 		var url = req.url;
 		if (url === void 0) return;
@@ -21969,6 +21978,13 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		parsed._raw = url;
 		return req._parsedUrl = parsed;
 	}
+	/**
+	* Parse the `req` original url with fallback and memoization.
+	*
+	* @param {ServerRequest} req
+	* @return {Object}
+	* @public
+	*/
 	function originalurl(req) {
 		var url = req.originalUrl;
 		if (typeof url !== "string") return parseurl(req);
@@ -21978,6 +21994,13 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		parsed._raw = url;
 		return req._parsedOriginalUrl = parsed;
 	}
+	/**
+	* Parse the `str` url with fast-path short-cut.
+	*
+	* @param {string} str
+	* @return {Object}
+	* @private
+	*/
 	function fastparse(str) {
 		if (typeof str !== "string" || str.charCodeAt(0) !== 47) return parse(str);
 		var pathname = str;
@@ -22010,6 +22033,14 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return url;
 	}
+	/**
+	* Determine if parsed is still fresh for url.
+	*
+	* @param {string} url
+	* @param {object} parsedUrl
+	* @return {boolean}
+	* @private
+	*/
 	function fresh(url, parsedUrl) {
 		return typeof parsedUrl === "object" && parsedUrl !== null && (Url === void 0 || parsedUrl instanceof Url) && parsedUrl._raw === url;
 	}
@@ -22026,20 +22057,31 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var debug = require_src()("finalhandler");
+	var encodeUrl = require_encodeurl();
+	var escapeHtml = require_escape_html();
+	var onFinished = require_on_finished();
+	var parseUrl = require_parseurl();
+	var statuses = require_statuses();
 	/**
 	* Module variables.
 	* @private
 	*/
+	var isFinished = onFinished.isFinished;
 	/**
 	* Create a minimal HTML document.
 	*
 	* @param {string} message
 	* @private
 	*/
+	function createHtmlDocument(message) {
+		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + escapeHtml(message).replaceAll("\n", "<br>").replaceAll("  ", " &nbsp;") + "</pre>\n</body>\n</html>\n";
+	}
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = finalhandler;
 	/**
 	* Create a function to handle the final response.
 	*
@@ -22049,67 +22091,6 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Function}
 	* @public
 	*/
-	/**
-	* Get headers from Error object.
-	*
-	* @param {Error} err
-	* @return {object}
-	* @private
-	*/
-	/**
-	* Get message from Error object, fallback to status message.
-	*
-	* @param {Error} err
-	* @param {number} status
-	* @param {string} env
-	* @return {string}
-	* @private
-	*/
-	/**
-	* Get status code from Error object.
-	*
-	* @param {Error} err
-	* @return {number}
-	* @private
-	*/
-	/**
-	* Get resource name for the request.
-	*
-	* This is typically just the original pathname of the request
-	* but will fallback to "resource" is that cannot be determined.
-	*
-	* @param {IncomingMessage} req
-	* @return {string}
-	* @private
-	*/
-	/**
-	* Get status code from response.
-	*
-	* @param {OutgoingMessage} res
-	* @return {number}
-	* @private
-	*/
-	/**
-	* Send response.
-	*
-	* @param {IncomingMessage} req
-	* @param {OutgoingMessage} res
-	* @param {number} status
-	* @param {object} headers
-	* @param {string} message
-	* @private
-	*/
-	var debug = require_src()("finalhandler");
-	var encodeUrl = require_encodeurl();
-	var escapeHtml = require_escape_html();
-	var onFinished = require_on_finished();
-	var parseUrl = require_parseurl();
-	var statuses = require_statuses();
-	var isFinished = onFinished.isFinished;
-	function createHtmlDocument(message) {
-		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + escapeHtml(message).replaceAll("\n", "<br>").replaceAll("  ", " &nbsp;") + "</pre>\n</body>\n</html>\n";
-	}
-	module.exports = finalhandler;
 	function finalhandler(req, res, options) {
 		var opts = options || {};
 		var env = opts.env || process.env.NODE_ENV || "development";
@@ -22141,10 +22122,26 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			send(req, res, status, headers, msg);
 		};
 	}
+	/**
+	* Get headers from Error object.
+	*
+	* @param {Error} err
+	* @return {object}
+	* @private
+	*/
 	function getErrorHeaders(err) {
 		if (!err.headers || typeof err.headers !== "object") return;
 		return { ...err.headers };
 	}
+	/**
+	* Get message from Error object, fallback to status message.
+	*
+	* @param {Error} err
+	* @param {number} status
+	* @param {string} env
+	* @return {string}
+	* @private
+	*/
 	function getErrorMessage(err, status, env) {
 		var msg;
 		if (env !== "production") {
@@ -22153,10 +22150,27 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return msg || statuses.message[status];
 	}
+	/**
+	* Get status code from Error object.
+	*
+	* @param {Error} err
+	* @return {number}
+	* @private
+	*/
 	function getErrorStatusCode(err) {
 		if (typeof err.status === "number" && err.status >= 400 && err.status < 600) return err.status;
 		if (typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
 	}
+	/**
+	* Get resource name for the request.
+	*
+	* This is typically just the original pathname of the request
+	* but will fallback to "resource" is that cannot be determined.
+	*
+	* @param {IncomingMessage} req
+	* @return {string}
+	* @private
+	*/
 	function getResourceName(req) {
 		try {
 			return parseUrl.original(req).pathname;
@@ -22164,11 +22178,28 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return "resource";
 		}
 	}
+	/**
+	* Get status code from response.
+	*
+	* @param {OutgoingMessage} res
+	* @return {number}
+	* @private
+	*/
 	function getResponseStatusCode(res) {
 		var status = res.statusCode;
 		if (typeof status !== "number" || status < 400 || status > 599) status = 500;
 		return status;
 	}
+	/**
+	* Send response.
+	*
+	* @param {IncomingMessage} req
+	* @param {OutgoingMessage} res
+	* @param {number} status
+	* @param {object} headers
+	* @param {string} message
+	* @private
+	*/
 	function send(req, res, status, headers, message) {
 		function write() {
 			var body = createHtmlDocument(message);
@@ -22347,14 +22378,18 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = etag;
 	/**
 	* Module dependencies.
 	* @private
 	*/
+	var crypto = __require("crypto");
+	var Stats = __require("fs").Stats;
 	/**
 	* Module variables.
 	* @private
 	*/
+	var toString = Object.prototype.toString;
 	/**
 	* Generate an entity tag.
 	*
@@ -22362,6 +22397,11 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {string}
 	* @private
 	*/
+	function entitytag(entity) {
+		if (entity.length === 0) return "\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"";
+		var hash = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+		return "\"" + (typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length).toString(16) + "-" + hash + "\"";
+	}
 	/**
 	* Create a simple ETag.
 	*
@@ -22371,29 +22411,6 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String}
 	* @public
 	*/
-	/**
-	* Determine if object is a Stats object.
-	*
-	* @param {object} obj
-	* @return {boolean}
-	* @api private
-	*/
-	/**
-	* Generate a tag for a stat.
-	*
-	* @param {object} stat
-	* @return {string}
-	* @private
-	*/
-	module.exports = etag;
-	var crypto = __require("crypto");
-	var Stats = __require("fs").Stats;
-	var toString = Object.prototype.toString;
-	function entitytag(entity) {
-		if (entity.length === 0) return "\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"";
-		var hash = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
-		return "\"" + (typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length).toString(16) + "-" + hash + "\"";
-	}
 	function etag(entity, options) {
 		if (entity == null) throw new TypeError("argument entity is required");
 		var isStats = isstats(entity);
@@ -22402,10 +22419,24 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		var tag = isStats ? stattag(entity) : entitytag(entity);
 		return weak ? "W/" + tag : tag;
 	}
+	/**
+	* Determine if object is a Stats object.
+	*
+	* @param {object} obj
+	* @return {boolean}
+	* @api private
+	*/
 	function isstats(obj) {
 		if (typeof Stats === "function" && obj instanceof Stats) return true;
 		return obj && typeof obj === "object" && "ctime" in obj && toString.call(obj.ctime) === "[object Date]" && "mtime" in obj && toString.call(obj.mtime) === "[object Date]" && "ino" in obj && typeof obj.ino === "number" && "size" in obj && typeof obj.size === "number";
 	}
+	/**
+	* Generate a tag for a stat.
+	*
+	* @param {object} stat
+	* @return {string}
+	* @private
+	*/
 	function stattag(stat) {
 		var mtime = stat.mtime.getTime().toString(16);
 		return "\"" + stat.size.toString(16) + "-" + mtime + "\"";
@@ -22423,6 +22454,7 @@ var require_forwarded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = forwarded;
 	/**
 	* Get all addresses in the request, using the `X-Forwarded-For` header.
 	*
@@ -22430,6 +22462,11 @@ var require_forwarded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {array}
 	* @public
 	*/
+	function forwarded(req) {
+		if (!req) throw new TypeError("argument req is required");
+		var proxyAddrs = parse(req.headers["x-forwarded-for"] || "");
+		return [getSocketAddr(req)].concat(proxyAddrs);
+	}
 	/**
 	* Get the socket address for a request.
 	*
@@ -22437,21 +22474,15 @@ var require_forwarded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {string}
 	* @private
 	*/
+	function getSocketAddr(req) {
+		return req.socket ? req.socket.remoteAddress : req.connection.remoteAddress;
+	}
 	/**
 	* Parse the X-Forwarded-For header.
 	*
 	* @param {string} header
 	* @private
 	*/
-	module.exports = forwarded;
-	function forwarded(req) {
-		if (!req) throw new TypeError("argument req is required");
-		var proxyAddrs = parse(req.headers["x-forwarded-for"] || "");
-		return [getSocketAddr(req)].concat(proxyAddrs);
-	}
-	function getSocketAddr(req) {
-		return req.socket ? req.socket.remoteAddress : req.connection.remoteAddress;
-	}
 	function parse(header) {
 		var end = header.length;
 		var list = [];
@@ -22570,7 +22601,7 @@ var require_ipaddr = /* @__PURE__ */ __commonJSMin(((exports, module, this$1) =>
 					0,
 					0
 				]), 10]],
-				private: [
+				"private": [
 					[new IPv4([
 						10,
 						0,
@@ -22732,26 +22763,26 @@ var require_ipaddr = /* @__PURE__ */ __commonJSMin(((exports, module, this$1) =>
 				return bytes;
 			};
 			IPv6.prototype.toNormalizedString = function() {
-				var addr = function() {
+				var addr = (function() {
 					var k, len, ref = this.parts, results = [];
 					for (k = 0, len = ref.length; k < len; k++) {
 						part = ref[k];
 						results.push(part.toString(16));
 					}
 					return results;
-				}.call(this).join(":"), part, suffix = "";
+				}).call(this).join(":"), part, suffix = "";
 				if (this.zoneId) suffix = "%" + this.zoneId;
 				return addr + suffix;
 			};
 			IPv6.prototype.toFixedLengthString = function() {
-				var addr = function() {
+				var addr = (function() {
 					var k, len, ref = this.parts, results = [];
 					for (k = 0, len = ref.length; k < len; k++) {
 						part = ref[k];
 						results.push(part.toString(16).padStart(4, "0"));
 					}
 					return results;
-				}.call(this).join(":"), part, suffix = "";
+				}).call(this).join(":"), part, suffix = "";
 				if (this.zoneId) suffix = "%" + this.zoneId;
 				return addr + suffix;
 			};
@@ -22929,7 +22960,7 @@ var require_ipaddr = /* @__PURE__ */ __commonJSMin(((exports, module, this$1) =>
 		zoneIndex = "%[0-9a-z]{1,}";
 		ipv6Regexes = {
 			zoneIndex: new RegExp(zoneIndex, "i"),
-			native: new RegExp("^(::)?(" + ipv6Part + ")?([0-9a-f]+)?(::)?(" + zoneIndex + ")?$", "i"),
+			"native": new RegExp("^(::)?(" + ipv6Part + ")?([0-9a-f]+)?(::)?(" + zoneIndex + ")?$", "i"),
 			transitional: new RegExp("^((?:" + ipv6Part + ")|(?:::)(?:" + ipv6Part + ")?)" + (ipv4Part + "\\." + ipv4Part + "\\." + ipv4Part + "\\." + ipv4Part) + ("(" + zoneIndex + ")?$"), "i")
 		};
 		expandIPv6 = function(string, parts) {
@@ -23153,88 +23184,26 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = proxyaddr;
+	module.exports.all = alladdrs;
+	module.exports.compile = compile;
 	/**
 	* Module dependencies.
 	* @private
 	*/
+	var forwarded = require_forwarded();
+	var ipaddr = require_ipaddr();
 	/**
 	* Variables.
 	* @private
 	*/
+	var DIGIT_REGEXP = /^[0-9]+$/;
+	var isip = ipaddr.isValid;
+	var parseip = ipaddr.parse;
 	/**
 	* Pre-defined IP ranges.
 	* @private
 	*/
-	/**
-	* Get all addresses in the request, optionally stopping
-	* at the first untrusted.
-	*
-	* @param {Object} request
-	* @param {Function|Array|String} [trust]
-	* @public
-	*/
-	/**
-	* Compile argument into trust function.
-	*
-	* @param {Array|String} val
-	* @private
-	*/
-	/**
-	* Compile `arr` elements into range subnets.
-	*
-	* @param {Array} arr
-	* @private
-	*/
-	/**
-	* Compile range subnet array into trust function.
-	*
-	* @param {Array} rangeSubnets
-	* @private
-	*/
-	/**
-	* Parse IP notation string into range subnet.
-	*
-	* @param {String} note
-	* @private
-	*/
-	/**
-	* Parse netmask string into CIDR range.
-	*
-	* @param {String} netmask
-	* @private
-	*/
-	/**
-	* Determine address of proxied request.
-	*
-	* @param {Object} request
-	* @param {Function|Array|String} trust
-	* @public
-	*/
-	/**
-	* Static trust function to trust nothing.
-	*
-	* @private
-	*/
-	/**
-	* Compile trust function for multiple subnets.
-	*
-	* @param {Array} subnets
-	* @private
-	*/
-	/**
-	* Compile trust function for single subnet.
-	*
-	* @param {Object} subnet
-	* @private
-	*/
-	module.exports = proxyaddr;
-	module.exports.all = alladdrs;
-	module.exports.compile = compile;
-	var forwarded = require_forwarded();
-	var ipaddr = require_ipaddr();
-	var DIGIT_REGEXP = /^[0-9]+$/;
-	var isip = ipaddr.isValid;
-	var parseip = ipaddr.parse;
 	var IP_RANGES = {
 		linklocal: ["169.254.0.0/16", "fe80::/10"],
 		loopback: ["127.0.0.1/8", "::1/128"],
@@ -23245,6 +23214,14 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			"fc00::/7"
 		]
 	};
+	/**
+	* Get all addresses in the request, optionally stopping
+	* at the first untrusted.
+	*
+	* @param {Object} request
+	* @param {Function|Array|String} [trust]
+	* @public
+	*/
 	function alladdrs(req, trust) {
 		var addrs = forwarded(req);
 		if (!trust) return addrs;
@@ -23255,6 +23232,12 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return addrs;
 	}
+	/**
+	* Compile argument into trust function.
+	*
+	* @param {Array|String} val
+	* @private
+	*/
 	function compile(val) {
 		if (!val) throw new TypeError("argument is required");
 		var trust;
@@ -23270,15 +23253,33 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return compileTrust(compileRangeSubnets(trust));
 	}
+	/**
+	* Compile `arr` elements into range subnets.
+	*
+	* @param {Array} arr
+	* @private
+	*/
 	function compileRangeSubnets(arr) {
 		var rangeSubnets = new Array(arr.length);
 		for (var i = 0; i < arr.length; i++) rangeSubnets[i] = parseipNotation(arr[i]);
 		return rangeSubnets;
 	}
+	/**
+	* Compile range subnet array into trust function.
+	*
+	* @param {Array} rangeSubnets
+	* @private
+	*/
 	function compileTrust(rangeSubnets) {
 		var len = rangeSubnets.length;
 		return len === 0 ? trustNone : len === 1 ? trustSingle(rangeSubnets[0]) : trustMulti(rangeSubnets);
 	}
+	/**
+	* Parse IP notation string into range subnet.
+	*
+	* @param {String} note
+	* @private
+	*/
 	function parseipNotation(note) {
 		var pos = note.lastIndexOf("/");
 		var str = pos !== -1 ? note.substring(0, pos) : note;
@@ -23294,19 +23295,43 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (range <= 0 || range > max) throw new TypeError("invalid range on address: " + note);
 		return [ip, range];
 	}
+	/**
+	* Parse netmask string into CIDR range.
+	*
+	* @param {String} netmask
+	* @private
+	*/
 	function parseNetmask(netmask) {
 		var ip = parseip(netmask);
 		return ip.kind() === "ipv4" ? ip.prefixLengthFromSubnetMask() : null;
 	}
+	/**
+	* Determine address of proxied request.
+	*
+	* @param {Object} request
+	* @param {Function|Array|String} trust
+	* @public
+	*/
 	function proxyaddr(req, trust) {
 		if (!req) throw new TypeError("req argument is required");
 		if (!trust) throw new TypeError("trust argument is required");
 		var addrs = alladdrs(req, trust);
 		return addrs[addrs.length - 1];
 	}
+	/**
+	* Static trust function to trust nothing.
+	*
+	* @private
+	*/
 	function trustNone() {
 		return false;
 	}
+	/**
+	* Compile trust function for multiple subnets.
+	*
+	* @param {Array} subnets
+	* @private
+	*/
 	function trustMulti(subnets) {
 		return function trust(addr) {
 			if (!isip(addr)) return false;
@@ -23331,6 +23356,12 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return false;
 		};
 	}
+	/**
+	* Compile trust function for single subnet.
+	*
+	* @param {Object} subnet
+	* @private
+	*/
 	function trustSingle(subnet) {
 		var subnetip = subnet[0];
 		var subnetkind = subnetip.kind();
@@ -23630,51 +23661,6 @@ var require_is_promise = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/path-to-regexp/dist/index.js
 var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
-	/**
-	* Escape text for stringify to path.
-	*/
-	/**
-	* Escape a regular expression string.
-	*/
-	/**
-	* Tokenized path instance.
-	*/
-	/**
-	* ParseError is thrown when there is an error processing the path.
-	*/
-	/**
-	* Parse a string for the raw tokens.
-	*/
-	/**
-	* Compile a string to a template function for the path.
-	*/
-	/**
-	* Convert a single token into a path building function.
-	*/
-	/**
-	* Transform a path into a match function.
-	*/
-	/**
-	* Transform a path into a regular expression and capture keys.
-	*/
-	/**
-	* Generate a flat list of sequence tokens from the given tokens.
-	*/
-	/**
-	* Transform a flat sequence of tokens into a regular expression.
-	*/
-	/**
-	* Block backtracking on previous text/delimiter.
-	*/
-	/**
-	* Stringify an array of tokens into a path string.
-	*/
-	/**
-	* Stringify token data into a path string.
-	*/
-	/**
-	* Stringify a parameter name, escaping when it cannot be emitted directly.
-	*/
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.PathError = exports.TokenData = void 0;
 	exports.parse = parse;
@@ -23687,12 +23673,21 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const ID_START = /^[$_\p{ID_Start}]$/u;
 	const ID_CONTINUE = /^[$\u200c\u200d\p{ID_Continue}]$/u;
 	const ID = /^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u;
+	/**
+	* Escape text for stringify to path.
+	*/
 	function escapeText(str) {
 		return str.replace(/[{}()\[\]+?!:*\\]/g, "\\$&");
 	}
+	/**
+	* Escape a regular expression string.
+	*/
 	function escape(str) {
 		return str.replace(/[.+*?^${}()[\]|/\\]/g, "\\$&");
 	}
+	/**
+	* Tokenized path instance.
+	*/
 	var TokenData = class {
 		constructor(tokens, originalPath) {
 			this.tokens = tokens;
@@ -23700,6 +23695,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 	};
 	exports.TokenData = TokenData;
+	/**
+	* ParseError is thrown when there is an error processing the path.
+	*/
 	var PathError = class extends TypeError {
 		constructor(message, originalPath) {
 			let text = message;
@@ -23710,6 +23708,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 	};
 	exports.PathError = PathError;
+	/**
+	* Parse a string for the raw tokens.
+	*/
 	function parse(str, options = {}) {
 		const { encodePath = NOOP_VALUE } = options;
 		const chars = [...str];
@@ -23780,6 +23781,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return new TokenData(consumeUntil(""), str);
 	}
+	/**
+	* Compile a string to a template function for the path.
+	*/
 	function compile(path, options = {}) {
 		const { encode = encodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
 		const fn = tokensToFunction((typeof path === "object" ? path : parse(path, options)).tokens, delimiter, encode);
@@ -23798,6 +23802,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			return result;
 		};
 	}
+	/**
+	* Convert a single token into a path building function.
+	*/
 	function tokenToFunction(token, delimiter, encode) {
 		if (token.type === "text") return () => token.value;
 		if (token.type === "group") {
@@ -23836,6 +23843,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			return encodeValue(value);
 		};
 	}
+	/**
+	* Transform a path into a match function.
+	*/
 	function match(path, options = {}) {
 		const { decode = decodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
 		const { regexp, keys } = pathToRegexp(path, options);
@@ -23861,6 +23871,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			};
 		};
 	}
+	/**
+	* Transform a path into a regular expression and capture keys.
+	*/
 	function pathToRegexp(path, options = {}) {
 		const { delimiter = DEFAULT_DELIMITER, end = true, sensitive = false, trailing = true } = options;
 		const keys = [];
@@ -23888,6 +23901,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			keys
 		};
 	}
+	/**
+	* Generate a flat list of sequence tokens from the given tokens.
+	*/
 	function flatten(tokens, index, result, callback) {
 		while (index < tokens.length) {
 			const token = tokens[index++];
@@ -23901,6 +23917,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		callback(result);
 	}
+	/**
+	* Transform a flat sequence of tokens into a regular expression.
+	*/
 	function toRegExpSource(tokens, delimiter, keys, originalPath) {
 		let result = "";
 		let backtrack = "";
@@ -23954,6 +23973,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return result;
 	}
+	/**
+	* Block backtracking on previous text/delimiter.
+	*/
 	function negate(a, b) {
 		if (b.length > a.length) return negate(b, a);
 		if (a === b) b = "";
@@ -23961,6 +23983,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		if (a.length > 1) return `(?:(?!${escape(a)})[^${escape(b)}])`;
 		return `[^${escape(a + b)}]`;
 	}
+	/**
+	* Stringify an array of tokens into a path string.
+	*/
 	function stringifyTokens(tokens, index) {
 		let value = "";
 		while (index < tokens.length) {
@@ -23985,9 +24010,15 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return value;
 	}
+	/**
+	* Stringify token data into a path string.
+	*/
 	function stringify(data) {
 		return stringifyTokens(data.tokens, 0);
 	}
+	/**
+	* Stringify a parameter name, escaping when it cannot be emitted directly.
+	*/
 	function stringifyName(name, next) {
 		if (!ID.test(name)) return JSON.stringify(name);
 		if ((next === null || next === void 0 ? void 0 : next.type) === "text" && ID_CONTINUE.test(next.value[0])) return JSON.stringify(name);
@@ -24007,54 +24038,19 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	/**
-	* Module variables.
-	* @private
-	*/
-	/**
-	* Expose `Layer`.
-	*/
-	/**
-	* Handle the error for the layer.
-	*
-	* @param {Error} error
-	* @param {Request} req
-	* @param {Response} res
-	* @param {function} next
-	* @api private
-	*/
-	/**
-	* Handle the request for the layer.
-	*
-	* @param {Request} req
-	* @param {Response} res
-	* @param {function} next
-	* @api private
-	*/
-	/**
-	* Check if this route matches `path`, if so
-	* populate `.params`.
-	*
-	* @param {String} path
-	* @return {Boolean}
-	* @api private
-	*/
-	/**
-	* Decode param value.
-	*
-	* @param {string} val
-	* @return {string}
-	* @private
-	*/
-	/**
-	* Loosens the given path for path-to-regexp matching.
-	*/
 	const isPromise = require_is_promise();
 	const pathRegexp = require_dist$2();
 	const debug = require_src()("router:layer");
 	const deprecate = require_depd()("router");
+	/**
+	* Module variables.
+	* @private
+	*/
 	const TRAILING_SLASH_REGEXP = /\/+$/;
 	const MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g;
+	/**
+	* Expose `Layer`.
+	*/
 	module.exports = Layer;
 	function Layer(path, options, fn) {
 		if (!(this instanceof Layer)) return new Layer(path, options, fn);
@@ -24099,6 +24095,15 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		this.matchers = Array.isArray(path) ? path.map(matcher) : [matcher(path)];
 	}
+	/**
+	* Handle the error for the layer.
+	*
+	* @param {Error} error
+	* @param {Request} req
+	* @param {Response} res
+	* @param {function} next
+	* @api private
+	*/
 	Layer.prototype.handleError = function handleError(error, req, res, next) {
 		const fn = this.handle;
 		if (fn.length !== 4) return next(error);
@@ -24114,6 +24119,14 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next(err);
 		}
 	};
+	/**
+	* Handle the request for the layer.
+	*
+	* @param {Request} req
+	* @param {Response} res
+	* @param {function} next
+	* @api private
+	*/
 	Layer.prototype.handleRequest = function handleRequest(req, res, next) {
 		const fn = this.handle;
 		if (fn.length > 3) return next();
@@ -24129,6 +24142,14 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next(err);
 		}
 	};
+	/**
+	* Check if this route matches `path`, if so
+	* populate `.params`.
+	*
+	* @param {String} path
+	* @return {Boolean}
+	* @api private
+	*/
 	Layer.prototype.match = function match(path) {
 		let match;
 		if (path != null) {
@@ -24153,6 +24174,13 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		this.keys = Object.keys(match.params);
 		return true;
 	};
+	/**
+	* Decode param value.
+	*
+	* @param {string} val
+	* @return {string}
+	* @private
+	*/
 	function decodeParam(val) {
 		if (typeof val !== "string" || val.length === 0) return val;
 		try {
@@ -24165,6 +24193,9 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			throw err;
 		}
 	}
+	/**
+	* Loosens the given path for path-to-regexp matching.
+	*/
 	function loosen(path) {
 		if (path instanceof RegExp || path === "/") return path;
 		return Array.isArray(path) ? path.map(function(p) {
@@ -24185,31 +24216,82 @@ var require_route = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	const debug = require_src()("router:route");
+	const Layer = require_layer();
+	const { METHODS } = __require("node:http");
 	/**
 	* Module variables.
 	* @private
 	*/
+	const slice = Array.prototype.slice;
+	const flatten = Array.prototype.flat;
+	const methods = METHODS.map((method) => method.toLowerCase());
 	/**
 	* Expose `Route`.
 	*/
+	module.exports = Route;
 	/**
 	* Initialize `Route` with the given `path`,
 	*
 	* @param {String} path
 	* @api private
 	*/
+	function Route(path) {
+		debug("new %o", path);
+		this.path = path;
+		this.stack = [];
+		this.methods = Object.create(null);
+	}
 	/**
 	* @private
 	*/
+	Route.prototype._handlesMethod = function _handlesMethod(method) {
+		if (this.methods._all) return true;
+		let name = typeof method === "string" ? method.toLowerCase() : method;
+		if (name === "head" && !this.methods.head) name = "get";
+		return Boolean(this.methods[name]);
+	};
 	/**
 	* @return {array} supported HTTP methods
 	* @private
 	*/
+	Route.prototype._methods = function _methods() {
+		const methods = Object.keys(this.methods);
+		if (this.methods.get && !this.methods.head) methods.push("head");
+		for (let i = 0; i < methods.length; i++) methods[i] = methods[i].toUpperCase();
+		return methods;
+	};
 	/**
 	* dispatch req, res into this route
 	*
 	* @private
 	*/
+	Route.prototype.dispatch = function dispatch(req, res, done) {
+		let idx = 0;
+		const stack = this.stack;
+		let sync = 0;
+		if (stack.length === 0) return done();
+		let method = typeof req.method === "string" ? req.method.toLowerCase() : req.method;
+		if (method === "head" && !this.methods.head) method = "get";
+		req.route = this;
+		next();
+		function next(err) {
+			if (err && err === "route") return done();
+			if (err && err === "router") return done(err);
+			if (idx >= stack.length) return done(err);
+			if (++sync > 100) return setImmediate(next, err);
+			let layer;
+			let match;
+			while (match !== true && idx < stack.length) {
+				layer = stack[idx++];
+				match = !layer.method || layer.method === method;
+			}
+			if (match !== true) return done(err);
+			if (err) layer.handleError(err, req, res, next);
+			else layer.handleRequest(req, res, next);
+			sync = 0;
+		}
+	};
 	/**
 	* Add a handler for all HTTP verbs to this route.
 	*
@@ -24237,57 +24319,6 @@ var require_route = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Route} for chaining
 	* @api public
 	*/
-	const debug = require_src()("router:route");
-	const Layer = require_layer();
-	const { METHODS } = __require("node:http");
-	const slice = Array.prototype.slice;
-	const flatten = Array.prototype.flat;
-	const methods = METHODS.map((method) => method.toLowerCase());
-	module.exports = Route;
-	function Route(path) {
-		debug("new %o", path);
-		this.path = path;
-		this.stack = [];
-		this.methods = Object.create(null);
-	}
-	Route.prototype._handlesMethod = function _handlesMethod(method) {
-		if (this.methods._all) return true;
-		let name = typeof method === "string" ? method.toLowerCase() : method;
-		if (name === "head" && !this.methods.head) name = "get";
-		return Boolean(this.methods[name]);
-	};
-	Route.prototype._methods = function _methods() {
-		const methods = Object.keys(this.methods);
-		if (this.methods.get && !this.methods.head) methods.push("head");
-		for (let i = 0; i < methods.length; i++) methods[i] = methods[i].toUpperCase();
-		return methods;
-	};
-	Route.prototype.dispatch = function dispatch(req, res, done) {
-		let idx = 0;
-		const stack = this.stack;
-		let sync = 0;
-		if (stack.length === 0) return done();
-		let method = typeof req.method === "string" ? req.method.toLowerCase() : req.method;
-		if (method === "head" && !this.methods.head) method = "get";
-		req.route = this;
-		next();
-		function next(err) {
-			if (err && err === "route") return done();
-			if (err && err === "router") return done(err);
-			if (idx >= stack.length) return done(err);
-			if (++sync > 100) return setImmediate(next, err);
-			let layer;
-			let match;
-			while (match !== true && idx < stack.length) {
-				layer = stack[idx++];
-				match = !layer.method || layer.method === method;
-			}
-			if (match !== true) return done(err);
-			if (err) layer.handleError(err, req, res, next);
-			else layer.handleRequest(req, res, next);
-			sync = 0;
-		}
-	};
 	Route.prototype.all = function all(handler) {
 		const callbacks = flatten.call(slice.call(arguments), Infinity);
 		if (callbacks.length === 0) throw new TypeError("argument handler is required");
@@ -24331,16 +24362,28 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	const isPromise = require_is_promise();
+	const Layer = require_layer();
+	const { METHODS } = __require("node:http");
+	const parseUrl = require_parseurl();
+	const Route = require_route();
+	const debug = require_src()("router");
+	const deprecate = require_depd()("router");
 	/**
 	* Module variables.
 	* @private
 	*/
+	const slice = Array.prototype.slice;
+	const flatten = Array.prototype.flat;
+	const methods = METHODS.map((method) => method.toLowerCase());
 	/**
 	* Expose `Router`.
 	*/
+	module.exports = Router;
 	/**
 	* Expose `Route`.
 	*/
+	module.exports.Route = Route;
 	/**
 	* Initialize a new `Router` with the given `options`.
 	*
@@ -24348,10 +24391,25 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Router} which is a callable function
 	* @public
 	*/
+	function Router(options) {
+		if (!(this instanceof Router)) return new Router(options);
+		const opts = options || {};
+		function router(req, res, next) {
+			router.handle(req, res, next);
+		}
+		Object.setPrototypeOf(router, this);
+		router.caseSensitive = opts.caseSensitive;
+		router.mergeParams = opts.mergeParams;
+		router.params = {};
+		router.strict = opts.strict;
+		router.stack = [];
+		return router;
+	}
 	/**
 	* Router prototype inherits from a Function.
 	*/
 	/* istanbul ignore next */
+	Router.prototype = function() {};
 	/**
 	* Map the given param placeholder `name`(s) to the given callback.
 	*
@@ -24384,120 +24442,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {function} fn
 	* @public
 	*/
-	/**
-	* Dispatch a req, res into the router.
-	*
-	* @private
-	*/
-	/**
-	* Use the given middleware function, with optional path, defaulting to "/".
-	*
-	* Use (like `.all`) will run for any http METHOD, but it will not add
-	* handlers for those methods so OPTIONS requests will not consider `.use`
-	* functions even if they could respond.
-	*
-	* The other difference is that _route_ path is stripped and not visible
-	* to the handler function. The main effect of this feature is that mounted
-	* handlers can operate without any code changes regardless of the "prefix"
-	* pathname.
-	*
-	* @public
-	*/
-	/**
-	* Create a new Route for the given path.
-	*
-	* Each route contains a separate middleware stack and VERB handlers.
-	*
-	* See the Route api documentation for details on adding handlers
-	* and middleware to routes.
-	*
-	* @param {string} path
-	* @return {Route}
-	* @public
-	*/
-	/**
-	* Generate a callback that will make an OPTIONS response.
-	*
-	* @param {OutgoingMessage} res
-	* @param {array} methods
-	* @private
-	*/
-	/**
-	* Get pathname of request.
-	*
-	* @param {IncomingMessage} req
-	* @private
-	*/
-	/**
-	* Get get protocol + host for a URL.
-	*
-	* @param {string} url
-	* @private
-	*/
-	/**
-	* Match path to a layer.
-	*
-	* @param {Layer} layer
-	* @param {string} path
-	* @private
-	*/
-	/**
-	* Merge params with parent params
-	*
-	* @private
-	*/
-	/**
-	* Process any parameters for the layer.
-	*
-	* @private
-	*/
-	/**
-	* Restore obj props after function
-	*
-	* @private
-	*/
-	/**
-	* Send an OPTIONS response.
-	*
-	* @private
-	*/
-	/**
-	* Try to send an OPTIONS response.
-	*
-	* @private
-	*/
-	/**
-	* Wrap a function
-	*
-	* @private
-	*/
-	const isPromise = require_is_promise();
-	const Layer = require_layer();
-	const { METHODS } = __require("node:http");
-	const parseUrl = require_parseurl();
-	const Route = require_route();
-	const debug = require_src()("router");
-	const deprecate = require_depd()("router");
-	const slice = Array.prototype.slice;
-	const flatten = Array.prototype.flat;
-	const methods = METHODS.map((method) => method.toLowerCase());
-	module.exports = Router;
-	module.exports.Route = Route;
-	function Router(options) {
-		if (!(this instanceof Router)) return new Router(options);
-		const opts = options || {};
-		function router(req, res, next) {
-			router.handle(req, res, next);
-		}
-		Object.setPrototypeOf(router, this);
-		router.caseSensitive = opts.caseSensitive;
-		router.mergeParams = opts.mergeParams;
-		router.params = {};
-		router.strict = opts.strict;
-		router.stack = [];
-		return router;
-	}
-	Router.prototype = function() {};
 	Router.prototype.param = function param(name, fn) {
 		if (!name) throw new TypeError("argument name is required");
 		if (typeof name !== "string") throw new TypeError("argument name must be a string");
@@ -24508,6 +24452,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		params.push(fn);
 		return this;
 	};
+	/**
+	* Dispatch a req, res into the router.
+	*
+	* @private
+	*/
 	Router.prototype.handle = function handle(req, res, callback) {
 		if (!callback) throw new TypeError("argument callback is required");
 		debug("dispatching %s %s", req.method, req.url);
@@ -24608,6 +24557,20 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			else layer.handleRequest(req, res, next);
 		}
 	};
+	/**
+	* Use the given middleware function, with optional path, defaulting to "/".
+	*
+	* Use (like `.all`) will run for any http METHOD, but it will not add
+	* handlers for those methods so OPTIONS requests will not consider `.use`
+	* functions even if they could respond.
+	*
+	* The other difference is that _route_ path is stripped and not visible
+	* to the handler function. The main effect of this feature is that mounted
+	* handlers can operate without any code changes regardless of the "prefix"
+	* pathname.
+	*
+	* @public
+	*/
 	Router.prototype.use = function use(handler) {
 		let offset = 0;
 		let path = "/";
@@ -24635,6 +24598,18 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return this;
 	};
+	/**
+	* Create a new Route for the given path.
+	*
+	* Each route contains a separate middleware stack and VERB handlers.
+	*
+	* See the Route api documentation for details on adding handlers
+	* and middleware to routes.
+	*
+	* @param {string} path
+	* @return {Route}
+	* @public
+	*/
 	Router.prototype.route = function route(path) {
 		const route = new Route(path);
 		const layer = new Layer(path, {
@@ -24656,12 +24631,25 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return this;
 		};
 	});
+	/**
+	* Generate a callback that will make an OPTIONS response.
+	*
+	* @param {OutgoingMessage} res
+	* @param {array} methods
+	* @private
+	*/
 	function generateOptionsResponder(res, methods) {
 		return function onDone(fn, err) {
 			if (err || methods.length === 0) return fn(err);
 			trySendOptionsResponse(res, methods, fn);
 		};
 	}
+	/**
+	* Get pathname of request.
+	*
+	* @param {IncomingMessage} req
+	* @private
+	*/
 	function getPathname(req) {
 		try {
 			return parseUrl(req).pathname;
@@ -24669,6 +24657,12 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return;
 		}
 	}
+	/**
+	* Get get protocol + host for a URL.
+	*
+	* @param {string} url
+	* @private
+	*/
 	function getProtohost(url) {
 		if (typeof url !== "string" || url.length === 0 || url[0] === "/") return;
 		const searchIndex = url.indexOf("?");
@@ -24676,6 +24670,13 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		const fqdnIndex = url.substring(0, pathLength).indexOf("://");
 		return fqdnIndex !== -1 ? url.substring(0, url.indexOf("/", 3 + fqdnIndex)) : void 0;
 	}
+	/**
+	* Match path to a layer.
+	*
+	* @param {Layer} layer
+	* @param {string} path
+	* @private
+	*/
 	function matchLayer(layer, path) {
 		try {
 			return layer.match(path);
@@ -24683,6 +24684,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return err;
 		}
 	}
+	/**
+	* Merge params with parent params
+	*
+	* @private
+	*/
 	function mergeParams(params, parent) {
 		if (typeof parent !== "object" || !parent) return params;
 		const obj = Object.assign({}, parent);
@@ -24697,6 +24703,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return Object.assign(obj, params);
 	}
+	/**
+	* Process any parameters for the layer.
+	*
+	* @private
+	*/
 	function processParams(params, layer, called, req, res, done) {
 		const keys = layer.keys;
 		if (!keys || keys.length === 0) return done();
@@ -24749,6 +24760,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		param();
 	}
+	/**
+	* Restore obj props after function
+	*
+	* @private
+	*/
 	function restore(fn, obj) {
 		const props = new Array(arguments.length - 2);
 		const vals = new Array(arguments.length - 2);
@@ -24761,6 +24777,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return fn.apply(this, arguments);
 		};
 	}
+	/**
+	* Send an OPTIONS response.
+	*
+	* @private
+	*/
 	function sendOptionsResponse(res, methods) {
 		const options = Object.create(null);
 		for (let i = 0; i < methods.length; i++) options[methods[i]] = true;
@@ -24771,6 +24792,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.setHeader("X-Content-Type-Options", "nosniff");
 		res.end(allow);
 	}
+	/**
+	* Try to send an OPTIONS response.
+	*
+	* @private
+	*/
 	function trySendOptionsResponse(res, methods, next) {
 		try {
 			sendOptionsResponse(res, methods);
@@ -24778,6 +24804,11 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next(err);
 		}
 	}
+	/**
+	* Wrap a function
+	*
+	* @private
+	*/
 	function wrap(old, fn) {
 		return function proxy() {
 			const args = new Array(arguments.length + 1);
@@ -25258,20 +25289,16 @@ var require_application = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_accept = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var contentType = require_dist$3();
 	/**
 	* Module exports.
 	* @private
 	*/
+	module.exports = parseAccept;
 	/**
 	* Parse an Accept-style header.
 	* @private
 	*/
-	/**
-	* Skip optional whitespace.
-	* @private
-	*/
-	var contentType = require_dist$3();
-	module.exports = parseAccept;
 	function parseAccept(header) {
 		var values = [];
 		var index = 0;
@@ -25287,6 +25314,10 @@ var require_accept = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return values;
 	}
+	/**
+	* Skip optional whitespace.
+	* @private
+	*/
 	function skipOptionalWhitespace(header, index) {
 		var cursor = index;
 		while (header.charCodeAt(cursor) === 32 || header.charCodeAt(cursor) === 9) cursor++;
@@ -25303,45 +25334,17 @@ var require_accept = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var parseAccept = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = preferredCharsets;
+	module.exports.preferredCharsets = preferredCharsets;
 	/**
 	* Module variables.
 	* @private
 	*/
-	/**
-	* Format a parsed charset for negotiation.
-	* @private
-	*/
-	/**
-	* Get the priority of a charset.
-	* @private
-	*/
-	/**
-	* Get the specificity of the charset.
-	* @private
-	*/
-	/**
-	* Get the preferred charsets from an Accept-Charset header.
-	* @public
-	*/
-	/**
-	* Compare two specs.
-	* @private
-	*/
-	/**
-	* Get full charset string.
-	* @private
-	*/
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
-	var parseAccept = require_accept();
-	module.exports = preferredCharsets;
-	module.exports.preferredCharsets = preferredCharsets;
 	function parseAcceptCharset(accept) {
 		var accepts = parseAccept(accept);
 		for (var i = 0, j = 0; i < accepts.length; i++) {
@@ -25351,6 +25354,10 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
+	/**
+	* Format a parsed charset for negotiation.
+	* @private
+	*/
 	function formatCharset(parsed, i) {
 		if (!parsed.type) return null;
 		return {
@@ -25359,6 +25366,10 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			i
 		};
 	}
+	/**
+	* Get the priority of a charset.
+	* @private
+	*/
 	function getCharsetPriority(charset, accepted, index) {
 		var priority = {
 			o: -1,
@@ -25371,6 +25382,10 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
+	/**
+	* Get the specificity of the charset.
+	* @private
+	*/
 	function specify(charset, spec, index) {
 		var s = 0;
 		if (spec.charset.toLowerCase() === charset.toLowerCase()) s |= 1;
@@ -25382,6 +25397,10 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
+	/**
+	* Get the preferred charsets from an Accept-Charset header.
+	* @public
+	*/
 	function preferredCharsets(accept, provided) {
 		var accepts = parseAcceptCharset(accept === void 0 ? "*" : accept || "");
 		if (!provided) return accepts.filter(isQuality).sort(compareSpecs).map(getFullCharset);
@@ -25392,12 +25411,24 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
+	/**
+	* Compare two specs.
+	* @private
+	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
 	}
+	/**
+	* Get full charset string.
+	* @private
+	*/
 	function getFullCharset(spec) {
 		return spec.charset;
 	}
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25412,45 +25443,17 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var parseAccept = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = preferredEncodings;
+	module.exports.preferredEncodings = preferredEncodings;
 	/**
 	* Module variables.
 	* @private
 	*/
-	/**
-	* Format a parsed encoding for negotiation.
-	* @private
-	*/
-	/**
-	* Get the priority of an encoding.
-	* @private
-	*/
-	/**
-	* Get the specificity of the encoding.
-	* @private
-	*/
-	/**
-	* Get the preferred encodings from an Accept-Encoding header.
-	* @public
-	*/
-	/**
-	* Compare two specs.
-	* @private
-	*/
-	/**
-	* Get full encoding string.
-	* @private
-	*/
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
-	var parseAccept = require_accept();
-	module.exports = preferredEncodings;
-	module.exports.preferredEncodings = preferredEncodings;
 	function parseAcceptEncoding(accept) {
 		var accepts = parseAccept(accept);
 		var hasIdentity = false;
@@ -25471,6 +25474,10 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
+	/**
+	* Format a parsed encoding for negotiation.
+	* @private
+	*/
 	function formatEncoding(parsed, i) {
 		if (!parsed.type) return null;
 		return {
@@ -25479,6 +25486,10 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			i
 		};
 	}
+	/**
+	* Get the priority of an encoding.
+	* @private
+	*/
 	function getEncodingPriority(encoding, accepted, index) {
 		var priority = {
 			encoding,
@@ -25492,6 +25503,10 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
+	/**
+	* Get the specificity of the encoding.
+	* @private
+	*/
 	function specify(encoding, spec, index) {
 		var s = 0;
 		if (spec.encoding.toLowerCase() === encoding.toLowerCase()) s |= 1;
@@ -25504,6 +25519,10 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
+	/**
+	* Get the preferred encodings from an Accept-Encoding header.
+	* @public
+	*/
 	function preferredEncodings(accept, provided, preferred) {
 		var accepts = parseAcceptEncoding(accept || "");
 		var comparator = preferred ? function comparator(a, b) {
@@ -25522,12 +25541,24 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
+	/**
+	* Compare two specs.
+	* @private
+	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i;
 	}
+	/**
+	* Get full encoding string.
+	* @private
+	*/
 	function getFullEncoding(spec) {
 		return spec.encoding;
 	}
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25542,46 +25573,18 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var contentType = require_dist$3();
+	var parseAccept = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = preferredLanguages;
+	module.exports.preferredLanguages = preferredLanguages;
 	/**
 	* Module variables.
 	* @private
 	*/
-	/**
-	* Format a parsed language for negotiation.
-	* @private
-	*/
-	/**
-	* Get the priority of a language.
-	* @private
-	*/
-	/**
-	* Get the specificity of the language.
-	* @private
-	*/
-	/**
-	* Get the preferred languages from an Accept-Language header.
-	* @public
-	*/
-	/**
-	* Compare two specs.
-	* @private
-	*/
-	/**
-	* Get full language string.
-	* @private
-	*/
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
-	var contentType = require_dist$3();
-	var parseAccept = require_accept();
-	module.exports = preferredLanguages;
-	module.exports.preferredLanguages = preferredLanguages;
 	function parseAcceptLanguage(accept) {
 		var accepts = parseAccept(accept);
 		for (var i = 0, j = 0; i < accepts.length; i++) {
@@ -25591,6 +25594,10 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
+	/**
+	* Format a parsed language for negotiation.
+	* @private
+	*/
 	function formatLanguage(parsed, i) {
 		if (!parsed.type) return null;
 		var hyphen = parsed.type.indexOf("-");
@@ -25602,6 +25609,10 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			full: parsed.type
 		};
 	}
+	/**
+	* Get the priority of a language.
+	* @private
+	*/
 	function getLanguagePriority(language, accepted, index) {
 		var priority = {
 			o: -1,
@@ -25614,6 +25625,10 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
+	/**
+	* Get the specificity of the language.
+	* @private
+	*/
 	function specify(language, spec, index) {
 		var p = formatLanguage(contentType.parse(language), 0);
 		if (!p) return null;
@@ -25629,6 +25644,10 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
+	/**
+	* Get the preferred languages from an Accept-Language header.
+	* @public
+	*/
 	function preferredLanguages(accept, provided) {
 		var accepts = parseAcceptLanguage(accept === void 0 ? "*" : accept || "");
 		if (!provided) return accepts.filter(isQuality).sort(compareSpecs).map(getFullLanguage);
@@ -25639,12 +25658,24 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
+	/**
+	* Compare two specs.
+	* @private
+	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
 	}
+	/**
+	* Get full language string.
+	* @private
+	*/
 	function getFullLanguage(spec) {
 		return spec.full;
 	}
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25659,46 +25690,18 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var contentType = require_dist$3();
+	var parseAcceptHeader = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = preferredMediaTypes;
+	module.exports.preferredMediaTypes = preferredMediaTypes;
 	/**
 	* Module variables.
 	* @private
 	*/
-	/**
-	* Format a parsed content type for negotiation.
-	* @private
-	*/
-	/**
-	* Get the priority of a media type.
-	* @private
-	*/
-	/**
-	* Get the specificity of the media type.
-	* @private
-	*/
-	/**
-	* Get the preferred media types from an Accept header.
-	* @public
-	*/
-	/**
-	* Compare two specs.
-	* @private
-	*/
-	/**
-	* Get full type string.
-	* @private
-	*/
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
-	var contentType = require_dist$3();
-	var parseAcceptHeader = require_accept();
-	module.exports = preferredMediaTypes;
-	module.exports.preferredMediaTypes = preferredMediaTypes;
 	function parseAccept(accept) {
 		var accepts = parseAcceptHeader(accept);
 		for (var i = 0, j = 0; i < accepts.length; i++) {
@@ -25708,6 +25711,10 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
+	/**
+	* Format a parsed content type for negotiation.
+	* @private
+	*/
 	function formatMediaType(parsed, i) {
 		var slash = parsed.type.indexOf("/");
 		if (slash === -1) return null;
@@ -25721,6 +25728,10 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			i
 		};
 	}
+	/**
+	* Get the priority of a media type.
+	* @private
+	*/
 	function getMediaTypePriority(type, accepted, index) {
 		var priority = {
 			o: -1,
@@ -25733,6 +25744,10 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
+	/**
+	* Get the specificity of the media type.
+	* @private
+	*/
 	function specify(type, spec, index) {
 		var p = formatMediaType(contentType.parse(type), 0);
 		var s = 0;
@@ -25755,6 +25770,10 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
+	/**
+	* Get the preferred media types from an Accept header.
+	* @public
+	*/
 	function preferredMediaTypes(accept, provided) {
 		var accepts = parseAccept(accept === void 0 ? "*/*" : accept || "");
 		if (!provided) return accepts.filter(isQuality).sort(compareSpecs).map(getFullType);
@@ -25765,12 +25784,24 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
+	/**
+	* Compare two specs.
+	* @private
+	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
 	}
+	/**
+	* Get full type string.
+	* @private
+	*/
 	function getFullType(spec) {
 		return spec.type + "/" + spec.subtype;
 	}
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25785,21 +25816,21 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_negotiator = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var preferredCharsets = require_charset();
+	var preferredEncodings = require_encoding();
+	var preferredLanguages = require_language();
+	var preferredMediaTypes = require_mediaType();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = Negotiator;
+	module.exports.Negotiator = Negotiator;
 	/**
 	* Create a Negotiator instance from a request.
 	* @param {object} request
 	* @public
 	*/
-	var preferredCharsets = require_charset();
-	var preferredEncodings = require_encoding();
-	var preferredLanguages = require_language();
-	var preferredMediaTypes = require_mediaType();
-	module.exports = Negotiator;
-	module.exports.Negotiator = Negotiator;
 	function Negotiator(request) {
 		if (!(this instanceof Negotiator)) return new Negotiator(request);
 		this.request = request;
@@ -25855,16 +25886,24 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	var Negotiator = require_negotiator();
+	var mime = require_mime_types();
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = Accepts;
 	/**
 	* Create a new Accepts object for the given req.
 	*
 	* @param {object} req
 	* @public
 	*/
+	function Accepts(req) {
+		if (!(this instanceof Accepts)) return new Accepts(req);
+		this.headers = req.headers;
+		this.negotiator = new Negotiator(req);
+	}
 	/**
 	* Check if the given `type(s)` is acceptable, returning
 	* the best match when true, otherwise `undefined`, in which
@@ -25905,64 +25944,6 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String|Array|Boolean}
 	* @public
 	*/
-	/**
-	* Return accepted encodings or best fit based on `encodings`.
-	*
-	* Given `Accept-Encoding: gzip, deflate`
-	* an array sorted by quality is returned:
-	*
-	*     ['gzip', 'deflate']
-	*
-	* @param {String|Array} encodings...
-	* @return {String|Array}
-	* @public
-	*/
-	/**
-	* Return accepted charsets or best fit based on `charsets`.
-	*
-	* Given `Accept-Charset: utf-8, iso-8859-1;q=0.2, utf-7;q=0.5`
-	* an array sorted by quality is returned:
-	*
-	*     ['utf-8', 'utf-7', 'iso-8859-1']
-	*
-	* @param {String|Array} charsets...
-	* @return {String|Array}
-	* @public
-	*/
-	/**
-	* Return accepted languages or best fit based on `langs`.
-	*
-	* Given `Accept-Language: en;q=0.8, es, pt`
-	* an array sorted by quality is returned:
-	*
-	*     ['es', 'pt', 'en']
-	*
-	* @param {String|Array} langs...
-	* @return {Array|String}
-	* @public
-	*/
-	/**
-	* Convert extnames to mime.
-	*
-	* @param {String} type
-	* @return {String}
-	* @private
-	*/
-	/**
-	* Check if mime is valid.
-	*
-	* @param {String} type
-	* @return {Boolean}
-	* @private
-	*/
-	var Negotiator = require_negotiator();
-	var mime = require_mime_types();
-	module.exports = Accepts;
-	function Accepts(req) {
-		if (!(this instanceof Accepts)) return new Accepts(req);
-		this.headers = req.headers;
-		this.negotiator = new Negotiator(req);
-	}
 	Accepts.prototype.type = Accepts.prototype.types = function(types_) {
 		var types = types_;
 		if (types && !Array.isArray(types)) {
@@ -25975,6 +25956,18 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		var first = this.negotiator.mediaTypes(mimes.filter(validMime))[0];
 		return first ? types[mimes.indexOf(first)] : false;
 	};
+	/**
+	* Return accepted encodings or best fit based on `encodings`.
+	*
+	* Given `Accept-Encoding: gzip, deflate`
+	* an array sorted by quality is returned:
+	*
+	*     ['gzip', 'deflate']
+	*
+	* @param {String|Array} encodings...
+	* @return {String|Array}
+	* @public
+	*/
 	Accepts.prototype.encoding = Accepts.prototype.encodings = function(encodings_) {
 		var encodings = encodings_;
 		if (encodings && !Array.isArray(encodings)) {
@@ -25984,6 +25977,18 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!encodings || encodings.length === 0) return this.negotiator.encodings();
 		return this.negotiator.encodings(encodings)[0] || false;
 	};
+	/**
+	* Return accepted charsets or best fit based on `charsets`.
+	*
+	* Given `Accept-Charset: utf-8, iso-8859-1;q=0.2, utf-7;q=0.5`
+	* an array sorted by quality is returned:
+	*
+	*     ['utf-8', 'utf-7', 'iso-8859-1']
+	*
+	* @param {String|Array} charsets...
+	* @return {String|Array}
+	* @public
+	*/
 	Accepts.prototype.charset = Accepts.prototype.charsets = function(charsets_) {
 		var charsets = charsets_;
 		if (charsets && !Array.isArray(charsets)) {
@@ -25993,6 +25998,18 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!charsets || charsets.length === 0) return this.negotiator.charsets();
 		return this.negotiator.charsets(charsets)[0] || false;
 	};
+	/**
+	* Return accepted languages or best fit based on `langs`.
+	*
+	* Given `Accept-Language: en;q=0.8, es, pt`
+	* an array sorted by quality is returned:
+	*
+	*     ['es', 'pt', 'en']
+	*
+	* @param {String|Array} langs...
+	* @return {Array|String}
+	* @public
+	*/
 	Accepts.prototype.lang = Accepts.prototype.langs = Accepts.prototype.language = Accepts.prototype.languages = function(languages_) {
 		var languages = languages_;
 		if (languages && !Array.isArray(languages)) {
@@ -26002,9 +26019,23 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!languages || languages.length === 0) return this.negotiator.languages();
 		return this.negotiator.languages(languages)[0] || false;
 	};
+	/**
+	* Convert extnames to mime.
+	*
+	* @param {String} type
+	* @return {String}
+	* @private
+	*/
 	function extToMime(type) {
 		return type.indexOf("/") === -1 ? mime.lookup(type) : type;
 	}
+	/**
+	* Check if mime is valid.
+	*
+	* @param {String} type
+	* @return {Boolean}
+	* @private
+	*/
 	function validMime(type) {
 		return typeof type === "string";
 	}
@@ -26022,10 +26053,12 @@ var require_fresh = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* RegExp to check for no-cache token in Cache-Control.
 	* @private
 	*/
+	var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
 	/**
 	* Module exports.
 	* @public
 	*/
+	module.exports = fresh;
 	/**
 	* Check freshness of the response using request and response headers.
 	*
@@ -26034,21 +26067,6 @@ var require_fresh = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @public
 	*/
-	/**
-	* Parse an HTTP Date into a number.
-	*
-	* @param {string} date
-	* @private
-	*/
-	// istanbul ignore next: guard against date.js Date.parse patching
-	/**
-	* Parse a HTTP token list.
-	*
-	* @param {string} str
-	* @private
-	*/
-	var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
-	module.exports = fresh;
 	function fresh(reqHeaders, resHeaders) {
 		var modifiedSince = reqHeaders["if-modified-since"];
 		var noneMatch = reqHeaders["if-none-match"];
@@ -26072,10 +26090,23 @@ var require_fresh = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return true;
 	}
+	/**
+	* Parse an HTTP Date into a number.
+	*
+	* @param {string} date
+	* @private
+	*/
 	function parseHttpDate(date) {
 		var timestamp = date && Date.parse(date);
+		// istanbul ignore next: guard against date.js Date.parse patching
 		return typeof timestamp === "number" ? timestamp : NaN;
 	}
+	/**
+	* Parse a HTTP token list.
+	*
+	* @param {string} str
+	* @private
+	*/
 	function parseTokenList(str) {
 		var end = 0;
 		var list = [];
@@ -26107,6 +26138,7 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
+	module.exports = rangeParser;
 	/**
 	* Parse "Range" header `str` relative to the given file `size`.
 	*
@@ -26116,31 +26148,6 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Array}
 	* @public
 	*/
-	/**
-	* Parse string to integer.
-	* @private
-	*/
-	/**
-	* Combine overlapping & adjacent ranges.
-	* @private
-	*/
-	/**
-	* Map function to add index value to ranges.
-	* @private
-	*/
-	/**
-	* Map function to remove index value from ranges.
-	* @private
-	*/
-	/**
-	* Sort function to sort ranges by index.
-	* @private
-	*/
-	/**
-	* Sort function to sort ranges by start position.
-	* @private
-	*/
-	module.exports = rangeParser;
 	function rangeParser(size, str, options) {
 		if (typeof str !== "string") throw new TypeError("argument str must be a string");
 		var index = str.indexOf("=");
@@ -26170,10 +26177,18 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (ranges.length < 1) return -1;
 		return options && options.combine ? combineRanges(ranges) : ranges;
 	}
+	/**
+	* Parse string to integer.
+	* @private
+	*/
 	function parsePos(str) {
 		if (/^\d+$/.test(str)) return Number(str);
 		return NaN;
 	}
+	/**
+	* Combine overlapping & adjacent ranges.
+	* @private
+	*/
 	function combineRanges(ranges) {
 		var ordered = ranges.map(mapWithIndex).sort(sortByRangeStart);
 		for (var j = 0, i = 1; i < ordered.length; i++) {
@@ -26190,6 +26205,10 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		combined.type = ranges.type;
 		return combined;
 	}
+	/**
+	* Map function to add index value to ranges.
+	* @private
+	*/
 	function mapWithIndex(range, index) {
 		return {
 			start: range.start,
@@ -26197,15 +26216,27 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			index
 		};
 	}
+	/**
+	* Map function to remove index value from ranges.
+	* @private
+	*/
 	function mapWithoutIndex(range) {
 		return {
 			start: range.start,
 			end: range.end
 		};
 	}
+	/**
+	* Sort function to sort ranges by index.
+	* @private
+	*/
 	function sortByRangeIndex(a, b) {
 		return a.index - b.index;
 	}
+	/**
+	* Sort function to sort ranges by start position.
+	* @private
+	*/
 	function sortByRangeStart(a, b) {
 		return a.start - b.start;
 	}
@@ -26634,16 +26665,23 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Copyright(c) 2014-2017 Douglas Christopher Wilson
 	* MIT Licensed
 	*/
+	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.create = create;
 	exports.parse = parse;
 	exports.decodeExtended = decodeExtended;
 	exports.format = format;
 	exports.encodeExtended = encodeExtended;
-	const NullObject = (() => {
+	/**
+	* Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
+	*/
+	const NullObject = /* @__PURE__ */ (() => {
 		const C = function() {};
 		C.prototype = Object.create(null);
 		return C;
 	})();
+	/**
+	* Create an attachment Content-Disposition header.
+	*/
 	function create(filename, options) {
 		return format({
 			type: options?.type || "attachment",
@@ -26657,6 +26695,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const DQUOTE = 34;
 	const BSLASH = 92;
 	const ASTERISK = 42;
+	/**
+	* Parse Content-Disposition header string.
+	*/
 	function parse(header, options) {
 		const len = header.length;
 		const multipart = options?.multipart === true;
@@ -26747,13 +26788,51 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			parameters
 		};
 	}
+	/**
+	* RegExp to match non attr-char, *after* encodeURIComponent (i.e. not including "%")
+	*/
 	const ENCODE_URL_ATTR_CHAR_REGEXP = /[\x00-\x20"'()*,/:;<=>?@[\\\]{}\x7f]/g;
+	/**
+	* RegExp to match non-US-ASCII characters.
+	*/
 	const NON_ASCII_REGEXP = /[^\x20-\x7e]/g;
+	/**
+	* RegExp to match chars that must be quoted-pair in RFC 2616
+	*/
 	const QUOTE_REGEXP = /[\\"]/g;
+	/**
+	* Match chars that can't be used in the filename for compatibility.
+	*/
 	const INVALID_FILENAME_REGEXP = /%[0-9A-Fa-f]{2}/;
+	/**
+	* RegExp for various RFC 2616 grammar
+	*
+	* parameter     = token "=" ( token | quoted-string )
+	* token         = 1*<any CHAR except CTLs or separators>
+	* separators    = "(" | ")" | "<" | ">" | "@"
+	*               | "," | ";" | ":" | "\" | <">
+	*               | "/" | "[" | "]" | "?" | "="
+	*               | "{" | "}" | SP | HT
+	* quoted-string = ( <"> *(qdtext | quoted-pair ) <"> )
+	* qdtext        = <any TEXT except <">>
+	* quoted-pair   = "\" CHAR
+	* CHAR          = <any US-ASCII character (octets 0 - 127)>
+	* TEXT          = <any OCTET except CTLs, but including LWS>
+	* LWS           = [CRLF] 1*( SP | HT )
+	* CRLF          = CR LF
+	* CR            = <US-ASCII CR, carriage return (13)>
+	* LF            = <US-ASCII LF, linefeed (10)>
+	* SP            = <US-ASCII SP, space (32)>
+	* HT            = <US-ASCII HT, horizontal-tab (9)>
+	* CTL           = <any US-ASCII control character (octets 0 - 31) and DEL (127)>
+	* OCTET         = <any 8-bit sequence of data>
+	*/
 	const TEXT_REGEXP = /^[\x20-\x7e\x80-\xff]*$/;
 	const ASCII_TEXT_REGEXP = /^[\x20-\x7e]*$/;
 	const TOKEN_REGEXP = /^[!#$%&'*+.0-9A-Z^_`a-z|~-]+$/;
+	/**
+	* Create parameters object from filename and fallback.
+	*/
 	function createParameters(filename, fallback = true) {
 		if (filename === void 0) return;
 		if (typeof fallback === "string") {
@@ -26771,6 +26850,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			"filename*": encodeExtended(filename)
 		};
 	}
+	/**
+	* Decode a RFC 8187 field value (gracefully).
+	*/
 	function decodeExtended(str) {
 		const charsetEnd = str.indexOf("'");
 		if (charsetEnd <= 0) return;
@@ -26784,6 +26866,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			case "utf8": return tryDecodeURIComponent(encoded);
 		}
 	}
+	/**
+	* Decode URI component but return `undefined` on error.
+	*/
 	function tryDecodeURIComponent(str) {
 		try {
 			return decodeURIComponent(str);
@@ -26791,6 +26876,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			return;
 		}
 	}
+	/**
+	* Parse a token starting at the provided index.
+	*/
 	function parseToken(str, index, len) {
 		while (index < len) {
 			if (str.charCodeAt(index) === SEMI) break;
@@ -26798,6 +26886,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
+	/**
+	* Skip RFC 2616 linear whitespace (space / tab).
+	*/
 	function skipOWS(str, index, len) {
 		while (index < len) {
 			const char = str.charCodeAt(index);
@@ -26806,6 +26897,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
+	/**
+	* Skip RFC 2616 linear whitespace (space / tab) from the end of a string.
+	*/
 	function trailingOWS(str, start, end) {
 		while (end > start) {
 			const char = str.charCodeAt(end - 1);
@@ -26814,6 +26908,9 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return end;
 	}
+	/**
+	* Format object to Content-Disposition header.
+	*/
 	function format(obj, options) {
 		const { type, parameters } = obj;
 		const multipart = options?.multipart === true;
@@ -26840,30 +26937,56 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return result;
 	}
+	/**
+	* Get US-ASCII version of string.
+	*/
 	function getAscii(val) {
 		return val.replace(NON_ASCII_REGEXP, "?");
 	}
+	/**
+	* Percent encode a single character.
+	*/
 	function pencode(char) {
 		return "%" + char.charCodeAt(0).toString(16).toUpperCase();
 	}
+	/**
+	* Quote a string for HTTP.
+	*/
 	function qstring(str) {
 		return "\"" + str.replace(QUOTE_REGEXP, "\\$&") + "\"";
 	}
+	/**
+	* Quote a string for multipart/form-data.
+	*
+	* @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart-form-data
+	*/
 	function qmultipart(str) {
 		return "\"" + str.replace(/[\n\r"]/g, multipartEscape) + "\"";
 	}
+	/**
+	* Escape a multipart/form-data string character.
+	*/
 	function multipartEscape(char) {
 		if (char === "\n") return "%0A";
 		if (char === "\r") return "%0D";
 		return "%22";
 	}
+	/**
+	* Encode a Unicode string for HTTP (RFC 8187).
+	*/
 	function encodeExtended(str) {
 		return "UTF-8''" + encodeURIComponent(str).replace(ENCODE_URL_ATTR_CHAR_REGEXP, pencode);
 	}
+	/**
+	* Check if a character is a hex digit [0-9A-Fa-f]
+	*/
 	function isHexDigit(char) {
 		const code = char.charCodeAt(0);
 		return code >= 48 && code <= 57 || code >= 65 && code <= 70 || code >= 97 && code <= 102;
 	}
+	/**
+	* Decode hex escapes in a string (e.g., %20 -> space)
+	*/
 	function decodeHexEscapes(str) {
 		const firstEscape = str.indexOf("%");
 		if (firstEscape === -1) return str;
@@ -26924,10 +27047,14 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Module exports.
 	* @public
 	*/
+	exports.parse = parse;
+	exports.serialize = serialize;
 	/**
 	* Module variables.
 	* @private
 	*/
+	var __toString = Object.prototype.toString;
+	var __hasOwnProperty = Object.prototype.hasOwnProperty;
 	/**
 	* RegExp to match cookie-name in RFC 6265 sec 4.1.1
 	* This refers out to the obsoleted definition of token in RFC 2616 sec 2.2
@@ -26939,6 +27066,7 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	*                     "*" / "+" / "-" / "." / "^" / "_" /
 	*                     "`" / "|" / "~" / DIGIT / ALPHA
 	*/
+	var cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 	/**
 	* RegExp to match cookie-value in RFC 6265 sec 4.1.1
 	*
@@ -26948,6 +27076,7 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	*                     ; whitespace DQUOTE, comma, semicolon,
 	*                     ; and backslash
 	*/
+	var cookieValueRegExp = /^("?)[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]*\1$/;
 	/**
 	* RegExp to match domain-value in RFC 6265 sec 4.1.1
 	*
@@ -26971,6 +27100,7 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* character is not permitted, but a trailing %x2E ("."), if present, will
 	* cause the user agent to ignore the attribute.)
 	*/
+	var domainValueRegExp = /^([.]?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 	/**
 	* RegExp to match path-value in RFC 6265 sec 4.1.1
 	*
@@ -26978,6 +27108,7 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* CHAR              = %x01-7F
 	*                     ; defined in RFC 5234 appendix B.1
 	*/
+	var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
 	/**
 	* Parse a cookie header.
 	*
@@ -26989,48 +27120,6 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* @return {object}
 	* @public
 	*/
-	/**
-	* Serialize data into a cookie header.
-	*
-	* Serialize a name value pair into a cookie string suitable for
-	* http headers. An optional options object specifies cookie parameters.
-	*
-	* serialize('foo', 'bar', { httpOnly: true })
-	*   => "foo=bar; httpOnly"
-	*
-	* @param {string} name
-	* @param {string} val
-	* @param {object} [opt]
-	* @return {string}
-	* @public
-	*/
-	/**
-	* URL-decode string value. Optimized to skip native call when no %.
-	*
-	* @param {string} str
-	* @returns {string}
-	*/
-	/**
-	* Determine if value is a Date.
-	*
-	* @param {*} val
-	* @private
-	*/
-	/**
-	* Try decoding a string using a decoding function.
-	*
-	* @param {string} str
-	* @param {function} decode
-	* @private
-	*/
-	exports.parse = parse;
-	exports.serialize = serialize;
-	var __toString = Object.prototype.toString;
-	var __hasOwnProperty = Object.prototype.hasOwnProperty;
-	var cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-	var cookieValueRegExp = /^("?)[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]*\1$/;
-	var domainValueRegExp = /^([.]?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
-	var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
 	function parse(str, opt) {
 		if (typeof str !== "string") throw new TypeError("argument str must be a string");
 		var obj = {};
@@ -27079,6 +27168,21 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return min;
 	}
+	/**
+	* Serialize data into a cookie header.
+	*
+	* Serialize a name value pair into a cookie string suitable for
+	* http headers. An optional options object specifies cookie parameters.
+	*
+	* serialize('foo', 'bar', { httpOnly: true })
+	*   => "foo=bar; httpOnly"
+	*
+	* @param {string} name
+	* @param {string} val
+	* @param {object} [opt]
+	* @return {string}
+	* @public
+	*/
 	function serialize(name, val, opt) {
 		var enc = opt && opt.encode || encodeURIComponent;
 		if (typeof enc !== "function") throw new TypeError("option encode is invalid");
@@ -27137,12 +27241,31 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return str;
 	}
+	/**
+	* URL-decode string value. Optimized to skip native call when no %.
+	*
+	* @param {string} str
+	* @returns {string}
+	*/
 	function decode(str) {
 		return str.indexOf("%") !== -1 ? decodeURIComponent(str) : str;
 	}
+	/**
+	* Determine if value is a Date.
+	*
+	* @param {*} val
+	* @private
+	*/
 	function isDate(val) {
 		return __toString.call(val) === "[object Date]";
 	}
+	/**
+	* Try decoding a string using a decoding function.
+	*
+	* @param {string} str
+	* @param {function} decode
+	* @private
+	*/
 	function tryDecode(str, decode) {
 		try {
 			return decode(str);
@@ -27164,248 +27287,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	/**
-	* Path function references.
-	* @private
-	*/
-	/**
-	* Regular expression for identifying a bytes Range header.
-	* @private
-	*/
-	/**
-	* Maximum value allowed for the max age.
-	* @private
-	*/
-	/**
-	* Regular expression to match a path with a directory up component.
-	* @private
-	*/
-	/**
-	* Module exports.
-	* @public
-	*/
-	/**
-	* Return a `SendStream` for `req` and `path`.
-	*
-	* @param {object} req
-	* @param {string} path
-	* @param {object} [options]
-	* @return {SendStream}
-	* @public
-	*/
-	/**
-	* Initialize a `SendStream` with the given `path`.
-	*
-	* @param {Request} req
-	* @param {String} path
-	* @param {object} [options]
-	* @private
-	*/
-	/**
-	* Inherits from `Stream`.
-	*/
-	/**
-	* Emit error with `status`.
-	*
-	* @param {number} status
-	* @param {Error} [err]
-	* @private
-	*/
-	/**
-	* Check if the pathname ends with "/".
-	*
-	* @return {boolean}
-	* @private
-	*/
-	/**
-	* Check if this is a conditional GET request.
-	*
-	* @return {Boolean}
-	* @api private
-	*/
-	/**
-	* Check if the request preconditions failed.
-	*
-	* @return {boolean}
-	* @private
-	*/
-	/**
-	* Strip various content header fields for a change in entity.
-	*
-	* @private
-	*/
-	/**
-	* Respond with 304 not modified.
-	*
-	* @api private
-	*/
-	/**
-	* Raise error that headers already sent.
-	*
-	* @api private
-	*/
-	/**
-	* Check if the request is cacheable, aka
-	* responded with 2xx or 304 (see RFC 2616 section 14.2{5,6}).
-	*
-	* @return {Boolean}
-	* @api private
-	*/
-	/**
-	* Handle stat() error.
-	*
-	* @param {Error} error
-	* @private
-	*/
-	/**
-	* Check if the cache is fresh.
-	*
-	* @return {Boolean}
-	* @api private
-	*/
-	/**
-	* Check if the range is fresh.
-	*
-	* @return {Boolean}
-	* @api private
-	*/
-	/**
-	* Redirect to path.
-	*
-	* @param {string} path
-	* @private
-	*/
-	/**
-	* Pipe to `res.
-	*
-	* @param {Stream} res
-	* @return {Stream} res
-	* @api public
-	*/
-	/**
-	* Transfer `path`.
-	*
-	* @param {String} path
-	* @api public
-	*/
-	/**
-	* Transfer file for `path`.
-	*
-	* @param {String} path
-	* @api private
-	*/
-	/**
-	* Transfer index for `path`.
-	*
-	* @param {String} path
-	* @api private
-	*/
-	/**
-	* Stream `path` to the response.
-	*
-	* @param {String} path
-	* @param {Object} options
-	* @api private
-	*/
-	/**
-	* Set content-type based on `path`
-	* if it hasn't been explicitly set.
-	*
-	* @param {String} path
-	* @api private
-	*/
-	/**
-	* Set response header fields, most
-	* fields may be pre-defined.
-	*
-	* @param {String} path
-	* @param {Object} stat
-	* @api private
-	*/
-	/**
-	* Clear all headers from a response.
-	*
-	* @param {object} res
-	* @private
-	*/
-	/**
-	* Collapse all leading slashes into a single slash
-	*
-	* @param {string} str
-	* @private
-	*/
-	/**
-	* Determine if path parts contain a dotfile.
-	*
-	* @api private
-	*/
-	/**
-	* Create a Content-Range header.
-	*
-	* @param {string} type
-	* @param {number} size
-	* @param {array} [range]
-	*/
-	/**
-	* Create a minimal HTML document.
-	*
-	* @param {string} title
-	* @param {string} body
-	* @private
-	*/
-	/**
-	* Create a HttpError object from simple arguments.
-	*
-	* @param {number} status
-	* @param {Error|object} err
-	* @private
-	*/
-	/**
-	* decodeURIComponent.
-	*
-	* Allows V8 to only deoptimize this fn instead of all
-	* of send().
-	*
-	* @param {String} path
-	* @api private
-	*/
-	/**
-	* Determine if emitter has listeners of a given type.
-	*
-	* The way to do this check is done three different ways in Node.js >= 0.10
-	* so this consolidates them into a minimal set using instance methods.
-	*
-	* @param {EventEmitter} emitter
-	* @param {string} type
-	* @returns {boolean}
-	* @private
-	*/
-	/**
-	* Normalize the index option into an array.
-	*
-	* @param {boolean|string|array} val
-	* @param {string} name
-	* @private
-	*/
-	/**
-	* Parse an HTTP Date into a number.
-	*
-	* @param {string} date
-	* @private
-	*/
-	/**
-	* Parse a HTTP token list.
-	*
-	* @param {string} str
-	* @private
-	*/
-	/**
-	* Set an object of headers on a response.
-	*
-	* @param {object} res
-	* @param {object} headers
-	* @private
-	*/
 	var createError = require_http_errors();
 	var debug = require_src()("send");
 	var encodeUrl = require_encodeurl();
@@ -27421,18 +27302,55 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var statuses = require_statuses();
 	var Stream = __require("stream");
 	var util = __require("util");
+	/**
+	* Path function references.
+	* @private
+	*/
 	var extname = path.extname;
 	var join = path.join;
 	var normalize = path.normalize;
 	var resolve = path.resolve;
 	var sep = path.sep;
+	/**
+	* Regular expression for identifying a bytes Range header.
+	* @private
+	*/
 	var BYTES_RANGE_REGEXP = /^ *bytes=/;
+	/**
+	* Maximum value allowed for the max age.
+	* @private
+	*/
 	var MAX_MAXAGE = 31536e6;
+	/**
+	* Regular expression to match a path with a directory up component.
+	* @private
+	*/
 	var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
+	/**
+	* Module exports.
+	* @public
+	*/
 	module.exports = send;
+	/**
+	* Return a `SendStream` for `req` and `path`.
+	*
+	* @param {object} req
+	* @param {string} path
+	* @param {object} [options]
+	* @return {SendStream}
+	* @public
+	*/
 	function send(req, path, options) {
 		return new SendStream(req, path, options);
 	}
+	/**
+	* Initialize a `SendStream` with the given `path`.
+	*
+	* @param {Request} req
+	* @param {String} path
+	* @param {object} [options]
+	* @private
+	*/
 	function SendStream(req, path, options) {
 		Stream.call(this);
 		var opts = options || {};
@@ -27453,7 +27371,17 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
 		this._root = opts.root ? resolve(opts.root) : null;
 	}
+	/**
+	* Inherits from `Stream`.
+	*/
 	util.inherits(SendStream, Stream);
+	/**
+	* Emit error with `status`.
+	*
+	* @param {number} status
+	* @param {Error} [err]
+	* @private
+	*/
 	SendStream.prototype.error = function error(status, err) {
 		if (hasListeners(this, "error")) return this.emit("error", createHttpError(status, err));
 		var res = this.res;
@@ -27467,12 +27395,30 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.setHeader("X-Content-Type-Options", "nosniff");
 		res.end(doc);
 	};
+	/**
+	* Check if the pathname ends with "/".
+	*
+	* @return {boolean}
+	* @private
+	*/
 	SendStream.prototype.hasTrailingSlash = function hasTrailingSlash() {
 		return this.path[this.path.length - 1] === "/";
 	};
+	/**
+	* Check if this is a conditional GET request.
+	*
+	* @return {Boolean}
+	* @api private
+	*/
 	SendStream.prototype.isConditionalGET = function isConditionalGET() {
 		return this.req.headers["if-match"] || this.req.headers["if-unmodified-since"] || this.req.headers["if-none-match"] || this.req.headers["if-modified-since"];
 	};
+	/**
+	* Check if the request preconditions failed.
+	*
+	* @return {boolean}
+	* @private
+	*/
 	SendStream.prototype.isPreconditionFailure = function isPreconditionFailure() {
 		var req = this.req;
 		var res = this.res;
@@ -27490,6 +27436,11 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return false;
 	};
+	/**
+	* Strip various content header fields for a change in entity.
+	*
+	* @private
+	*/
 	SendStream.prototype.removeContentHeaderFields = function removeContentHeaderFields() {
 		var res = this.res;
 		res.removeHeader("Content-Encoding");
@@ -27498,6 +27449,11 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.removeHeader("Content-Range");
 		res.removeHeader("Content-Type");
 	};
+	/**
+	* Respond with 304 not modified.
+	*
+	* @api private
+	*/
 	SendStream.prototype.notModified = function notModified() {
 		var res = this.res;
 		debug("not modified");
@@ -27505,15 +27461,33 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.statusCode = 304;
 		res.end();
 	};
+	/**
+	* Raise error that headers already sent.
+	*
+	* @api private
+	*/
 	SendStream.prototype.headersAlreadySent = function headersAlreadySent() {
 		var err = /* @__PURE__ */ new Error("Can't set headers after they are sent.");
 		debug("headers already sent");
 		this.error(500, err);
 	};
+	/**
+	* Check if the request is cacheable, aka
+	* responded with 2xx or 304 (see RFC 2616 section 14.2{5,6}).
+	*
+	* @return {Boolean}
+	* @api private
+	*/
 	SendStream.prototype.isCachable = function isCachable() {
 		var statusCode = this.res.statusCode;
 		return statusCode >= 200 && statusCode < 300 || statusCode === 304;
 	};
+	/**
+	* Handle stat() error.
+	*
+	* @param {Error} error
+	* @private
+	*/
 	SendStream.prototype.onStatError = function onStatError(error) {
 		switch (error.code) {
 			case "ENAMETOOLONG":
@@ -27524,12 +27498,24 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			default: this.error(500, error);
 		}
 	};
+	/**
+	* Check if the cache is fresh.
+	*
+	* @return {Boolean}
+	* @api private
+	*/
 	SendStream.prototype.isFresh = function isFresh() {
 		return fresh(this.req.headers, {
 			etag: this.res.getHeader("ETag"),
 			"last-modified": this.res.getHeader("Last-Modified")
 		});
 	};
+	/**
+	* Check if the range is fresh.
+	*
+	* @return {Boolean}
+	* @api private
+	*/
 	SendStream.prototype.isRangeFresh = function isRangeFresh() {
 		var ifRange = this.req.headers["if-range"];
 		if (!ifRange) return true;
@@ -27539,6 +27525,12 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return parseHttpDate(this.res.getHeader("Last-Modified")) <= parseHttpDate(ifRange);
 	};
+	/**
+	* Redirect to path.
+	*
+	* @param {string} path
+	* @private
+	*/
 	SendStream.prototype.redirect = function redirect(path) {
 		var res = this.res;
 		if (hasListeners(this, "directory")) {
@@ -27559,6 +27551,13 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.setHeader("Location", loc);
 		res.end(doc);
 	};
+	/**
+	* Pipe to `res.
+	*
+	* @param {Stream} res
+	* @return {Stream} res
+	* @api public
+	*/
 	SendStream.prototype.pipe = function pipe(res) {
 		var root = this._root;
 		this.res = res;
@@ -27609,6 +27608,12 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		this.sendFile(path);
 		return res;
 	};
+	/**
+	* Transfer `path`.
+	*
+	* @param {String} path
+	* @api public
+	*/
 	SendStream.prototype.send = function send(path, stat) {
 		var len = stat.size;
 		var options = this.options;
@@ -27668,6 +27673,12 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		this.stream(path, opts);
 	};
+	/**
+	* Transfer file for `path`.
+	*
+	* @param {String} path
+	* @api private
+	*/
 	SendStream.prototype.sendFile = function sendFile(path) {
 		var i = 0;
 		var self = this;
@@ -27693,6 +27704,12 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	};
+	/**
+	* Transfer index for `path`.
+	*
+	* @param {String} path
+	* @api private
+	*/
 	SendStream.prototype.sendIndex = function sendIndex(path) {
 		var i = -1;
 		var self = this;
@@ -27712,6 +27729,13 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		next();
 	};
+	/**
+	* Stream `path` to the response.
+	*
+	* @param {String} path
+	* @param {Object} options
+	* @api private
+	*/
 	SendStream.prototype.stream = function stream(path, options) {
 		var self = this;
 		var res = this.res;
@@ -27730,6 +27754,13 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			self.emit("end");
 		});
 	};
+	/**
+	* Set content-type based on `path`
+	* if it hasn't been explicitly set.
+	*
+	* @param {String} path
+	* @api private
+	*/
 	SendStream.prototype.type = function type(path) {
 		var res = this.res;
 		if (res.getHeader("Content-Type")) return;
@@ -27738,6 +27769,14 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		debug("content-type %s", type);
 		res.setHeader("Content-Type", type);
 	};
+	/**
+	* Set response header fields, most
+	* fields may be pre-defined.
+	*
+	* @param {String} path
+	* @param {Object} stat
+	* @api private
+	*/
 	SendStream.prototype.setHeader = function setHeader(path, stat) {
 		var res = this.res;
 		this.emit("headers", res, path, stat);
@@ -27762,13 +27801,30 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			res.setHeader("ETag", val);
 		}
 	};
+	/**
+	* Clear all headers from a response.
+	*
+	* @param {object} res
+	* @private
+	*/
 	function clearHeaders(res) {
 		for (const header of res.getHeaderNames()) res.removeHeader(header);
 	}
+	/**
+	* Collapse all leading slashes into a single slash
+	*
+	* @param {string} str
+	* @private
+	*/
 	function collapseLeadingSlashes(str) {
 		for (var i = 0; i < str.length; i++) if (str[i] !== "/") break;
 		return i > 1 ? "/" + str.substr(i) : str;
 	}
+	/**
+	* Determine if path parts contain a dotfile.
+	*
+	* @api private
+	*/
 	function containsDotFile(parts) {
 		for (var i = 0; i < parts.length; i++) {
 			var part = parts[i];
@@ -27776,16 +27832,46 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return false;
 	}
+	/**
+	* Create a Content-Range header.
+	*
+	* @param {string} type
+	* @param {number} size
+	* @param {array} [range]
+	*/
 	function contentRange(type, size, range) {
 		return type + " " + (range ? range.start + "-" + range.end : "*") + "/" + size;
 	}
+	/**
+	* Create a minimal HTML document.
+	*
+	* @param {string} title
+	* @param {string} body
+	* @private
+	*/
 	function createHtmlDocument(title, body) {
 		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>" + title + "</title>\n</head>\n<body>\n<pre>" + body + "</pre>\n</body>\n</html>\n";
 	}
+	/**
+	* Create a HttpError object from simple arguments.
+	*
+	* @param {number} status
+	* @param {Error|object} err
+	* @private
+	*/
 	function createHttpError(status, err) {
 		if (!err) return createError(status);
 		return err instanceof Error ? createError(status, err, { expose: false }) : createError(status, err);
 	}
+	/**
+	* decodeURIComponent.
+	*
+	* Allows V8 to only deoptimize this fn instead of all
+	* of send().
+	*
+	* @param {String} path
+	* @api private
+	*/
 	function decode(path) {
 		try {
 			return decodeURIComponent(path);
@@ -27793,18 +27879,48 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return -1;
 		}
 	}
+	/**
+	* Determine if emitter has listeners of a given type.
+	*
+	* The way to do this check is done three different ways in Node.js >= 0.10
+	* so this consolidates them into a minimal set using instance methods.
+	*
+	* @param {EventEmitter} emitter
+	* @param {string} type
+	* @returns {boolean}
+	* @private
+	*/
 	function hasListeners(emitter, type) {
 		return (typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type)) > 0;
 	}
+	/**
+	* Normalize the index option into an array.
+	*
+	* @param {boolean|string|array} val
+	* @param {string} name
+	* @private
+	*/
 	function normalizeList(val, name) {
 		var list = [].concat(val || []);
 		for (var i = 0; i < list.length; i++) if (typeof list[i] !== "string") throw new TypeError(name + " must be array of strings or false");
 		return list;
 	}
+	/**
+	* Parse an HTTP Date into a number.
+	*
+	* @param {string} date
+	* @private
+	*/
 	function parseHttpDate(date) {
 		var timestamp = date && Date.parse(date);
 		return typeof timestamp === "number" ? timestamp : NaN;
 	}
+	/**
+	* Parse a HTTP token list.
+	*
+	* @param {string} str
+	* @private
+	*/
 	function parseTokenList(str) {
 		var end = 0;
 		var list = [];
@@ -27822,6 +27938,13 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (start !== end) list.push(str.substring(start, end));
 		return list;
 	}
+	/**
+	* Set an object of headers on a response.
+	*
+	* @param {object} res
+	* @param {object} headers
+	* @private
+	*/
 	function setHeaders(res, headers) {
 		var keys = Object.keys(headers);
 		for (var i = 0; i < keys.length; i++) {
@@ -27841,6 +27964,8 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module exports.
 	*/
+	module.exports = vary;
+	module.exports.append = append;
 	/**
 	* RegExp to match field-name in RFC 7230 sec 3.2
 	*
@@ -27851,6 +27976,7 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*               / DIGIT / ALPHA
 	*               ; any VCHAR, except delimiters
 	*/
+	var FIELD_NAME_REGEXP = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 	/**
 	* Append a field to a vary header.
 	*
@@ -27859,23 +27985,6 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String}
 	* @public
 	*/
-	/**
-	* Parse a vary header into an array.
-	*
-	* @param {String} header
-	* @return {Array}
-	* @private
-	*/
-	/**
-	* Mark that a request is varied on a header field.
-	*
-	* @param {Object} res
-	* @param {String|Array} field
-	* @public
-	*/
-	module.exports = vary;
-	module.exports.append = append;
-	var FIELD_NAME_REGEXP = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 	function append(header, field) {
 		if (typeof header !== "string") throw new TypeError("header argument is required");
 		if (!field) throw new TypeError("field argument is required");
@@ -27894,6 +28003,13 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return val;
 	}
+	/**
+	* Parse a vary header into an array.
+	*
+	* @param {String} header
+	* @return {Array}
+	* @private
+	*/
 	function parse(header) {
 		var end = 0;
 		var list = [];
@@ -27911,6 +28027,13 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		list.push(header.substring(start, end));
 		return list;
 	}
+	/**
+	* Mark that a request is varied on a header field.
+	*
+	* @param {Object} res
+	* @param {String|Array} field
+	* @public
+	*/
 	function vary(res, field) {
 		if (!res || !res.getHeader || !res.setHeader) throw new TypeError("res argument is required");
 		var val = res.getHeader("Vary") || "";
@@ -28677,42 +28800,23 @@ var require_serve_static = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	/**
-	* Module exports.
-	* @public
-	*/
-	/**
-	* @param {string} root
-	* @param {object} [options]
-	* @return {function}
-	* @public
-	*/
-	/**
-	* Collapse all leading slashes into a single slash
-	* @private
-	*/
-	/**
-	* Create a minimal HTML document.
-	*
-	* @param {string} title
-	* @param {string} body
-	* @private
-	*/
-	/**
-	* Create a directory listener that just 404s.
-	* @private
-	*/
-	/**
-	* Create a directory listener that performs a redirect.
-	* @private
-	*/
 	var encodeUrl = require_encodeurl();
 	var escapeHtml = require_escape_html();
 	var parseUrl = require_parseurl();
 	var resolve = __require("path").resolve;
 	var send = require_send();
 	var url = __require("url");
+	/**
+	* Module exports.
+	* @public
+	*/
 	module.exports = serveStatic;
+	/**
+	* @param {string} root
+	* @param {object} [options]
+	* @return {function}
+	* @public
+	*/
 	function serveStatic(root, options) {
 		if (!root) throw new TypeError("root path required");
 		if (typeof root !== "string") throw new TypeError("root path must be a string");
@@ -28753,18 +28857,37 @@ var require_serve_static = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			stream.pipe(res);
 		};
 	}
+	/**
+	* Collapse all leading slashes into a single slash
+	* @private
+	*/
 	function collapseLeadingSlashes(str) {
 		for (var i = 0; i < str.length; i++) if (str.charCodeAt(i) !== 47) break;
 		return i > 1 ? "/" + str.substr(i) : str;
 	}
+	/**
+	* Create a minimal HTML document.
+	*
+	* @param {string} title
+	* @param {string} body
+	* @private
+	*/
 	function createHtmlDocument(title, body) {
 		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>" + title + "</title>\n</head>\n<body>\n<pre>" + body + "</pre>\n</body>\n</html>\n";
 	}
+	/**
+	* Create a directory listener that just 404s.
+	* @private
+	*/
 	function createNotFoundDirectoryListener() {
 		return function notFound() {
 			this.error(404);
 		};
 	}
+	/**
+	* Create a directory listener that performs a redirect.
+	* @private
+	*/
 	function createRedirectDirectoryListener() {
 		return function redirect(res) {
 			if (this.hasTrailingSlash()) {
@@ -40162,7 +40285,726 @@ function initSqliteTables() {
 	if (!sqlite.prepare("PRAGMA table_info(vehicles)").all().some((c) => c.name === "price_per_month")) try {
 		sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;");
 	} catch {}
+	if (sqlite) try {
+		const vCountRow = sqlite.prepare("SELECT count(*) as c FROM vehicles").get();
+		if (!vCountRow || vCountRow.c === 0) {
+			console.log("[DB] Local SQLite mirror is empty. Seeding baseline fleet and system records...");
+			seedVehicles();
+			seedUsers();
+			seedPromos();
+			seedMaintenance();
+		}
+	} catch (e) {
+		console.warn("[DB] Error verifying baseline records:", e?.message);
+	}
 	console.log(`[DB] Local SQLite mirror initialized successfully at ${dbPath}`);
+}
+function seedVehicles() {
+	if (!sqlite) return;
+	const insertStmt = sqlite.prepare(`
+    INSERT INTO vehicles (
+      id, name, brand, model, year, type, price_per_day, price_per_hour,
+      image, gallery, rating, reviews_count, seats, transmission, fuel_type,
+      mileage, luggage, features, description, is_popular, status, plate_number, location, health_score
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
+  `);
+	const initialCars = [
+		{
+			id: "toyota-camry",
+			name: "Toyota Camry",
+			brand: "Toyota",
+			model: "Camry",
+			year: 2024,
+			type: "Sedan",
+			price_per_day: 45,
+			price_per_hour: 6,
+			image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.8,
+			reviews_count: 124,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "32 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"Bluetooth",
+				"Backup Camera",
+				"Apple CarPlay",
+				"Android Auto",
+				"GPS Navigation"
+			]),
+			description: "The Toyota Camry offers a perfect blend of comfort, reliability and efficiency. Ideal for both city driving and longer trips.",
+			is_popular: 1,
+			status: "Rented",
+			plate_number: "FL-882-MTR",
+			location: "Miami International Airport (MIA)",
+			health_score: 98
+		},
+		{
+			id: "honda-crv",
+			name: "Honda CR-V",
+			brand: "Honda",
+			model: "CR-V",
+			year: 2024,
+			type: "SUV",
+			price_per_day: 65,
+			price_per_hour: 9,
+			image: "https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1568844293986-8d0400bd4745?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.9,
+			reviews_count: 98,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "30 MPG",
+			luggage: "4 Large Bags",
+			features: JSON.stringify([
+				"Bluetooth",
+				"Backup Camera",
+				"Apple CarPlay",
+				"All-Wheel Drive",
+				"Sunroof"
+			]),
+			description: "A versatile SUV with generous cargo space, high safety ratings, and an elevated driving posture designed for family adventures.",
+			is_popular: 1,
+			status: "Available",
+			plate_number: "FL-319-MTR",
+			location: "Miami International Airport (MIA)",
+			health_score: 95
+		},
+		{
+			id: "tesla-model-3",
+			name: "Tesla Model 3",
+			brand: "Tesla",
+			model: "Model 3",
+			year: 2024,
+			type: "Sedan",
+			price_per_day: 90,
+			price_per_hour: 12,
+			image: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.9,
+			reviews_count: 156,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Electric",
+			mileage: "333 mi Range",
+			luggage: "2 Large Bags",
+			features: JSON.stringify([
+				"Autopilot",
+				"Bluetooth",
+				"Backup Camera",
+				"GPS Navigation",
+				"Heated Seats"
+			]),
+			description: "All-electric exhilaration with instant torque, cutting-edge minimalist interior, and Tesla autopilot safety assists.",
+			is_popular: 1,
+			status: "Available",
+			plate_number: "FL-904-EV",
+			location: "Downtown Miami",
+			health_score: 99
+		},
+		{
+			id: "jeep-wrangler",
+			name: "Jeep Wrangler",
+			brand: "Jeep",
+			model: "Wrangler 4x4",
+			year: 2024,
+			type: "SUV",
+			price_per_day: 85,
+			price_per_hour: 11,
+			image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.7,
+			reviews_count: 82,
+			seats: 4,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "22 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"4x4 Off-Road",
+				"Removable Roof",
+				"Bluetooth",
+				"Backup Camera"
+			]),
+			description: "The quintessential adventure vehicle. Tackle coastal highways or rugged terrain with open-air freedom.",
+			is_popular: 1,
+			status: "Available",
+			plate_number: "FL-511-MTR",
+			location: "Miami International Airport (MIA)",
+			health_score: 91
+		},
+		{
+			id: "bmw-3-series",
+			name: "BMW 3 Series",
+			brand: "BMW",
+			model: "330i M Sport",
+			year: 2024,
+			type: "Luxury",
+			price_per_day: 120,
+			price_per_hour: 16,
+			image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.9,
+			reviews_count: 142,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "28 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"M Sport Package",
+				"Leather Seats",
+				"Harman Kardon",
+				"Apple CarPlay",
+				"Sunroof"
+			]),
+			description: "Precision German engineering meets executive luxury. Dynamic handling, exquisite interior craftsmanship.",
+			is_popular: 1,
+			status: "Rented",
+			plate_number: "CA-782-LUX",
+			location: "Los Angeles International (LAX)",
+			health_score: 97
+		},
+		{
+			id: "honda-accord",
+			name: "Honda Accord",
+			brand: "Honda",
+			model: "Accord EX",
+			year: 2024,
+			type: "Sedan",
+			price_per_day: 50,
+			price_per_hour: 7,
+			image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.8,
+			reviews_count: 76,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "33 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"Bluetooth",
+				"Backup Camera",
+				"Apple CarPlay",
+				"Lane Assist"
+			]),
+			description: "Sleek fastback styling with class-leading legroom, refined interior appointments, and responsive turbo performance.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "FL-403-MTR",
+			location: "Miami International Airport (MIA)",
+			health_score: 96
+		},
+		{
+			id: "nissan-altima",
+			name: "Nissan Altima",
+			brand: "Nissan",
+			model: "Altima SV",
+			year: 2024,
+			type: "Sedan",
+			price_per_day: 42,
+			price_per_hour: 6,
+			image: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.6,
+			reviews_count: 65,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "32 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"Bluetooth",
+				"Backup Camera",
+				"Keyless Entry",
+				"Apple CarPlay"
+			]),
+			description: "Comfort-first commuter with Nissan zero gravity seats, intelligent all-wheel drive, and easy city maneuvering.",
+			is_popular: 0,
+			status: "Cleaning",
+			plate_number: "FL-772-MTR",
+			location: "Miami International Airport (MIA)",
+			health_score: 89
+		},
+		{
+			id: "hyundai-sonata",
+			name: "Hyundai Sonata",
+			brand: "Hyundai",
+			model: "Sonata SEL",
+			year: 2024,
+			type: "Sedan",
+			price_per_day: 40,
+			price_per_hour: 5,
+			image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.7,
+			reviews_count: 58,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Hybrid",
+			mileage: "47 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"Hybrid Economy",
+				"Bluetooth",
+				"Backup Camera",
+				"Apple CarPlay"
+			]),
+			description: "Futuristic horizontal LED styling, phenomenal hybrid fuel efficiency, and serene highway cruising comfort.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "FL-621-MTR",
+			location: "Downtown Miami",
+			health_score: 94
+		},
+		{
+			id: "toyota-rav4",
+			name: "Toyota RAV4",
+			brand: "Toyota",
+			model: "RAV4 XLE",
+			year: 2024,
+			type: "SUV",
+			price_per_day: 60,
+			price_per_hour: 8,
+			image: "https://images.unsplash.com/photo-1581540222194-0def2dda95b8?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1581540222194-0def2dda95b8?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.8,
+			reviews_count: 110,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "30 MPG",
+			luggage: "4 Large Bags",
+			features: JSON.stringify([
+				"AWD",
+				"Bluetooth",
+				"Backup Camera",
+				"Adaptive Cruise",
+				"Roof Rails"
+			]),
+			description: "America's favorite compact SUV. Robust reliability, expansive cargo floor, and confident grip.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "NY-102-MTR",
+			location: "New York JFK Airport",
+			health_score: 93
+		},
+		{
+			id: "mercedes-c-class",
+			name: "Mercedes-Benz C-Class",
+			brand: "Mercedes-Benz",
+			model: "C 300",
+			year: 2024,
+			type: "Luxury",
+			price_per_day: 130,
+			price_per_hour: 18,
+			image: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=1200&q=80", "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.9,
+			reviews_count: 94,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "26 MPG",
+			luggage: "3 Large Bags",
+			features: JSON.stringify([
+				"Burmester 3D Sound",
+				"Ambient Lighting 64-color",
+				"Panoramic Sunroof",
+				"Heated Seats"
+			]),
+			description: "A mini S-Class experience with sweeping portrait touchscreen, 64-color ambient lighting, and silky mild-hybrid power.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "FL-991-LUX",
+			location: "Miami International Airport (MIA)",
+			health_score: 98
+		},
+		{
+			id: "ford-mustang",
+			name: "Ford Mustang GT",
+			brand: "Ford",
+			model: "Mustang GT",
+			year: 2024,
+			type: "Luxury",
+			price_per_day: 110,
+			price_per_hour: 15,
+			image: "https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1584345604476-8ec5e12e42dd?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.9,
+			reviews_count: 88,
+			seats: 4,
+			transmission: "Manual",
+			fuel_type: "Gasoline",
+			mileage: "24 MPG",
+			luggage: "2 Large Bags",
+			features: JSON.stringify([
+				"V8 Power",
+				"Manual 6-Speed",
+				"Brembo Brakes",
+				"Active Exhaust",
+				"Track Apps"
+			]),
+			description: "Pure American muscle with rumbling exhaust, 6-speed manual transmission, and head-turning aerodynamic design.",
+			is_popular: 0,
+			status: "Maintenance",
+			plate_number: "FL-500-V8",
+			location: "Downtown Miami",
+			health_score: 78
+		},
+		{
+			id: "chevrolet-suburban",
+			name: "Chevrolet Suburban",
+			brand: "Chevrolet",
+			model: "Suburban LT",
+			year: 2024,
+			type: "SUV",
+			price_per_day: 95,
+			price_per_hour: 13,
+			image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.7,
+			reviews_count: 51,
+			seats: 7,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "20 MPG",
+			luggage: "6 Large Bags",
+			features: JSON.stringify([
+				"7 Seats",
+				"Rear Entertainment",
+				"Towing Package",
+				"Tri-Zone Climate"
+			]),
+			description: "Full-sized luxury transport with three full rows of seating and cavernous cargo room for larger groups.",
+			is_popular: 0,
+			status: "Rented",
+			plate_number: "FL-228-MTR",
+			location: "Miami International Airport (MIA)",
+			health_score: 92
+		},
+		{
+			id: "toyota-corolla",
+			name: "Toyota Corolla",
+			brand: "Toyota",
+			model: "Corolla LE",
+			year: 2024,
+			type: "Economy",
+			price_per_day: 35,
+			price_per_hour: 5,
+			image: "https://images.unsplash.com/photo-1623869675781-80aa31012a5a?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1623869675781-80aa31012a5a?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.7,
+			reviews_count: 140,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "35 MPG",
+			luggage: "2 Large Bags",
+			features: JSON.stringify([
+				"Bluetooth",
+				"Backup Camera",
+				"Safety Sense 3.0",
+				"Apple CarPlay"
+			]),
+			description: "Reliable, ultra-efficient, and easy to park anywhere. The smart choice for budget-conscious urban exploring.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "FL-109-MTR",
+			location: "Downtown Miami",
+			health_score: 95
+		},
+		{
+			id: "honda-civic",
+			name: "Honda Civic",
+			brand: "Honda",
+			model: "Civic Sport",
+			year: 2024,
+			type: "Economy",
+			price_per_day: 36,
+			price_per_hour: 5,
+			image: "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.8,
+			reviews_count: 104,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "36 MPG",
+			luggage: "2 Large Bags",
+			features: JSON.stringify([
+				"Sport Wheels",
+				"Apple CarPlay",
+				"Paddle Shifters",
+				"Backup Camera"
+			]),
+			description: "Fun-to-drive dynamic chassis, modern cockpit ergonomics, and stellar reliability that punches well above its class.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "CA-818-MTR",
+			location: "Los Angeles International (LAX)",
+			health_score: 97
+		},
+		{
+			id: "hyundai-elantra",
+			name: "Hyundai Elantra",
+			brand: "Hyundai",
+			model: "Elantra Hybrid",
+			year: 2024,
+			type: "Economy",
+			price_per_day: 34,
+			price_per_hour: 4,
+			image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.6,
+			reviews_count: 49,
+			seats: 5,
+			transmission: "Automatic",
+			fuel_type: "Hybrid",
+			mileage: "50 MPG",
+			luggage: "2 Large Bags",
+			features: JSON.stringify([
+				"50 MPG Hybrid",
+				"Bluetooth",
+				"Backup Camera",
+				"Wireless CarPlay"
+			]),
+			description: "Geometric styling with astounding 50 MPG fuel efficiency. Perfect for long stretches of coastal highway.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "FL-908-HYB",
+			location: "Miami International Airport (MIA)",
+			health_score: 94
+		},
+		{
+			id: "chrysler-pacifica",
+			name: "Chrysler Pacifica",
+			brand: "Chrysler",
+			model: "Pacifica Touring",
+			year: 2024,
+			type: "Van",
+			price_per_day: 85,
+			price_per_hour: 11,
+			image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.8,
+			reviews_count: 42,
+			seats: 7,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "24 MPG",
+			luggage: "5 Large Bags",
+			features: JSON.stringify([
+				"Stow 'n Go Seats",
+				"Dual Power Sliding Doors",
+				"Blind Spot Monitor",
+				"Apple CarPlay"
+			]),
+			description: "The undisputed king of family minivans. Stow 'n Go fold-into-floor seating and power sliding doors make group travel effortless.",
+			is_popular: 0,
+			status: "Maintenance",
+			plate_number: "FL-440-VAN",
+			location: "Orlando International (MCO)",
+			health_score: 82
+		},
+		{
+			id: "kia-carnival",
+			name: "Kia Carnival",
+			brand: "Kia",
+			model: "Carnival MPV",
+			year: 2024,
+			type: "Van",
+			price_per_day: 80,
+			price_per_hour: 10,
+			image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+			gallery: JSON.stringify(["https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"]),
+			rating: 4.8,
+			reviews_count: 38,
+			seats: 7,
+			transmission: "Automatic",
+			fuel_type: "Gasoline",
+			mileage: "26 MPG",
+			luggage: "5 Large Bags",
+			features: JSON.stringify([
+				"VIP Lounge Seating",
+				"Dual Sunroofs",
+				"Highway Driving Assist",
+				"Smart Power Tailgate"
+			]),
+			description: "A Multi-Purpose Vehicle that blends SUV styling with executive van comfort. Reclining VIP captain chairs for premier luxury.",
+			is_popular: 0,
+			status: "Available",
+			plate_number: "FL-330-VAN",
+			location: "Orlando International (MCO)",
+			health_score: 96
+		}
+	];
+	for (const car of initialCars) insertStmt.run(car.id, car.name, car.brand, car.model, car.year, car.type, car.price_per_day, car.price_per_hour, car.image, car.gallery, car.rating, car.reviews_count, car.seats, car.transmission, car.fuel_type, car.mileage, car.luggage, car.features, car.description, car.is_popular, car.status, car.plate_number, car.location, car.health_score);
+	console.log(`[DB] Seeded ${initialCars.length} vehicles into database.`);
+}
+function seedUsers() {
+	if (!sqlite) return;
+	const insertStmt = sqlite.prepare(`
+    INSERT INTO users (
+      id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+	const initialUsers = [
+		{
+			id: "usr_101",
+			email: "john.doe@email.com",
+			password_hash: "pass123",
+			name: "John Doe",
+			phone: "+1 (305) 123-4567",
+			driver_license_num: "D12345678",
+			driver_license_state: "Florida",
+			driver_license_expiry: "05/15/2030",
+			role: "customer",
+			vip_tier: "Gold"
+		},
+		{
+			id: "usr_102",
+			email: "david.c@techventure.io",
+			password_hash: "pass123",
+			name: "David Chen",
+			phone: "+1 (415) 880-9921",
+			driver_license_num: "NY-8401928",
+			driver_license_state: "New York",
+			driver_license_expiry: "03/2027",
+			role: "customer",
+			vip_tier: "VIP"
+		},
+		{
+			id: "usr_103",
+			email: "sarah.m@vipclient.com",
+			password_hash: "pass123",
+			name: "Sarah Miller",
+			phone: "+1 (312) 555-8901",
+			driver_license_num: "IL-9912041",
+			driver_license_state: "Illinois",
+			driver_license_expiry: "11/2028",
+			role: "customer",
+			vip_tier: "VIP"
+		},
+		{
+			id: "usr_admin",
+			email: "admin@motorly.com",
+			password_hash: bcryptjs_default.hashSync(process.env.ADMIN_PASSWORD || "Admin#Enterprise2026", 10),
+			name: "Fleet Operations Admin",
+			phone: "+1 (800) 555-0199",
+			driver_license_num: "ADM-9901-FL",
+			driver_license_state: "Florida",
+			driver_license_expiry: "12/2035",
+			role: "admin",
+			vip_tier: "VIP"
+		}
+	];
+	for (const u of initialUsers) insertStmt.run(u.id, u.email, u.password_hash, u.name, u.phone, u.driver_license_num, u.driver_license_state, u.driver_license_expiry, u.role, u.vip_tier);
+	console.log(`[DB] Seeded ${initialUsers.length} users into database.`);
+}
+function seedPromos() {
+	if (!sqlite) return;
+	const insertStmt = sqlite.prepare(`
+    INSERT INTO promo_codes (
+      code, discount_percent, description, is_active, expiry_date, usage_count
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `);
+	const initialPromos = [
+		{
+			code: "DRIVE15",
+			discount_percent: 15,
+			description: "Spring Fleet Explorer - 15% discount on all rentals",
+			is_active: 1,
+			expiry_date: "2026-12-31",
+			usage_count: 38
+		},
+		{
+			code: "SUMMER20",
+			discount_percent: 20,
+			description: "Summer Roadtrip Deal - 20% off for 3+ day trips",
+			is_active: 1,
+			expiry_date: "2026-08-31",
+			usage_count: 14
+		},
+		{
+			code: "VIP25",
+			discount_percent: 25,
+			description: "Executive Corporate Preferred Rate - 25% discount",
+			is_active: 1,
+			expiry_date: "2026-12-31",
+			usage_count: 7
+		},
+		{
+			code: "FIRST10",
+			discount_percent: 10,
+			description: "Welcome New Driver - 10% discount on initial rental",
+			is_active: 1,
+			expiry_date: "2027-01-01",
+			usage_count: 52
+		}
+	];
+	for (const p of initialPromos) insertStmt.run(p.code, p.discount_percent, p.description, p.is_active, p.expiry_date, p.usage_count);
+	console.log(`[DB] Seeded ${initialPromos.length} promo codes into database.`);
+}
+function seedMaintenance() {
+	if (!sqlite) return;
+	const insertStmt = sqlite.prepare(`
+    INSERT INTO maintenance_logs (
+      id, car_id, service_type, cost, odometer, date, status, technician_notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+	const initialLogs = [
+		{
+			id: "MNT-1001",
+			car_id: "toyota-camry",
+			service_type: "Synthetic Oil Change & Filter",
+			cost: 89.5,
+			odometer: 14200,
+			date: "2026-03-01",
+			status: "Completed",
+			technician_notes: "5W-30 Mobil 1 full synthetic, OEM oil filter replaced, 4-point tire rotation completed."
+		},
+		{
+			id: "MNT-1002",
+			car_id: "jeep-wrangler",
+			service_type: "Ceramic Brake Service & Rotors",
+			cost: 340,
+			odometer: 22150,
+			date: "2026-03-05",
+			status: "Completed",
+			technician_notes: "Front and rear ceramic pads installed. Rotors micrometer inspected and surfaced."
+		},
+		{
+			id: "MNT-1003",
+			car_id: "tesla-model-3",
+			service_type: "Cabin Air Filter & Tire Balancing",
+			cost: 120,
+			odometer: 18400,
+			date: "2026-03-10",
+			status: "Completed",
+			technician_notes: "HEPA air intake filtration replaced, 4 wheels laser road-force balanced."
+		},
+		{
+			id: "MNT-1004",
+			car_id: "bmw-3-series",
+			service_type: "Scheduled 30K Multi-Point Inspection",
+			cost: 280,
+			odometer: 29800,
+			date: "2026-03-14",
+			status: "In Progress",
+			technician_notes: "Diagnostic scan performed. Brake pads at 70%. Sensor recalibration in queue."
+		}
+	];
+	for (const m of initialLogs) insertStmt.run(m.id, m.car_id, m.service_type, m.cost, m.odometer, m.date, m.status, m.technician_notes);
+	console.log(`[DB] Seeded ${initialLogs.length} maintenance logs into database.`);
 }
 //#endregion
 //#region server/index.ts
@@ -40178,6 +41020,35 @@ try {
 	await initDatabase();
 } catch (err) {
 	console.warn("[DB Init Warning]", err?.message);
+}
+let cachedHubAddress = "MOTORLY Central Operations Hub";
+async function getActiveOperatingHub() {
+	try {
+		const rows = await db.prepare("SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')").all();
+		let address = cachedHubAddress || "MOTORLY Central Operations Hub";
+		let lat = null;
+		let lng = null;
+		const list = Array.isArray(rows) ? rows : [];
+		for (const r of list) {
+			if (r.key === "hub_address" && r.value) {
+				address = String(r.value).trim();
+				cachedHubAddress = address;
+			}
+			if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value);
+			if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value);
+		}
+		return {
+			address,
+			lat,
+			lng
+		};
+	} catch {
+		return {
+			address: cachedHubAddress || "MOTORLY Central Operations Hub",
+			lat: null,
+			lng: null
+		};
+	}
 }
 async function reconcileDatabaseInvariants() {
 	try {
@@ -40375,6 +41246,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-ke
 if (isProduction && !ADMIN_PASSWORD && !ADMIN_PASSWORD_HASH) console.warn("[SECURITY NOTICE] No environment ADMIN_PASSWORD or ADMIN_PASSWORD_HASH provided. Authentication verified strictly against salted database credentials.");
 app.use((0, import_lib.default)());
 app.use(import_express.json({ limit: "20mb" }));
+app.use("/api", (_req, res, next) => {
+	res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+	res.setHeader("Pragma", "no-cache");
+	res.setHeader("Expires", "0");
+	res.setHeader("Surrogate-Control", "no-store");
+	next();
+});
 const publicImagesDir = path.join(__dirname, "../public/images");
 if (fs.existsSync(publicImagesDir)) app.use(["/images", "/api/images"], import_express.static(publicImagesDir, { maxAge: "1d" }));
 app.use((req, _res, next) => {
@@ -40396,35 +41274,6 @@ app.get(["/api", "/api/health"], async (_req, res) => {
 		timestamp: (/* @__PURE__ */ new Date()).toISOString()
 	});
 });
-let cachedHubAddress = "MOTORLY Central Operations Hub";
-async function getActiveOperatingHub() {
-	try {
-		const rows = await db.prepare("SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')").all();
-		let address = cachedHubAddress || "MOTORLY Central Operations Hub";
-		let lat = null;
-		let lng = null;
-		const list = Array.isArray(rows) ? rows : [];
-		for (const r of list) {
-			if (r.key === "hub_address" && r.value) {
-				address = String(r.value).trim();
-				cachedHubAddress = address;
-			}
-			if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value);
-			if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value);
-		}
-		return {
-			address,
-			lat,
-			lng
-		};
-	} catch {
-		return {
-			address: cachedHubAddress || "MOTORLY Central Operations Hub",
-			lat: null,
-			lng: null
-		};
-	}
-}
 function formatCarRow(row, fallbackHub, fallbackLat, fallbackLng) {
 	if (!row) return null;
 	const isStaleMiami = (val) => !val || val.includes("Miami") || val.includes("Central Hub & Garage Bay 4") || val.includes("4200 NW 21st St");

@@ -25,6 +25,34 @@ try {
   console.warn("[DB Init Warning]", err?.message)
 }
 
+let cachedHubAddress: string = "MOTORLY Central Operations Hub"
+
+// Helper to retrieve active operating hub from settings
+async function getActiveOperatingHub(): Promise<{ address: string; lat: number | null; lng: number | null }> {
+  try {
+    const rows: any = await db
+      .prepare(
+        "SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')",
+      )
+      .all()
+    let address = cachedHubAddress || "MOTORLY Central Operations Hub"
+    let lat: number | null = null
+    let lng: number | null = null
+    const list = Array.isArray(rows) ? rows : []
+    for (const r of list) {
+      if (r.key === "hub_address" && r.value) {
+        address = String(r.value).trim()
+        cachedHubAddress = address
+      }
+      if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value)
+      if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value)
+    }
+    return { address, lat, lng }
+  } catch {
+    return { address: cachedHubAddress || "MOTORLY Central Operations Hub", lat: null, lng: null }
+  }
+}
+
 // Reconcile and maintain database invariants upon server startup
 async function reconcileDatabaseInvariants() {
   try {
@@ -348,6 +376,15 @@ interface JwtUserPayload {
 app.use(cors())
 app.use(express.json({ limit: "20mb" }))
 
+// Global Cache-Busting Middleware for API Routes
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+  res.setHeader("Pragma", "no-cache")
+  res.setHeader("Expires", "0")
+  res.setHeader("Surrogate-Control", "no-store")
+  next()
+})
+
 // Serve static vehicle image assets if stored locally in public/images
 const publicImagesDir = path.join(__dirname, "../public/images")
 if (fs.existsSync(publicImagesDir)) {
@@ -384,33 +421,7 @@ app.get(["/api", "/api/health"], async (_req, res) => {
   })
 })
 
-let cachedHubAddress: string = "MOTORLY Central Operations Hub"
-
-// Helper to retrieve active operating hub from settings
-async function getActiveOperatingHub(): Promise<{ address: string; lat: number | null; lng: number | null }> {
-  try {
-    const rows: any = await db
-      .prepare(
-        "SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')",
-      )
-      .all()
-    let address = cachedHubAddress || "MOTORLY Central Operations Hub"
-    let lat: number | null = null
-    let lng: number | null = null
-    const list = Array.isArray(rows) ? rows : []
-    for (const r of list) {
-      if (r.key === "hub_address" && r.value) {
-        address = String(r.value).trim()
-        cachedHubAddress = address
-      }
-      if (r.key === "hub_lat" && r.value && !isNaN(Number(r.value))) lat = Number(r.value)
-      if (r.key === "hub_lng" && r.value && !isNaN(Number(r.value))) lng = Number(r.value)
-    }
-    return { address, lat, lng }
-  } catch {
-    return { address: cachedHubAddress || "MOTORLY Central Operations Hub", lat: null, lng: null }
-  }
-}
+// (cachedHubAddress and getActiveOperatingHub hoisted to top)
 
 // Helper to format car row from SQLite
 function formatCarRow(

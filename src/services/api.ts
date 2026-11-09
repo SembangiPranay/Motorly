@@ -137,10 +137,14 @@ class ApiService {
       )
     }
 
-    // Only wipe customer session if the 401 is specifically from an authenticated profile endpoint
+    // Wipe customer session if 401 is returned on any customer authenticated endpoint
     const isCustomerSessionExpired =
+      role === "customer" ||
+      endpoint === "/auth/customer-me" ||
       endpoint === "/auth/customer-profile" ||
-      endpoint === "/users/profile"
+      endpoint === "/users/profile" ||
+      endpoint.startsWith("/users/bookings") ||
+      Boolean(customerToken && mergedHeaders?.["Authorization"] === `Bearer ${customerToken}`)
 
     if (isCustomerSessionExpired) {
       localStorage.removeItem("motorly_customer_token")
@@ -163,6 +167,7 @@ class ApiService {
       ...(options.headers as Record<string, string> || {}),
     }
     const config: RequestInit = {
+      cache: "no-store",
       ...options,
       headers: mergedHeaders,
     }
@@ -272,15 +277,12 @@ class ApiService {
   }
 
   async getCustomerProfile(): Promise<CustomerUser | null> {
-    const token = localStorage.getItem("motorly_customer_token")
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("motorly_customer_token") : null
     if (!token) {
-      // Check stored user fallback
-      const stored = localStorage.getItem("motorly_customer_user")
-      try {
-        return stored ? JSON.parse(stored) : null
-      } catch {
-        return null
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("motorly_customer_user")
       }
+      return null
     }
 
     try {
@@ -833,11 +835,13 @@ class ApiService {
           const body = await res.json()
           if (body.booking) return body
         } catch {}
-        const fresh = await this.getBooking(bookingId)
-        return {
-          success: true,
-          message: "Booking already completed",
-          booking: fresh,
+        const fresh = await this.lookupBooking(bookingId)
+        if (fresh) {
+          return {
+            success: true,
+            message: "Booking already completed",
+            booking: fresh,
+          }
         }
       }
       let serverErrorMsg = "Failed to complete return inspection"

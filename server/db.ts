@@ -915,13 +915,21 @@ function initSqliteTables() {
     } catch {}
   }
 
-  // Automatic mock data seeding permanently disabled per user configuration:
-  // Database remains completely fresh and pristine with zero hardcoded / mock records.
-  // seedVehicles()
-  // seedBookings()
-  // seedUsers()
-  // seedPromos()
-  // seedMaintenance()
+  // Ensure local SQLite database mirror has working baseline data when running offline
+  if (sqlite) {
+    try {
+      const vCountRow = sqlite.prepare("SELECT count(*) as c FROM vehicles").get()
+      if (!vCountRow || vCountRow.c === 0) {
+        console.log("[DB] Local SQLite mirror is empty. Seeding baseline fleet and system records...")
+        seedVehicles()
+        seedUsers()
+        seedPromos()
+        seedMaintenance()
+      }
+    } catch (e) {
+      console.warn("[DB] Error verifying baseline records:", e?.message)
+    }
+  }
 
   console.log(`[DB] Local SQLite mirror initialized successfully at ${dbPath}`)
 }
