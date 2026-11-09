@@ -144,6 +144,17 @@ export default function App() {
 
   // Direct Deep Link Support (e.g. ?view=admin&bookingId=MTR-XXXXXX)
 
+    const handleClearTargetBooking = () => {
+    setTargetBookingId(null)
+    if (typeof window !== "undefined") {
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("bookingId")
+        window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""))
+      } catch {}
+    }
+  }
+
   const [targetBookingId, setTargetBookingId] = useState<string | null>(() => {
     try {
       const params = new URLSearchParams(window.location.search)
@@ -1012,7 +1023,9 @@ export default function App() {
             bookings={bookings}
             setBookings={setBookings}
             targetBookingId={targetBookingId || undefined}
+            onClearTargetBookingId={handleClearTargetBooking}
             onExitAdmin={() => {
+              handleClearTargetBooking()
               if (typeof window !== "undefined") {
                 window.history.pushState(null, "", "/")
               }
@@ -1021,6 +1034,7 @@ export default function App() {
             }}
             onLogoutAdmin={() => {
               api.logoutAdmin()
+              handleClearTargetBooking()
 
               setIsAdminAuthenticated(false)
 

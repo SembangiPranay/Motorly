@@ -23,6 +23,7 @@ interface ElderlyTasksViewProps {
   onOpenWalkin: () => void
   onOpenInvoice: (booking: BookingRecord) => void
   targetBookingId?: string
+  onClearTargetBookingId?: () => void
 }
 
 export default function ElderlyTasksView({
@@ -35,6 +36,7 @@ export default function ElderlyTasksView({
   onOpenWalkin,
   onOpenInvoice,
   targetBookingId,
+  onClearTargetBookingId,
 }: ElderlyTasksViewProps) {
   const [filter, setFilter] = useState<"all" | "requests" | "pickups" | "returns" | "completed">("all")
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -82,10 +84,20 @@ export default function ElderlyTasksView({
     return s.includes("completed") || s.includes("returned") || s.includes("cancelled")
   }
 
-  const requests = bookings.filter(isRequest)
-  const pickups = bookings.filter(isPickup)
-  const returns = bookings.filter(isReturn)
-  const completed = bookings.filter(isCompleted)
+  // Sort target booking to top if present
+  const sortTargetFirst = (list: BookingRecord[]) => {
+    if (!targetBookingId) return list
+    return [...list].sort((a, b) => {
+      if (a.id === targetBookingId) return -1
+      if (b.id === targetBookingId) return 1
+      return 0
+    })
+  }
+
+  const requests = sortTargetFirst(bookings.filter(isRequest))
+  const pickups = sortTargetFirst(bookings.filter(isPickup))
+  const returns = sortTargetFirst(bookings.filter(isReturn))
+  const completed = sortTargetFirst(bookings.filter(isCompleted))
 
   const totalActionItems = requests.length + pickups.length + returns.length
 
@@ -151,6 +163,34 @@ export default function ElderlyTasksView({
           </button>
         </div>
       </div>
+
+      {/* Target Booking Alert Banner if opened via direct link */}
+      {targetBookingId && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-200 text-amber-900 flex items-center justify-center text-2xl font-black">
+              🎯
+            </div>
+            <div>
+              <div className="font-bold text-amber-950 text-lg">
+                Highlighting Reservation: <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-amber-300">{targetBookingId}</span>
+              </div>
+              <div className="text-sm text-amber-800 font-medium">
+                This customer's request has been brought to the top for your review.
+              </div>
+            </div>
+          </div>
+          {onClearTargetBookingId && (
+            <button
+              type="button"
+              onClick={onClearTargetBookingId}
+              className="px-5 py-3 rounded-2xl bg-white hover:bg-amber-100 text-amber-950 font-bold text-base border-2 border-amber-300 transition shadow-sm"
+            >
+              Show All Bookings ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter Tabs for Easy Touch */}
       <div className="flex flex-wrap gap-2.5 sm:gap-3">

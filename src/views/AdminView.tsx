@@ -28,6 +28,7 @@ export interface AdminViewProps {
   onExitAdmin: () => void
   onLogoutAdmin?: () => void
   targetBookingId?: string
+  onClearTargetBookingId?: () => void
 }
 
 type AdminTab = "tasks" | "fleet" | "settings"
@@ -40,6 +41,7 @@ export default function AdminView({
   onExitAdmin,
   onLogoutAdmin,
   targetBookingId,
+  onClearTargetBookingId,
 }: AdminViewProps) {
   // Navigation tab
   const [activeTab, setActiveTab] = useState<AdminTab>("tasks")
@@ -60,6 +62,19 @@ export default function AdminView({
       setToastMessage((current) => (current === msg ? null : current))
     }, 4500)
   }
+
+  // Remove bookingId from URL query once loaded so refresh/render never gets trapped
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const url = new URL(window.location.href)
+        if (url.searchParams.has("bookingId")) {
+          url.searchParams.delete("bookingId")
+          window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""))
+        }
+      } catch {}
+    }
+  }, [])
 
   // Initial data refresh from backend
   useEffect(() => {
@@ -481,6 +496,7 @@ export default function AdminView({
             onOpenWalkin={() => setIsWalkinModalOpen(true)}
             onOpenInvoice={(booking) => setActiveInvoiceBooking(booking)}
             targetBookingId={targetBookingId}
+            onClearTargetBookingId={onClearTargetBookingId}
           />
         )}
 
