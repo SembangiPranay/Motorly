@@ -827,6 +827,12 @@ export default function AdminBookingDetailView({
                       <span className="text-stone-400">VAT Rate:</span>{" "}
                       <span className="font-semibold text-stone-800">{matchedCar.vatRate || 20}%</span>
                     </div>
+                    <div>
+                      <span className="text-stone-400">Deposit:</span>{" "}
+                      <span className="font-bold text-stone-900">
+                        €{(matchedCar.securityDeposit != null ? matchedCar.securityDeposit : 1000).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Garage Bay Location */}
@@ -1001,7 +1007,9 @@ export default function AdminBookingDetailView({
               <ShieldIcon size={14} className="text-stone-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-stone-800">Refundable Security Deposit:</span>{" "}
-                <span>€1,500.00 pre-authorization held at key handover, automatically released upon undamaged return audit.</span>
+                <span>
+                  €{(matchedCar?.securityDeposit != null ? matchedCar.securityDeposit : 1000).toLocaleString()}.00 pre-authorization held at key handover, automatically released upon undamaged return audit.
+                </span>
               </div>
             </div>
           </div>

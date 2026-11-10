@@ -201,6 +201,24 @@ async function reconcileDatabaseInvariants() {
       console.warn("[DB Password Upgrade Warning]", passErr?.message)
     }
 
+    // 4b. Invariant: Ensure vehicles table has security_deposit column
+    try {
+      if (db.isSupabase && db.pool) {
+        await db.pool
+          .query(
+            "ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS security_deposit NUMERIC DEFAULT 1000",
+          )
+          .catch(() => {})
+      } else {
+        await db
+          .prepare(
+            "ALTER TABLE vehicles ADD COLUMN security_deposit REAL DEFAULT 1000",
+          )
+          .run()
+          .catch(() => {})
+      }
+    } catch {}
+
     // 5. Invariant: Synchronize Stationed Hub and purge stale placeholder garage locations
     try {
       const activeHub = await getActiveOperatingHub()
@@ -527,6 +545,18 @@ function formatCarRow(
       row.vat_rate != null && !isNaN(Number(row.vat_rate))
         ? Number(row.vat_rate)
         : 18.0,
+    securityDeposit:
+      row.security_deposit != null && !isNaN(Number(row.security_deposit))
+        ? Number(row.security_deposit)
+        : (() => {
+            const p = Number(row.price_per_day) || 75
+            const t = (row.type || "").toLowerCase()
+            if (t === "economy") return 500
+            if (t === "sedan") return 800
+            if (t === "suv" || t === "van") return 1200
+            if (t === "luxury" || t === "electric") return 2000
+            return Math.max(500, Math.round(p * 8))
+          })(),
   }
 }
 
@@ -1462,13 +1492,13 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score,
       insurance_policy, insurance_provider, insurance_expiry, purchase_date, purchase_cost, current_odometer,
-      garage_name, garage_address, garage_lat, garage_lng, garage_bay, vat_rate
+      garage_name, garage_address, garage_lat, garage_lng, garage_bay, vat_rate, security_deposit
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?
     )
   `)
     .run(
@@ -1515,6 +1545,9 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       car.vatRate != null && !isNaN(Number(car.vatRate))
         ? Number(car.vatRate)
         : 18.0,
+      car.securityDeposit != null && !isNaN(Number(car.securityDeposit))
+        ? Number(car.securityDeposit)
+        : 1000,
     )
 
   const created = await db
@@ -1548,7 +1581,7 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       insurance_policy = ?, insurance_provider = ?, insurance_expiry = ?,
       purchase_date = ?, purchase_cost = ?, current_odometer = ?,
       garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?,
-      vat_rate = ?
+      vat_rate = ?, security_deposit = ?
     WHERE id = ?
   `)
     .run(
@@ -1591,6 +1624,9 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       car.vatRate != null && !isNaN(Number(car.vatRate))
         ? Number(car.vatRate)
         : 18.0,
+      car.securityDeposit != null && !isNaN(Number(car.securityDeposit))
+        ? Number(car.securityDeposit)
+        : 1000,
       carId,
     )
 

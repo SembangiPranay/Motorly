@@ -44,6 +44,7 @@ export const CARS: Car[] = [
     location: "Main Garage Facility",
     healthScore: 98,
     vatRate: 10,
+    securityDeposit: 1000,
   },
   {
     id: "honda-crv",
@@ -86,6 +87,7 @@ export const CARS: Car[] = [
     location: "Main Garage Facility",
     healthScore: 95,
     vatRate: 15,
+    securityDeposit: 1000,
   },
   {
     id: "tesla-model-3",
@@ -128,6 +130,7 @@ export const CARS: Car[] = [
     location: "Downtown Miami",
     healthScore: 99,
     vatRate: 5,
+    securityDeposit: 1000,
   },
   {
     id: "jeep-wrangler",
@@ -169,6 +172,7 @@ export const CARS: Car[] = [
     location: "Main Garage Facility",
     healthScore: 91,
     vatRate: 18,
+    securityDeposit: 1000,
   },
   {
     id: "bmw-3-series",
@@ -210,6 +214,7 @@ export const CARS: Car[] = [
     location: "Los Angeles International (LAX)",
     healthScore: 97,
     vatRate: 20,
+    securityDeposit: 3500,
   },
   {
     id: "honda-accord",

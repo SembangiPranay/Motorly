@@ -10,6 +10,7 @@ import {
   CarIcon,
   LockIcon,
 } from "../components/Icons"
+import LegalPoliciesModal from "../components/LegalPoliciesModal"
 
 interface AuthViewProps {
   initialTab?: "customer" | "admin"
@@ -41,6 +42,7 @@ export default function AuthView({
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [agreeTerms, setAgreeTerms] = useState(true)
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false)
 
   // States
   const [isLoading, setIsLoading] = useState(false)
@@ -486,17 +488,25 @@ export default function AuthView({
                         </span>
                       </label>
                     ) : (
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <div className="flex items-center gap-2 select-none">
                         <input
                           type="checkbox"
+                          id="agree-terms"
                           checked={agreeTerms}
                           onChange={(e) => setAgreeTerms(e.target.checked)}
-                          className="rounded text-orange-600 focus:ring-orange-500 w-4 h-4 cursor-pointer"
+                          className="rounded text-orange-600 focus:ring-orange-500 w-4 h-4 cursor-pointer shrink-0"
                         />
-                        <span className="text-xs text-stone-600 font-medium">
-                          I agree to the rental terms &amp; conditions
-                        </span>
-                      </label>
+                        <label htmlFor="agree-terms" className="text-xs text-stone-600 font-medium">
+                          I agree to the{" "}
+                          <button
+                            type="button"
+                            onClick={() => setIsLegalModalOpen(true)}
+                            className="text-orange-600 hover:underline font-bold cursor-pointer"
+                          >
+                            rental terms, conditions &amp; US privacy disclosures
+                          </button>
+                        </label>
+                      </div>
                     )}
                   </div>
 

@@ -16,6 +16,7 @@ import CheckoutCustomerForm from "./customer/CheckoutCustomerForm"
 import CheckoutDriverIdForm from "./customer/CheckoutDriverIdForm"
 import CheckoutTripPurpose from "./customer/CheckoutTripPurpose"
 import CheckoutOrderSummary from "./customer/CheckoutOrderSummary"
+import LegalPoliciesModal from "../components/LegalPoliciesModal"
 
 interface CheckoutViewProps {
   car?: Car
@@ -144,10 +145,10 @@ export default function CheckoutView({
   )
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const [tripReason, setTripReason] = useState<string>(
-    "Vacation & Leisure Travel",
-  )
+  const [tripReason, setTripReason] = useState<string>("")
   const [tripDestination, setTripDestination] = useState<string>("")
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState<boolean>(false)
+  const [legalModalTab, setLegalModalTab] = useState<"privacy" | "terms" | "deposit" | "insurance">("terms")
 
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
@@ -692,8 +693,19 @@ export default function CheckoutView({
           onApplyPromo={handleApplyPromo}
           onRemovePromo={handleRemovePromo}
           onOpenScheduleModal={() => setIsScheduleModalOpen(true)}
+          onOpenLegalModal={(tab) => {
+            setLegalModalTab(tab)
+            setIsLegalModalOpen(true)
+          }}
         />
       </form>
+
+      {/* Interactive US Regulatory & Legal Policies Modal */}
+      <LegalPoliciesModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab={legalModalTab}
+      />
 
       {/* Interactive Date & Scheduling Calendar Modal */}
       <DateSchedulingModal

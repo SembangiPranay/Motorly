@@ -7,6 +7,7 @@ import {
   ZapIcon,
   ArrowRightIcon,
   AlertTriangleIcon,
+  ShieldIcon,
 } from "../../components/Icons"
 
 interface PricingResult {
@@ -47,6 +48,7 @@ interface CheckoutOrderSummaryProps {
   onApplyPromo: () => void
   onRemovePromo: () => void
   onOpenScheduleModal: () => void
+  onOpenLegalModal?: (tab: "privacy" | "terms" | "deposit" | "insurance") => void
 }
 
 export default function CheckoutOrderSummary({
@@ -73,6 +75,7 @@ export default function CheckoutOrderSummary({
   onApplyPromo,
   onRemovePromo,
   onOpenScheduleModal,
+  onOpenLegalModal,
 }: CheckoutOrderSummaryProps) {
   return (
     <div className="lg:col-span-4 sticky top-28 space-y-4">
@@ -306,6 +309,22 @@ export default function CheckoutOrderSummary({
           </div>
         )}
 
+        {/* Security Deposit Notice */}
+        <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80 text-[11px] text-stone-600 flex items-start gap-2.5">
+          <ShieldIcon size={15} className="text-orange-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-stone-800">Refundable Security Deposit:</span>
+              <span className="font-mono font-bold text-stone-900">
+                €{car.securityDeposit != null ? car.securityDeposit.toLocaleString() : "1,000"}
+              </span>
+            </div>
+            <p className="text-[10px] text-stone-500 mt-0.5 leading-tight">
+              Pre-authorized hold at garage key pickup. Automatically released upon clean return.
+            </p>
+          </div>
+        </div>
+
         {/* Submit Button */}
         <button
           type="submit"
@@ -325,6 +344,26 @@ export default function CheckoutOrderSummary({
             </>
           )}
         </button>
+
+        {/* US Policies & Privacy Disclosure */}
+        <p className="text-[10px] text-stone-500 text-center leading-normal">
+          By requesting this vehicle, you agree to Motorly&apos;s{" "}
+          <button
+            type="button"
+            onClick={() => onOpenLegalModal?.("terms")}
+            className="text-orange-600 hover:underline font-semibold cursor-pointer"
+          >
+            Rental Terms &amp; Conditions
+          </button>{" "}
+          and{" "}
+          <button
+            type="button"
+            onClick={() => onOpenLegalModal?.("privacy")}
+            className="text-orange-600 hover:underline font-semibold cursor-pointer"
+          >
+            US Privacy &amp; CAN-SPAM Notice
+          </button>. Zero online charge.
+        </p>
 
         {/* Trust Badges */}
         <div className="pt-3 border-t border-stone-100 space-y-2 text-xs text-stone-600">

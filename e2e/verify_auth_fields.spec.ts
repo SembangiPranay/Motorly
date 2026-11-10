@@ -5,10 +5,9 @@ test.use({ channel: "msedge" })
 test("verify driver license and country inputs in registration", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
 
-  await page.goto("http://localhost:5173", { waitUntil: "networkidle" }).catch(async () => {
-    // If local dev server isn't on 5173, go to 8443
-    await page.goto("http://localhost:8443", { waitUntil: "networkidle" })
-  })
+  console.log("Navigating to production...")
+  await page.goto("https://motorly-ten.vercel.app", { waitUntil: "networkidle" })
+  await page.waitForTimeout(2000)
 
   // Skip intro if visible
   const skipBtn = page.locator("button:has-text('Skip Intro')")

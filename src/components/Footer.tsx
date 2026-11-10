@@ -1,11 +1,13 @@
-import React from "react"
+import React, { useState } from "react"
 import type { ViewMode } from "../types"
+import LegalPoliciesModal from "./LegalPoliciesModal"
 
 export default function Footer({
   onNavigate,
 }: {
   onNavigate: (view: ViewMode) => void
 }) {
+  const [activePolicyTab, setActivePolicyTab] = useState<"privacy" | "terms" | "deposit" | "insurance" | null>(null)
   return (
     <footer className="bg-[#17191C] text-white pt-16 pb-12 border-t border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -140,18 +142,36 @@ export default function Footer({
             >
               <span>🎬 Replay Intro</span>
             </button>
-            <span className="hover:text-gray-400 cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setActivePolicyTab("privacy")}
+              className="hover:text-orange-400 text-stone-400 cursor-pointer transition"
+            >
               Privacy Policy
-            </span>
-            <span className="hover:text-gray-400 cursor-pointer">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePolicyTab("terms")}
+              className="hover:text-orange-400 text-stone-400 cursor-pointer transition"
+            >
               Rental Agreement
-            </span>
-            <span className="hover:text-gray-400 cursor-pointer">
-              Garage Policies
-            </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePolicyTab("deposit")}
+              className="hover:text-orange-400 text-stone-400 cursor-pointer transition"
+            >
+              Garage &amp; Deposit Policies
+            </button>
           </div>
         </div>
       </div>
+
+      <LegalPoliciesModal
+        isOpen={activePolicyTab !== null}
+        onClose={() => setActivePolicyTab(null)}
+        initialTab={activePolicyTab || "terms"}
+      />
     </footer>
   )
 }

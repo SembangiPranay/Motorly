@@ -35,6 +35,7 @@ export interface Car {
   location?: string
   healthScore?: number
   vatRate?: number
+  securityDeposit?: number
   // Vehicle History & Insurance Details
   insurancePolicy?: string
   insuranceProvider?: string

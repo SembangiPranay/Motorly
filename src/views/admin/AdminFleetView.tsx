@@ -213,6 +213,12 @@ export default function AdminFleetView({
                       {car.plateNumber}
                     </div>
                   )}
+                  {car.gallery && car.gallery.length > 1 && (
+                    <div className="absolute bottom-2.5 right-2.5 bg-stone-900/80 backdrop-blur-xs text-white px-2 py-0.5 rounded font-bold text-[10px] border border-stone-700 flex items-center gap-1 shadow-2xs">
+                      <span>📷</span>
+                      <span>{car.gallery.length} Photos</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Body Details */}
@@ -233,8 +239,13 @@ export default function AdminFleetView({
                         <div className="text-[10px] text-stone-400 font-medium">
                           €{car.pricePerHour}/h • €{car.pricePerWeek || Math.round(car.pricePerDay * 6)}/w • €{car.pricePerMonth || Math.round(car.pricePerDay * 22)}/m
                         </div>
-                        <div className="mt-1 inline-block px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                          VAT {car.vatRate != null ? car.vatRate : 18}%
+                        <div className="mt-1 flex items-center justify-end gap-1.5 flex-wrap">
+                          <span className="inline-block px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                            VAT {car.vatRate != null ? car.vatRate : 18}%
+                          </span>
+                          <span className="inline-block px-1.5 py-0.2 rounded text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                            Dep €{(car.securityDeposit != null ? car.securityDeposit : 1000).toLocaleString()}
+                          </span>
                         </div>
                       </div>
                     </div>

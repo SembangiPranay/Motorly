@@ -27,26 +27,39 @@ const VAT_PRESETS = [
   { value: 20, label: "20% Luxury", desc: "High-Performance / VIP" },
 ]
 
-const IMAGE_PRESETS = [
+const SECURITY_DEPOSIT_PRESETS = [
+  { value: 500, label: "€500", desc: "Economy / Compact" },
+  { value: 800, label: "€800", desc: "Standard Sedan" },
+  { value: 1200, label: "€1,200", desc: "Premium / Executive" },
+  { value: 1800, label: "€1,800", desc: "Luxury SUV / 4x4" },
+  { value: 2500, label: "€2,500", desc: "High Performance" },
+  { value: 3500, label: "€3,500", desc: "Supercar / Exotic" },
+]
+
+const GALLERY_PRESETS = [
   {
-    name: "Executive Sedan",
+    name: "Front Dynamic Angle",
     url: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    name: "Premium SUV",
+    name: "Rear 3/4 Perspective",
     url: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    name: "Electric Sport",
+    name: "Cockpit Interior",
     url: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    name: "Luxury Tourer",
+    name: "Side Profile Aerodynamic",
     url: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    name: "4x4 Adventure",
+    name: "Executive Cabin Detail",
     url: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    name: "Sport Rim & Calipers",
+    url: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
   },
 ]
 
@@ -79,16 +92,37 @@ export default function AdminCarModal({
   const [vatRate, setVatRate] = useState<number>(
     car?.vatRate != null ? car.vatRate : 18
   )
+  const [securityDeposit, setSecurityDeposit] = useState<number>(
+    car?.securityDeposit != null
+      ? car.securityDeposit
+      : car?.type === "Luxury"
+      ? 2500
+      : car?.type === "SUV"
+      ? 1500
+      : car?.type === "Economy"
+      ? 500
+      : 1000
+  )
   const [seats, setSeats] = useState<number>(car?.seats || 5)
   const [transmission, setTransmission] = useState<Transmission>(
     car?.transmission || "Automatic"
   )
   const [fuelType, setFuelType] = useState<FuelType>(car?.fuelType || "Petrol")
   const [garageBay, setGarageBay] = useState(car?.garageBay || "Bay 14-A")
-  const [image, setImage] = useState(
-    car?.image ||
-      "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"
-  )
+
+  // Multi-Photo Gallery Studio State
+  const initialGallery: string[] =
+    Array.isArray(car?.gallery) && car.gallery.length > 0
+      ? car.gallery
+      : car?.image
+      ? [car.image]
+      : [
+          "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80",
+        ]
+
+  const [gallery, setGallery] = useState<string[]>(initialGallery)
+  const [newPhotoUrl, setNewPhotoUrl] = useState("")
+  const [activePreviewIdx, setActivePreviewIdx] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Calculations for live preview across all 4 time periods
@@ -97,6 +131,7 @@ export default function AdminCarModal({
   const validWeekly = Math.max(0, pricePerWeek || 0)
   const validMonthly = Math.max(0, pricePerMonth || 0)
   const validVat = Math.max(0, vatRate || 0)
+  const validDeposit = Math.max(0, securityDeposit || 0)
 
   const handleDailyChange = (val: number) => {
     setPricePerDay(val)
@@ -109,6 +144,38 @@ export default function AdminCarModal({
     if (!isEditing || !car?.pricePerMonth) {
       setPricePerMonth(Math.round(val * 22))
     }
+  }
+
+  const handleAddPhoto = (urlToAdd?: string) => {
+    const targetUrl = (urlToAdd || newPhotoUrl).trim()
+    if (!targetUrl) return
+    if (gallery.includes(targetUrl)) {
+      alert("This image is already in the vehicle gallery.")
+      return
+    }
+    setGallery((prev) => [...prev, targetUrl])
+    if (!urlToAdd) setNewPhotoUrl("")
+  }
+
+  const handleRemovePhoto = (index: number) => {
+    if (gallery.length <= 1) {
+      alert("A vehicle must retain at least one photo.")
+      return
+    }
+    setGallery((prev) => prev.filter((_, idx) => idx !== index))
+    if (activePreviewIdx >= gallery.length - 1) {
+      setActivePreviewIdx(Math.max(0, gallery.length - 2))
+    }
+  }
+
+  const handleSetPrimaryPhoto = (index: number) => {
+    if (index === 0) return
+    setGallery((prev) => {
+      const selected = prev[index]
+      const remaining = prev.filter((_, idx) => idx !== index)
+      return [selected, ...remaining]
+    })
+    setActivePreviewIdx(0)
   }
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -125,6 +192,10 @@ export default function AdminCarModal({
 
     setIsSubmitting(true)
     try {
+      const primaryCover =
+        gallery[0] ||
+        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"
+
       await onSave({
         name: name.trim(),
         brand: inferredBrand,
@@ -137,11 +208,13 @@ export default function AdminCarModal({
         pricePerWeek: Number(validWeekly) || Math.round(validDaily * 6),
         pricePerMonth: Number(validMonthly) || Math.round(validDaily * 22),
         vatRate: Number(validVat),
+        securityDeposit: Number(validDeposit) || 1000,
         seats: Number(seats) || 5,
         transmission,
         fuelType,
         garageBay: garageBay.trim() || "Bay 1",
-        image: image.trim(),
+        image: primaryCover,
+        gallery: gallery.length > 0 ? gallery : [primaryCover],
         status: car?.status || "Available",
       })
     } catch (err: any) {
@@ -515,51 +588,229 @@ export default function AdminCarModal({
                   })}
                 </div>
               </div>
+
+              {/* Dynamic Vehicle Security Deposit (Refundable Hold Value) */}
+              <div className="pt-4 border-t border-stone-100 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <ShieldIcon size={14} className="text-stone-800" />
+                      <span className="text-xs font-bold text-stone-900">
+                        Refundable Security Deposit Money Value
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-500 mt-0.5">
+                      Specific pre-authorization hold on customer card at pickup. 100% released within 48-72h of return.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-xs">€</span>
+                      <input
+                        type="number"
+                        min="100"
+                        max="25000"
+                        step="50"
+                        required
+                        value={securityDeposit}
+                        onChange={(e) => setSecurityDeposit(Math.max(0, parseFloat(e.target.value) || 0))}
+                        className="w-28 h-9 pl-6 pr-2 text-sm font-black text-right bg-white rounded-lg border border-stone-300 text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Select Security Deposit Presets */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                  {SECURITY_DEPOSIT_PRESETS.map((preset) => {
+                    const isSelected = securityDeposit === preset.value
+                    return (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setSecurityDeposit(preset.value)}
+                        className={`p-2 rounded-xl text-left transition border cursor-pointer ${
+                          isSelected
+                            ? "bg-stone-900 text-white border-stone-900 shadow-2xs font-bold"
+                            : "bg-stone-50 text-stone-700 hover:bg-stone-100 border-stone-200"
+                        }`}
+                      >
+                        <div className="text-[11px] font-extrabold leading-none">{preset.label}</div>
+                        <div
+                          className={`text-[9px] mt-1 leading-tight truncate ${
+                            isSelected ? "text-stone-300" : "text-stone-400"
+                          }`}
+                        >
+                          {preset.desc}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
 
-            {/* Section 4: Photography & Media Presets */}
+            {/* Section 4: Photography & Multi-Angle Asset Media Studio */}
             <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-2xs space-y-4">
               <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                 <span className="font-extrabold text-stone-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                  <ZapIcon size={14} className="text-stone-600" />
-                  4. Photography & Asset Media
+                  <ZapIcon size={14} className="text-orange-600" />
+                  4. Vehicle Photo Gallery & Multi-Angle Media
                 </span>
-                <span className="text-[10px] text-stone-400 font-semibold">1-Click Presets</span>
+                <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2.5 py-0.5 rounded-full border border-stone-200">
+                  {gallery.length} {gallery.length === 1 ? "Photo" : "Photos"} Configured
+                </span>
               </div>
 
+              {/* Current Gallery Filmstrip */}
               <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1.5">
-                  Quick Studio Photo Presets
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {IMAGE_PRESETS.map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => setImage(preset.url)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border cursor-pointer ${
-                        image === preset.url
-                          ? "bg-stone-900 text-white border-stone-900 shadow-2xs"
-                          : "bg-stone-50 text-stone-700 hover:bg-stone-100 border-stone-200"
-                      }`}
-                    >
-                      {preset.name}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-stone-700">
+                    Vehicle Photo Strip (Cover & Additional Angles)
+                  </label>
+                  <span className="text-[10px] text-stone-400">
+                    First photo is primary cover displayed in customer catalog
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {gallery.map((photoUrl, idx) => {
+                    const isPrimary = idx === 0
+                    const isSelectedForPreview = activePreviewIdx === idx
+
+                    return (
+                      <div
+                        key={`${photoUrl}-${idx}`}
+                        className={`relative group rounded-xl border overflow-hidden bg-stone-100 transition ${
+                          isSelectedForPreview
+                            ? "border-orange-500 ring-2 ring-orange-400/40"
+                            : isPrimary
+                            ? "border-emerald-500 ring-1 ring-emerald-400/30"
+                            : "border-stone-200 hover:border-stone-300"
+                        }`}
+                      >
+                        <div className="relative aspect-4/3 overflow-hidden bg-stone-900">
+                          <img
+                            src={photoUrl}
+                            alt={`Angle ${idx + 1}`}
+                            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                            onError={(e) => {
+                              ;(e.target as HTMLImageElement).src =
+                                "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80"
+                            }}
+                          />
+                          {/* Badge: Primary / Index */}
+                          <div className="absolute top-1.5 left-1.5">
+                            {isPrimary ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-2xs">
+                                ★ Primary Cover
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-stone-900/80 text-white backdrop-blur-xs">
+                                Angle #{idx + 1}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quick delete button */}
+                          {gallery.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(idx)}
+                              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-600/90 hover:bg-red-700 text-white flex items-center justify-center text-xs font-bold transition shadow-2xs cursor-pointer opacity-90 group-hover:opacity-100"
+                              title="Remove photo from gallery"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Bottom Actions under thumbnail */}
+                        <div className="p-2 bg-white flex items-center justify-between gap-1 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setActivePreviewIdx(idx)}
+                            className={`px-2 py-1 rounded font-bold transition cursor-pointer ${
+                              isSelectedForPreview
+                                ? "bg-orange-100 text-orange-800"
+                                : "text-stone-600 hover:bg-stone-100"
+                            }`}
+                          >
+                            {isSelectedForPreview ? "Active" : "Preview"}
+                          </button>
+
+                          {!isPrimary && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimaryPhoto(idx)}
+                              className="px-2 py-1 rounded font-bold text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
+                              title="Promote this photo to primary cover"
+                            >
+                              Make Cover
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Custom High-Res Image URL
+              {/* Add Photo Input */}
+              <div className="pt-2 border-t border-stone-100 space-y-2">
+                <label className="block text-xs font-bold text-stone-700">
+                  Add High-Res Photo by URL
                 </label>
-                <input
-                  type="url"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full h-10 px-3.5 text-xs bg-stone-50 rounded-xl border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={newPhotoUrl}
+                    onChange={(e) => setNewPhotoUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddPhoto()
+                      }
+                    }}
+                    placeholder="Paste high-res image URL (e.g. https://images.unsplash.com/...)"
+                    className="flex-1 h-10 px-3.5 text-xs bg-stone-50 rounded-xl border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddPhoto()}
+                    disabled={!newPhotoUrl.trim()}
+                    className="px-4 h-10 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition shrink-0 disabled:opacity-40 cursor-pointer"
+                  >
+                    + Add Photo
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Studio Presets */}
+              <div className="pt-2 border-t border-stone-100">
+                <label className="block text-[11px] font-bold text-stone-600 mb-1.5">
+                  Curated Studio Angles (Click to Append to Gallery)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {GALLERY_PRESETS.map((preset) => {
+                    const alreadyAdded = gallery.includes(preset.url)
+                    return (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => handleAddPhoto(preset.url)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border cursor-pointer flex items-center gap-1.5 ${
+                          alreadyAdded
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-bold"
+                            : "bg-stone-50 text-stone-700 hover:bg-stone-100 border-stone-200"
+                        }`}
+                      >
+                        <span>{alreadyAdded ? "✓ Added" : "+ Add"}</span>
+                        <span>{preset.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
@@ -595,7 +846,7 @@ export default function AdminCarModal({
             <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
               <div className="relative h-52 w-full bg-stone-100 overflow-hidden">
                 <img
-                  src={image}
+                  src={gallery[activePreviewIdx] || gallery[0]}
                   alt={name || "Vehicle Preview"}
                   className="w-full h-full object-cover transition duration-300"
                   onError={(e) => {
@@ -618,8 +869,40 @@ export default function AdminCarModal({
                   <span className="bg-orange-600 text-white px-2 py-0.5 rounded-md text-xs font-bold shadow-2xs">
                     VAT {validVat}%
                   </span>
+                  <span className="bg-stone-900/90 backdrop-blur-xs text-white px-2 py-0.5 rounded-md text-xs font-bold border border-stone-700 shadow-2xs">
+                    Dep €{validDeposit.toLocaleString()}
+                  </span>
                 </div>
               </div>
+
+              {/* Gallery Angle Switcher under preview */}
+              {gallery.length > 1 && (
+                <div className="p-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between gap-2 overflow-x-auto">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 shrink-0">
+                    Angle {activePreviewIdx + 1} of {gallery.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {gallery.map((imgUrl, i) => (
+                      <button
+                        key={`thumb-${i}`}
+                        type="button"
+                        onClick={() => setActivePreviewIdx(i)}
+                        className={`w-9 h-7 rounded border overflow-hidden transition shrink-0 cursor-pointer ${
+                          activePreviewIdx === i
+                            ? "border-orange-500 ring-2 ring-orange-400"
+                            : "border-stone-200 opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Thumbnail ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
@@ -722,10 +1005,26 @@ export default function AdminCarModal({
                     €{(validMonthly * (1 + validVat / 100)).toFixed(2)}
                   </div>
                 </div>
+
+                {/* Refundable Deposit Line */}
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-stone-800 flex items-center gap-1">
+                      <ShieldIcon size={12} className="text-stone-500" />
+                      Refundable Security Deposit
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      Temporary pre-authorization hold at counter • 100% refunded
+                    </div>
+                  </div>
+                  <div className="text-right font-black text-stone-900 text-sm">
+                    €{validDeposit.toLocaleString()}
+                  </div>
+                </div>
               </div>
 
               <p className="text-[10px] text-stone-400 italic pt-1">
-                When customer bookings match each duration window, checkout invoices dynamically apply these exact rates and the {validVat}% vehicle VAT.
+                When customer bookings match each duration window, checkout invoices dynamically apply these exact rates, the {validVat}% vehicle VAT, and the vehicle-specific €{validDeposit.toLocaleString()} security deposit.
               </p>
             </div>
           </div>
