@@ -37,6 +37,18 @@ const getCustomerFullName = (b: BookingRecord) => {
   return `${first} ${last}`.trim() || "Valued Customer"
 }
 
+const getRentalDurationDays = (pickup: string, ret: string): number => {
+  try {
+    const p = new Date(pickup).getTime()
+    const r = new Date(ret).getTime()
+    if (isNaN(p) || isNaN(r)) return 1
+    const diff = Math.round((r - p) / (1000 * 60 * 60 * 24))
+    return diff > 0 ? diff : 1
+  } catch {
+    return 1
+  }
+}
+
 export default function AdminOrdersView({
   bookings,
   cars,
@@ -184,13 +196,13 @@ export default function AdminOrdersView({
             </div>
             <div>
               <div className="text-xs font-bold text-amber-900 uppercase tracking-wide flex items-center gap-2">
-                <span>{pendingRequests.length} New Booking Request{pendingRequests.length > 1 ? "s" : ""} Awaiting Review</span>
+                <span>{pendingRequests.length} Reservation Request{pendingRequests.length > 1 ? "s" : ""} Awaiting Review</span>
                 <span className="px-2 py-0.5 rounded text-[10px] bg-amber-200/80 text-amber-950 font-black">
                   Action Required
                 </span>
               </div>
               <p className="text-xs text-amber-800 mt-0.5">
-                Customers are waiting for reservation confirmation and vehicle allocation.
+                New customer bookings require station approval and vehicle key preparation.
               </p>
             </div>
           </div>
@@ -327,7 +339,7 @@ export default function AdminOrdersView({
         </button>
       </div>
 
-      {/* Orders List / Table */}
+      {/* Professional Symmetric Table View */}
       {filteredBookings.length === 0 ? (
         <div className="bg-white border border-stone-200 rounded-xl p-12 text-center">
           <CalendarIcon size={32} className="mx-auto text-stone-300 mb-2" />
@@ -339,183 +351,263 @@ export default function AdminOrdersView({
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredBookings.map((b) => {
-            const car = b.matchedCarId ? carMap.get(b.matchedCarId) : null
-            const customerName = getCustomerFullName(b)
-            const customerPhone = b.customer?.phone || ""
-            const customerEmail = b.customer?.email || ""
+        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-2xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-stone-50/80 border-b border-stone-200 text-stone-500 uppercase tracking-wider text-[10px] font-bold select-none">
+                  <th className="py-3 px-4 w-36">Booking Ref</th>
+                  <th className="py-3 px-4 min-w-[210px]">Assigned Vehicle</th>
+                  <th className="py-3 px-4 min-w-[200px]">Client Contact</th>
+                  <th className="py-3 px-4 min-w-[210px]">Rental Schedule</th>
+                  <th className="py-3 px-4 min-w-[100px]">Total Billed</th>
+                  <th className="py-3 px-4 min-w-[130px]">Lifecycle Stage</th>
+                  <th className="py-3 px-4 text-right min-w-[180px]">Dispatch Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {filteredBookings.map((b) => {
+                  const car = b.matchedCarId ? carMap.get(b.matchedCarId) : null
+                  const customerName = getCustomerFullName(b)
+                  const customerPhone = b.customer?.phone || ""
+                  const durationDays = getRentalDurationDays(b.pickupDate, b.returnDate)
 
-            const isPending =
-              (b.status || "").toLowerCase().includes("pending") ||
-              (b.status || "").toLowerCase().includes("advance")
-            const isAssigned =
-              (b.status || "").toLowerCase().includes("assigned") ||
-              (b.status || "").toLowerCase().includes("approved") ||
-              (b.status || "").toLowerCase().includes("confirmed")
-            const isActiveRental =
-              (b.status || "").toLowerCase().includes("checked out") ||
-              (b.status || "").toLowerCase().includes("checked_out") ||
-              (b.status || "").toLowerCase().includes("active")
-            const isCompleted = (b.status || "").toLowerCase().includes("completed")
-            const isBusy = processingId === b.id
+                  const statusStr = (b.status || "").toLowerCase()
+                  const isPending = statusStr.includes("pending") || statusStr.includes("advance")
+                  const isAssigned =
+                    statusStr.includes("assigned") ||
+                    statusStr.includes("approved") ||
+                    statusStr.includes("confirmed")
+                  const isActiveRental =
+                    statusStr.includes("checked out") ||
+                    statusStr.includes("checked_out") ||
+                    statusStr.includes("active")
+                  const isCompleted = statusStr.includes("completed")
+                  const isCancelled = statusStr.includes("cancel") || statusStr.includes("decline")
+                  const isBusy = processingId === b.id
 
-            const { webUrl } = getWhatsAppUrls(
-              customerPhone,
-              `Hello ${customerName}, this is Motorly Dispatch regarding your reservation ${b.id}.`
-            )
+                  const { webUrl } = getWhatsAppUrls(
+                    customerPhone,
+                    `Hello ${customerName}, this is Motorly Dispatch regarding reservation ${b.id}.`
+                  )
 
-            return (
-              <div
-                key={b.id}
-                className="bg-white border border-stone-200 hover:border-stone-300 rounded-xl p-4 transition shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-              >
-                {/* Column 1: Booking ID & Car Info */}
-                <div className="flex items-start gap-3 min-w-[240px]">
-                  <div className="w-10 h-10 rounded-lg bg-stone-100 text-stone-700 flex items-center justify-center shrink-0 border border-stone-200">
-                    <CarIcon size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-stone-900">{b.id}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          isPending
-                            ? "bg-amber-100 text-amber-800 border border-amber-200"
-                            : isAssigned
-                            ? "bg-blue-100 text-blue-800 border border-blue-200"
-                            : isActiveRental
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                            : isCompleted
-                            ? "bg-stone-100 text-stone-700 border border-stone-200"
-                            : "bg-red-100 text-red-800 border border-red-200"
-                        }`}
-                      >
-                        {b.status}
-                      </span>
-                    </div>
-                    <div className="text-sm font-bold text-stone-900 mt-1">
-                      {car ? car.name : "Unassigned Vehicle"}
-                    </div>
-                    {car?.plateNumber && (
-                      <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-stone-100 text-stone-700 border border-stone-200">
-                        {car.plateNumber}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Column 2: Customer Details & WhatsApp */}
-                <div className="min-w-[200px]">
-                  <div className="text-xs font-bold text-stone-900">{customerName}</div>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-500">
-                    <span>{customerPhone || "No Phone"}</span>
-                    {customerPhone && (
-                      <a
-                        href={webUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-emerald-600 hover:text-emerald-700 font-semibold inline-flex items-center gap-1"
-                        title="Open WhatsApp chat"
-                      >
-                        <PhoneIcon size={12} />
-                        <span className="text-[11px]">Chat</span>
-                      </a>
-                    )}
-                  </div>
-                  {customerEmail && (
-                    <div className="text-[11px] text-stone-400 truncate max-w-[220px]">
-                      {customerEmail}
-                    </div>
-                  )}
-                </div>
-
-                {/* Column 3: Dates & Total */}
-                <div className="min-w-[200px] text-xs">
-                  <div className="text-stone-500 flex items-center gap-1.5">
-                    <CalendarIcon size={13} className="text-stone-400" />
-                    <span>
-                      {b.pickupDate} → {b.returnDate}
-                    </span>
-                  </div>
-                  <div className="text-stone-900 font-bold mt-1">
-                    Total: €{b.totalAmount}
-                  </div>
-                </div>
-
-                {/* Column 4: Contextual Actions */}
-                <div className="flex items-center gap-2 flex-wrap lg:justify-end shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-stone-100">
-                  {/* Case 1: Pending -> Accept / Decline */}
-                  {isPending && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => handleApprove(b.id)}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs disabled:opacity-50"
-                      >
-                        <CheckIcon size={13} />
-                        <span>Accept</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => handleDecline(b.id)}
-                        className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition disabled:opacity-50"
-                      >
-                        Decline
-                      </button>
-                    </>
-                  )}
-
-                  {/* Case 2: Assigned -> Give Keys */}
-                  {isAssigned && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenGiveKeys(b)}
-                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                  return (
+                    <tr
+                      key={b.id}
+                      className="hover:bg-stone-50/70 transition-colors group"
                     >
-                      <KeyIcon size={13} />
-                      <span>Give Keys</span>
-                    </button>
-                  )}
+                      {/* Col 1: Booking Ref ID */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <div className="font-mono font-bold text-xs text-stone-900 flex items-center gap-1.5">
+                          <span>{b.id}</span>
+                        </div>
+                        <div className="text-[10px] text-stone-400 mt-0.5">
+                          {b.createdAt ? b.createdAt.split("T")[0] : "Direct Booking"}
+                        </div>
+                      </td>
 
-                  {/* Case 3: Checked Out -> Return Inspection */}
-                  {isActiveRental && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenReturn(b)}
-                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs"
-                    >
-                      <CheckIcon size={13} />
-                      <span>Inspect Return</span>
-                    </button>
-                  )}
+                      {/* Col 2: Assigned Vehicle */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <div className="flex items-center gap-2.5">
+                          {car?.image ? (
+                            <img
+                              src={car.image}
+                              alt={car.name}
+                              className="w-10 h-7 rounded object-cover border border-stone-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-7 rounded bg-stone-100 text-stone-600 flex items-center justify-center shrink-0 border border-stone-200">
+                              <CarIcon size={14} />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-bold text-stone-900 text-xs truncate max-w-[150px]">
+                              {car ? car.name : "Unassigned Vehicle"}
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {car?.plateNumber ? (
+                                <span className="px-1.5 py-0.2 rounded font-mono text-[9px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                                  {car.plateNumber}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-amber-700 font-medium">Needs Car Match</span>
+                              )}
+                              {car?.type && (
+                                <span className="text-[10px] text-stone-400">• {car.type}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
 
-                  {/* Case 4: Completed -> View Invoice */}
-                  {isCompleted && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenInvoice(b)}
-                      className="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold transition flex items-center gap-1 border border-stone-200"
-                    >
-                      <FileTextIcon size={13} />
-                      <span>Invoice</span>
-                    </button>
-                  )}
+                      {/* Col 3: Client Contact */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <div className="font-semibold text-stone-900 text-xs truncate max-w-[160px]">
+                          {customerName}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="font-mono text-[11px] text-stone-500">
+                            {customerPhone || "—"}
+                          </span>
+                          {customerPhone && (
+                            <a
+                              href={webUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/80 transition"
+                              title="Chat on WhatsApp"
+                            >
+                              <PhoneIcon size={9} />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
+                        </div>
+                      </td>
 
-                  {/* Details Quick Modal Trigger */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedBookingForDetails(b)}
-                    className="px-2.5 py-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 text-xs font-semibold transition border border-stone-200"
-                  >
-                    Details
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+                      {/* Col 4: Rental Schedule */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <div className="text-xs text-stone-800 font-medium flex items-center gap-1.5">
+                          <CalendarIcon size={12} className="text-stone-400 shrink-0" />
+                          <span>{b.pickupDate} → {b.returnDate}</span>
+                        </div>
+                        <div className="text-[10px] text-stone-400 mt-0.5 pl-4">
+                          {durationDays} day{durationDays > 1 ? "s" : ""} rental period
+                        </div>
+                      </td>
+
+                      {/* Col 5: Total Billed */}
+                      <td className="py-3.5 px-4 align-middle font-mono">
+                        <div className="font-bold text-stone-900 text-xs">
+                          €{b.totalAmount}
+                        </div>
+                        <div className="text-[10px] text-stone-400 font-sans">
+                          Contract Total
+                        </div>
+                      </td>
+
+                      {/* Col 6: Lifecycle Status Badge */}
+                      <td className="py-3.5 px-4 align-middle">
+                        {isPending && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Needs Approval
+                          </span>
+                        )}
+                        {isAssigned && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                            Ready For Keys
+                          </span>
+                        )}
+                        {isActiveRental && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active on Road
+                          </span>
+                        )}
+                        {isCompleted && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-stone-500" />
+                            Completed
+                          </span>
+                        )}
+                        {isCancelled && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            Cancelled
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Col 7: Dispatch Actions */}
+                      <td className="py-3.5 px-4 align-middle text-right">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          {/* Case 1: Pending -> Accept / Decline */}
+                          {isPending && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleApprove(b.id)}
+                                className="h-8 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1 transition shadow-2xs disabled:opacity-50"
+                              >
+                                <CheckIcon size={12} />
+                                <span>Accept</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleDecline(b.id)}
+                                className="h-8 px-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition disabled:opacity-50"
+                              >
+                                Decline
+                              </button>
+                            </>
+                          )}
+
+                          {/* Case 2: Assigned -> Give Keys */}
+                          {isAssigned && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenGiveKeys(b)}
+                              className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1 transition shadow-2xs"
+                            >
+                              <KeyIcon size={12} />
+                              <span>Give Keys</span>
+                            </button>
+                          )}
+
+                          {/* Case 3: Checked Out -> Return Inspection */}
+                          {isActiveRental && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenReturn(b)}
+                              className="h-8 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center gap-1 transition shadow-2xs"
+                            >
+                              <CheckIcon size={12} />
+                              <span>Inspect Return</span>
+                            </button>
+                          )}
+
+                          {/* Case 4: Completed -> View Invoice */}
+                          {isCompleted && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenInvoice(b)}
+                              className="h-8 px-2.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold border border-stone-200 flex items-center gap-1 transition"
+                            >
+                              <FileTextIcon size={12} />
+                              <span>Invoice</span>
+                            </button>
+                          )}
+
+                          {/* Details Quick Modal Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBookingForDetails(b)}
+                            className="h-8 px-2.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition"
+                          >
+                            Details
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Footer Summary */}
+          <div className="bg-stone-50/60 border-t border-stone-200 px-4 py-2.5 flex items-center justify-between text-xs text-stone-500">
+            <span>
+              Showing <span className="font-bold text-stone-800">{filteredBookings.length}</span> of{" "}
+              <span className="font-bold text-stone-800">{bookings.length}</span> total bookings
+            </span>
+            <span className="text-[11px] font-mono text-stone-400">
+              Motorly Studio Dispatch Engine
+            </span>
+          </div>
         </div>
       )}
 
