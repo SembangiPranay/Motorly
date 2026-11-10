@@ -1,27 +1,31 @@
 import React, { useState, useEffect, useMemo } from "react"
-import type { BookingRecord, BookingStatus, Car, CarStatus } from "../types"
+import type {
+  BookingRecord,
+  BookingStatus,
+  Car,
+  CarStatus,
+  PromoCode,
+  AdminCustomerRecord,
+  MaintenanceLog,
+} from "../types"
 import { api } from "../services/api"
 
-import ElderlyTasksView from "./admin/ElderlyTasksView"
-import ElderlyFleetView from "./admin/ElderlyFleetView"
-import ElderlyNotificationsView from "./admin/ElderlyNotificationsView"
-import ElderlySettingsView from "./admin/ElderlySettingsView"
-import ElderlyKeyHandoverModal from "./admin/ElderlyKeyHandoverModal"
-import ElderlyReturnModal from "./admin/ElderlyReturnModal"
-import ElderlyWalkinModal from "./admin/ElderlyWalkinModal"
-import ElderlyCarModal from "./admin/ElderlyCarModal"
-import InvoiceModal from "../components/InvoiceModal"
+import AdminSidebar, { type AdminTab } from "./admin/AdminSidebar"
+import AdminTopHeader from "./admin/AdminTopHeader"
+import AdminOrdersView from "./admin/AdminOrdersView"
+import AdminNotificationsView from "./admin/AdminNotificationsView"
+import AdminCompletedView from "./admin/AdminCompletedView"
+import AdminFleetView from "./admin/AdminFleetView"
+import AdminWalkinView from "./admin/AdminWalkinView"
+import AdminPromosView from "./admin/AdminPromosView"
+import AdminCrmView from "./admin/AdminCrmView"
+import AdminMaintenanceView from "./admin/AdminMaintenanceView"
+import AdminSettingsView from "./admin/AdminSettingsView"
 
-import {
-  CarIcon,
-  PhoneIcon,
-  LogOutIcon,
-  CheckIcon,
-  SettingsIcon,
-  ClockIcon,
-  BellIcon,
-  CalendarIcon,
-} from "../components/Icons"
+import AdminKeyHandoverModal from "./admin/AdminKeyHandoverModal"
+import AdminReturnModal from "./admin/AdminReturnModal"
+import AdminCarModal from "./admin/AdminCarModal"
+import InvoiceModal from "../components/InvoiceModal"
 
 export interface AdminViewProps {
   cars: Car[]
@@ -34,8 +38,6 @@ export interface AdminViewProps {
   onClearTargetBookingId?: () => void
 }
 
-type AdminTab = "tasks" | "fleet" | "notifications" | "settings"
-
 export default function AdminView({
   cars,
   setCars,
@@ -46,27 +48,60 @@ export default function AdminView({
   targetBookingId,
   onClearTargetBookingId,
 }: AdminViewProps) {
-  // Navigation tab
-  const [activeTab, setActiveTab] = useState<AdminTab>("tasks")
+  // Navigation tab state with URL and localStorage sync
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        const tabParam = params.get("tab") as AdminTab
+        const validTabs: AdminTab[] = [
+          "manifest",
+          "notifications",
+          "completed",
+          "fleet",
+          "walkin",
+          "promos",
+          "crm",
+          "maintenance",
+          "settings",
+        ]
+        if (tabParam && validTabs.includes(tabParam)) return tabParam
+      }
+      const savedTab =
+        typeof localStorage !== "undefined"
+          ? (localStorage.getItem("motorly_admin_active_tab") as AdminTab)
+          : null
+      const validTabs: AdminTab[] = [
+        "manifest",
+        "notifications",
+        "completed",
+        "fleet",
+        "walkin",
+        "promos",
+        "crm",
+        "maintenance",
+        "settings",
+      ]
+      if (savedTab && validTabs.includes(savedTab)) return savedTab
+    } catch {}
+    return "manifest"
+  })
 
-  // Modals state
-  const [activeGiveKeysBooking, setActiveGiveKeysBooking] = useState<BookingRecord | null>(null)
-  const [activeReturnBooking, setActiveReturnBooking] = useState<BookingRecord | null>(null)
-  const [isWalkinModalOpen, setIsWalkinModalOpen] = useState<boolean>(false)
-  const [editingCar, setEditingCar] = useState<Car | null | "new">(null)
-  const [activeInvoiceBooking, setActiveInvoiceBooking] = useState<BookingRecord | null>(null)
+  // Synchronize activeTab to URL and localStorage
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("motorly_admin_active_tab", activeTab)
+      }
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href)
+        url.searchParams.set("tab", activeTab)
+        window.history.replaceState(null, "", url.toString())
+      }
+    } catch {}
+  }, [activeTab])
 
-  // Feedback Toast state
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg)
-    setTimeout(() => {
-      setToastMessage((current) => (current === msg ? null : current))
-    }, 4500)
-  }
-
-  // Remove bookingId from URL query once loaded so refresh/render never gets trapped
+  // Clear bookingId query param from URL on mount so refreshing never loops
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -79,10 +114,38 @@ export default function AdminView({
     }
   }, [])
 
-  // Initial data refresh from backend
+  // Header Search Query
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Secondary Datasets (Promos, CRM, Maintenance)
+  const [promos, setPromos] = useState<PromoCode[]>([])
+  const [adminCustomers, setAdminCustomers] = useState<AdminCustomerRecord[]>([])
+  const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([])
+
+  // Modals state
+  const [activeGiveKeysBooking, setActiveGiveKeysBooking] = useState<BookingRecord | null>(null)
+  const [activeReturnBooking, setActiveReturnBooking] = useState<BookingRecord | null>(null)
+  const [editingCar, setEditingCar] = useState<Car | null | "new">(null)
+  const [activeInvoiceBooking, setActiveInvoiceBooking] = useState<BookingRecord | null>(null)
+
+  // Toast feedback state
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => {
+      setToastMessage((curr) => (curr === msg ? null : curr))
+    }, 4000)
+  }
+
+  // Initial data loading
   useEffect(() => {
     let mounted = true
-    async function refreshData() {
+
+    async function refreshPrimary() {
       try {
         const [latestBookings, latestCars] = await Promise.allSettled([
           api.getBookings(),
@@ -97,17 +160,45 @@ export default function AdminView({
           }
         }
       } catch (err) {
-        console.warn("[AdminView] Initial refresh error:", err)
+        console.warn("[AdminView] Primary data load error:", err)
       }
     }
-    refreshData()
+
+    async function refreshSecondary() {
+      try {
+        const [remotePromos, remoteMnt, remoteCustomers] = await Promise.allSettled([
+          api.getPromos(),
+          api.getMaintenanceLogs({ page: 1, limit: 30 }),
+          api.getAdminCustomers(),
+        ])
+        if (mounted) {
+          if (remotePromos.status === "fulfilled" && Array.isArray(remotePromos.value)) {
+            setPromos(remotePromos.value)
+          }
+          if (remoteMnt.status === "fulfilled") {
+            const val = remoteMnt.value
+            const list = Array.isArray(val) ? val : (val as any)?.data || []
+            setMaintenanceLogs(list)
+          }
+          if (remoteCustomers.status === "fulfilled" && Array.isArray(remoteCustomers.value)) {
+            setAdminCustomers(remoteCustomers.value)
+          }
+        }
+      } catch (err) {
+        console.warn("[AdminView] Secondary data load error:", err)
+      }
+    }
+
+    refreshPrimary()
+    refreshSecondary()
+
     return () => {
       mounted = false
     }
   }, [setBookings, setCars])
 
-  // Count pending actions for badge (safe case-insensitive)
-  const pendingActionsCount = useMemo(() => {
+  // Count pending items requiring admin action
+  const notificationsCount = useMemo(() => {
     return bookings.filter((b) => {
       const s = String(b.status || "").toLowerCase()
       return (
@@ -115,23 +206,26 @@ export default function AdminView({
         s.includes("advance") ||
         s.includes("assigned") ||
         s.includes("approved") ||
-        s.includes("deposit") ||
-        s.includes("confirmed") ||
         s.includes("checked out") ||
-        s.includes("checked_out") ||
-        s.includes("active")
+        s.includes("checked_out")
       )
     }).length
   }, [bookings])
 
-  // Available cars for walk-ins
+  // Active bookings count
+  const ordersCount = useMemo(() => {
+    return bookings.filter((b) => {
+      const s = String(b.status || "").toLowerCase()
+      return !s.includes("cancelled") && !s.includes("declined")
+    }).length
+  }, [bookings])
+
+  // Available cars for walk-in dispatch
   const availableCars = useMemo(() => {
-    return cars.filter(
-      (c) => !c.status || c.status.toLowerCase() === "available"
-    )
+    return cars.filter((c) => !c.status || c.status.toLowerCase() === "available")
   }, [cars])
 
-  // --- Operational Handlers ---
+  // --- Handlers & API Operations ---
 
   // 1. Approve Booking
   const handleApproveBooking = async (id: string) => {
@@ -139,9 +233,7 @@ export default function AdminView({
       await api.approveBooking(id)
       setBookings((prev) =>
         prev.map((b) =>
-          b.id === id
-            ? { ...b, status: "Assigned" as BookingStatus, approvedByAdmin: true }
-            : b
+          b.id === id ? { ...b, status: "Assigned" as BookingStatus, approvedByAdmin: true } : b
         )
       )
       showToast("Booking request approved! Customer can now pick up the car.")
@@ -155,17 +247,15 @@ export default function AdminView({
     try {
       await api.declineBooking(id)
       setBookings((prev) =>
-        prev.map((b) =>
-          b.id === id ? { ...b, status: "Cancelled" as BookingStatus } : b
-        )
+        prev.map((b) => (b.id === id ? { ...b, status: "Cancelled" as BookingStatus } : b))
       )
-      showToast("Booking has been declined and cancelled.")
+      showToast("Booking has been declined.")
     } catch (err: any) {
       alert("Failed to decline booking: " + (err?.message || "Unknown error"))
     }
   }
 
-  // 3. Hand over keys
+  // 3. Confirm Key Handover
   const handleConfirmGiveKeys = async (odometerOut: number) => {
     if (!activeGiveKeysBooking) return
     const bookingId = activeGiveKeysBooking.id
@@ -176,10 +266,9 @@ export default function AdminView({
       fuelOut: "Full",
       exteriorClean: true,
       tiresInspected: true,
-      staffSign: "Garage Manager",
+      staffSign: "Garage Dispatch Officer",
     })
 
-    // Update booking state
     setBookings((prev) =>
       prev.map((b) =>
         b.id === bookingId
@@ -193,7 +282,6 @@ export default function AdminView({
       )
     )
 
-    // Update car status to rented
     if (carId) {
       setCars((prev) =>
         prev.map((c) =>
@@ -208,7 +296,7 @@ export default function AdminView({
     showToast("Keys handed over! Rental has officially started.")
   }
 
-  // 4. Complete return
+  // 4. Confirm Return Inspection
   const handleConfirmReturn = async (data: {
     odometerIn: number
     cleanlinessPass: boolean
@@ -223,10 +311,9 @@ export default function AdminView({
       fuelIn: "Full",
       cleanlinessPass: data.cleanlinessPass,
       damageFound: data.damageFound,
-      staffSign: "Garage Manager",
+      staffSign: "Garage Inspection Lead",
     })
 
-    // Update booking state
     setBookings((prev) =>
       prev.map((b) =>
         b.id === bookingId
@@ -239,7 +326,6 @@ export default function AdminView({
       )
     )
 
-    // Release car back to available or maintenance
     const nextStatus: CarStatus = data.damageFound ? "Maintenance" : "Available"
     if (carId) {
       await api.updateCarStatus(carId, nextStatus).catch(() => {})
@@ -259,12 +345,12 @@ export default function AdminView({
     setActiveReturnBooking(null)
     showToast(
       data.damageFound
-        ? "Car returned and marked for cleaning/repairs."
-        : "Car returned successfully! Ready on the garage floor for next rental."
+        ? "Vehicle return audited and routed to maintenance for service."
+        : "Vehicle checked in successfully! Ready for the next customer."
     )
   }
 
-  // 5. Create Walk-In Booking
+  // 5. Walk-In Instant Booking
   const handleCreateWalkin = async (data: {
     customerName: string
     customerPhone: string
@@ -292,302 +378,243 @@ export default function AdminView({
       returnDate,
       totalAmount: data.totalPrice,
       immediateCheckout: true,
-      notes: "Walk-in counter customer",
+      notes: "Direct counter walk-in rental",
     })
 
-    // Prepend or refresh bookings
     if (result && result.booking) {
       setBookings((prev) => [result.booking, ...prev])
     }
 
-    // Mark car rented
     setCars((prev) =>
       prev.map((c) => (c.id === data.carId ? { ...c, status: "Rented" as CarStatus } : c))
     )
 
-    setIsWalkinModalOpen(false)
-    showToast(`Walk-in rental registered for ${data.customerName}!`)
+    showToast(`Walk-in customer registered! Keys dispatched for ${data.customerName}.`)
   }
 
-  // 6. Save or Add Car
+  // 6. Car Add / Edit
   const handleSaveCar = async (carData: Partial<Car>) => {
     if (editingCar === "new") {
       const created = await api.createCar(carData)
       setCars((prev) => [created, ...prev])
-      showToast(`Added "${created.name}" to your garage fleet!`)
+      showToast(`Added "${created.name}" to the garage fleet.`)
     } else if (editingCar && typeof editingCar === "object") {
       const updated = await api.updateCar(editingCar.id, carData)
       setCars((prev) =>
         prev.map((c) => (c.id === editingCar.id ? { ...c, ...updated } : c))
       )
-      showToast(`Updated "${updated.name}" details.`)
+      showToast(`Updated "${updated.name}" specifications.`)
     }
     setEditingCar(null)
   }
 
-  // 7. Delete Car
+  // 7. Car Delete
   const handleDeleteCar = async (id: string) => {
     await api.deleteCar(id)
     setCars((prev) => prev.filter((c) => c.id !== id))
-    showToast("Vehicle removed from fleet.")
+    showToast("Vehicle removed from fleet inventory.")
   }
 
-  // 8. Update Car Status (Available <-> Maintenance)
+  // 8. Car Status Toggle
   const handleUpdateCarStatus = async (id: string, status: CarStatus) => {
     await api.updateCarStatus(id, status)
     setCars((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
-    showToast(
-      status === "Available"
-        ? "Car marked ready to rent."
-        : "Car sent for cleaning/service."
-    )
+    showToast(status === "Available" ? "Vehicle set to Available." : "Vehicle routed to Service.")
+  }
+
+  // 9. Promos: Create, Toggle, Delete
+  const handleCreatePromo = async (data: {
+    code: string
+    discountPercent: number
+    description: string
+    expiryDate: string
+  }) => {
+    const created = await api.createPromo(data)
+    setPromos((prev) => [created, ...prev])
+    showToast(`Privilege code "${created.code}" created successfully.`)
+  }
+
+  const handleTogglePromo = async (code: string) => {
+    const updated = await api.togglePromo(code)
+    setPromos((prev) => prev.map((p) => (p.code === code ? updated : p)))
+    showToast(`Promo "${code}" is now ${updated.isActive ? "ACTIVE" : "PAUSED"}.`)
+  }
+
+  const handleDeletePromo = async (code: string) => {
+    await api.deletePromo(code)
+    setPromos((prev) => prev.filter((p) => p.code !== code))
+    showToast(`Promo "${code}" removed.`)
+  }
+
+  // 10. Maintenance Log Create
+  const handleCreateMaintenanceLog = async (data: {
+    carId: string
+    serviceType: string
+    cost: number
+    odometer: number
+    date: string
+    status: "Completed" | "Scheduled" | "In Progress"
+    technicianNotes: string
+  }) => {
+    const created = await api.createMaintenanceLog(data)
+    setMaintenanceLogs((prev) => [created, ...prev])
+    showToast("Service entry recorded in maintenance audit.")
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] text-stone-900 pb-20 antialiased font-sans">
+    <div className="min-h-screen bg-[#F8F9FA] text-stone-900 flex antialiased font-sans">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
           role="alert"
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl bg-stone-900 text-white font-bold text-lg shadow-2xl border-2 border-stone-700 flex items-center gap-3 animate-fadeIn max-w-lg w-11/12"
+          className="fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl bg-stone-900 text-white font-medium text-xs shadow-xl border border-stone-700 flex items-center gap-2.5 animate-fadeIn max-w-md"
         >
-          <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+          <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
             ✓
           </span>
           <span className="flex-1">{toastMessage}</span>
           <button
             onClick={() => setToastMessage(null)}
-            className="text-stone-400 hover:text-white font-bold text-lg"
+            className="text-stone-400 hover:text-white font-bold ml-1"
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Top Application Header */}
-      <header className="bg-white border-b-2 border-stone-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Logo & Garage Badge */}
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-2xl shadow">
-              <CarIcon size={26} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-stone-900 tracking-tight">
-                  MOTORLY
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-800 text-xs font-black uppercase tracking-wider">
-                  Garage Console
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Console Active • Senior Mode</span>
-              </div>
-            </div>
-          </div>
+      {/* Modern Studio Left Sidebar Navigation */}
+      <AdminSidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        ordersCount={ordersCount}
+        notificationsCount={notificationsCount}
+        fleetCount={cars.length}
+        promosCount={promos.length}
+        onExitAdmin={onExitAdmin}
+        onLogoutAdmin={onLogoutAdmin}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
+      />
 
-          {/* Quick Header Actions: Notification Bell, Phone Help, Exit, Sign Out */}
-          <div className="flex items-center gap-3">
-            {/* Quick Notification Bell */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("notifications")}
-              className={`relative px-3.5 py-2.5 rounded-xl border-2 transition flex items-center gap-2 min-h-[44px] ${
-                activeTab === "notifications"
-                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-sm"
-                  : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100 font-medium"
-              }`}
-              title="Notification Center"
-            >
-              <BellIcon size={18} className="text-amber-600" />
-              <span className="text-sm font-bold hidden sm:inline">Alerts</span>
-              {pendingActionsCount > 0 && (
-                <span className="px-2 py-0.2 rounded-full bg-amber-600 text-white text-xs font-black">
-                  {pendingActionsCount}
-                </span>
-              )}
-            </button>
+      {/* Main Content Workspace */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto min-h-screen">
+        {/* Crisp Medium Top Header Bar */}
+        <AdminTopHeader
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          notificationsCount={notificationsCount}
+          onOpenNotifications={() => setActiveTab("notifications")}
+          onExitAdmin={onExitAdmin}
+          onLogoutAdmin={onLogoutAdmin}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+        />
 
-            <a
-              href="tel:5550199922"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-sm border border-emerald-200 transition min-h-[44px]"
-              title="Call Human Support"
-            >
-              <PhoneIcon size={18} className="text-emerald-600" />
-              <span>Help: (555) 019-9922</span>
-            </a>
+        {/* Scrollable Subview Workspace */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {/* TAB 1: Orders & Dispatch (Main Dashboard) */}
+          {activeTab === "manifest" && (
+            <AdminOrdersView
+              bookings={bookings}
+              cars={cars}
+              searchQuery={searchQuery}
+              onApprove={handleApproveBooking}
+              onDecline={handleDeclineBooking}
+              onOpenGiveKeys={(b) => setActiveGiveKeysBooking(b)}
+              onOpenReturn={(b) => setActiveReturnBooking(b)}
+              onOpenWalkin={() => setActiveTab("walkin")}
+              onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
+              targetBookingId={targetBookingId}
+              onClearTargetBookingId={onClearTargetBookingId}
+            />
+          )}
 
-            <button
-              type="button"
-              onClick={onExitAdmin}
-              className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm transition min-h-[44px]"
-            >
-              Public Site
-            </button>
+          {/* TAB 2: Notifications & Action Center */}
+          {activeTab === "notifications" && (
+            <AdminNotificationsView
+              bookings={bookings}
+              cars={cars}
+              onApprove={handleApproveBooking}
+              onDecline={handleDeclineBooking}
+              onOpenGiveKeys={(b) => setActiveGiveKeysBooking(b)}
+              onOpenReturn={(b) => setActiveReturnBooking(b)}
+              onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
+            />
+          )}
 
-            {onLogoutAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm("Do you want to log out of the console?")) {
-                    onLogoutAdmin()
-                  }
-                }}
-                className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm transition flex items-center gap-1.5 min-h-[44px]"
-              >
-                <LogOutIcon size={16} />
-                <span>Log Out</span>
-              </button>
-            )}
-          </div>
-        </div>
+          {/* TAB 3: Completed Orders & Invoice Archive (ZERO ALERTS) */}
+          {activeTab === "completed" && (
+            <AdminCompletedView
+              bookings={bookings}
+              cars={cars}
+              searchQuery={searchQuery}
+              onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
+            />
+          )}
 
-        {/* Primary Senior-Friendly Navigation Hub Tabs */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-0">
-          <nav
-            aria-label="Admin Navigation"
-            className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar border-t border-stone-100 pt-3"
-          >
-            {/* Tab 1: Today's Tasks (Main Dashboard) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("tasks")}
-              className={`pb-4 px-4 sm:px-6 font-black text-lg sm:text-xl transition flex items-center gap-3 border-b-4 -mb-[2px] whitespace-nowrap min-h-[52px] ${
-                activeTab === "tasks"
-                  ? "border-emerald-600 text-emerald-950 font-black"
-                  : "border-transparent text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              <CalendarIcon size={22} className="text-emerald-700" />
-              <span>1. Main Dashboard</span>
-              {pendingActionsCount > 0 && (
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-                    activeTab === "tasks"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-stone-200 text-stone-700"
-                  }`}
-                >
-                  {pendingActionsCount}
-                </span>
-              )}
-            </button>
+          {/* TAB 4: Fleet & Asset Inventory (ZERO ALERTS) */}
+          {activeTab === "fleet" && (
+            <AdminFleetView
+              cars={cars}
+              searchQuery={searchQuery}
+              onAddCar={() => setEditingCar("new")}
+              onEditCar={(c) => setEditingCar(c)}
+              onDeleteCar={handleDeleteCar}
+              onUpdateStatus={handleUpdateCarStatus}
+            />
+          )}
 
-            {/* Tab 2: My Fleet (Garage Floor - ZERO ALERTS) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("fleet")}
-              className={`pb-4 px-4 sm:px-6 font-black text-lg sm:text-xl transition flex items-center gap-3 border-b-4 -mb-[2px] whitespace-nowrap min-h-[52px] ${
-                activeTab === "fleet"
-                  ? "border-blue-600 text-blue-950 font-black"
-                  : "border-transparent text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              <CarIcon size={22} className="text-blue-700" />
-              <span>2. My Cars ({cars.length})</span>
-            </button>
+          {/* TAB 5: Walk-In Counter Dispatch (ZERO ALERTS) */}
+          {activeTab === "walkin" && (
+            <AdminWalkinView
+              availableCars={availableCars}
+              onSubmitWalkin={handleCreateWalkin}
+            />
+          )}
 
-            {/* Tab 3: Notifications Page */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("notifications")}
-              className={`pb-4 px-4 sm:px-6 font-black text-lg sm:text-xl transition flex items-center gap-3 border-b-4 -mb-[2px] whitespace-nowrap min-h-[52px] ${
-                activeTab === "notifications"
-                  ? "border-amber-600 text-amber-950 font-black"
-                  : "border-transparent text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              <BellIcon size={22} className="text-amber-700" />
-              <span>3. Notifications</span>
-              {pendingActionsCount > 0 && (
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-                    activeTab === "notifications"
-                      ? "bg-amber-600 text-white"
-                      : "bg-amber-100 text-amber-900"
-                  }`}
-                >
-                  {pendingActionsCount}
-                </span>
-              )}
-            </button>
+          {/* TAB 6: Privileges & Coupon Registry (ZERO ALERTS) */}
+          {activeTab === "promos" && (
+            <AdminPromosView
+              promos={promos}
+              onCreatePromo={handleCreatePromo}
+              onTogglePromo={handleTogglePromo}
+              onDeletePromo={handleDeletePromo}
+            />
+          )}
 
-            {/* Tab 4: Settings & Help (ZERO ALERTS) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("settings")}
-              className={`pb-4 px-4 sm:px-6 font-black text-lg sm:text-xl transition flex items-center gap-3 border-b-4 -mb-[2px] whitespace-nowrap min-h-[52px] ${
-                activeTab === "settings"
-                  ? "border-stone-900 text-stone-950 font-black"
-                  : "border-transparent text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              <SettingsIcon size={22} className="text-stone-700" />
-              <span>4. Settings & Help</span>
-            </button>
-          </nav>
-        </div>
-      </header>
+          {/* TAB 7: Customers & Verified Drivers CRM (ZERO ALERTS) */}
+          {activeTab === "crm" && (
+            <AdminCrmView
+              customers={adminCustomers}
+              bookings={bookings}
+              searchQuery={searchQuery}
+            />
+          )}
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* 1. Main Dashboard: Today's Tasks */}
-        {activeTab === "tasks" && (
-          <ElderlyTasksView
-            bookings={bookings}
-            cars={cars}
-            onApprove={handleApproveBooking}
-            onDecline={handleDeclineBooking}
-            onOpenGiveKeys={(booking) => setActiveGiveKeysBooking(booking)}
-            onOpenReturn={(booking) => setActiveReturnBooking(booking)}
-            onOpenWalkin={() => setIsWalkinModalOpen(true)}
-            onOpenInvoice={(booking) => setActiveInvoiceBooking(booking)}
-            targetBookingId={targetBookingId}
-            onClearTargetBookingId={onClearTargetBookingId}
-          />
-        )}
+          {/* TAB 8: Vehicle Telemetry & Maintenance Audit (ZERO ALERTS) */}
+          {activeTab === "maintenance" && (
+            <AdminMaintenanceView
+              logs={maintenanceLogs}
+              cars={cars}
+              onCreateLog={handleCreateMaintenanceLog}
+            />
+          )}
 
-        {/* 2. My Cars: Garage Floor (Zero Alert Banners) */}
-        {activeTab === "fleet" && (
-          <ElderlyFleetView
-            cars={cars}
-            onAddCar={() => setEditingCar("new")}
-            onEditCar={(car) => setEditingCar(car)}
-            onDeleteCar={handleDeleteCar}
-            onUpdateStatus={handleUpdateCarStatus}
-          />
-        )}
+          {/* TAB 9: Studio Settings & Assistance (ZERO ALERTS) */}
+          {activeTab === "settings" && (
+            <AdminSettingsView
+              onExitAdmin={onExitAdmin}
+              onLogoutAdmin={onLogoutAdmin}
+              onShowToast={showToast}
+            />
+          )}
+        </main>
+      </div>
 
-        {/* 3. Notifications Page: Dedicated Alert Feed */}
-        {activeTab === "notifications" && (
-          <ElderlyNotificationsView
-            bookings={bookings}
-            cars={cars}
-            onApprove={handleApproveBooking}
-            onDecline={handleDeclineBooking}
-            onOpenGiveKeys={(booking) => setActiveGiveKeysBooking(booking)}
-            onOpenReturn={(booking) => setActiveReturnBooking(booking)}
-            onOpenInvoice={(booking) => setActiveInvoiceBooking(booking)}
-          />
-        )}
-
-        {/* 4. Settings & Help (Zero Alert Banners) */}
-        {activeTab === "settings" && (
-          <ElderlySettingsView
-            onExitAdmin={onExitAdmin}
-            onLogoutAdmin={onLogoutAdmin}
-            onShowToast={showToast}
-          />
-        )}
-      </main>
-
-      {/* --- Simple Guided Modals --- */}
+      {/* --- Contextual Modals --- */}
 
       {/* 1. Key Handover Modal */}
       {activeGiveKeysBooking && (
-        <ElderlyKeyHandoverModal
+        <AdminKeyHandoverModal
           booking={activeGiveKeysBooking}
           car={cars.find((c) => c.id === activeGiveKeysBooking.matchedCarId)}
           onConfirm={handleConfirmGiveKeys}
@@ -597,7 +624,7 @@ export default function AdminView({
 
       {/* 2. Return Inspection Modal */}
       {activeReturnBooking && (
-        <ElderlyReturnModal
+        <AdminReturnModal
           booking={activeReturnBooking}
           car={cars.find((c) => c.id === activeReturnBooking.matchedCarId)}
           onConfirm={handleConfirmReturn}
@@ -605,25 +632,16 @@ export default function AdminView({
         />
       )}
 
-      {/* 3. Walk-In Customer Modal */}
-      {isWalkinModalOpen && (
-        <ElderlyWalkinModal
-          availableCars={availableCars}
-          onConfirm={handleCreateWalkin}
-          onClose={() => setIsWalkinModalOpen(false)}
-        />
-      )}
-
-      {/* 4. Add / Edit Car Modal */}
+      {/* 3. Car Add / Edit Modal */}
       {editingCar && (
-        <ElderlyCarModal
+        <AdminCarModal
           car={editingCar === "new" ? null : editingCar}
           onSave={handleSaveCar}
           onClose={() => setEditingCar(null)}
         />
       )}
 
-      {/* 5. Invoice Viewer Modal */}
+      {/* 4. Invoice Viewer Modal */}
       {activeInvoiceBooking && (
         <InvoiceModal
           booking={activeInvoiceBooking}
