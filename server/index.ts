@@ -77,7 +77,7 @@ async function reconcileDatabaseInvariants() {
           ))
           OR (status = 'Maintenance'
           AND id NOT IN (
-            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+            SELECT car_id FROM maintenance_logs WHERE status IN ('In Progress', 'Scheduled')
           ))
       `)
       if (res.rowCount && res.rowCount > 0) {
@@ -98,7 +98,7 @@ async function reconcileDatabaseInvariants() {
           ))
           OR (status = 'Maintenance'
           AND id NOT IN (
-            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+            SELECT car_id FROM maintenance_logs WHERE status IN ('In Progress', 'Scheduled')
           ))
       `)
         .run()

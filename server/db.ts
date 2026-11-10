@@ -700,11 +700,13 @@ async function initSupabaseTables(pool: pg.Pool) {
     CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `)
 
-  // Ensure price_per_month exists on vehicles in SQLite
-  const vCols = sqlite.prepare("PRAGMA table_info(vehicles)").all() as any[]
-  if (!vCols.some((c: any) => c.name === "price_per_month")) {
+  // Ensure price_per_month exists on vehicles in SQLite (local dev only)
+  if (sqlite) {
     try {
-      sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;")
+      const vCols = sqlite.prepare("PRAGMA table_info(vehicles)").all() as any[]
+      if (!vCols.some((c: any) => c.name === "price_per_month")) {
+        sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;")
+      }
     } catch {}
   }
 }

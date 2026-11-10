@@ -40023,8 +40023,8 @@ async function initSupabaseTables(pool) {
     CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
     CREATE INDEX IF NOT EXISTS idx_maintenance_car_id ON maintenance_logs(car_id);
   `);
-	if (!sqlite.prepare("PRAGMA table_info(vehicles)").all().some((c) => c.name === "price_per_month")) try {
-		sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;");
+	if (sqlite) try {
+		if (!sqlite.prepare("PRAGMA table_info(vehicles)").all().some((c) => c.name === "price_per_month")) sqlite.exec("ALTER TABLE vehicles ADD COLUMN price_per_month REAL;");
 	} catch {}
 }
 function initSqliteTables() {
@@ -41065,7 +41065,7 @@ async function reconcileDatabaseInvariants() {
           ))
           OR (status = 'Maintenance'
           AND id NOT IN (
-            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+            SELECT car_id FROM maintenance_logs WHERE status IN ('In Progress', 'Scheduled')
           ))
       `);
 			if (res.rowCount && res.rowCount > 0) console.log(`[DB Reconciliation] Reset ${res.rowCount} orphan rented/maintenance vehicles to Available`);
@@ -41080,7 +41080,7 @@ async function reconcileDatabaseInvariants() {
           ))
           OR (status = 'Maintenance'
           AND id NOT IN (
-            SELECT car_id FROM maintenance_records WHERE status IN ('In Progress', 'Scheduled')
+            SELECT car_id FROM maintenance_logs WHERE status IN ('In Progress', 'Scheduled')
           ))
       `).run().catch(() => {});
 		if (db.isSupabase && db.pool) {
