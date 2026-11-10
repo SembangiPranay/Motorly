@@ -21,6 +21,7 @@ import AdminPromosView from "./admin/AdminPromosView"
 import AdminCrmView from "./admin/AdminCrmView"
 import AdminMaintenanceView from "./admin/AdminMaintenanceView"
 import AdminSettingsView from "./admin/AdminSettingsView"
+import AdminBookingDetailView from "./admin/AdminBookingDetailView"
 
 import AdminKeyHandoverModal from "./admin/AdminKeyHandoverModal"
 import AdminReturnModal from "./admin/AdminReturnModal"
@@ -101,18 +102,60 @@ export default function AdminView({
     } catch {}
   }, [activeTab])
 
-  // Clear bookingId query param from URL on mount so refreshing never loops
+  // Selected Booking for Dedicated Full-Page Booking Detail View
+  const [selectedBookingDetailId, setSelectedBookingDetailId] = useState<string | null>(() => {
+    if (targetBookingId) return targetBookingId
+    if (typeof window !== "undefined") {
+      try {
+        const params = new URLSearchParams(window.location.search)
+        return params.get("bookingId") || null
+      } catch {}
+    }
+    return null
+  })
+
+  // Sync incoming targetBookingId from parent / deep links
+  useEffect(() => {
+    if (targetBookingId) {
+      setSelectedBookingDetailId(targetBookingId)
+    }
+  }, [targetBookingId])
+
+  // Synchronize selectedBookingDetailId to URL query param
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         const url = new URL(window.location.href)
-        if (url.searchParams.has("bookingId")) {
+        if (selectedBookingDetailId) {
+          url.searchParams.set("bookingId", selectedBookingDetailId)
+        } else {
           url.searchParams.delete("bookingId")
-          window.history.replaceState(null, "", url.pathname + (url.search ? url.search : ""))
         }
+        window.history.replaceState(null, "", url.toString())
       } catch {}
     }
+  }, [selectedBookingDetailId])
+
+  // Browser back / forward button handling
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== "undefined") {
+        try {
+          const params = new URLSearchParams(window.location.search)
+          const bId = params.get("bookingId")
+          setSelectedBookingDetailId(bId || null)
+        } catch {}
+      }
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
   }, [])
+
+  // Lookup selected booking record
+  const currentDetailBooking = useMemo(() => {
+    if (!selectedBookingDetailId) return null
+    return bookings.find((b) => b.id === selectedBookingDetailId) || null
+  }, [selectedBookingDetailId, bookings])
 
   // Header Search Query
   const [searchQuery, setSearchQuery] = useState("")
@@ -271,6 +314,22 @@ export default function AdminView({
     } catch (err: any) {
       alert("Failed to decline booking: " + (err?.message || "Unknown error"))
     }
+  }
+
+  // 2b. Reassign / Mate Vehicle to Booking
+  const handleReassignCar = async (bookingId: string, carId: string) => {
+    const res = await api.mateCar(bookingId, carId)
+    if (res.booking) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? res.booking : b))
+      )
+    }
+    if (res.car) {
+      setCars((prev) =>
+        prev.map((c) => (c.id === res.car.id ? res.car : c))
+      )
+    }
+    showToast(`Vehicle successfully allocated to reservation #${bookingId}.`)
   }
 
   // 3. Confirm Key Handover
@@ -503,7 +562,10 @@ export default function AdminView({
       {/* Modern Studio Left Sidebar Navigation */}
       <AdminSidebar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          setSelectedBookingDetailId(null)
+          setActiveTab(tab)
+        }}
         ordersCount={ordersCount}
         notificationsCount={notificationsCount}
         fleetCount={cars.length}
@@ -523,7 +585,10 @@ export default function AdminView({
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           notificationsCount={notificationsCount}
-          onOpenNotifications={() => setActiveTab("notifications")}
+          onOpenNotifications={() => {
+            setSelectedBookingDetailId(null)
+            setActiveTab("notifications")
+          }}
           onExitAdmin={onExitAdmin}
           onLogoutAdmin={onLogoutAdmin}
           isCollapsed={isSidebarCollapsed}
@@ -533,101 +598,152 @@ export default function AdminView({
 
         {/* Scrollable Subview Workspace */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {/* TAB 1: Orders & Dispatch (Main Dashboard) */}
-          {activeTab === "manifest" && (
-            <AdminOrdersView
-              bookings={bookings}
+          {/* PRIMARY: Dedicated Full-Page Booking Detail Terminal */}
+          {selectedBookingDetailId && currentDetailBooking ? (
+            <AdminBookingDetailView
+              booking={currentDetailBooking}
               cars={cars}
-              searchQuery={searchQuery}
-              onApprove={handleApproveBooking}
-              onDecline={handleDeclineBooking}
-              onOpenGiveKeys={(b) => setActiveGiveKeysBooking(b)}
-              onOpenReturn={(b) => setActiveReturnBooking(b)}
-              onOpenWalkin={() => setActiveTab("walkin")}
-              onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
-              targetBookingId={targetBookingId}
-              onClearTargetBookingId={onClearTargetBookingId}
-            />
-          )}
-
-          {/* TAB 2: Notifications & Action Center */}
-          {activeTab === "notifications" && (
-            <AdminNotificationsView
-              bookings={bookings}
-              cars={cars}
+              onBack={() => {
+                setSelectedBookingDetailId(null)
+                if (onClearTargetBookingId) onClearTargetBookingId()
+              }}
               onApprove={handleApproveBooking}
               onDecline={handleDeclineBooking}
               onOpenGiveKeys={(b) => setActiveGiveKeysBooking(b)}
               onOpenReturn={(b) => setActiveReturnBooking(b)}
               onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
-            />
-          )}
-
-          {/* TAB 3: Completed Orders & Invoice Archive (ZERO ALERTS) */}
-          {activeTab === "completed" && (
-            <AdminCompletedView
-              bookings={bookings}
-              cars={cars}
-              searchQuery={searchQuery}
-              onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
-            />
-          )}
-
-          {/* TAB 4: Fleet & Asset Inventory (ZERO ALERTS) */}
-          {activeTab === "fleet" && (
-            <AdminFleetView
-              cars={cars}
-              searchQuery={searchQuery}
-              onAddCar={() => setEditingCar("new")}
-              onEditCar={(c) => setEditingCar(c)}
-              onDeleteCar={handleDeleteCar}
-              onUpdateStatus={handleUpdateCarStatus}
-            />
-          )}
-
-          {/* TAB 5: Walk-In Counter Dispatch (ZERO ALERTS) */}
-          {activeTab === "walkin" && (
-            <AdminWalkinView
-              availableCars={availableCars}
-              onSubmitWalkin={handleCreateWalkin}
-            />
-          )}
-
-          {/* TAB 6: Privileges & Coupon Registry (ZERO ALERTS) */}
-          {activeTab === "promos" && (
-            <AdminPromosView
-              promos={promos}
-              onCreatePromo={handleCreatePromo}
-              onTogglePromo={handleTogglePromo}
-              onDeletePromo={handleDeletePromo}
-            />
-          )}
-
-          {/* TAB 7: Customers & Verified Drivers CRM (ZERO ALERTS) */}
-          {activeTab === "crm" && (
-            <AdminCrmView
-              customers={adminCustomers}
-              bookings={bookings}
-              searchQuery={searchQuery}
-            />
-          )}
-
-          {/* TAB 8: Vehicle Telemetry & Maintenance Audit (ZERO ALERTS) */}
-          {activeTab === "maintenance" && (
-            <AdminMaintenanceView
-              logs={maintenanceLogs}
-              cars={cars}
-              onCreateLog={handleCreateMaintenanceLog}
-            />
-          )}
-
-          {/* TAB 9: Studio Settings & Assistance (ZERO ALERTS) */}
-          {activeTab === "settings" && (
-            <AdminSettingsView
-              onExitAdmin={onExitAdmin}
-              onLogoutAdmin={onLogoutAdmin}
+              onUpdateBooking={(updated) => {
+                setBookings((prev) =>
+                  prev.map((b) => (b.id === updated.id ? updated : b))
+                )
+              }}
+              onReassignCar={handleReassignCar}
               onShowToast={showToast}
             />
+          ) : selectedBookingDetailId && !currentDetailBooking && bookings.length > 0 ? (
+            <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg mx-auto">
+                !
+              </div>
+              <h3 className="text-base font-bold text-stone-900">
+                Booking Reference Not Found
+              </h3>
+              <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                The requested reservation <span className="font-mono font-bold text-stone-800">#{selectedBookingDetailId}</span> was not found in the live registry. It may have been archived or removed.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBookingDetailId(null)
+                  if (onClearTargetBookingId) onClearTargetBookingId()
+                }}
+                className="px-4 py-2 rounded-xl bg-stone-900 text-white text-xs font-bold hover:bg-stone-800 transition"
+              >
+                ← Return to Orders & Dispatch
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* TAB 1: Orders & Dispatch (Main Dashboard) */}
+              {activeTab === "manifest" && (
+                <AdminOrdersView
+                  bookings={bookings}
+                  cars={cars}
+                  searchQuery={searchQuery}
+                  onApprove={handleApproveBooking}
+                  onDecline={handleDeclineBooking}
+                  onOpenGiveKeys={(b) => setActiveGiveKeysBooking(b)}
+                  onOpenReturn={(b) => setActiveReturnBooking(b)}
+                  onOpenWalkin={() => setActiveTab("walkin")}
+                  onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
+                  targetBookingId={targetBookingId}
+                  onClearTargetBookingId={onClearTargetBookingId}
+                  onViewBookingDetails={(b) => setSelectedBookingDetailId(b.id)}
+                />
+              )}
+
+              {/* TAB 2: Notifications & Action Center */}
+              {activeTab === "notifications" && (
+                <AdminNotificationsView
+                  bookings={bookings}
+                  cars={cars}
+                  onApprove={handleApproveBooking}
+                  onDecline={handleDeclineBooking}
+                  onOpenGiveKeys={(b) => setActiveGiveKeysBooking(b)}
+                  onOpenReturn={(b) => setActiveReturnBooking(b)}
+                  onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
+                  onViewBookingDetails={(b) => setSelectedBookingDetailId(b.id)}
+                />
+              )}
+
+              {/* TAB 3: Completed Orders & Invoice Archive (ZERO ALERTS) */}
+              {activeTab === "completed" && (
+                <AdminCompletedView
+                  bookings={bookings}
+                  cars={cars}
+                  searchQuery={searchQuery}
+                  onOpenInvoice={(b) => setActiveInvoiceBooking(b)}
+                  onViewBookingDetails={(b) => setSelectedBookingDetailId(b.id)}
+                />
+              )}
+
+              {/* TAB 4: Fleet & Asset Inventory (ZERO ALERTS) */}
+              {activeTab === "fleet" && (
+                <AdminFleetView
+                  cars={cars}
+                  searchQuery={searchQuery}
+                  onAddCar={() => setEditingCar("new")}
+                  onEditCar={(c) => setEditingCar(c)}
+                  onDeleteCar={handleDeleteCar}
+                  onUpdateStatus={handleUpdateCarStatus}
+                />
+              )}
+
+              {/* TAB 5: Walk-In Counter Dispatch (ZERO ALERTS) */}
+              {activeTab === "walkin" && (
+                <AdminWalkinView
+                  availableCars={availableCars}
+                  onSubmitWalkin={handleCreateWalkin}
+                />
+              )}
+
+              {/* TAB 6: Privileges & Coupon Registry (ZERO ALERTS) */}
+              {activeTab === "promos" && (
+                <AdminPromosView
+                  promos={promos}
+                  onCreatePromo={handleCreatePromo}
+                  onTogglePromo={handleTogglePromo}
+                  onDeletePromo={handleDeletePromo}
+                />
+              )}
+
+              {/* TAB 7: Customers & Verified Drivers CRM (ZERO ALERTS) */}
+              {activeTab === "crm" && (
+                <AdminCrmView
+                  customers={adminCustomers}
+                  bookings={bookings}
+                  searchQuery={searchQuery}
+                />
+              )}
+
+              {/* TAB 8: Vehicle Telemetry & Maintenance Audit (ZERO ALERTS) */}
+              {activeTab === "maintenance" && (
+                <AdminMaintenanceView
+                  logs={maintenanceLogs}
+                  cars={cars}
+                  onCreateLog={handleCreateMaintenanceLog}
+                />
+              )}
+
+              {/* TAB 9: Studio Settings & Assistance (ZERO ALERTS) */}
+              {activeTab === "settings" && (
+                <AdminSettingsView
+                  onExitAdmin={onExitAdmin}
+                  onLogoutAdmin={onLogoutAdmin}
+                  onShowToast={showToast}
+                />
+              )}
+            </>
           )}
         </main>
       </div>

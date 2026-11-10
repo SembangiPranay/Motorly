@@ -27,6 +27,7 @@ interface AdminOrdersViewProps {
   onOpenInvoice: (booking: BookingRecord) => void
   targetBookingId?: string
   onClearTargetBookingId?: () => void
+  onViewBookingDetails?: (booking: BookingRecord) => void
 }
 
 type FilterTab = "all" | "pending" | "pickups" | "active" | "returns" | "completed"
@@ -61,6 +62,7 @@ export default function AdminOrdersView({
   onOpenInvoice,
   targetBookingId,
   onClearTargetBookingId,
+  onViewBookingDetails,
 }: AdminOrdersViewProps) {
   const [filterTab, setFilterTab] = useState<FilterTab>("all")
   const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<BookingRecord | null>(null)
@@ -72,13 +74,17 @@ export default function AdminOrdersView({
     if (targetBookingId) {
       const target = bookings.find((b) => b.id === targetBookingId)
       if (target) {
-        setSelectedBookingForDetails(target)
+        if (onViewBookingDetails) {
+          onViewBookingDetails(target)
+        } else {
+          setSelectedBookingForDetails(target)
+        }
       }
       if (onClearTargetBookingId) {
         onClearTargetBookingId()
       }
     }
-  }, [targetBookingId, bookings, onClearTargetBookingId])
+  }, [targetBookingId, bookings, onClearTargetBookingId, onViewBookingDetails])
 
   // Helper map for car lookups
   const carMap = useMemo(() => {
@@ -398,9 +404,21 @@ export default function AdminOrdersView({
                     >
                       {/* Col 1: Booking Ref ID */}
                       <td className="py-3.5 px-4 align-middle">
-                        <div className="font-mono font-bold text-xs text-stone-900 flex items-center gap-1.5">
-                          <span>{b.id}</span>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onViewBookingDetails) {
+                              onViewBookingDetails(b)
+                            } else {
+                              setSelectedBookingForDetails(b)
+                            }
+                          }}
+                          className="font-mono font-bold text-xs text-stone-900 hover:text-orange-600 transition flex items-center gap-1.5 text-left group/id"
+                          title="View complete booking details"
+                        >
+                          <span className="underline decoration-stone-300 group-hover/id:decoration-orange-500">{b.id}</span>
+                          <span className="text-[10px] text-stone-400 group-hover/id:text-orange-500 transition-colors">↗</span>
+                        </button>
                         <div className="text-[10px] text-stone-400 mt-0.5">
                           {b.createdAt ? b.createdAt.split("T")[0] : "Direct Booking"}
                         </div>
@@ -581,11 +599,17 @@ export default function AdminOrdersView({
                             </button>
                           )}
 
-                          {/* Details Quick Modal Trigger */}
+                          {/* Details Page Trigger */}
                           <button
                             type="button"
-                            onClick={() => setSelectedBookingForDetails(b)}
-                            className="h-8 px-2.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition"
+                            onClick={() => {
+                              if (onViewBookingDetails) {
+                                onViewBookingDetails(b)
+                              } else {
+                                setSelectedBookingForDetails(b)
+                              }
+                            }}
+                            className="h-8 px-2.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 hover:text-stone-900 text-xs font-semibold border border-stone-200 transition hover:border-orange-500 hover:text-orange-600 shadow-2xs"
                           >
                             Details
                           </button>

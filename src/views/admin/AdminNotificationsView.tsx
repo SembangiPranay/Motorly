@@ -20,6 +20,7 @@ interface AdminNotificationsViewProps {
   onOpenGiveKeys: (booking: BookingRecord) => void
   onOpenReturn: (booking: BookingRecord) => void
   onOpenInvoice: (booking: BookingRecord) => void
+  onViewBookingDetails?: (booking: BookingRecord) => void
 }
 
 const getCustomerFullName = (b: BookingRecord) => {
@@ -36,6 +37,7 @@ export default function AdminNotificationsView({
   onOpenGiveKeys,
   onOpenReturn,
   onOpenInvoice,
+  onViewBookingDetails,
 }: AdminNotificationsViewProps) {
   const carMap = useMemo(() => {
     const map = new Map<string, Car>()
@@ -149,7 +151,18 @@ export default function AdminNotificationsView({
                       return (
                         <tr key={b.id} className="hover:bg-amber-50/30 transition-colors">
                           <td className="py-3 px-4 font-mono font-bold text-stone-900">
-                            {b.id}
+                            {onViewBookingDetails ? (
+                              <button
+                                type="button"
+                                onClick={() => onViewBookingDetails(b)}
+                                className="hover:text-orange-600 underline decoration-stone-300 hover:decoration-orange-500 transition text-left"
+                                title="View booking details"
+                              >
+                                {b.id} ↗
+                              </button>
+                            ) : (
+                              b.id
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="font-bold text-stone-900">
@@ -251,7 +264,18 @@ export default function AdminNotificationsView({
                       return (
                         <tr key={b.id} className="hover:bg-blue-50/30 transition-colors">
                           <td className="py-3 px-4 font-mono font-bold text-stone-900">
-                            {b.id}
+                            {onViewBookingDetails ? (
+                              <button
+                                type="button"
+                                onClick={() => onViewBookingDetails(b)}
+                                className="hover:text-orange-600 underline decoration-stone-300 hover:decoration-orange-500 transition text-left"
+                                title="View booking details"
+                              >
+                                {b.id} ↗
+                              </button>
+                            ) : (
+                              b.id
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="font-bold text-stone-900">
@@ -329,7 +353,18 @@ export default function AdminNotificationsView({
                       return (
                         <tr key={b.id} className="hover:bg-stone-50/70 transition-colors">
                           <td className="py-3 px-4 font-mono font-bold text-stone-900">
-                            {b.id}
+                            {onViewBookingDetails ? (
+                              <button
+                                type="button"
+                                onClick={() => onViewBookingDetails(b)}
+                                className="hover:text-orange-600 underline decoration-stone-300 hover:decoration-orange-500 transition text-left"
+                                title="View booking details"
+                              >
+                                {b.id} ↗
+                              </button>
+                            ) : (
+                              b.id
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <div className="font-bold text-stone-900">

@@ -15,6 +15,7 @@ interface AdminCompletedViewProps {
   cars: Car[]
   searchQuery: string
   onOpenInvoice: (booking: BookingRecord) => void
+  onViewBookingDetails?: (booking: BookingRecord) => void
 }
 
 type DateRange = "all" | "7d" | "30d" | "month"
@@ -30,6 +31,7 @@ export default function AdminCompletedView({
   cars,
   searchQuery,
   onOpenInvoice,
+  onViewBookingDetails,
 }: AdminCompletedViewProps) {
   const [dateRange, setDateRange] = useState<DateRange>("all")
   const [localSearch, setLocalSearch] = useState("")
@@ -186,7 +188,18 @@ export default function AdminCompletedView({
                   return (
                     <tr key={b.id} className="hover:bg-stone-50/80 transition">
                       <td className="py-3 px-4 font-mono font-bold text-stone-900">
-                        {b.id}
+                        {onViewBookingDetails ? (
+                          <button
+                            type="button"
+                            onClick={() => onViewBookingDetails(b)}
+                            className="hover:text-orange-600 underline decoration-stone-300 hover:decoration-orange-500 transition text-left"
+                            title="View booking details"
+                          >
+                            {b.id} ↗
+                          </button>
+                        ) : (
+                          b.id
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-semibold text-stone-900">{cName}</div>
