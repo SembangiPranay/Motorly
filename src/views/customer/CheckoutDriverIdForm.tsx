@@ -91,12 +91,12 @@ export default function CheckoutDriverIdForm({
 
         <div>
           <label className="block text-xs font-bold text-stone-700 mb-1.5">
-            Issuing State / Country <span className="text-rose-500">*</span>
+            Country <span className="text-rose-500">*</span>
           </label>
           <input
             type="text"
             required
-            placeholder="e.g. FL (Florida) or USA"
+            placeholder="Country"
             value={driver.licenseState}
             onChange={(e) =>
               setDriver((prev) => ({ ...prev, licenseState: e.target.value }))

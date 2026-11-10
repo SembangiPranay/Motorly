@@ -36,7 +36,7 @@ export default function AuthView({
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [licenseNum, setLicenseNum] = useState("")
-  const [licenseState, setLicenseState] = useState("FL")
+  const [licenseState, setLicenseState] = useState("")
   const [licenseExpiry, setLicenseExpiry] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
@@ -457,16 +457,15 @@ export default function AuthView({
                           type="text"
                           value={licenseNum}
                           onChange={(e) => setLicenseNum(e.target.value)}
-                          placeholder="License # (e.g. F9021884)"
+                          placeholder="Driving License #"
                           className="px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                         />
                         <input
                           type="text"
                           value={licenseState}
                           onChange={(e) => setLicenseState(e.target.value)}
-                          placeholder="State (e.g. FL)"
-                          className="px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
-                          maxLength={2}
+                          placeholder="Country"
+                          className="px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                         />
                       </div>
                     </div>
