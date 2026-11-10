@@ -1,130 +1,82 @@
 import React, { useState, useEffect, useMemo } from "react"
 import type { Car, BookingState } from "../types"
 import { api } from "../services/api"
-import GarageMapViewer from "../components/GarageMapViewer"
 import DateSchedulingModal from "../components/DateSchedulingModal"
 import { calculateRentalPrice } from "../utils/pricing"
-import {
-  StarIcon,
-  CheckIcon,
-  ArrowRightIcon,
-  ArrowLeftIcon,
-  LocationIcon,
-  CalendarIcon,
-  ShieldIcon,
-  LuggageIcon,
-  TransmissionIcon,
-  FuelIcon,
-  UserIcon,
-  ZapIcon,
-  TagIcon,
-  SparklesIcon,
-  AlertTriangleIcon,
-} from "../components/Icons"
-
-const formatFuelDisplay = (mileage?: string, fuelType?: string): string => {
-  if (!mileage || !mileage.trim()) {
-    return fuelType === "Electric" ? "100% EV" : "45 Liters"
-  }
-  const clean = mileage.trim()
-  if (fuelType === "Electric") {
-    if (clean.includes("%") || clean.toLowerCase().includes("kwh") || clean.toLowerCase().includes("ev")) {
-      return clean
-    }
-    return `${clean} kWh`
-  }
-  if (/liters?|ltrs?|\bl\b/i.test(clean)) {
-    return clean
-  }
-  if (/mpg|mpge/i.test(clean)) {
-    const num = clean.replace(/[^0-9.]/g, "")
-    return num ? `${num} Liters` : "45 Liters"
-  }
-  if (/^\d+(\.\d+)?$/.test(clean)) {
-    return `${clean} Liters`
-  }
-  return `${clean} Liters`
-}
+import CarDetailGallery from "./customer/CarDetailGallery"
+import CarDetailSpecs from "./customer/CarDetailSpecs"
+import CarDetailBookingCard from "./customer/CarDetailBookingCard"
+import CarDetailSimilarFleet from "./customer/CarDetailSimilarFleet"
 
 interface CarDetailViewProps {
   car?: Car
+  carId?: string
   allCars: Car[]
   bookingState: BookingState
   setBookingState: React.Dispatch<React.SetStateAction<BookingState>>
   onProceedToBooking: () => void
-  onSelectSimilarCar: (carId: string) => void
   onNavigateHome: () => void
   onNavigateListing: () => void
+  onSelectSimilarCar: (carId: string) => void
 }
 
 export default function CarDetailView({
-  car,
+  car: propCar,
+  carId: propCarId,
   allCars,
   bookingState,
   setBookingState,
   onProceedToBooking,
-  onSelectSimilarCar,
   onNavigateHome,
   onNavigateListing,
+  onSelectSimilarCar,
 }: CarDetailViewProps) {
+  const activeCarId = propCar?.id || propCarId || ""
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0)
-  const [activeTab, setActiveTab] =
-    useState<"overview" | "garage" | "features" | "rates" | "reviews">(
-      "overview",
-    )
   const [promoCode, setPromoCode] = useState(bookingState.promoCode || "")
   const [promoApplied, setPromoApplied] = useState(
-    Boolean(bookingState.promoCode && bookingState.discountPercent),
+    Boolean(bookingState.discountPercent && bookingState.discountPercent > 0),
   )
   const [discountPercent, setDiscountPercent] = useState<number>(
     bookingState.discountPercent || 0,
   )
-  const [isValidatingPromo, setIsValidatingPromo] = useState(false)
   const [quoteMessage, setQuoteMessage] = useState<string | null>(null)
-  const [isQuoteSuccess, setIsQuoteSuccess] = useState(false)
+  const [isQuoteSuccess, setIsQuoteSuccess] = useState<boolean>(false)
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+
+  const [car, setCar] = useState<Car | undefined>(
+    () => propCar || allCars.find((c) => c.id === activeCarId),
+  )
+
+  useEffect(() => {
+    if (propCar) {
+      setCar(propCar)
+      return
+    }
+    const found = allCars.find((c) => c.id === activeCarId)
+    if (found) {
+      setCar(found)
+    } else if (activeCarId) {
+      api.getCarById(activeCarId).then((fetched) => {
+        if (fetched) setCar(fetched)
+      })
+    }
+  }, [propCar, activeCarId, allCars])
+
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
-    conflict: any
+    conflict?: {
+      pickupDate: string
+      returnDate: string
+      reason?: string
+    }
     loading: boolean
   }>({
     isAvailable: true,
-    conflict: null,
     loading: false,
   })
 
-  // Dynamic Feedback & Reviews System
-  const [reviewsEnabled, setReviewsEnabled] = useState(true)
-  const [realReviews, setRealReviews] = useState<any[]>([])
-  const [isLoadingReviews, setIsLoadingReviews] = useState(false)
-
-  useEffect(() => {
-    api
-      .getSettings()
-      .then((s) => {
-        if (typeof s?.reviews_enabled === "boolean") {
-          setReviewsEnabled(s.reviews_enabled)
-        }
-      })
-      .catch(() => {})
-
-    if (car?.id) {
-      setIsLoadingReviews(true)
-      api
-        .getReviews(car.id)
-        .then((revs) => {
-          setRealReviews(revs || [])
-        })
-        .catch(() => {
-          setRealReviews([])
-        })
-        .finally(() => {
-          setIsLoadingReviews(false)
-        })
-    }
-  }, [car?.id])
-
-  // Live Double Booking Prevention: Check vehicle reservation availability
   useEffect(() => {
     let isCancelled = false
     async function verifyAvailability() {
@@ -138,16 +90,20 @@ export default function CarDetailView({
         )
         if (!isCancelled) {
           setAvailabilityCheck({
-            isAvailable: Boolean(res.isAvailable),
-            conflict: res.conflict,
+            isAvailable: res.isAvailable,
+            conflict: res.conflict || undefined,
             loading: false,
           })
         }
       } catch {
         if (!isCancelled) {
+          const isConflicted =
+            car.status === "Maintenance" ||
+            car.status === "Rented" ||
+            car.statusForDates === "Reserved" ||
+            car.isAvailableForDates === false
           setAvailabilityCheck({
-            isAvailable: true,
-            conflict: null,
+            isAvailable: !isConflicted,
             loading: false,
           })
         }
@@ -184,7 +140,6 @@ export default function CarDetailView({
     )
   }
 
-  // Find similar vehicles
   const similarCars = car
     ? allCars
         .filter(
@@ -196,7 +151,6 @@ export default function CarDetailView({
         .slice(0, 3)
     : []
 
-  // Live dynamic calculations
   const days = useMemo(() => {
     try {
       const pStr = bookingState.pickupTime
@@ -332,35 +286,34 @@ export default function CarDetailView({
   }
 
   const handleRemovePromo = () => {
-    setPromoCode("")
     setPromoApplied(false)
     setDiscountPercent(0)
-    setQuoteMessage(null)
+    setPromoCode("")
+    setIsQuoteSuccess(false)
+    setQuoteMessage("Privilege code removed.")
     setBookingState((prev) => ({
       ...prev,
       promoCode: undefined,
       discountPercent: undefined,
     }))
+    setTimeout(() => setQuoteMessage(null), 3000)
   }
 
   if (!car) {
     return (
-      <div className="min-h-screen bg-[#FAF7F2] text-[#17191C] pt-24 pb-28 px-4 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center bg-white p-8 rounded-xl border border-stone-200 shadow-xs">
-          <h2 className="text-xl font-black text-stone-900 font-heading mb-2">
-            No Vehicle Selected
-          </h2>
-          <p className="text-xs text-stone-500 leading-relaxed mb-6">
-            Please choose a certified vehicle from our fleet catalog to inspect
-            full specifications.
-          </p>
-          <button
-            onClick={onNavigateListing}
-            className="w-full py-2.5 rounded-lg bg-[#F97316] hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <ArrowLeftIcon size={14} /> Back to Fleet Catalog
-          </button>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className="text-2xl font-black text-stone-900 font-heading">
+          Vehicle Not Found
+        </h2>
+        <p className="text-stone-500 text-sm">
+          The requested vehicle could not be loaded from the garage fleet.
+        </p>
+        <button
+          onClick={onNavigateListing}
+          className="px-6 py-2.5 bg-[#F97316] text-white font-bold rounded-xl text-xs hover:bg-[#EA580C] transition cursor-pointer"
+        >
+          Return to Fleet Catalog
+        </button>
       </div>
     )
   }
@@ -368,957 +321,71 @@ export default function CarDetailView({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-8 pb-32 lg:pb-20">
       {/* Breadcrumbs Navigation */}
-      <nav className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+      <nav className="flex items-center gap-2 text-xs font-semibold text-stone-500">
         <button
           onClick={onNavigateHome}
-          className="hover:text-[#F97316] transition-colors"
+          className="hover:text-[#F97316] transition-colors cursor-pointer"
         >
           Home
         </button>
         <span>&gt;</span>
         <button
           onClick={onNavigateListing}
-          className="hover:text-[#F97316] transition-colors"
+          className="hover:text-[#F97316] transition-colors cursor-pointer"
         >
           Fleet Inventory
         </button>
         <span>&gt;</span>
-        <span className="text-gray-900 font-bold">{car.name}</span>
+        <span className="text-stone-900 font-bold">{car.name}</span>
       </nav>
 
       {/* Main 2-Column Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left / Main Details Column */}
+        {/* Left Column: Gallery, Specs, Similar Vehicles */}
         <div className="lg:col-span-8 space-y-8">
-          {/* Gallery View Card */}
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-4 sm:p-5 shadow-sm space-y-4">
-            {/* Big Active Image */}
-            <div className="relative h-64 sm:h-96 rounded-2xl overflow-hidden bg-gray-50 flex items-center justify-center group">
-              <img
-                src={galleryImages[selectedPhotoIndex] || car.image}
-                alt={`${car.name} view ${selectedPhotoIndex + 1}`}
-                className="w-full h-full object-cover transition-all duration-300"
-                onError={(e) => {
-                  ;(e.currentTarget as HTMLImageElement).src = car.image
-                }}
-              />
+          <CarDetailGallery
+            car={car}
+            galleryImages={galleryImages}
+            selectedPhotoIndex={selectedPhotoIndex}
+            setSelectedPhotoIndex={setSelectedPhotoIndex}
+            onPrevPhoto={handlePrevPhoto}
+            onNextPhoto={handleNextPhoto}
+          />
 
-              {/* Prev / Next Arrows */}
-              <button
-                type="button"
-                onClick={handlePrevPhoto}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-gray-800 shadow-md hover:bg-white hover:text-[#F97316] transition-colors"
-                aria-label="Previous photo"
-              >
-                <ArrowLeftIcon size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={handleNextPhoto}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-gray-800 shadow-md hover:bg-white hover:text-[#F97316] transition-colors"
-                aria-label="Next photo"
-              >
-                <ArrowRightIcon size={18} />
-              </button>
+          <CarDetailSpecs car={car} />
 
-              {/* Counter Badge */}
-              <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1 rounded-lg">
-                {selectedPhotoIndex + 1} / {galleryImages.length}
-              </div>
-
-              {/* Status Badge */}
-              <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-xl shadow-sm text-xs font-bold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-gray-800">
-                  {car.status || "Available Today"}
-                </span>
-              </div>
-            </div>
-
-            {/* Thumbnail Row */}
-            <div className="grid grid-cols-5 gap-2.5 sm:gap-3">
-              {galleryImages.map((img, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setSelectedPhotoIndex(idx)}
-                  className={`relative h-16 sm:h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedPhotoIndex === idx
-                      ? "border-[#F97316] ring-2 ring-orange-200"
-                      : "border-transparent opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <img
-                    src={img}
-                    alt={`Thumb ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      ;(e.currentTarget as HTMLImageElement).src = car.image
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Vehicle Info & Spec Bar */}
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-7 shadow-sm space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-[#17191C] font-heading">
-                    {car.name}
-                  </h1>
-                  <span className="text-xs font-bold text-[#F97316] bg-orange-50 px-2.5 py-1 rounded-lg">
-                    {car.type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-600 font-medium">
-                  <span className="flex items-center text-amber-500 font-bold gap-1">
-                    <StarIcon size={14} filled /> {car.rating}
-                  </span>
-                  <span>•</span>
-                  <span>({car.reviewsCount}+ verified renter reviews)</span>
-                  <span>•</span>
-                  <span className="text-green-600 font-semibold">
-                    Garage Inspected &amp; Ready
-                  </span>
-                </div>
-              </div>
-
-              {/* Health Score Badge */}
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                <SparklesIcon size={16} className="text-emerald-600" />
-                <div>
-                  <span className="text-[10px] text-emerald-800 font-bold uppercase block leading-none">
-                    Vehicle Health
-                  </span>
-                  <span className="text-xs font-extrabold text-emerald-700">
-                    {car.healthScore || 98}% Certified Clean
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Specs Badges Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <UserIcon size={18} className="text-[#F97316]" />
-                <div>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase">
-                    Capacity
-                  </p>
-                  <p className="text-xs font-bold text-gray-800">
-                    {car.seats} Passengers
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <TransmissionIcon size={18} className="text-[#F97316]" />
-                <div>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase">
-                    Transmission
-                  </p>
-                  <p className="text-xs font-bold text-gray-800">
-                    {car.transmission}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <FuelIcon size={18} className="text-[#F97316]" />
-                <div>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase">
-                    Fuel &amp; Tank Capacity
-                  </p>
-                  <p className="text-xs font-bold text-gray-800">
-                    {car.fuelType} ({formatFuelDisplay(car.mileage, car.fuelType)})
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                <LuggageIcon size={18} className="text-[#F97316]" />
-                <div>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase">
-                    Luggage
-                  </p>
-                  <p className="text-xs font-bold text-gray-800">
-                    {car.luggage}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Interactive Tabs: Overview, Garage Map, Features, Rental Rates, Reviews */}
-            <div className="border-b border-gray-200">
-              <div className="flex gap-6 sm:gap-8 text-sm font-bold overflow-x-auto no-scrollbar">
-                {[
-                  { id: "overview", label: "Overview & Specs" },
-                  { id: "garage", label: "Garage & Map Location" },
-                  { id: "features", label: "Features & Tech" },
-                  { id: "rates", label: "Rental Rates" },
-                  ...(reviewsEnabled
-                    ? [
-                        {
-                          id: "reviews",
-                          label: `Reviews (${realReviews.length})`,
-                        },
-                      ]
-                    : []),
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                    className={`pb-3 font-heading transition-colors border-b-2 whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? "text-[#F97316] border-[#F97316]"
-                        : "text-gray-500 border-transparent hover:text-gray-900"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tab 1: Overview */}
-            {activeTab === "overview" && (
-              <div className="space-y-6 pt-2 animate-fade-in">
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {car.description}
-                </p>
-
-                {/* Specs Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 rounded-2xl bg-[#FAFAF9] border border-[#E5E7EB]">
-                  <div>
-                    <span className="text-[11px] text-gray-400 font-semibold block">
-                      Manufacturer
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {car.brand}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-gray-400 font-semibold block">
-                      Model Year
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {car.year}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-gray-400 font-semibold block">
-                      Plate Registration
-                    </span>
-                    <span className="text-sm font-bold font-mono text-[#F97316]">
-                      {car.plateNumber || "FL-492-MTR"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-gray-400 font-semibold block">
-                      Garage Location
-                    </span>
-                    <span className="text-sm font-bold text-gray-900 block truncate">
-                      {car.garageName || car.location || "Main Garage Facility"}
-                    </span>
-                    <a
-                      href={
-                        car.garageLat && car.garageLng
-                          ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                              car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
-                            )}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#F97316] hover:text-[#EA580C] hover:underline mt-0.5"
-                      title="View exact garage coordinates on Google Maps"
-                    >
-                      <LocationIcon size={12} />
-                      <span>Open in Google Maps ↗</span>
-                    </a>
-                  </div>
-                </div>
-
-                {/* Insurance & Acquisition History Box */}
-                <div className="p-5 rounded-2xl bg-amber-50/50 border border-amber-200/60 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <ShieldIcon size={14} className="text-amber-600" />
-                      Comprehensive Insurance & Ownership Verification
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                      100% COVERED
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-stone-700">
-                    <div>
-                      <span className="text-[11px] text-stone-500 block">
-                        Insurance Provider & Policy:
-                      </span>
-                      <span className="font-bold">
-                        {car.insuranceProvider || "State Farm Commercial"}
-                      </span>
-                      <p className="text-[10px] font-mono text-stone-400 mt-0.5">
-                        {car.insurancePolicy || "POL-STF-994021"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-stone-500 block">
-                        Fleet Acquisition Date:
-                      </span>
-                      <span className="font-bold">
-                        {car.purchaseDate || "Jan 10, 2024"}
-                      </span>
-                      <p className="text-[10px] text-stone-400 mt-0.5">
-                        Purchased new for fleet
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-stone-500 block">
-                        Certified Mileage:
-                      </span>
-                      <span className="font-bold font-mono text-stone-900">
-                        {car.currentOdometer
-                          ? `${car.currentOdometer.toLocaleString()} mi`
-                          : car.mileage}
-                      </span>
-                      <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                        Odometer Verified
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Garage & Exact Map Engine */}
-            {activeTab === "garage" && (
-              <div className="pt-2 animate-fade-in space-y-4">
-                <p className="text-xs text-stone-600">
-                  This vehicle is staged and ready for pickup at our dedicated
-                  garage facility. Use the interactive map below to find the
-                  exact garage bay.
-                </p>
-                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-stone-50 rounded-xl border border-stone-200">
-                  <div className="text-xs">
-                    <span className="font-bold text-stone-900 block">{car.garageName || "Main Operations Hub"}</span>
-                    <span className="text-stone-500">{car.garageAddress || "Garage Facility"} • Bay: {car.garageBay || "Assigned Stall"}</span>
-                  </div>
-                  <a
-                    href={
-                      car.garageLat && car.garageLng
-                        ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                            car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
-                          )}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition shadow-2xs"
-                  >
-                    <LocationIcon size={13} />
-                    <span>Open in Google Maps {car.garageLat && car.garageLng ? `(${car.garageLat.toFixed(4)}, ${car.garageLng.toFixed(4)})` : ""} ↗</span>
-                  </a>
-                </div>
-                <GarageMapViewer
-                  garageName={car.garageName || "Main Garage Facility"}
-                  garageAddress={
-                    car.garageAddress || car.location || "Main Garage Bay"
-                  }
-                  garageBay={car.garageBay || "Bay 14-B"}
-                  lat={car.garageLat || 25.7959}
-                  lng={car.garageLng || -80.287}
-                  height="300px"
-                />
-              </div>
-            )}
-
-            {/* Tab 2: Features */}
-            {activeTab === "features" && (
-              <div className="pt-2 animate-fade-in space-y-4">
-                <p className="text-xs text-gray-500">
-                  All equipment is thoroughly inspected and disinfected between
-                  each rental.
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {(Array.isArray(car?.features) ? car.features : []).map(
-                    (feature) => (
-                      <div
-                        key={feature}
-                        className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100"
-                      >
-                        <CheckIcon size={14} className="text-[#F97316]" />
-                        <span>{feature}</span>
-                      </div>
-                    ),
-                  )}
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100">
-                    <CheckIcon size={14} className="text-[#F97316]" />
-                    <span>Emergency SOS Roadside</span>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl text-xs font-semibold text-gray-800 border border-gray-100">
-                    <CheckIcon size={14} className="text-[#F97316]" />
-                    <span>Keyless Digital Lock</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 3: Rental Rates */}
-            {activeTab === "rates" && (
-              <div className="pt-2 animate-fade-in space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 text-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase">
-                      Hourly Flex
-                    </span>
-                    <p className="text-2xl font-black text-[#17191C] font-heading mt-1">
-                      €{car.pricePerHour}
-                    </p>
-                    <span className="text-[11px] text-gray-400">
-                      Fuel &amp; 30 miles included
-                    </span>
-                  </div>
-                  <div className="p-4 bg-orange-50/60 rounded-2xl border border-orange-200 text-center relative">
-                    <span className="absolute -top-2.5 right-4 bg-[#F97316] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                      Popular
-                    </span>
-                    <span className="text-xs font-bold text-[#F97316] uppercase">
-                      Daily Standard
-                    </span>
-                    <p className="text-2xl font-black text-[#F97316] font-heading mt-1">
-                      €{car.pricePerDay}
-                    </p>
-                    <span className="text-[11px] text-gray-500">
-                      Unlimited miles across state
-                    </span>
-                  </div>
-                  <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-200 text-center relative">
-                    <span className="absolute -top-2.5 right-4 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                      Save ~14%
-                    </span>
-                    <span className="text-xs font-bold text-blue-800 uppercase">
-                      Weekly (7+ Days)
-                    </span>
-                    <p className="text-2xl font-black text-blue-900 font-heading mt-1">
-                      €{car.pricePerWeek || Math.round(car.pricePerDay * 6)}
-                    </p>
-                    <span className="text-[11px] text-blue-700 font-medium">
-                      Extended road trip discount
-                    </span>
-                  </div>
-                  <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-center relative">
-                    <span className="absolute -top-2.5 right-4 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                      Best Value
-                    </span>
-                    <span className="text-xs font-bold text-emerald-800 uppercase">
-                      Monthly (30+ Days)
-                    </span>
-                    <p className="text-2xl font-black text-emerald-900 font-heading mt-1">
-                      €{car.pricePerMonth || Math.round(car.pricePerDay * 22)}
-                    </p>
-                    <span className="text-[11px] text-emerald-700 font-bold">
-                      Includes garage perks &amp; ~27% off
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 4: Reviews */}
-            {activeTab === "reviews" && reviewsEnabled && (
-              <div className="pt-2 animate-fade-in space-y-3">
-                {isLoadingReviews ? (
-                  <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-gray-500">
-                    Loading verified renter reviews...
-                  </div>
-                ) : realReviews.length > 0 ? (
-                  realReviews.map((r) => (
-                    <div
-                      key={r.id}
-                      className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 shadow-2xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-gray-900">
-                          {r.customerName || "Verified Renter"} • Verified
-                          Customer
-                        </span>
-                        <span className="text-amber-500 font-bold text-xs flex items-center gap-1">
-                          {"★".repeat(Math.min(5, Math.max(1, r.rating || 5)))}{" "}
-                          {(r.rating || 5).toFixed(1)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600">"{r.comment}"</p>
-                      <span className="text-[10px] text-gray-400 block font-mono">
-                        {r.createdAt
-                          ? new Date(r.createdAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "Recent rental"}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-700">
-                      No customer reviews yet for this vehicle.
-                    </p>
-                    <p>
-                      Completed your rental trip? Leave your verified review in
-                      the My Bookings portal!
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Similar Vehicles Suggestions */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-[#17191C] font-heading">
-              Similar Vehicles You May Like
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {similarCars.map((sCar) => (
-                <div
-                  key={sCar.id}
-                  onClick={() => onSelectSimilarCar(sCar.id)}
-                  className="bg-white rounded-2xl border border-[#E5E7EB] hover:border-orange-300 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="h-32 rounded-xl overflow-hidden bg-gray-50 mb-3">
-                    <img
-                      src={sCar.image}
-                      alt={sCar.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <h4 className="text-sm font-bold text-gray-900 group-hover:text-[#F97316] transition-colors">
-                    {sCar.name}
-                  </h4>
-                  <p className="text-xs font-bold text-[#F97316] mt-1">
-                    €{sCar.pricePerDay} /day
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <CarDetailSimilarFleet
+            similarCars={similarCars}
+            onSelectSimilarCar={onSelectSimilarCar}
+          />
         </div>
 
-        {/* Right Sticky Fare Calculator Column */}
-        <div className="lg:col-span-4 sticky top-28 space-y-4">
-          <div className="bg-white rounded-3xl border border-[#E5E7EB] p-6 shadow-xl space-y-5">
-            {/* Price Header & Live Date Availability */}
-            <div className="border-b border-gray-100 pb-4 space-y-2">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl font-extrabold text-[#17191C] font-heading">
-                    €{car.pricePerDay}
-                  </span>
-                  <span className="text-xs font-semibold text-gray-500">
-                    {" "}
-                    / day
-                  </span>
-                </div>
-                <span className="text-xs font-semibold text-gray-400">
-                  €{car.pricePerHour} / hour
-                </span>
-              </div>
-
-              {/* Availability Status Badge */}
-              <div className="pt-1">
-                {availabilityCheck.loading ? (
-                  <span className="text-[11px] text-gray-400 animate-pulse">
-                    Checking live calendar dates...
-                  </span>
-                ) : availabilityCheck.isAvailable ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                    Available for {bookingState.pickupDate} →{" "}
-                    {bookingState.returnDate}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-300">
-                    Reserved / Unavailable for Selected Dates
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Trip Parameters */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Garage Location (Pickup &amp; Return)
-                </label>
-                <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5">
-                  <LocationIcon
-                    size={16}
-                    className="text-[#F97316] mt-0.5 shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-xs text-stone-900 truncate">
-                      {car.garageName &&
-                      !car.garageName.includes("Miami") &&
-                      !car.garageName.includes("Central Hub & Garage Bay 4")
-                        ? car.garageName
-                        : car.garageAddress || "MOTORLY Central Operations Hub"}
-                    </p>
-                    <p className="text-[11px] text-stone-600 truncate mt-0.5">
-                      {car.garageAddress &&
-                      !car.garageAddress.includes("Miami") &&
-                      !car.garageAddress.includes("4200 NW 21st St")
-                        ? car.garageAddress
-                        : car.location || "MOTORLY Central Operations Hub"}
-                    </p>
-                    {car.garageBay && (
-                      <span className="inline-block mt-1 text-[10px] font-mono font-bold text-amber-800 bg-white border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs">
-                        Stall: {car.garageBay}
-                      </span>
-                    )}
-                    <a
-                      href={
-                        car.garageLat && car.garageLng
-                          ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                              car.garageAddress || car.garageName || car.location || "MOTORLY Central Hub"
-                            )}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#F97316] hover:text-[#EA580C] bg-white border border-amber-300 px-2.5 py-1 rounded-lg hover:bg-orange-50 transition shadow-2xs"
-                    >
-                      <LocationIcon size={13} />
-                      <span>📍 View on Google Maps ↗</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-gray-700">
-                    Trip Dates &amp; Scheduling
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(true)}
-                    className="text-[11px] font-bold text-[#F97316] hover:underline cursor-pointer"
-                  >
-                    Change Dates
-                  </button>
-                </div>
-                <div
-                  onClick={() => setIsScheduleModalOpen(true)}
-                  className="p-3 bg-stone-50 hover:bg-orange-50/50 border border-stone-200 hover:border-orange-400 rounded-xl cursor-pointer transition-all flex items-center justify-between gap-2 shadow-xs group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <CalendarIcon
-                      size={16}
-                      className="text-[#F97316] group-hover:scale-110 transition-transform shrink-0"
-                    />
-                    <div className="text-xs">
-                      {isSameDayBooking ? (
-                        <>
-                          <div className="font-extrabold text-stone-900 flex items-center gap-1.5">
-                            <span>{bookingState.pickupDate}</span>
-                            <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.2 rounded border border-orange-200">
-                              Same-Day
-                            </span>
-                          </div>
-                          <div className="text-stone-600 text-[11px] font-medium mt-0.5">
-                            Schedule:{" "}
-                            <strong className="text-stone-900">
-                              {bookingState.pickupTime} →{" "}
-                              {bookingState.returnTime}
-                            </strong>{" "}
-                            ({sameDayHours} Hours)
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="font-bold text-stone-900">
-                            {bookingState.pickupDate} ({bookingState.pickupTime}
-                            )
-                          </div>
-                          <div className="text-stone-500 text-[11px]">
-                            to {bookingState.returnDate} (
-                            {bookingState.returnTime})
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-bold text-[#F97316] bg-orange-100/80 px-2.5 py-1 rounded-lg shrink-0 border border-orange-200">
-                    {isSameDayBooking
-                      ? `${sameDayHours} Hours`
-                      : `${days} ${days === 1 ? "day" : "days"}`}
-                  </span>
-                </div>
-              </div>
-
-              {/* European Atelier Privilege Voucher Box */}
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-stone-500">
-                    Privilege &amp; Voucher Code
-                  </span>
-                  {promoApplied && (
-                    <button
-                      type="button"
-                      onClick={handleRemovePromo}
-                      className="text-[10px] font-mono text-stone-400 hover:text-stone-900 transition cursor-pointer underline"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                {promoApplied ? (
-                  <div className="p-3 rounded-xl border border-dashed border-emerald-500/50 bg-emerald-50/80 flex items-center justify-between gap-3 animate-fade-in shadow-2xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
-                        <TagIcon size={13} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-black text-xs text-stone-900 tracking-wider">
-                            {promoCode}
-                          </span>
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-600 text-white">
-                            {discountPercent}% OFF
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-emerald-700 font-medium">
-                          Atelier VIP Privilege Applied
-                        </p>
-                      </div>
-                    </div>
-                    <span className="font-mono font-bold text-xs text-emerald-700">
-                      -€{promoDiscountAmount.toFixed(2)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <TagIcon
-                        size={14}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
-                      />
-                      <input
-                        type="text"
-                        placeholder="ENTER PRIVILEGE CODE"
-                        value={promoCode}
-                        onChange={(e) =>
-                          setPromoCode(e.target.value.toUpperCase())
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            handleApplyPromo()
-                          }
-                        }}
-                        className="w-full pl-8 pr-2 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs uppercase font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-900 focus:bg-white transition"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      disabled={isValidatingPromo}
-                      onClick={handleApplyPromo}
-                      className="px-3.5 py-2 bg-stone-900 hover:bg-black text-white rounded-xl text-xs font-mono font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
-                    >
-                      {isValidatingPromo ? "..." : "Apply"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {quoteMessage && (
-              <div
-                className={`p-2.5 rounded-xl text-xs font-semibold text-center animate-fade-in ${
-                  isQuoteSuccess
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                    : "bg-stone-100 text-stone-700 border border-stone-200"
-                }`}
-              >
-                {quoteMessage}
-              </div>
-            )}
-
-            {/* Calculated Breakdown */}
-            <div className="space-y-2 pt-3 border-t border-gray-100 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>
-                  {pricingResult.tier === "hourly"
-                    ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                    : pricingResult.tier === "weekly"
-                      ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : pricingResult.tier === "monthly"
-                        ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                        : `Base (€${car.pricePerDay} × ${days} ${
-                            days === 1 ? "day" : "days"
-                          })`}
-                </span>
-                <span className="font-semibold text-gray-900">
-                  €{baseRental.toFixed(2)}
-                </span>
-              </div>
-              {promoApplied && (
-                <div className="flex justify-between text-emerald-600 font-bold">
-                  <span className="flex items-center gap-1.5 font-mono text-[11px]">
-                    <TagIcon size={12} />
-                    Privilege Voucher ({promoCode} • {discountPercent}% OFF)
-                  </span>
-                  <span className="font-mono">
-                    -€{promoDiscountAmount.toFixed(2)}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span>Estimated Taxes &amp; Fees (VAT {vatPercent}%)</span>
-                <span className="font-semibold text-gray-900">
-                  €{taxes.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-gray-200 text-base font-extrabold text-[#17191C] font-heading">
-                <span>Estimated Total</span>
-                <span className="text-[#F97316] text-xl font-black">
-                  €{grandTotal.toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            {/* Book Now Primary Button */}
-            <div className="space-y-2.5 pt-2">
-              {!availabilityCheck.isAvailable && (
-                <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-stone-900 text-xs space-y-2.5 shadow-2xs animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-extrabold text-stone-900">
-                      <span className="w-5 h-5 rounded-md bg-amber-200/60 text-amber-800 flex items-center justify-center text-xs">
-                        <AlertTriangleIcon
-                          size={13}
-                          className="text-amber-800"
-                        />
-                      </span>
-                      <span>Schedule Conflict</span>
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                      Reserved
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-white/95 rounded-xl border border-amber-200/70 space-y-1 shadow-2xs">
-                    <div className="flex items-center gap-1.5 text-stone-800 font-mono text-xs font-bold">
-                      <CalendarIcon
-                        size={13}
-                        className="text-amber-700 shrink-0"
-                      />
-                      <span>
-                        {availabilityCheck.conflict?.pickupDate ||
-                          bookingState.pickupDate}
-                      </span>
-                      <span className="text-stone-400">→</span>
-                      <span>
-                        {availabilityCheck.conflict?.returnDate ||
-                          bookingState.returnDate}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-stone-600 leading-tight">
-                      This car already has an approved reservation during this
-                      period.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(true)}
-                    className="w-full py-2 px-3 bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 rounded-xl font-bold text-xs transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <CalendarIcon size={13} className="text-[#F97316]" />
-                    <span>Adjust Rental Dates</span>
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={onProceedToBooking}
-                disabled={!availabilityCheck.isAvailable}
-                className={`w-full py-3.5 font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 group text-sm ${
-                  !availabilityCheck.isAvailable
-                    ? "bg-stone-300 text-stone-600 cursor-not-allowed opacity-80"
-                    : "bg-[#F97316] hover:bg-[#EA580C] text-white hover:shadow-lg"
-                }`}
-              >
-                {!availabilityCheck.isAvailable ? (
-                  <span>Unavailable for Selected Dates</span>
-                ) : (
-                  <>
-                    <ZapIcon size={16} />
-                    <span>Request This Car (Pay on Pickup)</span>
-                    <ArrowRightIcon
-                      size={16}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Trust Badges */}
-            <div className="pt-3 border-t border-gray-100 space-y-2 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>Zero online payment • 100% free reservation request</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>Pay at garage when manager accepts your request</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckIcon size={14} className="text-green-500 flex-shrink-0" />
-                <span>
-                  Free cancellation anytime before vehicle key handover
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile-Only Sticky Floating Booking Dock */}
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-3 flex items-center justify-between lg:hidden shadow-2xl">
-        <div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-black text-stone-900 font-heading">
-              €{car.pricePerDay}
-            </span>
-            <span className="text-xs text-stone-500 font-semibold">/day</span>
-          </div>
-          <p className="text-[11px] font-bold text-emerald-700">
-            €{grandTotal.toFixed(2)} total • {days}{" "}
-            {days === 1 ? "day" : "days"}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onProceedToBooking}
-          disabled={!availabilityCheck.isAvailable}
-          className={`h-11 px-5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer ${
-            !availabilityCheck.isAvailable
-              ? "bg-stone-300 text-stone-600 cursor-not-allowed"
-              : "bg-[#F97316] hover:bg-[#EA580C] text-white active:scale-95"
-          }`}
-        >
-          <ZapIcon size={14} />
-          <span>
-            {availabilityCheck.isAvailable ? "Instant Book" : "Reserved"}
-          </span>
-          <ArrowRightIcon size={14} />
-        </button>
+        {/* Right Column: Sticky Booking Console */}
+        <CarDetailBookingCard
+          car={car}
+          bookingState={bookingState}
+          availabilityCheck={availabilityCheck}
+          pricingResult={pricingResult}
+          days={days}
+          isSameDayBooking={isSameDayBooking}
+          sameDayHours={sameDayHours}
+          baseRental={baseRental}
+          promoApplied={promoApplied}
+          discountPercent={discountPercent}
+          promoCode={promoCode}
+          setPromoCode={setPromoCode}
+          promoDiscountAmount={promoDiscountAmount}
+          vatPercent={vatPercent}
+          taxes={taxes}
+          grandTotal={grandTotal}
+          quoteMessage={quoteMessage}
+          isQuoteSuccess={isQuoteSuccess}
+          isValidatingPromo={isValidatingPromo}
+          onApplyPromo={handleApplyPromo}
+          onRemovePromo={handleRemovePromo}
+          onOpenScheduleModal={() => setIsScheduleModalOpen(true)}
+          onProceedToBooking={onProceedToBooking}
+        />
       </div>
 
       {/* Interactive Date & Scheduling Calendar Modal */}
