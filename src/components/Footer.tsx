@@ -129,6 +129,17 @@ export default function Footer({
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
           <p>© 2026 Garage Fleet Management. All rights reserved.</p>
           <div className="flex space-x-6 items-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof (window as any).__replayMotorlyIntro === "function") {
+                  (window as any).__replayMotorlyIntro()
+                }
+              }}
+              className="hover:text-orange-400 text-stone-400 font-semibold cursor-pointer transition flex items-center gap-1.5"
+            >
+              <span>🎬 Replay Intro</span>
+            </button>
             <span className="hover:text-gray-400 cursor-pointer">
               Privacy Policy
             </span>

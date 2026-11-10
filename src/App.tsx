@@ -49,6 +49,7 @@ import ContactView from "./views/ContactView"
 import CustomerSidebar from "./components/CustomerSidebar"
 
 import WhatsAppSupportFAB from "./components/WhatsAppSupportFAB"
+import CarEntranceAnimation from "./components/CarEntranceAnimation"
 
 function getUpcomingFormattedDate(daysAhead: number): string {
   const d = new Date()
@@ -88,6 +89,28 @@ export default function App() {
       return Boolean(localStorage.getItem("motorly_admin_token"))
     },
   )
+
+  // Cinematic Entrance Animation State (Keka-style brand intro)
+  const [showEntrance, setShowEntrance] = useState<boolean>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("intro") === "1") return true
+        if (params.get("intro") === "0") return false
+        if (window.location.pathname.startsWith("/admin")) return false
+        return !sessionStorage.getItem("motorly_intro_completed")
+      }
+      return false
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      ;(window as any).__replayMotorlyIntro = () => setShowEntrance(true)
+    }
+  }, [])
 
   // Current View State with persistent reload restore + dedicated /admin URL routing
 
@@ -858,6 +881,23 @@ export default function App() {
         currentView !== "admin" && currentView !== "auth" ? "lg:pl-60" : ""
       }`}
     >
+      {/* 0. Cinematic Car Intro Animation (Like Keka starting animation) */}
+      {showEntrance && (
+        <CarEntranceAnimation
+          onComplete={() => {
+            try {
+              sessionStorage.setItem("motorly_intro_completed", "true")
+            } catch {}
+            setShowEntrance(false)
+          }}
+          onSkip={() => {
+            try {
+              sessionStorage.setItem("motorly_intro_completed", "true")
+            } catch {}
+            setShowEntrance(false)
+          }}
+        />
+      )}
       {/* Desktop Persistent Minimal Left Sidebar & Mobile Drawer (Portals Only) */}
       {currentView !== "admin" && currentView !== "auth" && (
         <CustomerSidebar
