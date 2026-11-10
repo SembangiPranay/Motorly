@@ -801,7 +801,7 @@ export default function CompareView({
                             key={c.id}
                             className="p-2 rounded-xl bg-stone-50 border border-stone-100 font-mono text-stone-700"
                           >
-                            €{Math.round(c.pricePerDay * 7 * 0.9)}.00
+                            €{c.pricePerWeek || Math.round(c.pricePerDay * 6)}.00
                           </div>
                         ))}
                       </div>
@@ -1383,7 +1383,7 @@ export default function CompareView({
                             key={c.id}
                             className="px-5 py-3 border-l border-stone-100 font-mono text-stone-700"
                           >
-                            €{Math.round(c.pricePerDay * 7 * 0.9)}.00
+                            €{c.pricePerWeek || Math.round(c.pricePerDay * 6)}.00
                           </td>
                         ))}
                         {activeComparedCars.length < 4 && (

@@ -8,6 +8,8 @@ import {
   ShieldIcon,
   ZapIcon,
   InfoIcon,
+  ClockIcon,
+  CalendarIcon,
 } from "../../components/Icons"
 
 interface AdminCarModalProps {
@@ -61,10 +63,19 @@ export default function AdminCarModal({
   const [type, setType] = useState<VehicleType>(car?.type || "Sedan")
   const [year, setYear] = useState<number>(car?.year || 2024)
   const [plateNumber, setPlateNumber] = useState(car?.plateNumber || "")
-  const [pricePerDay, setPricePerDay] = useState<number>(car?.pricePerDay || 75)
+
+  // 4 Time Period Pricing Rates
   const [pricePerHour, setPricePerHour] = useState<number>(
     car?.pricePerHour || Math.max(1, Math.round((car?.pricePerDay || 75) / 8))
   )
+  const [pricePerDay, setPricePerDay] = useState<number>(car?.pricePerDay || 75)
+  const [pricePerWeek, setPricePerWeek] = useState<number>(
+    car?.pricePerWeek || Math.round((car?.pricePerDay || 75) * 6)
+  )
+  const [pricePerMonth, setPricePerMonth] = useState<number>(
+    car?.pricePerMonth || Math.round((car?.pricePerDay || 75) * 22)
+  )
+
   const [vatRate, setVatRate] = useState<number>(
     car?.vatRate != null ? car.vatRate : 18
   )
@@ -80,16 +91,23 @@ export default function AdminCarModal({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Calculations for live preview
+  // Calculations for live preview across all 4 time periods
+  const validHourly = Math.max(0, pricePerHour || 0)
   const validDaily = Math.max(0, pricePerDay || 0)
+  const validWeekly = Math.max(0, pricePerWeek || 0)
+  const validMonthly = Math.max(0, pricePerMonth || 0)
   const validVat = Math.max(0, vatRate || 0)
-  const vatAmount = Number((validDaily * (validVat / 100)).toFixed(2))
-  const totalCustomerCost = Number((validDaily + vatAmount).toFixed(2))
 
   const handleDailyChange = (val: number) => {
     setPricePerDay(val)
     if (!isEditing || !car?.pricePerHour) {
       setPricePerHour(Math.max(1, Math.round(val / 8)))
+    }
+    if (!isEditing || !car?.pricePerWeek) {
+      setPricePerWeek(Math.round(val * 6))
+    }
+    if (!isEditing || !car?.pricePerMonth) {
+      setPricePerMonth(Math.round(val * 22))
     }
   }
 
@@ -114,9 +132,10 @@ export default function AdminCarModal({
         type,
         year: Number(year) || 2024,
         plateNumber: plateNumber.trim().toUpperCase() || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`,
+        pricePerHour: Number(validHourly) || Math.max(1, Math.round(validDaily / 8)),
         pricePerDay: Number(validDaily) || 75,
-        pricePerHour: Number(pricePerHour) || Math.max(1, Math.round(validDaily / 8)),
-        pricePerMonth: Math.round(validDaily * 22),
+        pricePerWeek: Number(validWeekly) || Math.round(validDaily * 6),
+        pricePerMonth: Number(validMonthly) || Math.round(validDaily * 22),
         vatRate: Number(validVat),
         seats: Number(seats) || 5,
         transmission,
@@ -309,26 +328,49 @@ export default function AdminCarModal({
             </div>
           </div>
 
-          {/* Section 3: Pricing & Dynamic VAT Engine */}
+          {/* Section 3: 4 Time Period Pricing Rates & Dynamic VAT Engine */}
           <div className="space-y-3 bg-stone-50/80 p-4 rounded-xl border border-stone-200">
             <div className="flex items-center justify-between border-b border-stone-200 pb-2">
               <span className="font-bold text-stone-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <SparklesIcon size={14} className="text-orange-600" />
-                3. Pricing Structure & Dynamic Vehicle VAT
+                3. Four Time-Period Pricing (Hourly, Daily, Weekly, Monthly)
               </span>
               <span className="text-[10px] font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">
-                Configurable per Vehicle
+                Custom Rates Per Period
               </span>
             </div>
 
-            {/* Rates & VAT Inputs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            {/* 4 Time Period Inputs Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+              {/* 1. Hourly */}
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                  Base Daily Rate (€) <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-bold text-stone-700 mb-1 flex items-center gap-1">
+                  <ClockIcon size={12} className="text-stone-400" />
+                  Hourly (€/hr)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold">€</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold">€</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={pricePerHour}
+                    onChange={(e) => setPricePerHour(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 pl-6 pr-2 text-xs font-bold bg-white rounded-lg border border-stone-300 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-500"
+                  />
+                </div>
+                <span className="text-[9px] text-stone-400 mt-0.5 block">Same-day flex</span>
+              </div>
+
+              {/* 2. Daily */}
+              <div>
+                <label className="block text-[11px] font-bold text-stone-900 mb-1 flex items-center gap-1">
+                  <CalendarIcon size={12} className="text-orange-600" />
+                  Daily (€/day) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-orange-600 font-bold">€</span>
                   <input
                     type="number"
                     min="1"
@@ -336,34 +378,62 @@ export default function AdminCarModal({
                     required
                     value={pricePerDay}
                     onChange={(e) => handleDailyChange(parseFloat(e.target.value) || 0)}
-                    className="w-full h-9 pl-7 pr-3 text-xs font-bold bg-white rounded-lg border border-stone-300 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-500"
+                    className="w-full h-9 pl-6 pr-2 text-xs font-black bg-white rounded-lg border border-orange-300 text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
+                <span className="text-[9px] text-orange-600 font-bold mt-0.5 block">Standard base</span>
               </div>
 
+              {/* 3. Weekly */}
               <div>
-                <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                  Hourly Rate (€)
+                <label className="block text-[11px] font-bold text-stone-700 mb-1 flex items-center gap-1">
+                  <TagIcon size={12} className="text-stone-400" />
+                  Weekly (€/wk)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold">€</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold">€</span>
                   <input
                     type="number"
                     min="1"
                     step="1"
-                    value={pricePerHour}
-                    onChange={(e) => setPricePerHour(parseFloat(e.target.value) || 0)}
-                    className="w-full h-9 pl-7 pr-3 text-xs font-bold bg-white rounded-lg border border-stone-300 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-500"
+                    required
+                    value={pricePerWeek}
+                    onChange={(e) => setPricePerWeek(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 pl-6 pr-2 text-xs font-bold bg-white rounded-lg border border-stone-300 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-500"
                   />
                 </div>
+                <span className="text-[9px] text-emerald-600 font-semibold mt-0.5 block">7+ days discount</span>
               </div>
 
+              {/* 4. Monthly */}
               <div>
-                <label className="block text-[11px] font-bold text-stone-900 mb-1 flex items-center justify-between">
-                  <span>Dynamic Vehicle VAT</span>
-                  <span className="text-orange-600 font-extrabold">{validVat}%</span>
+                <label className="block text-[11px] font-bold text-stone-700 mb-1 flex items-center gap-1">
+                  <SparklesIcon size={12} className="text-stone-400" />
+                  Monthly (€/mo)
                 </label>
                 <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 font-bold">€</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={pricePerMonth}
+                    onChange={(e) => setPricePerMonth(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 pl-6 pr-2 text-xs font-bold bg-white rounded-lg border border-stone-300 text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-500"
+                  />
+                </div>
+                <span className="text-[9px] text-emerald-600 font-semibold mt-0.5 block">30+ days long-term</span>
+              </div>
+            </div>
+
+            {/* Dynamic VAT Configuration */}
+            <div className="pt-3 border-t border-stone-200">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-bold text-stone-900 flex items-center gap-1">
+                  Dynamic Vehicle Tax (VAT Rate)
+                </label>
+                <div className="flex items-center gap-1.5">
                   <input
                     type="number"
                     min="0"
@@ -372,19 +442,14 @@ export default function AdminCarModal({
                     required
                     value={vatRate}
                     onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
-                    className="w-full h-9 pl-3 pr-7 text-xs font-black bg-white rounded-lg border border-orange-300 text-orange-950 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-16 h-7 px-2 text-xs font-black text-right bg-white rounded-md border border-orange-300 text-orange-950 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold">%</span>
+                  <span className="text-xs font-bold text-stone-600">%</span>
                 </div>
               </div>
-            </div>
 
-            {/* Quick VAT Preset Pills */}
-            <div className="pt-2">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">
-                Quick Select VAT Presets
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5">
+              {/* Quick VAT Presets */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5 mt-1">
                 {VAT_PRESETS.map((preset) => {
                   const isSelected = vatRate === preset.value
                   return (
@@ -412,32 +477,56 @@ export default function AdminCarModal({
               </div>
             </div>
 
-            {/* Live Calculation Receipt Box */}
-            <div className="mt-3 bg-white p-3.5 rounded-xl border border-stone-200 shadow-2xs space-y-2">
+            {/* Live Calculation Table Preview across all 4 time periods */}
+            <div className="mt-3 bg-white p-3.5 rounded-xl border border-stone-200 shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between text-stone-800 font-bold text-[11px]">
-                <span className="flex items-center gap-1 text-stone-600">
+                <span className="flex items-center gap-1 text-stone-700">
                   <InfoIcon size={13} className="text-orange-500" />
-                  Customer Checkout Preview (1 Day Rental)
+                  Customer Checkout Preview By Time Period (Inc. {validVat}% VAT)
                 </span>
-                <span className="text-[10px] text-stone-400 font-normal">Calculated in Real-Time</span>
+                <span className="text-[10px] text-stone-400 font-normal">Real-Time Computed</span>
               </div>
 
-              <div className="space-y-1.5 pt-1 text-[11px]">
-                <div className="flex justify-between text-stone-600">
-                  <span>Base Vehicle Rate (1 Day):</span>
-                  <span className="font-mono font-semibold">€{validDaily.toFixed(2)}</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+                {/* Hourly Preview */}
+                <div className="bg-stone-50 p-2 rounded-lg border border-stone-150">
+                  <div className="text-[10px] font-bold text-stone-500 uppercase">1 Hour</div>
+                  <div className="text-xs font-bold text-stone-800 mt-0.5">€{validHourly.toFixed(2)}</div>
+                  <div className="text-[10px] text-orange-600 font-semibold">
+                    Total: €{(validHourly * (1 + validVat / 100)).toFixed(2)}
+                  </div>
                 </div>
-                <div className="flex justify-between text-stone-600">
-                  <span>Dynamic VAT Rate ({validVat}%):</span>
-                  <span className="font-mono font-semibold text-orange-700">+€{vatAmount.toFixed(2)}</span>
+
+                {/* Daily Preview */}
+                <div className="bg-orange-50/70 p-2 rounded-lg border border-orange-200">
+                  <div className="text-[10px] font-bold text-orange-700 uppercase">1 Day (24h)</div>
+                  <div className="text-xs font-bold text-stone-900 mt-0.5">€{validDaily.toFixed(2)}</div>
+                  <div className="text-[10px] text-orange-700 font-black">
+                    Total: €{(validDaily * (1 + validVat / 100)).toFixed(2)}
+                  </div>
                 </div>
-                <div className="flex justify-between pt-1.5 border-t border-stone-100 text-xs font-black text-stone-900">
-                  <span>Final Customer Total:</span>
-                  <span className="font-mono text-orange-600 text-sm">€{totalCustomerCost.toFixed(2)}</span>
+
+                {/* Weekly Preview */}
+                <div className="bg-stone-50 p-2 rounded-lg border border-stone-150">
+                  <div className="text-[10px] font-bold text-stone-500 uppercase">1 Week (7d)</div>
+                  <div className="text-xs font-bold text-stone-800 mt-0.5">€{validWeekly.toFixed(2)}</div>
+                  <div className="text-[10px] text-emerald-700 font-semibold">
+                    Total: €{(validWeekly * (1 + validVat / 100)).toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Monthly Preview */}
+                <div className="bg-stone-50 p-2 rounded-lg border border-stone-150">
+                  <div className="text-[10px] font-bold text-stone-500 uppercase">1 Month (30d)</div>
+                  <div className="text-xs font-bold text-stone-800 mt-0.5">€{validMonthly.toFixed(2)}</div>
+                  <div className="text-[10px] text-emerald-700 font-semibold">
+                    Total: €{(validMonthly * (1 + validVat / 100)).toFixed(2)}
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-stone-400 italic pt-1">
-                When booked online or via dispatch, this specific {validVat}% VAT will apply to all customer bills and invoices for this vehicle.
+
+              <p className="text-[10px] text-stone-400 italic">
+                Reservations matching each duration tier automatically calculate pricing based on these specific period rates and this vehicle's {validVat}% dynamic VAT.
               </p>
             </div>
           </div>
@@ -497,7 +586,6 @@ export default function AdminCarModal({
                   alt="Vehicle Preview"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    // Fallback on invalid image url
                     ;(e.target as HTMLImageElement).src =
                       "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"
                   }}

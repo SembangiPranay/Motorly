@@ -1279,6 +1279,9 @@ export default function ListingView({
                               </span>
                               <span className="text-[11px] text-stone-400 font-medium ml-1">
                                 (€{car.pricePerHour}/hr • €
+                                {car.pricePerWeek ||
+                                  Math.round(car.pricePerDay * 6)}
+                                /wk • €
                                 {car.pricePerMonth ||
                                   Math.round(car.pricePerDay * 22)}
                                 /mo)
@@ -1509,6 +1512,9 @@ export default function ListingView({
                         </div>
                         <div className="text-[11px] text-stone-400 font-medium">
                           €{car.pricePerHour || 8}/hr • €
+                          {car.pricePerWeek ||
+                            Math.round(car.pricePerDay * 6)}
+                          /wk • €
                           {car.pricePerMonth ||
                             Math.round(car.pricePerDay * 22)}
                           /mo

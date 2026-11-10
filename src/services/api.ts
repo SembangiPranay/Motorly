@@ -14,6 +14,7 @@ import type {
 export interface CarPricingUpdate {
   pricePerHour: number
   pricePerDay: number
+  pricePerWeek?: number
   pricePerMonth: number
 }
 

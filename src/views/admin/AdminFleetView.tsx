@@ -228,8 +228,11 @@ export default function AdminFleetView({
                       <div className="text-right shrink-0">
                         <div className="text-sm font-black text-stone-900">
                           €{car.pricePerDay}
+                          <span className="text-[10px] text-stone-400 font-normal ml-0.5">/day</span>
                         </div>
-                        <div className="text-[10px] text-stone-400">per day</div>
+                        <div className="text-[10px] text-stone-400 font-medium">
+                          €{car.pricePerHour}/h • €{car.pricePerWeek || Math.round(car.pricePerDay * 6)}/w • €{car.pricePerMonth || Math.round(car.pricePerDay * 22)}/m
+                        </div>
                         <div className="mt-1 inline-block px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                           VAT {car.vatRate != null ? car.vatRate : 18}%
                         </div>

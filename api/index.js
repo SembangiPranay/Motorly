@@ -39868,6 +39868,7 @@ async function initSupabaseTables(pool) {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_week REAL,
       price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
@@ -40016,6 +40017,7 @@ async function initSupabaseTables(pool) {
   `);
 	await pool.query(`
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_week REAL;
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 18.0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
@@ -40041,6 +40043,7 @@ function initSqliteTables() {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_week REAL,
       price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
@@ -40141,6 +40144,10 @@ function initSqliteTables() {
 		{
 			name: "vat_rate",
 			type: "REAL DEFAULT 18.0"
+		},
+		{
+			name: "price_per_week",
+			type: "REAL"
 		}
 	]) if (!vehicleColumns.includes(col.name)) try {
 		sqlite.exec(`ALTER TABLE vehicles ADD COLUMN ${col.name} ${col.type};`);
@@ -40310,11 +40317,11 @@ function seedVehicles() {
 	if (!sqlite) return;
 	const insertStmt = sqlite.prepare(`
     INSERT INTO vehicles (
-      id, name, brand, model, year, type, price_per_day, price_per_hour,
+      id, name, brand, model, year, type, price_per_day, price_per_hour, price_per_week,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score, vat_rate
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
@@ -40858,7 +40865,7 @@ function seedVehicles() {
 			health_score: 96
 		}
 	];
-	for (const car of initialCars) insertStmt.run(car.id, car.name, car.brand, car.model, car.year, car.type, car.price_per_day, car.price_per_hour, car.image, car.gallery, car.rating, car.reviews_count, car.seats, car.transmission, car.fuel_type, car.mileage, car.luggage, car.features, car.description, car.is_popular, car.status, car.plate_number, car.location, car.health_score, car.vat_rate || 18);
+	for (const car of initialCars) insertStmt.run(car.id, car.name, car.brand, car.model, car.year, car.type, car.price_per_day, car.price_per_hour, car.price_per_week || Math.round(car.price_per_day * 6), car.image, car.gallery, car.rating, car.reviews_count, car.seats, car.transmission, car.fuel_type, car.mileage, car.luggage, car.features, car.description, car.is_popular, car.status, car.plate_number, car.location, car.health_score, car.vat_rate || 18);
 	console.log(`[DB] Seeded ${initialCars.length} vehicles into database.`);
 }
 function seedUsers() {
@@ -41301,6 +41308,7 @@ function formatCarRow(row, fallbackHub, fallbackLat, fallbackLng) {
 		type: row.type,
 		pricePerDay: Number(row.price_per_day),
 		pricePerHour: Number(row.price_per_hour),
+		pricePerWeek: row.price_per_week != null && !isNaN(Number(row.price_per_week)) ? Number(row.price_per_week) : Math.round(Number(row.price_per_day) * 6),
 		pricePerMonth: row.price_per_month != null && !isNaN(Number(row.price_per_month)) ? Number(row.price_per_month) : Math.round(Number(row.price_per_day) * 22),
 		image: row.image,
 		gallery: (() => {
@@ -41920,19 +41928,19 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
 	const featuresJson = safeJsonStringify(car.features || ["Bluetooth", "Apple CarPlay"]);
 	await db.prepare(`
     INSERT INTO vehicles (
-      id, name, brand, model, year, type, price_per_day, price_per_hour, price_per_month,
+      id, name, brand, model, year, type, price_per_day, price_per_hour, price_per_week, price_per_month,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score,
       insurance_policy, insurance_provider, insurance_expiry, purchase_date, purchase_cost, current_odometer,
       garage_name, garage_address, garage_lat, garage_lng, garage_bay, vat_rate
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?
     )
-  `).run(newId, car.name || "Custom Vehicle", car.brand || "Toyota", car.model || "Camry", Number(car.year) || 2024, car.type || "Sedan", Number(car.pricePerDay) || 50, Number(car.pricePerHour) || 7, Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", galleryJson, Number(car.rating) || 5, Number(car.reviewsCount) || 1, Number(car.seats) || 5, car.transmission || "Automatic", car.fuelType || "Petrol", car.mileage || "45 Liters", car.luggage || "3 Bags", featuresJson, car.description || "Premium rental vehicle.", car.isPopular ? 1 : 0, car.status || "Available", car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`, car.location || "Operating Fleet Hub", Number(car.healthScore) || 98, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || (/* @__PURE__ */ new Date()).toISOString().split("T")[0], Number(car.purchaseCost) || 32500, Number(car.currentOdometer) || 14200, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18);
+  `).run(newId, car.name || "Custom Vehicle", car.brand || "Toyota", car.model || "Camry", Number(car.year) || 2024, car.type || "Sedan", Number(car.pricePerDay) || 50, Number(car.pricePerHour) || 7, Number(car.pricePerWeek) || Math.round((Number(car.pricePerDay) || 50) * 6), Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", galleryJson, Number(car.rating) || 5, Number(car.reviewsCount) || 1, Number(car.seats) || 5, car.transmission || "Automatic", car.fuelType || "Petrol", car.mileage || "45 Liters", car.luggage || "3 Bags", featuresJson, car.description || "Premium rental vehicle.", car.isPopular ? 1 : 0, car.status || "Available", car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`, car.location || "Operating Fleet Hub", Number(car.healthScore) || 98, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || (/* @__PURE__ */ new Date()).toISOString().split("T")[0], Number(car.purchaseCost) || 32500, Number(car.currentOdometer) || 14200, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18);
 	const created = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(newId);
 	return res.status(201).json(formatCarRow(created));
 });
@@ -41944,7 +41952,7 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
 	const featuresJson = safeJsonStringify(car.features || []);
 	await db.prepare(`
     UPDATE vehicles SET
-      name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?, price_per_month = ?,
+      name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?, price_per_week = ?, price_per_month = ?,
       image = ?, gallery = ?, seats = ?, transmission = ?, fuel_type = ?,
       mileage = ?, luggage = ?, features = ?, description = ?, status = ?,
       plate_number = ?, location = ?, health_score = ?,
@@ -41953,20 +41961,21 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?,
       vat_rate = ?
     WHERE id = ?
-  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay) || 50, Number(car.pricePerHour) || Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)), Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18, carId);
+  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay) || 50, Number(car.pricePerHour) || Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)), Number(car.pricePerWeek) || Math.round((Number(car.pricePerDay) || 50) * 6), Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18, carId);
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json(formatCarRow(updated));
 });
 app.patch("/api/cars/:id/pricing", requireAdmin, async (req, res) => {
-	const { pricePerHour, pricePerDay, pricePerMonth } = req.body;
+	const { pricePerHour, pricePerDay, pricePerWeek, pricePerMonth } = req.body;
 	const carId = req.params.id;
-	const existing = await db.prepare("SELECT id, price_per_day, price_per_hour, price_per_month FROM vehicles WHERE id = ?").get(carId);
+	const existing = await db.prepare("SELECT id, price_per_day, price_per_hour, price_per_week, price_per_month FROM vehicles WHERE id = ?").get(carId);
 	if (!existing) return res.status(404).json({ error: "Vehicle not found." });
 	const newPricePerDay = pricePerDay !== void 0 && !isNaN(Number(pricePerDay)) ? Number(pricePerDay) : Number(existing.price_per_day);
 	const newPricePerHour = pricePerHour !== void 0 && !isNaN(Number(pricePerHour)) ? Number(pricePerHour) : Number(existing.price_per_hour);
+	const newPricePerWeek = pricePerWeek !== void 0 && !isNaN(Number(pricePerWeek)) ? Number(pricePerWeek) : existing.price_per_week ? Number(existing.price_per_week) : Math.round(newPricePerDay * 6);
 	const newPricePerMonth = pricePerMonth !== void 0 && !isNaN(Number(pricePerMonth)) ? Number(pricePerMonth) : existing.price_per_month ? Number(existing.price_per_month) : Math.round(newPricePerDay * 22);
-	if (newPricePerHour <= 0 || newPricePerDay <= 0 || newPricePerMonth <= 0) return res.status(400).json({ error: "Prices must be positive numbers greater than 0." });
-	await db.prepare("UPDATE vehicles SET price_per_hour = ?, price_per_day = ?, price_per_month = ? WHERE id = ?").run(newPricePerHour, newPricePerDay, newPricePerMonth, carId);
+	if (newPricePerHour <= 0 || newPricePerDay <= 0 || newPricePerWeek <= 0 || newPricePerMonth <= 0) return res.status(400).json({ error: "Prices must be positive numbers greater than 0." });
+	await db.prepare("UPDATE vehicles SET price_per_hour = ?, price_per_day = ?, price_per_week = ?, price_per_month = ? WHERE id = ?").run(newPricePerHour, newPricePerDay, newPricePerWeek, newPricePerMonth, carId);
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json({
 		success: true,

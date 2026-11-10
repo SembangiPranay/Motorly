@@ -10,6 +10,8 @@ export const CARS: Car[] = [
     type: "Sedan",
     pricePerDay: 45,
     pricePerHour: 6,
+    pricePerWeek: 270,
+    pricePerMonth: 990,
     image:
       "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80",
     gallery: [
@@ -52,6 +54,8 @@ export const CARS: Car[] = [
     type: "SUV",
     pricePerDay: 65,
     pricePerHour: 9,
+    pricePerWeek: 390,
+    pricePerMonth: 1430,
     image:
       "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80",
     gallery: [
@@ -92,6 +96,8 @@ export const CARS: Car[] = [
     type: "Sedan",
     pricePerDay: 90,
     pricePerHour: 12,
+    pricePerWeek: 540,
+    pricePerMonth: 1980,
     image:
       "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=1200&q=80",
     gallery: [
@@ -132,6 +138,8 @@ export const CARS: Car[] = [
     type: "SUV",
     pricePerDay: 85,
     pricePerHour: 11,
+    pricePerWeek: 510,
+    pricePerMonth: 1870,
     image:
       "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80",
     gallery: [
@@ -171,6 +179,8 @@ export const CARS: Car[] = [
     type: "Luxury",
     pricePerDay: 120,
     pricePerHour: 16,
+    pricePerWeek: 720,
+    pricePerMonth: 2640,
     image:
       "https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80",
     gallery: [

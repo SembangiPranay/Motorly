@@ -528,6 +528,7 @@ async function initSupabaseTables(pool: pg.Pool) {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_week REAL,
       price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
@@ -692,6 +693,7 @@ async function initSupabaseTables(pool: pg.Pool) {
   // High-performance secondary indexes for high-frequency search and relational filters
   await pool.query(`
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_week REAL;
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 18.0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
@@ -726,6 +728,7 @@ function initSqliteTables() {
       type TEXT NOT NULL,
       price_per_day REAL NOT NULL,
       price_per_hour REAL NOT NULL,
+      price_per_week REAL,
       price_per_month REAL,
       image TEXT NOT NULL,
       gallery TEXT NOT NULL,
@@ -797,6 +800,7 @@ function initSqliteTables() {
     { name: "garage_lng", type: "REAL" },
     { name: "garage_bay", type: "TEXT" },
     { name: "vat_rate", type: "REAL DEFAULT 18.0" },
+    { name: "price_per_week", type: "REAL" },
   ]
   for (const col of requiredVehicleCols) {
     if (!vehicleColumns.includes(col.name)) {
@@ -944,11 +948,11 @@ function seedVehicles() {
   if (!sqlite) return
   const insertStmt = sqlite.prepare(`
     INSERT INTO vehicles (
-      id, name, brand, model, year, type, price_per_day, price_per_hour,
+      id, name, brand, model, year, type, price_per_day, price_per_hour, price_per_week,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score, vat_rate
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
@@ -1580,6 +1584,7 @@ function seedVehicles() {
       car.type,
       car.price_per_day,
       car.price_per_hour,
+      car.price_per_week || Math.round(car.price_per_day * 6),
       car.image,
       car.gallery,
       car.rating,

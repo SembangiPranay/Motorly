@@ -1564,11 +1564,13 @@ export default function CheckoutView({
                 <span>
                   {pricingResult.tier === "hourly"
                     ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                    : pricingResult.tier === "monthly"
+                    : pricingResult.tier === "weekly"
                       ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : `Vehicle Rental (€${car.pricePerDay} × ${days} ${
-                          days === 1 ? "day" : "days"
-                        })`}
+                      : pricingResult.tier === "monthly"
+                        ? `Vehicle Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
+                        : `Vehicle Rental (€${car.pricePerDay} × ${days} ${
+                            days === 1 ? "day" : "days"
+                          })`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   €{rawRentalTotal.toFixed(2)}

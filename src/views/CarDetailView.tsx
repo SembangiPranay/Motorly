@@ -770,7 +770,7 @@ export default function CarDetailView({
             {/* Tab 3: Rental Rates */}
             {activeTab === "rates" && (
               <div className="pt-2 animate-fade-in space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                   <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 text-center">
                     <span className="text-xs font-bold text-gray-500 uppercase">
                       Hourly Flex
@@ -794,6 +794,20 @@ export default function CarDetailView({
                     </p>
                     <span className="text-[11px] text-gray-500">
                       Unlimited miles across state
+                    </span>
+                  </div>
+                  <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-200 text-center relative">
+                    <span className="absolute -top-2.5 right-4 bg-blue-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                      Save ~14%
+                    </span>
+                    <span className="text-xs font-bold text-blue-800 uppercase">
+                      Weekly (7+ Days)
+                    </span>
+                    <p className="text-2xl font-black text-blue-900 font-heading mt-1">
+                      €{car.pricePerWeek || Math.round(car.pricePerDay * 6)}
+                    </p>
+                    <span className="text-[11px] text-blue-700 font-medium">
+                      Extended road trip discount
                     </span>
                   </div>
                   <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-center relative">
@@ -1142,11 +1156,13 @@ export default function CarDetailView({
                 <span>
                   {pricingResult.tier === "hourly"
                     ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                    : pricingResult.tier === "monthly"
+                    : pricingResult.tier === "weekly"
                       ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                      : `Base (€${car.pricePerDay} × ${days} ${
-                          days === 1 ? "day" : "days"
-                        })`}
+                      : pricingResult.tier === "monthly"
+                        ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
+                        : `Base (€${car.pricePerDay} × ${days} ${
+                            days === 1 ? "day" : "days"
+                          })`}
                 </span>
                 <span className="font-semibold text-gray-900">
                   €{baseRental.toFixed(2)}
