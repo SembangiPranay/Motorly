@@ -4,6 +4,7 @@ import { api } from "../services/api"
 
 import ElderlyTasksView from "./admin/ElderlyTasksView"
 import ElderlyFleetView from "./admin/ElderlyFleetView"
+import ElderlyNotificationsView from "./admin/ElderlyNotificationsView"
 import ElderlySettingsView from "./admin/ElderlySettingsView"
 import ElderlyKeyHandoverModal from "./admin/ElderlyKeyHandoverModal"
 import ElderlyReturnModal from "./admin/ElderlyReturnModal"
@@ -18,6 +19,8 @@ import {
   CheckIcon,
   SettingsIcon,
   ClockIcon,
+  BellIcon,
+  CalendarIcon,
 } from "../components/Icons"
 
 export interface AdminViewProps {
@@ -31,7 +34,7 @@ export interface AdminViewProps {
   onClearTargetBookingId?: () => void
 }
 
-type AdminTab = "tasks" | "fleet" | "settings"
+type AdminTab = "tasks" | "fleet" | "notifications" | "settings"
 
 export default function AdminView({
   cars,
@@ -385,11 +388,31 @@ export default function AdminView({
             </div>
           </div>
 
-          {/* Quick Header Actions: Phone Help, Exit, Sign Out */}
+          {/* Quick Header Actions: Notification Bell, Phone Help, Exit, Sign Out */}
           <div className="flex items-center gap-3">
+            {/* Quick Notification Bell */}
+            <button
+              type="button"
+              onClick={() => setActiveTab("notifications")}
+              className={`relative px-3.5 py-2.5 rounded-xl border-2 transition flex items-center gap-2 min-h-[44px] ${
+                activeTab === "notifications"
+                  ? "bg-amber-100 border-amber-400 text-amber-900 font-bold shadow-sm"
+                  : "bg-white border-stone-200 text-stone-700 hover:bg-stone-100 font-medium"
+              }`}
+              title="Notification Center"
+            >
+              <BellIcon size={18} className="text-amber-600" />
+              <span className="text-sm font-bold hidden sm:inline">Alerts</span>
+              {pendingActionsCount > 0 && (
+                <span className="px-2 py-0.2 rounded-full bg-amber-600 text-white text-xs font-black">
+                  {pendingActionsCount}
+                </span>
+              )}
+            </button>
+
             <a
               href="tel:5550199922"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-sm border border-emerald-200 transition"
+              className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-sm border border-emerald-200 transition min-h-[44px]"
               title="Call Human Support"
             >
               <PhoneIcon size={18} className="text-emerald-600" />
@@ -399,9 +422,9 @@ export default function AdminView({
             <button
               type="button"
               onClick={onExitAdmin}
-              className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm transition"
+              className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm transition min-h-[44px]"
             >
-              View Public Website
+              Public Site
             </button>
 
             {onLogoutAdmin && (
@@ -412,7 +435,7 @@ export default function AdminView({
                     onLogoutAdmin()
                   }
                 }}
-                className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm transition flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm transition flex items-center gap-1.5 min-h-[44px]"
               >
                 <LogOutIcon size={16} />
                 <span>Log Out</span>
@@ -421,13 +444,13 @@ export default function AdminView({
           </div>
         </div>
 
-        {/* The 3 Primary Senior-Friendly Navigation Hub Tabs */}
+        {/* Primary Senior-Friendly Navigation Hub Tabs */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-0">
           <nav
             aria-label="Admin Navigation"
             className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar border-t border-stone-100 pt-3"
           >
-            {/* Tab 1: Today's Tasks */}
+            {/* Tab 1: Today's Tasks (Main Dashboard) */}
             <button
               type="button"
               onClick={() => setActiveTab("tasks")}
@@ -437,8 +460,8 @@ export default function AdminView({
                   : "border-transparent text-stone-500 hover:text-stone-900"
               }`}
             >
-              <span className="text-2xl">🟢</span>
-              <span>1. Today's Tasks</span>
+              <CalendarIcon size={22} className="text-emerald-700" />
+              <span>1. Main Dashboard</span>
               {pendingActionsCount > 0 && (
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
@@ -452,7 +475,7 @@ export default function AdminView({
               )}
             </button>
 
-            {/* Tab 2: My Fleet */}
+            {/* Tab 2: My Fleet (Garage Floor - ZERO ALERTS) */}
             <button
               type="button"
               onClick={() => setActiveTab("fleet")}
@@ -462,11 +485,36 @@ export default function AdminView({
                   : "border-transparent text-stone-500 hover:text-stone-900"
               }`}
             >
-              <span className="text-2xl">🚗</span>
+              <CarIcon size={22} className="text-blue-700" />
               <span>2. My Cars ({cars.length})</span>
             </button>
 
-            {/* Tab 3: Settings & Help */}
+            {/* Tab 3: Notifications Page */}
+            <button
+              type="button"
+              onClick={() => setActiveTab("notifications")}
+              className={`pb-4 px-4 sm:px-6 font-black text-lg sm:text-xl transition flex items-center gap-3 border-b-4 -mb-[2px] whitespace-nowrap min-h-[52px] ${
+                activeTab === "notifications"
+                  ? "border-amber-600 text-amber-950 font-black"
+                  : "border-transparent text-stone-500 hover:text-stone-900"
+              }`}
+            >
+              <BellIcon size={22} className="text-amber-700" />
+              <span>3. Notifications</span>
+              {pendingActionsCount > 0 && (
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                    activeTab === "notifications"
+                      ? "bg-amber-600 text-white"
+                      : "bg-amber-100 text-amber-900"
+                  }`}
+                >
+                  {pendingActionsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Tab 4: Settings & Help (ZERO ALERTS) */}
             <button
               type="button"
               onClick={() => setActiveTab("settings")}
@@ -476,8 +524,8 @@ export default function AdminView({
                   : "border-transparent text-stone-500 hover:text-stone-900"
               }`}
             >
-              <span className="text-2xl">⚙️</span>
-              <span>3. Settings & Help</span>
+              <SettingsIcon size={22} className="text-stone-700" />
+              <span>4. Settings & Help</span>
             </button>
           </nav>
         </div>
@@ -485,6 +533,7 @@ export default function AdminView({
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        {/* 1. Main Dashboard: Today's Tasks */}
         {activeTab === "tasks" && (
           <ElderlyTasksView
             bookings={bookings}
@@ -500,6 +549,7 @@ export default function AdminView({
           />
         )}
 
+        {/* 2. My Cars: Garage Floor (Zero Alert Banners) */}
         {activeTab === "fleet" && (
           <ElderlyFleetView
             cars={cars}
@@ -510,6 +560,20 @@ export default function AdminView({
           />
         )}
 
+        {/* 3. Notifications Page: Dedicated Alert Feed */}
+        {activeTab === "notifications" && (
+          <ElderlyNotificationsView
+            bookings={bookings}
+            cars={cars}
+            onApprove={handleApproveBooking}
+            onDecline={handleDeclineBooking}
+            onOpenGiveKeys={(booking) => setActiveGiveKeysBooking(booking)}
+            onOpenReturn={(booking) => setActiveReturnBooking(booking)}
+            onOpenInvoice={(booking) => setActiveInvoiceBooking(booking)}
+          />
+        )}
+
+        {/* 4. Settings & Help (Zero Alert Banners) */}
         {activeTab === "settings" && (
           <ElderlySettingsView
             onExitAdmin={onExitAdmin}
