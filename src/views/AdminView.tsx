@@ -120,6 +120,24 @@ export default function AdminView({
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
+  // Responsive sidebar collapse state (persisted)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        return localStorage.getItem("motorly_admin_sidebar_collapsed") === "true"
+      }
+    } catch {}
+    return false
+  })
+
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("motorly_admin_sidebar_collapsed", String(isSidebarCollapsed))
+      }
+    } catch {}
+  }, [isSidebarCollapsed])
+
   // Secondary Datasets (Promos, CRM, Maintenance)
   const [promos, setPromos] = useState<PromoCode[]>([])
   const [adminCustomers, setAdminCustomers] = useState<AdminCustomerRecord[]>([])
@@ -462,7 +480,7 @@ export default function AdminView({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-stone-900 flex antialiased font-sans">
+    <div className="h-screen w-screen overflow-hidden bg-[#F8F9FA] text-stone-900 flex antialiased font-sans">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
@@ -492,12 +510,14 @@ export default function AdminView({
         promosCount={promos.length}
         onExitAdmin={onExitAdmin}
         onLogoutAdmin={onLogoutAdmin}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* Main Content Workspace */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto min-h-screen">
+      {/* Main Content Workspace - Independent scroll container so sidebar never scrolls away */}
+      <div className="flex-1 h-screen overflow-y-auto flex flex-col min-w-0">
         {/* Crisp Medium Top Header Bar */}
         <AdminTopHeader
           searchQuery={searchQuery}
@@ -506,6 +526,8 @@ export default function AdminView({
           onOpenNotifications={() => setActiveTab("notifications")}
           onExitAdmin={onExitAdmin}
           onLogoutAdmin={onLogoutAdmin}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
