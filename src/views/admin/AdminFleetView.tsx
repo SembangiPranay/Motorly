@@ -109,10 +109,10 @@ export default function AdminFleetView({
         <button
           type="button"
           onClick={onAddCar}
-          className="self-start sm:self-auto px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs shrink-0"
+          className="self-start sm:self-auto px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs shrink-0 cursor-pointer"
         >
           <PlusIcon size={14} />
-          <span>+ Add New Vehicle</span>
+          <span>Add Vehicle</span>
         </button>
       </div>
 
@@ -172,7 +172,7 @@ export default function AdminFleetView({
           <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
             {localSearch || searchQuery
               ? "No cars match your search filter."
-              : "Click the + Add New Vehicle button to add your first car."}
+              : "Click the Add Vehicle button to add your first car."}
           </p>
         </div>
       ) : (
@@ -230,6 +230,9 @@ export default function AdminFleetView({
                           €{car.pricePerDay}
                         </div>
                         <div className="text-[10px] text-stone-400">per day</div>
+                        <div className="mt-1 inline-block px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                          VAT {car.vatRate != null ? car.vatRate : 18}%
+                        </div>
                       </div>
                     </div>
 

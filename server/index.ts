@@ -519,6 +519,10 @@ function formatCarRow(
     garageLat: Number(row.garage_lat) || fallbackLat || 17.4586,
     garageLng: Number(row.garage_lng) || fallbackLng || 78.3606,
     garageBay: row.garage_bay || "Bay 14-B",
+    vatRate:
+      row.vat_rate != null && !isNaN(Number(row.vat_rate))
+        ? Number(row.vat_rate)
+        : 18.0,
   }
 }
 
@@ -1454,13 +1458,13 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score,
       insurance_policy, insurance_provider, insurance_expiry, purchase_date, purchase_cost, current_odometer,
-      garage_name, garage_address, garage_lat, garage_lng, garage_bay
+      garage_name, garage_address, garage_lat, garage_lng, garage_bay, vat_rate
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?
     )
   `)
     .run(
@@ -1502,6 +1506,9 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       Number(car.garageLat) || 17.4646,
       Number(car.garageLng) || 78.3582,
       car.garageBay || "Bay 1",
+      car.vatRate != null && !isNaN(Number(car.vatRate))
+        ? Number(car.vatRate)
+        : 18.0,
     )
 
   const created = await db
@@ -1534,7 +1541,8 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       plate_number = ?, location = ?, health_score = ?,
       insurance_policy = ?, insurance_provider = ?, insurance_expiry = ?,
       purchase_date = ?, purchase_cost = ?, current_odometer = ?,
-      garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?
+      garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?,
+      vat_rate = ?
     WHERE id = ?
   `)
     .run(
@@ -1572,6 +1580,9 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       Number(car.garageLat) || 17.4646,
       Number(car.garageLng) || 78.3582,
       car.garageBay || "Bay 1",
+      car.vatRate != null && !isNaN(Number(car.vatRate))
+        ? Number(car.vatRate)
+        : 18.0,
       carId,
     )
 

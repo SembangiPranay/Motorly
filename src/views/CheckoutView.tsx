@@ -543,7 +543,12 @@ export default function CheckoutView({
 
   const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
 
-  const taxesAndFees = Number((discountedRentalTotal * 0.18).toFixed(2))
+  const vatPercent =
+    car?.vatRate != null && !isNaN(Number(car.vatRate))
+      ? Number(car.vatRate)
+      : 18
+
+  const taxesAndFees = Number((discountedRentalTotal * (vatPercent / 100)).toFixed(2))
 
   const totalAmount = Number((discountedRentalTotal + taxesAndFees).toFixed(2))
 
@@ -1582,7 +1587,7 @@ export default function CheckoutView({
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Estimated Taxes &amp; Fees (10%)</span>
+                <span>Estimated Taxes &amp; Fees (VAT {vatPercent}%)</span>
                 <span className="font-semibold text-gray-900">
                   €{taxesAndFees.toFixed(2)}
                 </span>

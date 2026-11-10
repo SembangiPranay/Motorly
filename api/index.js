@@ -39896,6 +39896,7 @@ async function initSupabaseTables(pool) {
       garage_lat REAL,
       garage_lng REAL,
       garage_bay TEXT,
+      vat_rate REAL DEFAULT 18.0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -40015,6 +40016,7 @@ async function initSupabaseTables(pool) {
   `);
 	await pool.query(`
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 18.0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
@@ -40056,6 +40058,7 @@ function initSqliteTables() {
       plate_number TEXT,
       location TEXT,
       health_score INTEGER DEFAULT 95,
+      vat_rate REAL DEFAULT 18.0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -40134,6 +40137,10 @@ function initSqliteTables() {
 		{
 			name: "garage_bay",
 			type: "TEXT"
+		},
+		{
+			name: "vat_rate",
+			type: "REAL DEFAULT 18.0"
 		}
 	]) if (!vehicleColumns.includes(col.name)) try {
 		sqlite.exec(`ALTER TABLE vehicles ADD COLUMN ${col.name} ${col.type};`);
@@ -40305,11 +40312,11 @@ function seedVehicles() {
     INSERT INTO vehicles (
       id, name, brand, model, year, type, price_per_day, price_per_hour,
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
-      mileage, luggage, features, description, is_popular, status, plate_number, location, health_score
+      mileage, luggage, features, description, is_popular, status, plate_number, location, health_score, vat_rate
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
 	const initialCars = [
@@ -40343,7 +40350,8 @@ function seedVehicles() {
 			status: "Rented",
 			plate_number: "FL-882-MTR",
 			location: "Miami International Airport (MIA)",
-			health_score: 98
+			health_score: 98,
+			vat_rate: 10
 		},
 		{
 			id: "honda-crv",
@@ -40375,7 +40383,8 @@ function seedVehicles() {
 			status: "Available",
 			plate_number: "FL-319-MTR",
 			location: "Miami International Airport (MIA)",
-			health_score: 95
+			health_score: 95,
+			vat_rate: 15
 		},
 		{
 			id: "tesla-model-3",
@@ -40407,7 +40416,8 @@ function seedVehicles() {
 			status: "Available",
 			plate_number: "FL-904-EV",
 			location: "Downtown Miami",
-			health_score: 99
+			health_score: 99,
+			vat_rate: 5
 		},
 		{
 			id: "jeep-wrangler",
@@ -40470,7 +40480,8 @@ function seedVehicles() {
 			status: "Rented",
 			plate_number: "CA-782-LUX",
 			location: "Los Angeles International (LAX)",
-			health_score: 97
+			health_score: 97,
+			vat_rate: 20
 		},
 		{
 			id: "honda-accord",
@@ -40847,7 +40858,7 @@ function seedVehicles() {
 			health_score: 96
 		}
 	];
-	for (const car of initialCars) insertStmt.run(car.id, car.name, car.brand, car.model, car.year, car.type, car.price_per_day, car.price_per_hour, car.image, car.gallery, car.rating, car.reviews_count, car.seats, car.transmission, car.fuel_type, car.mileage, car.luggage, car.features, car.description, car.is_popular, car.status, car.plate_number, car.location, car.health_score);
+	for (const car of initialCars) insertStmt.run(car.id, car.name, car.brand, car.model, car.year, car.type, car.price_per_day, car.price_per_hour, car.image, car.gallery, car.rating, car.reviews_count, car.seats, car.transmission, car.fuel_type, car.mileage, car.luggage, car.features, car.description, car.is_popular, car.status, car.plate_number, car.location, car.health_score, car.vat_rate || 18);
 	console.log(`[DB] Seeded ${initialCars.length} vehicles into database.`);
 }
 function seedUsers() {
@@ -41335,7 +41346,8 @@ function formatCarRow(row, fallbackHub, fallbackLat, fallbackLng) {
 		garageAddress: cleanGarageAddress,
 		garageLat: Number(row.garage_lat) || fallbackLat || 17.4586,
 		garageLng: Number(row.garage_lng) || fallbackLng || 78.3606,
-		garageBay: row.garage_bay || "Bay 14-B"
+		garageBay: row.garage_bay || "Bay 14-B",
+		vatRate: row.vat_rate != null && !isNaN(Number(row.vat_rate)) ? Number(row.vat_rate) : 18
 	};
 }
 function parseBookingDateSort(val) {
@@ -41912,15 +41924,15 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
       image, gallery, rating, reviews_count, seats, transmission, fuel_type,
       mileage, luggage, features, description, is_popular, status, plate_number, location, health_score,
       insurance_policy, insurance_provider, insurance_expiry, purchase_date, purchase_cost, current_odometer,
-      garage_name, garage_address, garage_lat, garage_lng, garage_bay
+      garage_name, garage_address, garage_lat, garage_lng, garage_bay, vat_rate
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?
     )
-  `).run(newId, car.name || "Custom Vehicle", car.brand || "Toyota", car.model || "Camry", Number(car.year) || 2024, car.type || "Sedan", Number(car.pricePerDay) || 50, Number(car.pricePerHour) || 7, Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", galleryJson, Number(car.rating) || 5, Number(car.reviewsCount) || 1, Number(car.seats) || 5, car.transmission || "Automatic", car.fuelType || "Petrol", car.mileage || "45 Liters", car.luggage || "3 Bags", featuresJson, car.description || "Premium rental vehicle.", car.isPopular ? 1 : 0, car.status || "Available", car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`, car.location || "Operating Fleet Hub", Number(car.healthScore) || 98, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || (/* @__PURE__ */ new Date()).toISOString().split("T")[0], Number(car.purchaseCost) || 32500, Number(car.currentOdometer) || 14200, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1");
+  `).run(newId, car.name || "Custom Vehicle", car.brand || "Toyota", car.model || "Camry", Number(car.year) || 2024, car.type || "Sedan", Number(car.pricePerDay) || 50, Number(car.pricePerHour) || 7, Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80", galleryJson, Number(car.rating) || 5, Number(car.reviewsCount) || 1, Number(car.seats) || 5, car.transmission || "Automatic", car.fuelType || "Petrol", car.mileage || "45 Liters", car.luggage || "3 Bags", featuresJson, car.description || "Premium rental vehicle.", car.isPopular ? 1 : 0, car.status || "Available", car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`, car.location || "Operating Fleet Hub", Number(car.healthScore) || 98, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || (/* @__PURE__ */ new Date()).toISOString().split("T")[0], Number(car.purchaseCost) || 32500, Number(car.currentOdometer) || 14200, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18);
 	const created = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(newId);
 	return res.status(201).json(formatCarRow(created));
 });
@@ -41938,9 +41950,10 @@ app.put("/api/cars/:id", requireAdmin, async (req, res) => {
       plate_number = ?, location = ?, health_score = ?,
       insurance_policy = ?, insurance_provider = ?, insurance_expiry = ?,
       purchase_date = ?, purchase_cost = ?, current_odometer = ?,
-      garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?
+      garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?,
+      vat_rate = ?
     WHERE id = ?
-  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay) || 50, Number(car.pricePerHour) || Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)), Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", carId);
+  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay) || 50, Number(car.pricePerHour) || Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)), Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18, carId);
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json(formatCarRow(updated));
 });

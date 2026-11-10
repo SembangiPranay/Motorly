@@ -29,7 +29,10 @@ export default function AdminWalkinView({
 
   const selectedCar = availableCars.find((c) => c.id === selectedCarId)
   const dailyRate = selectedCar?.pricePerDay || 50
-  const totalPrice = dailyRate * totalDays
+  const vatRate = selectedCar?.vatRate != null ? selectedCar.vatRate : 18
+  const baseRental = dailyRate * totalDays
+  const vatAmount = Number((baseRental * (vatRate / 100)).toFixed(2))
+  const totalPrice = Number((baseRental + vatAmount).toFixed(2))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -198,7 +201,7 @@ export default function AdminWalkinView({
                 Calculated Counter Rate
               </span>
               <div className="text-xs text-stone-600 mt-0.5">
-                {totalDays} day{totalDays > 1 ? "s" : ""} × €{dailyRate}/day
+                {totalDays} day{totalDays > 1 ? "s" : ""} × €{dailyRate}/day (€{baseRental}) + {vatRate}% VAT (€{vatAmount.toFixed(2)})
               </div>
             </div>
             <div className="text-right">

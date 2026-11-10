@@ -274,7 +274,11 @@ export default function CarDetailView({
     promoApplied && discountPercent > 0 ? 1 - discountPercent / 100 : 1.0
   const discountedBase = Number((baseRental * discountMultiplier).toFixed(2))
   const promoDiscountAmount = Number((baseRental - discountedBase).toFixed(2))
-  const taxes = Number((discountedBase * 0.1).toFixed(2)) // 10% standard tax
+  const vatPercent =
+    car?.vatRate != null && !isNaN(Number(car.vatRate))
+      ? Number(car.vatRate)
+      : 18
+  const taxes = Number((discountedBase * (vatPercent / 100)).toFixed(2))
   const grandTotal = Number((discountedBase + taxes).toFixed(2))
 
   const handleApplyPromo = async () => {
@@ -1160,7 +1164,7 @@ export default function CarDetailView({
                 </div>
               )}
               <div className="flex justify-between">
-                <span>Estimated Taxes &amp; Fees (10%)</span>
+                <span>Estimated Taxes &amp; Fees (VAT {vatPercent}%)</span>
                 <span className="font-semibold text-gray-900">
                   €{taxes.toFixed(2)}
                 </span>

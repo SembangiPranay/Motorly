@@ -41,6 +41,7 @@ export const CARS: Car[] = [
     plateNumber: "FL-882-MTR",
     location: "Main Garage Facility",
     healthScore: 98,
+    vatRate: 10,
   },
   {
     id: "honda-crv",
@@ -80,6 +81,7 @@ export const CARS: Car[] = [
     plateNumber: "FL-319-MTR",
     location: "Main Garage Facility",
     healthScore: 95,
+    vatRate: 15,
   },
   {
     id: "tesla-model-3",
@@ -119,6 +121,7 @@ export const CARS: Car[] = [
     plateNumber: "FL-904-EV",
     location: "Downtown Miami",
     healthScore: 99,
+    vatRate: 5,
   },
   {
     id: "jeep-wrangler",
@@ -157,6 +160,7 @@ export const CARS: Car[] = [
     plateNumber: "FL-511-MTR",
     location: "Main Garage Facility",
     healthScore: 91,
+    vatRate: 18,
   },
   {
     id: "bmw-3-series",
@@ -195,6 +199,7 @@ export const CARS: Car[] = [
     plateNumber: "CA-782-LUX",
     location: "Los Angeles International (LAX)",
     healthScore: 97,
+    vatRate: 20,
   },
   {
     id: "honda-accord",

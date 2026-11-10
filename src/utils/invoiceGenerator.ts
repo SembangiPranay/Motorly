@@ -372,10 +372,15 @@ export async function generateBookingInvoicePng(
   const damageNotes = booking.checklistIn?.damageNotes || ""
 
   const baseRate = car?.pricePerDay || 45
+  const vatPercent =
+    car?.vatRate != null && !isNaN(Number(car.vatRate))
+      ? Number(car.vatRate)
+      : 18
+  const vatFactor = vatPercent / 100
   // Base rental and tax calculation excluding damage fee
   const subtotalBeforeDamage = Math.max(0, total - damageFee)
-  const baseCharge = Number((subtotalBeforeDamage * 0.82).toFixed(2))
-  const taxCharge = Number((subtotalBeforeDamage * 0.18).toFixed(2))
+  const baseCharge = Number((subtotalBeforeDamage / (1 + vatFactor)).toFixed(2))
+  const taxCharge = Number((subtotalBeforeDamage - baseCharge).toFixed(2))
 
   // Row 1: Primary Vehicle Rental
   ctx.textAlign = "left"
@@ -408,7 +413,7 @@ export async function generateBookingInvoicePng(
   ctx.fillText("Hub Concession & State Highway Rental Tax", 75, finY + 155)
   ctx.fillStyle = "#78716C"
   ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillText("18% Standard Tier Tax", 680, finY + 155)
+  ctx.fillText(`${vatPercent}% Vehicle VAT & Concession Fee`, 680, finY + 155)
   ctx.textAlign = "right"
   ctx.fillStyle = "#1C1917"
   ctx.font = "bold 14px monospace"
