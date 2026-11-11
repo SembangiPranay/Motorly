@@ -1044,6 +1044,84 @@ app.post("/api/auth/verify", async (req, res) => {
   return res.json({ authenticated: true, role: "admin", user: decoded })
 })
 
+// Change Admin Passcode / Password
+app.post("/api/auth/change-admin-password", requireAdmin, async (req, res) => {
+  const { currentPassword, newPassword } = req.body
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: "Both current password and new password are required.",
+    })
+  }
+
+  if (typeof newPassword !== "string" || newPassword.trim().length < 4) {
+    return res.status(400).json({
+      success: false,
+      message: "New password must be at least 4 characters.",
+    })
+  }
+
+  // 1. Verify current password
+  let isCurrentValid = false
+  const adminUser = (await db
+    .prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1")
+    .get()) as any
+
+  if (adminUser && adminUser.password_hash) {
+    if (
+      adminUser.password_hash.startsWith("$2a$") ||
+      adminUser.password_hash.startsWith("$2b$")
+    ) {
+      isCurrentValid = await bcrypt.compare(
+        currentPassword,
+        adminUser.password_hash,
+      )
+    } else {
+      isCurrentValid = currentPassword === adminUser.password_hash
+    }
+  }
+
+  if (!isCurrentValid && ADMIN_PASSWORD) {
+    isCurrentValid = currentPassword === ADMIN_PASSWORD
+  }
+
+  if (!isCurrentValid) {
+    return res.status(401).json({
+      success: false,
+      message: "Current password does not match.",
+    })
+  }
+
+  // 2. Hash new password with bcrypt
+  const newHash = await bcrypt.hash(newPassword.trim(), 10)
+
+  // 3. Update database
+  try {
+    if (db.isSupabase && db.pool) {
+      await db.pool.query(
+        "UPDATE users SET password_hash = $1 WHERE role = 'admin'",
+        [newHash],
+      )
+    } else {
+      await db
+        .prepare("UPDATE users SET password_hash = ? WHERE role = 'admin'")
+        .run(newHash)
+    }
+
+    console.log("[Admin Security] Admin password updated successfully.")
+    return res.json({
+      success: true,
+      message: "Admin password updated successfully.",
+    })
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Database update failed: " + err.message,
+    })
+  }
+})
+
 /* ==========================================
    CUSTOMER AUTHENTICATION & PROFILE (JWT + bcrypt)
    ========================================== */

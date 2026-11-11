@@ -100,9 +100,19 @@ export default function AdminLoginModal({
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter administrator password..."
+              placeholder="Enter admin passcode (default: 0709)"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm tracking-widest text-center font-bold focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent transition-all"
             />
+            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+              <span>Default Passcode: <strong className="text-orange-600 font-mono">0709</strong></span>
+              <button
+                type="button"
+                onClick={() => setPassword("0709")}
+                className="text-orange-600 hover:text-orange-700 font-semibold underline underline-offset-2 transition cursor-pointer"
+              >
+                Auto-fill 0709
+              </button>
+            </div>
           </div>
 
           <button

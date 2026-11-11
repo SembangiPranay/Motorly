@@ -1681,9 +1681,9 @@ function seedUsers() {
     },
     {
       id: "usr_admin",
-      email: "admin@motorly.com",
+      email: "admin@pitstopcarhire.com",
       password_hash: bcrypt.hashSync(
-        process.env.ADMIN_PASSWORD || "Admin#Enterprise2026",
+        process.env.ADMIN_PASSWORD || "0709",
         10,
       ),
       name: "Fleet Operations Admin",

@@ -40969,8 +40969,8 @@ function seedUsers() {
 		},
 		{
 			id: "usr_admin",
-			email: "admin@motorly.com",
-			password_hash: bcryptjs_default.hashSync(process.env.ADMIN_PASSWORD || "Admin#Enterprise2026", 10),
+			email: "admin@pitstopcarhire.com",
+			password_hash: bcryptjs_default.hashSync(process.env.ADMIN_PASSWORD || "0709", 10),
 			name: "Fleet Operations Admin",
 			phone: "+1 (800) 555-0199",
 			driver_license_num: "ADM-9901-FL",
@@ -41747,6 +41747,43 @@ app.post("/api/auth/verify", async (req, res) => {
 		role: "admin",
 		user: decoded
 	});
+});
+app.post("/api/auth/change-admin-password", requireAdmin, async (req, res) => {
+	const { currentPassword, newPassword } = req.body;
+	if (!currentPassword || !newPassword) return res.status(400).json({
+		success: false,
+		message: "Both current password and new password are required."
+	});
+	if (typeof newPassword !== "string" || newPassword.trim().length < 4) return res.status(400).json({
+		success: false,
+		message: "New password must be at least 4 characters."
+	});
+	let isCurrentValid = false;
+	const adminUser = await db.prepare("SELECT * FROM users WHERE role = 'admin' LIMIT 1").get();
+	if (adminUser && adminUser.password_hash) {
+		if (adminUser.password_hash.startsWith("$2a$") || adminUser.password_hash.startsWith("$2b$")) isCurrentValid = await bcryptjs_default.compare(currentPassword, adminUser.password_hash);
+		else isCurrentValid = currentPassword === adminUser.password_hash;
+	}
+	if (!isCurrentValid && ADMIN_PASSWORD) isCurrentValid = currentPassword === ADMIN_PASSWORD;
+	if (!isCurrentValid) return res.status(401).json({
+		success: false,
+		message: "Current password does not match."
+	});
+	const newHash = await bcryptjs_default.hash(newPassword.trim(), 10);
+	try {
+		if (db.isSupabase && db.pool) await db.pool.query("UPDATE users SET password_hash = $1 WHERE role = 'admin'", [newHash]);
+		else await db.prepare("UPDATE users SET password_hash = ? WHERE role = 'admin'").run(newHash);
+		console.log("[Admin Security] Admin password updated successfully.");
+		return res.json({
+			success: true,
+			message: "Admin password updated successfully."
+		});
+	} catch (err) {
+		return res.status(500).json({
+			success: false,
+			message: "Database update failed: " + err.message
+		});
+	}
 });
 app.post("/api/auth/register", async (req, res) => {
 	const { email, password, name, phone, driverLicenseNum, driverLicenseState, driverLicenseExpiry } = req.body;

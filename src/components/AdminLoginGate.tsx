@@ -13,6 +13,7 @@ export default function AdminLoginGate({
   onNavigateHome,
 }: AdminLoginGateProps) {
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -74,14 +75,27 @@ export default function AdminLoginGate({
               </span>
             </div>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoFocus
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin passcode"
+              placeholder="Enter admin passcode (default: 0709)"
               className="w-full px-4 py-3 rounded-xl bg-stone-800/90 border border-stone-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono tracking-wider placeholder:text-stone-500"
             />
+            <div className="mt-2.5 flex items-center justify-between text-[11px] text-stone-400">
+              <span className="flex items-center gap-1.5 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                Default Passcode: <strong className="text-orange-300 font-mono">0709</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setPassword("0709")}
+                className="text-orange-400 hover:text-orange-300 font-semibold underline underline-offset-2 transition cursor-pointer"
+              >
+                Auto-fill 0709
+              </button>
+            </div>
           </div>
 
           <button

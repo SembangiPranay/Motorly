@@ -8,6 +8,9 @@ import {
   CheckIcon,
   GlobeIcon,
   LogOutIcon,
+  LockIcon,
+  ShieldIcon,
+  KeyIcon,
 } from "../../components/Icons"
 
 interface AdminSettingsViewProps {
@@ -29,6 +32,16 @@ export default function AdminSettingsView({
   const [lng, setLng] = useState(-80.287)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Security & Password Management State
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -73,6 +86,40 @@ export default function AdminSettingsView({
       alert("Failed to save settings: " + (err?.message || "Unknown error"))
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    if (newPassword.trim().length < 4) {
+      setPasswordError("New passcode must be at least 4 characters long.")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passcode and confirmation do not match.")
+      return
+    }
+
+    setIsUpdatingPassword(true)
+    try {
+      const res = await api.changeAdminPassword(currentPassword, newPassword)
+      if (res.success) {
+        setPasswordSuccess(res.message || "Admin master passcode updated successfully!")
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+        onShowToast("Admin master passcode updated successfully!")
+      } else {
+        setPasswordError(res.message || "Failed to update admin passcode.")
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || "Network error updating admin passcode.")
+    } finally {
+      setIsUpdatingPassword(false)
     }
   }
 
@@ -227,6 +274,138 @@ export default function AdminSettingsView({
           </button>
         </div>
       </form>
+
+      {/* Console Security & Master Admin Passcode Card */}
+      <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-stone-100 gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+              <LockIcon size={16} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-stone-900">Console Security &amp; Master Admin Passcode</h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Manage authorization credentials to unlock the Fleet Operations Dispatch Console.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 inline-flex items-center gap-1.5 self-start sm:self-center">
+            <ShieldIcon size={12} className="text-emerald-600" />
+            Salted Bcrypt (10 rounds) + JWT
+          </span>
+        </div>
+
+        {/* Active Account Overview */}
+        <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">
+              Active Administrator Identity
+            </span>
+            <span className="font-bold text-stone-900 font-mono">admin@pitstopcarhire.com</span>
+            <span className="text-stone-500 ml-2">(Master Fleet Director)</span>
+          </div>
+          <div className="text-right sm:text-right">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">
+              Active Access Method
+            </span>
+            <span className="text-stone-700 font-mono text-[11px]">Passcode Entry / JWT 24h Session</span>
+          </div>
+        </div>
+
+        {passwordError && (
+          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold animate-shake">
+            {passwordError}
+          </div>
+        )}
+
+        {passwordSuccess && (
+          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+            <CheckIcon size={14} className="text-emerald-600 shrink-0" />
+            <span>{passwordSuccess}</span>
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordChange} className="space-y-4 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Current Passcode */}
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                Current Passcode *
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrent ? "text" : "password"}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="e.g. 0709"
+                  className="w-full h-9 pl-3 pr-12 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-[11px] font-semibold cursor-pointer"
+                >
+                  {showCurrent ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            {/* New Passcode */}
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                New Passcode *
+              </label>
+              <div className="relative">
+                <input
+                  type={showNew ? "text" : "password"}
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min. 4 characters"
+                  className="w-full h-9 pl-3 pr-12 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew(!showNew)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-[11px] font-semibold cursor-pointer"
+                >
+                  {showNew ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm New Passcode */}
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                Confirm Passcode *
+              </label>
+              <input
+                type={showNew ? "text" : "password"}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-type new passcode"
+                className="w-full h-9 px-3 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            <span className="text-[11px] text-stone-400 font-mono">
+              Default factory passcode: <strong className="text-stone-600">0709</strong>
+            </span>
+            <button
+              type="submit"
+              disabled={isUpdatingPassword || !currentPassword || !newPassword || !confirmPassword}
+              className="px-5 py-2.5 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-40 cursor-pointer"
+            >
+              <KeyIcon size={14} className="text-orange-400" />
+              <span>{isUpdatingPassword ? "Updating Passcode..." : "Update Master Passcode"}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

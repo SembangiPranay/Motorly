@@ -399,6 +399,38 @@ class ApiService {
     localStorage.removeItem("motorly_admin_user")
   }
 
+  async changeAdminPassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await this.request(
+        "/auth/change-admin-password",
+        {
+          method: "POST",
+          body: JSON.stringify({ currentPassword, newPassword }),
+        },
+        "admin",
+      )
+      const data = await this.safeJson(res, null)
+      if (!res.ok || !data) {
+        return {
+          success: false,
+          message:
+            data?.message ||
+            data?.error ||
+            `Failed to update password (HTTP ${res.status}).`,
+        }
+      }
+      return data
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Network error updating admin password.",
+      }
+    }
+  }
+
   async verifyAdminSession(): Promise<boolean> {
     const token = localStorage.getItem("motorly_admin_token")
     if (!token) return false
