@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import type { Car } from "../types"
 import { ArrowLeftIcon, PlusIcon, SparklesIcon } from "../components/Icons"
 import ComparePresets from "./customer/ComparePresets"
@@ -75,18 +75,27 @@ export default function CompareView({
   ])
 
   const activeComparedCars = useMemo(() => {
-    const valid = (cars || []).filter(
-      (c) => Boolean(c) && compareIds.includes(c.id),
-    )
-    if (valid.length >= 2) return valid
-    if (valid.length === 1) {
+    // Preserve the exact order of car IDs in compareIds
+    const ordered = compareIds
+      .map((id) => (cars || []).find((c) => c && c.id === id))
+      .filter((c): c is Car => Boolean(c))
+
+    if (ordered.length >= 2) return ordered.slice(0, 4)
+    if (ordered.length === 1) {
       const other = (cars || []).find(
-        (c) => Boolean(c) && c.id !== valid[0].id,
+        (c) => Boolean(c) && c.id !== ordered[0].id,
       )
-      return other ? [valid[0], other] : valid
+      return other ? [ordered[0], other] : ordered
     }
     return (cars || []).filter(Boolean).slice(0, 2)
   }, [cars, compareIds])
+
+  // Synchronize compareIds in parent state with activeComparedCars so state is never stale or empty
+  useEffect(() => {
+    if (compareIds.length < 2 && activeComparedCars.length >= 2) {
+      setCompareIds(activeComparedCars.map((c) => c.id))
+    }
+  }, [compareIds.length, activeComparedCars, setCompareIds])
 
   const mobileCars = useMemo(() => {
     if (activeComparedCars.length <= 2)
@@ -109,11 +118,23 @@ export default function CompareView({
       ),
     )
     if (matched.length >= 2) {
-      setCompareIds(matched.map((m) => m.id))
+      setCompareIds(matched.slice(0, 4).map((m) => m.id))
     } else {
       setCompareIds(cars.slice(0, 2).map((c) => c.id))
     }
     setMobilePairIndex([0, 1])
+  }
+
+  const handleAddCar = (newCarId: string) => {
+    setCompareIds((prev) => {
+      // Use currently displayed cars as the baseline so existing compared cars are never lost
+      const currentIds = activeComparedCars.map((c) => c.id)
+      const base = currentIds.length >= 2 ? currentIds : prev
+      if (base.includes(newCarId)) return base
+      if (base.length >= 4) return base
+      return [...base, newCarId]
+    })
+    setSwapModalState({ isOpen: false })
   }
 
   const handleRemoveCar = (carId: string) => {
@@ -127,14 +148,20 @@ export default function CompareView({
       }
       return
     }
-    setCompareIds((prev) => prev.filter((id) => id !== carId))
+    setCompareIds((prev) => {
+      const currentIds = activeComparedCars.map((c) => c.id)
+      const base = currentIds.length >= 2 ? currentIds : prev
+      return base.filter((id) => id !== carId)
+    })
   }
 
   const handleSwapCar = (oldCarId: string, newCarId: string) => {
     setCompareIds((prev) => {
-      const filtered = prev.filter((id) => id !== oldCarId)
-      return [...filtered, newCarId]
+      const currentIds = activeComparedCars.map((c) => c.id)
+      const base = currentIds.length >= 2 ? currentIds : prev
+      return base.map((id) => (id === oldCarId ? newCarId : id))
     })
+    setSwapModalState({ isOpen: false })
   }
 
   const priceWinner = useMemo(() => {
@@ -266,13 +293,13 @@ export default function CompareView({
         isAdding={swapModalState.isAdding}
         targetCarId={swapModalState.targetCarId}
         cars={cars}
-        compareIds={compareIds}
+        compareIds={activeComparedCars.map((c) => c.id)}
         searchQuery={modalSearchQuery}
         setSearchQuery={setModalSearchQuery}
         onClose={() => setSwapModalState({ isOpen: false })}
         onSelectCar={(newCarId) => {
           if (swapModalState.isAdding) {
-            setCompareIds((prev) => [...prev, newCarId])
+            handleAddCar(newCarId)
           } else if (swapModalState.targetCarId) {
             handleSwapCar(swapModalState.targetCarId, newCarId)
           }

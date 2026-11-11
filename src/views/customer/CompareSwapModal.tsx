@@ -34,9 +34,7 @@ export default function CompareSwapModal({
       c.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.type.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const notAlreadyCompared = isAdding
-      ? !compareIds.includes(c.id)
-      : c.id !== targetCarId
+    const notAlreadyCompared = !compareIds.includes(c.id)
 
     return matchQuery && notAlreadyCompared
   })

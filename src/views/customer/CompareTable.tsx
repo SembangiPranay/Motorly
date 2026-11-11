@@ -307,12 +307,16 @@ export default function CompareTable({
                 {/* Empty Add Slot Column if < 4 */}
                 {activeComparedCars.length < 4 && (
                   <th className="p-5 w-48 align-middle text-center border-l border-stone-200 bg-stone-50/40">
-                    <div className="p-5 border-2 border-dashed border-stone-200 hover:border-orange-300 rounded-xl text-center space-y-3 transition">
-                      <div className="w-10 h-10 rounded-full bg-orange-50 text-[#F97316] flex items-center justify-center mx-auto">
+                    <div
+                      onClick={onAddCar}
+                      className="p-5 border-2 border-dashed border-stone-200 hover:border-orange-400 hover:bg-orange-50/30 rounded-xl text-center space-y-3 transition cursor-pointer group"
+                      title="Add another vehicle to compare side by side"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-orange-50 text-[#F97316] group-hover:bg-[#F97316] group-hover:text-white flex items-center justify-center mx-auto transition shadow-2xs">
                         <PlusIcon size={20} />
                       </div>
                       <div>
-                        <p className="font-bold text-xs text-stone-800">
+                        <p className="font-bold text-xs text-stone-800 group-hover:text-[#F97316] transition">
                           Add Vehicle
                         </p>
                         <p className="text-[10px] text-stone-400 mt-0.5">
@@ -321,8 +325,11 @@ export default function CompareTable({
                       </div>
                       <button
                         type="button"
-                        onClick={onAddCar}
-                        className="w-full py-1.5 rounded-lg bg-white hover:bg-orange-50 border border-stone-200 hover:border-orange-300 text-xs font-bold text-[#F97316] shadow-2xs transition cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddCar()
+                        }}
+                        className="w-full py-1.5 rounded-lg bg-white hover:bg-orange-500 hover:text-white border border-stone-200 hover:border-orange-500 text-xs font-bold text-[#F97316] shadow-2xs transition cursor-pointer"
                       >
                         + Pick Vehicle
                       </button>
