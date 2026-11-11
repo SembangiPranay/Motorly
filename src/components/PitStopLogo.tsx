@@ -1,9 +1,12 @@
 import React from "react"
 
-interface PitStopLogoProps {
+export interface PitStopLogoProps {
   size?: "sm" | "md" | "lg" | "xl"
   showText?: boolean
   subtitle?: string
+  caption?: string
+  layout?: "horizontal" | "grounded" | "stacked" | "unified-card"
+  singleLine?: boolean
   className?: string
   theme?: "light" | "dark" | "orange"
   variant?: "badge" | "minimal"
@@ -18,6 +21,9 @@ export default function PitStopLogo({
   size = "md",
   showText = true,
   subtitle = "Car Hire • Malta",
+  caption,
+  layout = "horizontal",
+  singleLine = false,
   className = "",
   theme = "orange",
   variant = "badge",
@@ -25,12 +31,12 @@ export default function PitStopLogo({
   // Dimension tokens tailored to authentic 3.63:1 aspect ratio
   const dimensions =
     size === "sm"
-      ? { width: 42, height: 12, boxClass: "px-2 py-1", titleClass: "text-xs", subClass: "text-[8px]" }
+      ? { width: 42, height: 12, boxClass: "px-2 py-1", titleClass: "text-xs", subClass: "text-[8px]", capClass: "text-[7.5px]" }
       : size === "lg"
-      ? { width: 78, height: 22, boxClass: "px-3 py-2", titleClass: "text-lg", subClass: "text-[10px]" }
+      ? { width: 78, height: 22, boxClass: "px-3 py-2", titleClass: "text-lg", subClass: "text-[10px]", capClass: "text-[9px]" }
       : size === "xl"
-      ? { width: 110, height: 31, boxClass: "px-4 py-2.5", titleClass: "text-2xl", subClass: "text-xs" }
-      : { width: 56, height: 16, boxClass: "px-2.5 py-1.5", titleClass: "text-sm sm:text-base", subClass: "text-[9px]" }
+      ? { width: 110, height: 31, boxClass: "px-4 py-2.5", titleClass: "text-2xl", subClass: "text-xs", capClass: "text-[10px]" }
+      : { width: 56, height: 16, boxClass: "px-2.5 py-1.5", titleClass: "text-sm sm:text-base", subClass: "text-[9px]", capClass: "text-[8.5px]" }
 
   const carColorClass =
     theme === "dark"
@@ -44,50 +50,131 @@ export default function PitStopLogo({
       ? "text-white"
       : "text-[#17191C]"
 
-  return (
-    <div className={`flex items-center gap-2.5 select-none ${className}`}>
-      {/* 1:1 Authentic F1 Aerodynamic Silhouette */}
-      {variant === "badge" ? (
-        <div
-          className={`${dimensions.boxClass} bg-[#141619] rounded-xl flex items-center justify-center shrink-0 shadow-xs border border-stone-800/90 group-hover:border-orange-500/50 transition-colors`}
-          title="Pit Stop Car Hire (Mgarr, Malta)"
-        >
-          <svg
-            viewBox="5.8 13.7 174.5 51.0"
-            fill="currentColor"
-            fillRule="evenodd"
-            className={`${carColorClass} transition-transform duration-300 group-hover:scale-105`}
-            style={{ width: dimensions.width, height: dimensions.height }}
-          >
-            <path d={PIT_STOP_F1_PATH} />
-          </svg>
-        </div>
-      ) : (
-        <svg
-          viewBox="5.8 13.7 174.5 51.0"
-          fill="currentColor"
-          fillRule="evenodd"
-          className={`${carColorClass} shrink-0`}
-          style={{ width: dimensions.width, height: dimensions.height }}
-        >
-          <path d={PIT_STOP_F1_PATH} />
-        </svg>
-      )}
+  const dividerColorClass =
+    theme === "light"
+      ? "border-white/20"
+      : "border-stone-200/80"
 
-      {showText && (
-        <div className="flex flex-col justify-center leading-tight">
-          <span
-            className={`${dimensions.titleClass} font-black tracking-tight ${titleColorClass} font-heading`}
-          >
-            PIT STOP
-          </span>
-          {subtitle && (
-            <span
-              className={`${dimensions.subClass} font-extrabold tracking-[0.22em] uppercase text-orange-600 mt-0.5`}
-            >
-              {subtitle}
+  const captionColorClass =
+    theme === "light"
+      ? "text-stone-300"
+      : "text-stone-600"
+
+  // 1:1 F1 Vector Element
+  const carSvg = (
+    <svg
+      viewBox="5.8 13.7 174.5 51.0"
+      fill="currentColor"
+      fillRule="evenodd"
+      className={`${carColorClass} transition-transform duration-300 group-hover:scale-105 shrink-0`}
+      style={{ width: dimensions.width, height: dimensions.height }}
+    >
+      <path d={PIT_STOP_F1_PATH} />
+    </svg>
+  )
+
+  const carBadge =
+    variant === "badge" ? (
+      <div
+        className={`${dimensions.boxClass} bg-[#141619] rounded-xl flex items-center justify-center shrink-0 shadow-xs border border-stone-800/90 group-hover:border-orange-500/50 transition-colors`}
+        title="Pit Stop Car Hire (Mgarr, Malta)"
+      >
+        {carSvg}
+      </div>
+    ) : (
+      carSvg
+    )
+
+  // Layout 1: Stacked Centered Racing Crest (Car on top, wording directly below it)
+  if (layout === "stacked") {
+    return (
+      <div className={`flex flex-col items-center text-center select-none ${className}`}>
+        {carBadge}
+        {showText && (
+          <div className="flex flex-col items-center mt-2 leading-tight">
+            <span className={`${dimensions.titleClass} font-black tracking-tight ${titleColorClass} font-heading`}>
+              PIT STOP
             </span>
-          )}
+            {subtitle && (
+              <span className={`${dimensions.subClass} font-extrabold tracking-[0.25em] uppercase text-orange-600 mt-0.5`}>
+                {subtitle}
+              </span>
+            )}
+            {caption && (
+              <div className={`w-full flex items-center justify-center gap-2 mt-2 pt-1 border-t ${dividerColorClass}`}>
+                <span className={`${dimensions.capClass} font-bold tracking-[0.2em] uppercase ${captionColorClass}`}>
+                  {caption}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Layout 2: Unified Motorsport Chassis Card
+  if (layout === "unified-card") {
+    return (
+      <div className={`bg-[#141619] rounded-xl p-3 border border-stone-800 shadow-sm flex flex-col items-center select-none ${className}`}>
+        <div className="flex items-center gap-3">
+          {carSvg}
+          <div className="flex flex-col">
+            <span className="text-sm font-black text-white tracking-tight">PIT STOP</span>
+            <span className="text-[9px] font-extrabold tracking-[0.2em] uppercase text-orange-500">
+              {subtitle || "Car Hire"}
+            </span>
+          </div>
+        </div>
+        {caption && (
+          <div className="w-full mt-2 pt-1.5 border-t border-stone-800/80 flex items-center justify-center text-[8.5px] font-bold tracking-[0.18em] uppercase text-stone-400">
+            {caption}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Layout 3: Grounded (or Horizontal with balancing baseline caption directly below it)
+  const isGrounded = layout === "grounded" || Boolean(caption)
+
+  return (
+    <div className={`flex flex-col select-none ${className}`}>
+      {/* Top Branding Lockup */}
+      <div className="flex items-center gap-2.5">
+        {carBadge}
+
+        {showText && (
+          singleLine ? (
+            <div className="flex items-baseline gap-1.5 leading-none">
+              <span className={`${dimensions.titleClass} font-black tracking-tight ${titleColorClass} font-heading`}>
+                PIT STOP
+              </span>
+              {subtitle && (
+                <span className={`${dimensions.subClass} font-extrabold tracking-[0.16em] uppercase text-orange-600`}>
+                  {subtitle}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col justify-center leading-tight">
+              <span className={`${dimensions.titleClass} font-black tracking-tight ${titleColorClass} font-heading`}>
+                PIT STOP
+              </span>
+              {subtitle && (
+                <span className={`${dimensions.subClass} font-extrabold tracking-[0.22em] uppercase text-orange-600 mt-0.5`}>
+                  {subtitle}
+                </span>
+              )}
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Balancing Caption directly down below the logo! */}
+      {isGrounded && caption && (
+        <div className={`mt-2 pt-1.5 border-t ${dividerColorClass} flex items-center justify-between text-[8.5px] sm:text-[9px] font-bold tracking-[0.18em] uppercase ${captionColorClass}`}>
+          <span>{caption}</span>
         </div>
       )}
     </div>

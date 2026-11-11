@@ -157,7 +157,12 @@ export default function CustomerSidebar({
             onClick={() => handleItemClick("home")}
             className="cursor-pointer select-none group"
           >
-            <PitStopLogo size="md" subtitle="Car Hire • Malta" />
+            <PitStopLogo
+              size="md"
+              subtitle="Car Hire"
+              caption="36 Triq Il-Kbira • Mgarr, Malta"
+              layout="grounded"
+            />
           </div>
 
           {onCloseMobile && (

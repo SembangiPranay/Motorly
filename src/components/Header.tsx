@@ -132,9 +132,9 @@ export default function Header({
           {/* Logo (Visible on mobile/tablet; hidden on desktop where persistent sidebar already shows logo) */}
           <div
             onClick={() => onNavigate("home")}
-            className="cursor-pointer select-none group"
+            className="cursor-pointer select-none group lg:hidden"
           >
-            <PitStopLogo size="md" subtitle="Car Hire • Mgarr" />
+            <PitStopLogo size="sm" subtitle="Car Hire" singleLine={true} caption="Mgarr, Malta" />
           </div>
 
           {/* Desktop Navigation Links - Compact & responsive for 14" & 16" laptops */}
