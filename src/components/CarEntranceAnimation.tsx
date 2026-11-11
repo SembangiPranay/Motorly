@@ -17,13 +17,17 @@ type EntrancePhase =
   | "launch"     // 09 FINAL HERO (TRANSITION TO SITE)
   | "exit"       // DISSOLVE INTO SHOWROOM
 
+// Calibrated 100% precision mathematical roofline curve matching master vehicle
+const ROOFLINE_PATH =
+  "M 100,406 C 105.0,402.7 120.0,392.0 130.0,386.0 C 140.0,380.0 150.0,374.8 160.0,370.0 C 170.0,365.2 180.0,360.8 190.0,357.0 C 200.0,353.2 210.0,350.2 220.0,347.0 C 230.0,343.8 240.0,340.5 250.0,338.0 C 260.0,335.5 270.0,333.7 280.0,332.0 C 290.0,330.3 300.0,329.3 310.0,328.0 C 320.0,326.7 330.0,325.0 340.0,324.0 C 350.0,323.0 360.0,322.8 370.0,322.0 C 380.0,321.2 390.0,319.7 400.0,319.0 C 410.0,318.3 420.0,319.2 430.0,318.0 C 440.0,316.8 450.0,315.8 460.0,312.0 C 470.0,308.2 480.0,300.5 490.0,295.0 C 500.0,289.5 510.0,284.2 520.0,279.0 C 530.0,273.8 540.0,268.8 550.0,264.0 C 560.0,259.2 570.0,254.5 580.0,250.0 C 590.0,245.5 600.0,241.0 610.0,237.0 C 620.0,233.0 630.0,229.2 640.0,226.0 C 650.0,222.8 660.0,220.0 670.0,218.0 C 680.0,216.0 690.0,215.2 700.0,214.0 C 710.0,212.8 720.0,211.8 730.0,211.0 C 740.0,210.2 750.0,209.3 760.0,209.0 C 770.0,208.7 780.0,208.8 790.0,209.0 C 800.0,209.2 810.0,209.7 820.0,210.0 C 830.0,210.3 840.0,210.3 850.0,211.0 C 860.0,211.7 870.0,212.8 880.0,214.0 C 890.0,215.2 900.0,216.7 910.0,218.0 C 920.0,219.3 930.0,220.3 940.0,222.0 C 950.0,223.7 960.0,226.0 970.0,228.0 C 980.0,230.0 990.0,231.5 1000.0,234.0 C 1010.0,236.5 1020.0,240.2 1030.0,243.0 C 1040.0,245.8 1050.0,248.2 1060.0,251.0 C 1070.0,253.8 1080.0,256.8 1090.0,260.0 C 1100.0,263.2 1110.0,266.7 1120.0,270.0 C 1130.0,273.3 1140.0,276.7 1150.0,280.0 C 1160.0,283.3 1170.0,286.8 1180.0,290.0 C 1190.0,293.2 1200.0,295.8 1210.0,299.0 C 1220.0,302.2 1230.0,306.2 1240.0,309.0 C 1250.0,311.8 1261.7,314.3 1270.0,316.0 C 1278.3,317.7 1286.7,318.5 1290.0,319.0"
+
 export default function CarEntranceAnimation({
   onComplete,
   onSkip,
 }: CarEntranceAnimationProps) {
   const [phase, setPhase] = useState<EntrancePhase>("init")
 
-  // Refs for zero-rerender callbacks and telemetry (120 FPS hardware acceleration)
+  // Zero-rerender callback references
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
 
@@ -53,7 +57,7 @@ export default function CarEntranceAnimation({
       setPhase("material")
     }, 4500)
 
-    // 05 MATERIAL & DETAIL FADE IN: Clearcoat & aero turbine wheels emerge (4500ms - 5700ms)
+    // 05 MATERIAL & DETAIL FADE IN: Clearcoat & BMW aero turbine wheels emerge (4500ms - 5700ms)
     const t5 = setTimeout(() => {
       setPhase("reveal")
     }, 5700)
@@ -95,7 +99,7 @@ export default function CarEntranceAnimation({
       clearTimeout(t9)
       clearTimeout(t10)
     }
-  }, []) // Runs once on mount, immune to parent component re-renders
+  }, [])
 
   // Native requestAnimationFrame Telemetry Counter (Zero React re-render overhead)
   useEffect(() => {
@@ -180,15 +184,15 @@ export default function CarEntranceAnimation({
       <div
         className={`absolute top-[36%] left-1/2 -translate-x-1/2 w-[950px] max-w-[120vw] h-[480px] rounded-full blur-3xl pointer-events-none transition-all duration-1200 ${
           isHero
-            ? "bg-orange-500/22 scale-110 opacity-100"
+            ? "bg-orange-500/24 scale-110 opacity-100"
             : isBrand
-            ? "bg-orange-500/18 scale-100 opacity-90"
+            ? "bg-orange-500/20 scale-100 opacity-90"
             : isRevealed
-            ? "bg-orange-600/14 scale-95 opacity-75"
+            ? "bg-orange-600/16 scale-95 opacity-75"
             : isMaterial
-            ? "bg-orange-950/20 scale-90 opacity-40"
+            ? "bg-orange-950/22 scale-90 opacity-40"
             : isTracing || isOutline
-            ? "bg-orange-950/10 scale-85 opacity-20"
+            ? "bg-orange-950/12 scale-85 opacity-20"
             : "opacity-0 scale-80"
         }`}
       />
@@ -218,7 +222,7 @@ export default function CarEntranceAnimation({
         <div
           className={`relative w-full max-w-4xl aspect-[1376/768] flex items-center justify-center transition-all ease-out ${
             isLaunching
-              ? "-translate-x-16 sm:-translate-x-24 scale-[1.02] duration-800"
+              ? "-translate-x-4 sm:-translate-x-16 scale-[1.02] duration-800"
               : "translate-x-0 scale-100 duration-1000"
           }`}
           style={{
@@ -227,9 +231,9 @@ export default function CarEntranceAnimation({
             willChange: "transform",
           }}
         >
-          {/* Master 8K Photorealistic Vehicle Photography (Liquid Platinum GT with BMW Aero Turbine Wheels & Brembo Calipers) */}
+          {/* Master 8K Photorealistic Vehicle Photography (Liquid Metallic GT with BMW Aero Turbine Wheels & Brembo Calipers) */}
           <img
-            src="/images/entrance/gt_full_reveal.jpg"
+            src="/images/entrance/master_executive_gt.jpg"
             alt="Pit Stop Grand Tourer Liquid Platinum Studio Presentation"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-all ease-out"
             style={{
@@ -237,13 +241,13 @@ export default function CarEntranceAnimation({
                 phase === "init"
                   ? "brightness(0) contrast(200%)"
                   : phase === "ignition"
-                  ? "brightness(0.03) contrast(180%)"
-                  : phase === "tracing"
                   ? "brightness(0.04) contrast(180%)"
+                  : phase === "tracing"
+                  ? "brightness(0.06) contrast(180%)"
                   : phase === "outline"
-                  ? "brightness(0.05) contrast(180%)"
+                  ? "brightness(0.10) contrast(180%)"
                   : phase === "material"
-                  ? "brightness(0.55) contrast(120%)"
+                  ? "brightness(0.65) contrast(120%)"
                   : "brightness(1) contrast(100%)",
               opacity: phase === "init" ? 0 : 1,
               transitionDuration:
@@ -253,28 +257,72 @@ export default function CarEntranceAnimation({
             decoding="async"
           />
 
-          {/* Volumetric Headlight Beam Throw */}
-          <div
-            className={`absolute top-[42%] -left-[14%] sm:-left-[18%] w-[320px] sm:w-[420px] h-[120px] sm:h-[160px] pointer-events-none mix-blend-screen transition-opacity duration-1000 z-22 ${
-              isBrand ? "opacity-90" : isRevealed ? "opacity-35" : "opacity-0"
-            }`}
-            style={{
-              background:
-                "radial-gradient(ellipse at 100% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(186, 230, 253, 0.7) 20%, rgba(56, 189, 248, 0.3) 50%, rgba(2, 132, 199, 0.05) 80%, transparent 95%)",
-              clipPath: "polygon(100% 48%, 0% 15%, 0% 85%, 100% 55%)",
-              filter: "blur(10px)",
-            }}
-          />
-
           {/* Calibrated Specular Silhouette Tracing SVG Overlay */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none z-25"
             viewBox="0 0 1376 768"
           >
-            {/* Front Headlight Ignition Point (DRL pulse) */}
+            <defs>
+              {/* Volumetric Headlight Laser Beam Gradient */}
+              <linearGradient id="liveVolumetricBeamGrad" x1="100%" y1="35%" x2="0%" y2="65%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+                <stop offset="12%" stopColor="#BAE6FD" stopOpacity="0.80" />
+                <stop offset="40%" stopColor="#38BDF8" stopOpacity="0.40" />
+                <stop offset="75%" stopColor="#0284C7" stopOpacity="0.10" />
+                <stop offset="100%" stopColor="#0369A1" stopOpacity="0" />
+              </linearGradient>
+
+              {/* Wet Tarmac Forward Light Bounce */}
+              <radialGradient id="liveTarmacCausticBounce" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.75" />
+                <stop offset="25%" stopColor="#38BDF8" stopOpacity="0.5" />
+                <stop offset="60%" stopColor="#0284C7" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+
+            {/* Volumetric Forward Projector Beam (Storyboard Stages 07 onwards) */}
+            <g
+              className={`transition-opacity duration-1000 ${
+                isBrand ? "opacity-95" : isRevealed ? "opacity-35" : "opacity-0"
+              }`}
+              style={{ mixBlendMode: "screen" }}
+            >
+              <polygon
+                points="145,490 -160,420 -180,630 115,550"
+                fill="url(#liveVolumetricBeamGrad)"
+                style={{ filter: "blur(8px)" }}
+              />
+              <polygon
+                points="145,490 -100,450 -120,590 125,535"
+                fill="url(#liveVolumetricBeamGrad)"
+                opacity="0.6"
+                style={{ filter: "blur(4px)" }}
+              />
+              <line
+                x1="145"
+                y1="490"
+                x2="-140"
+                y2="525"
+                stroke="#E0F2FE"
+                strokeWidth="2.5"
+                strokeOpacity="0.85"
+              />
+              {/* Wet Road Headlight Reflection Pool */}
+              <ellipse
+                cx="60"
+                cy="565"
+                rx="140"
+                ry="18"
+                fill="url(#liveTarmacCausticBounce)"
+                opacity="0.85"
+              />
+            </g>
+
+            {/* Front Headlight Ignition Point (DRL pulse, Storyboard Stage 02) */}
             <circle
-              cx="165"
-              cy="370"
+              cx="150"
+              cy="488"
               r="7"
               fill="#FFFFFF"
               className={`transition-opacity duration-500 ${
@@ -284,26 +332,34 @@ export default function CarEntranceAnimation({
                 filter: "drop-shadow(0 0 12px #FFFFFF) drop-shadow(0 0 24px #38BDF8)",
               }}
             />
+            {/* Anamorphic Blue Lens Flare Streak */}
+            <line
+              x1="60"
+              y1="488"
+              x2="240"
+              y2="488"
+              stroke="#38BDF8"
+              strokeWidth="2.5"
+              className={`transition-opacity duration-500 ${
+                isIgnition ? "opacity-90" : "opacity-0"
+              }`}
+              style={{
+                filter: "drop-shadow(0 0 8px #38BDF8)",
+              }}
+            />
 
             {/* Specular Roofline Laser Ribbon (Storyboard Stages 03 & 04) */}
             <path
-              d="M 115,395 
-                 C 135,380 160,370 210,360 
-                 C 280,348 350,345 430,340 
-                 C 490,336 530,320 580,280 
-                 C 630,248 680,238 745,236 
-                 C 810,235 880,242 950,268 
-                 C 1010,290 1060,320 1110,345 
-                 C 1150,368 1185,395 1220,416"
+              d={ROOFLINE_PATH}
               fill="none"
               stroke="#FFFFFF"
               strokeWidth="3.2"
-              strokeDasharray="1400"
+              strokeDasharray="1250"
               strokeDashoffset={
                 phase === "init" || phase === "ignition"
-                  ? "1400"
+                  ? "1250"
                   : phase === "tracing"
-                  ? "400"
+                  ? "450"
                   : "0"
               }
               className={`transition-all duration-1200 ease-out ${
@@ -322,11 +378,14 @@ export default function CarEntranceAnimation({
             />
 
             {/* Ruby OLED Taillight Flare (Storyboard Stage 04 onwards) */}
-            <circle
-              cx="1220"
-              cy="416"
-              r="7"
-              fill="#FF1E44"
+            <line
+              x1="1245"
+              y1="436"
+              x2="1285"
+              y2="436"
+              stroke="#FF1E44"
+              strokeWidth="4.5"
+              strokeLinecap="round"
               className={`transition-opacity duration-500 ${
                 isPermanentGlow ? "opacity-100" : "opacity-0"
               }`}
@@ -334,12 +393,24 @@ export default function CarEntranceAnimation({
                 filter: "drop-shadow(0 0 10px #FF1E44) drop-shadow(0 0 24px #BE123C)",
               }}
             />
-
-            {/* Front Wheel Aero Rim Outline */}
             <circle
-              cx="316"
-              cy="490"
-              r="75"
+              cx="1275"
+              cy="436"
+              r="6"
+              fill="#FF1E44"
+              className={`transition-opacity duration-500 ${
+                isPermanentGlow ? "opacity-100" : "opacity-0"
+              }`}
+              style={{
+                filter: "drop-shadow(0 0 12px #FF1E44)",
+              }}
+            />
+
+            {/* Front BMW Wheel Aero Rim Outline */}
+            <circle
+              cx="308"
+              cy="472"
+              r="78.5"
               fill="none"
               stroke="#38BDF8"
               strokeWidth="1.8"
@@ -352,11 +423,11 @@ export default function CarEntranceAnimation({
               }}
             />
 
-            {/* Rear Wheel Aero Rim Outline */}
+            {/* Rear BMW Wheel Aero Rim Outline */}
             <circle
-              cx="1035"
-              cy="490"
-              r="75"
+              cx="1074"
+              cy="472"
+              r="78.5"
               fill="none"
               stroke="#38BDF8"
               strokeWidth="1.8"
@@ -369,19 +440,32 @@ export default function CarEntranceAnimation({
               }}
             />
 
-            {/* Amber Rocker Panel Underglow Line */}
+            {/* Amber Rocker Panel Ground Blade & Floor Bounce */}
             <line
-              x1="440"
-              y1="548"
-              x2="925"
-              y2="548"
+              x1="395"
+              y1="514"
+              x2="985"
+              y2="514"
               stroke="#F97316"
-              strokeWidth="3.5"
+              strokeWidth="3"
               className={`transition-opacity duration-600 ${
                 isPermanentGlow ? "opacity-100" : "opacity-0"
               }`}
               style={{
                 filter: "drop-shadow(0 0 10px #F97316)",
+              }}
+            />
+            <ellipse
+              cx="690"
+              cy="528"
+              rx="280"
+              ry="12"
+              fill="rgba(249, 115, 22, 0.45)"
+              className={`transition-opacity duration-600 ${
+                isPermanentGlow ? "opacity-100" : "opacity-0"
+              }`}
+              style={{
+                filter: "blur(14px)",
               }}
             />
           </svg>

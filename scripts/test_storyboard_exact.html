@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Storyboard Exact 9-Stage Alignment Verification</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .viewport {
+      position: relative;
+      width: 1376px;
+      height: 768px;
+      background: #000;
+      overflow: hidden;
+    }
+    .car-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    svg.overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events-none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="viewport">
+    <img id="car" class="car-img" src="../public/images/entrance/gt_full_reveal.jpg" />
+    
+    <svg class="overlay" viewBox="0 0 1376 768">
+      <!-- Sub-pixel calibrated roofline curve v4 -->
+      <path
+        id="roofline"
+        d="M 115,520 
+           C 140,500 170,485 220,470 
+           C 300,455 390,442 470,432 
+           C 530,375 610,318 730,305 
+           C 810,302 880,312 950,338 
+           C 1020,370 1080,410 1140,445 
+           C 1175,465 1200,475 1215,480"
+        fill="none"
+        stroke="#ffffff"
+        stroke-width="3.5"
+        filter="drop-shadow(0 0 6px #ffffff) drop-shadow(0 0 14px #38bdf8)"
+      />
+      <!-- Headlight DRL pulse -->
+      <circle cx="165" cy="485" r="7" fill="#ffffff" filter="drop-shadow(0 0 10px #38bdf8)" />
+      <!-- Taillight Ruby OLED flare -->
+      <circle cx="1215" cy="480" r="7" fill="#ff1e44" filter="drop-shadow(0 0 12px #ff1e44)" />
+      <!-- Front wheel aero rim outline -->
+      <circle cx="316" cy="490" r="75" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" filter="drop-shadow(0 0 6px #38bdf8)" />
+      <!-- Rear wheel aero rim outline -->
+      <circle cx="1035" cy="490" r="75" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" filter="drop-shadow(0 0 6px #38bdf8)" />
+      <!-- Rocker panel underglow line -->
+      <line x1="440" y1="548" x2="925" y2="548" stroke="#f97316" stroke-width="3.5" filter="drop-shadow(0 0 10px #f97316)" />
+    </svg>
+  </div>
+</body>
+</html>

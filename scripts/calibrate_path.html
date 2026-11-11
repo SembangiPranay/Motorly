@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Exact Smooth Curve Calibration</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .viewport { position: relative; width: 1376px; height: 768px; }
+    .car-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div class="viewport">
+    <img id="car" class="car-img" src="../public/images/entrance/gt_full_reveal.jpg" />
+    <svg viewBox="0 0 1376 768">
+      <!-- Sub-pixel calibrated silhouette curve v8 -->
+      <path
+        id="roofline"
+        d="M 115,395 
+           C 135,380 160,370 210,360 
+           C 280,348 350,345 430,340 
+           C 490,336 530,320 580,280 
+           C 630,248 680,238 745,236 
+           C 810,235 880,242 950,268 
+           C 1010,290 1060,320 1110,345 
+           C 1150,368 1185,395 1220,416"
+        fill="none"
+        stroke="#ffffff"
+        stroke-width="3"
+        filter="drop-shadow(0 0 6px #ffffff) drop-shadow(0 0 16px #38bdf8)"
+      />
+      <!-- Headlight DRL pulse -->
+      <circle cx="165" cy="370" r="7" fill="#ffffff" filter="drop-shadow(0 0 10px #38bdf8)" />
+      <!-- Taillight Ruby OLED flare -->
+      <circle cx="1220" cy="416" r="7" fill="#ff1e44" filter="drop-shadow(0 0 14px #ff1e44)" />
+      <!-- Front wheel aero rim outline -->
+      <circle cx="316" cy="490" r="75" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" filter="drop-shadow(0 0 6px #38bdf8)" />
+      <!-- Rear wheel aero rim outline -->
+      <circle cx="1035" cy="490" r="75" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" filter="drop-shadow(0 0 6px #38bdf8)" />
+      <!-- Rocker panel underglow line -->
+      <line x1="440" y1="548" x2="925" y2="548" stroke="#f97316" stroke-width="3.5" filter="drop-shadow(0 0 10px #f97316)" />
+    </svg>
+  </div>
+</body>
+</html>

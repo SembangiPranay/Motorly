@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pit Stop Storyboard Entrance Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 32px;
+      user-select: none;
+    }
+
+    /* Ambient Softbox Halo */
+    .ambient-halo {
+      position: absolute;
+      top: 36%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 950px;
+      height: 480px;
+      background: radial-gradient(ellipse, rgba(249, 115, 22, 0.22) 0%, rgba(13, 16, 23, 0.6) 45%, transparent 75%);
+      pointer-events-none;
+      transition: opacity 1.2s ease, transform 1.2s ease;
+      z-index: 5;
+    }
+
+    /* Top Navigation Bar */
+    .top-bar {
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 40;
+    }
+    .brand-watermark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #94A3B8;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .skip-btn {
+      padding: 6px 20px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #E2E8F0;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s;
+    }
+
+    /* Vehicle Stage */
+    .car-stage {
+      position: relative;
+      width: 100%;
+      max-width: 1120px;
+      aspect-ratio: 1376 / 768;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
+    }
+
+    .master-car-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events-none;
+      transition: filter 1.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 1.2s ease;
+    }
+
+    /* SVG Overlay with Specular Light Effects */
+    .specular-svg-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events-none;
+      z-index: 25;
+    }
+
+    @keyframes laserDraw {
+      0% { stroke-dashoffset: 1400; opacity: 0; }
+      10% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { stroke-dashoffset: 0; opacity: 0.85; }
+    }
+    .laser-line-anim {
+      stroke-dasharray: 1400;
+      animation: laserDraw 2.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Headlight Beam Cone */
+    .headlight-beam {
+      position: absolute;
+      top: 42%;
+      left: -18%;
+      width: 380px;
+      height: 150px;
+      background: radial-gradient(ellipse at 100% 50%, rgba(255, 255, 255, 0.95) 0%, rgba(186, 230, 253, 0.7) 20%, rgba(56, 189, 248, 0.3) 50%, rgba(2, 132, 199, 0.05) 80%, transparent 95%);
+      clip-path: polygon(100% 48%, 0% 15%, 0% 85%, 100% 55%);
+      filter: blur(10px);
+      pointer-events-none;
+      mix-blend-mode: screen;
+      z-index: 22;
+      transition: opacity 0.8s ease;
+    }
+
+    /* Overhead PS Crest */
+    .ps-crest {
+      position: absolute;
+      top: 6%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Bottom End-Screen UI */
+    .bottom-hero {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 40;
+      margin-bottom: 8px;
+      transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .clean-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(15, 20, 28, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 6px 22px;
+      border-radius: 9999px;
+      backdrop-filter: blur(14px);
+      font-family: monospace;
+      font-size: 11px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      margin-bottom: 8px;
+    }
+
+    .brand-title {
+      font-size: 46px;
+      font-weight: 900;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      background: linear-gradient(to right, #FFFFFF 15%, #FED7AA 60%, #F97316 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      filter: drop-shadow(0 2px 16px rgba(249, 115, 22, 0.45));
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-family: monospace;
+      letter-spacing: 0.42em;
+      color: #94A3B8;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 260px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      margin-top: 14px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, #EA580C, #F97316, #FFFFFF);
+      border-radius: 9999px;
+      transition: width 0.8s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <!-- 1. Ambient Halo -->
+  <div id="halo" class="ambient-halo" style="opacity: 0;"></div>
+
+  <!-- 2. Top Watermark & Skip -->
+  <div class="top-bar">
+    <div class="brand-watermark">
+      <span style="width:8px; height:8px; border-radius:50%; background:#F97316; display:inline-block; box-shadow:0 0 10px #F97316;"></span>
+      PIT STOP CAR HIRE • PRESTIGE & EXECUTIVE FLEET
+    </div>
+    <button class="skip-btn">Skip Intro &rarr;</button>
+  </div>
+
+  <!-- 3. Center Vehicle Stage -->
+  <div id="carStage" class="car-stage">
+    <!-- Master 8K Photorealistic Vehicle -->
+    <img
+      id="masterCar"
+      src="../public/images/entrance/gt_full_reveal.jpg"
+      class="master-car-img"
+      style="filter: brightness(0) contrast(200%); opacity: 0.95;"
+    />
+
+    <!-- Volumetric Headlight Beam Throw -->
+    <div id="headlightBeam" class="headlight-beam" style="opacity: 0;"></div>
+
+    <!-- Specular Laser Tracing SVG Overlay -->
+    <svg class="specular-svg-overlay" viewBox="0 0 1376 768">
+      <!-- Front Edge Ignition Flare -->
+      <circle
+        id="frontIgnition"
+        cx="165"
+        cy="370"
+        r="7"
+        fill="#ffffff"
+        filter="drop-shadow(0 0 12px #ffffff) drop-shadow(0 0 24px #38bdf8)"
+        style="opacity: 0; transition: opacity 0.5s ease;"
+      />
+
+      <!-- Specular Roofline Laser Ribbon -->
+      <path
+        id="rooflineLaser"
+        d="M 115,395 
+           C 135,380 160,370 210,360 
+           C 280,348 350,345 430,340 
+           C 490,336 530,320 580,280 
+           C 630,248 680,238 745,236 
+           C 810,235 880,242 950,268 
+           C 1010,290 1060,320 1110,345 
+           C 1150,368 1185,395 1220,416"
+        fill="none"
+        stroke="#ffffff"
+        stroke-width="3"
+        filter="drop-shadow(0 0 6px #ffffff) drop-shadow(0 0 16px #38bdf8)"
+        style="opacity: 0;"
+      />
+
+      <!-- Ruby OLED Taillight Flare -->
+      <circle
+        id="taillightFlare"
+        cx="1220"
+        cy="416"
+        r="7"
+        fill="#ff1e44"
+        filter="drop-shadow(0 0 10px #ff1e44) drop-shadow(0 0 24px #be123c)"
+        style="opacity: 0; transition: opacity 0.5s ease;"
+      />
+
+      <!-- Front Wheel Aero Rim Outline -->
+      <circle
+        id="frontWheelRim"
+        cx="316"
+        cy="490"
+        r="75"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="1.8"
+        stroke-dasharray="6 4"
+        filter="drop-shadow(0 0 6px #38bdf8)"
+        style="opacity: 0; transition: opacity 0.6s ease;"
+      />
+
+      <!-- Rear Wheel Aero Rim Outline -->
+      <circle
+        id="rearWheelRim"
+        cx="1035"
+        cy="490"
+        r="75"
+        fill="none"
+        stroke="#38bdf8"
+        stroke-width="1.8"
+        stroke-dasharray="6 4"
+        filter="drop-shadow(0 0 6px #38bdf8)"
+        style="opacity: 0; transition: opacity 0.6s ease;"
+      />
+
+      <!-- Amber Rocker Panel Underglow -->
+      <line
+        id="rockerGlow"
+        x1="440"
+        y1="548"
+        x2="925"
+        y2="548"
+        stroke="#f97316"
+        stroke-width="3.5"
+        filter="drop-shadow(0 0 10px #f97316)"
+        style="opacity: 0; transition: opacity 0.6s ease;"
+      />
+    </svg>
+
+    <!-- Overhead PS Hexagon Crest -->
+    <div id="psCrest" class="ps-crest" style="opacity: 0; transform: translateX(-50%) scale(0.85);">
+      <svg width="48" height="54" viewBox="-24 -28 48 56">
+        <polygon
+          points="0,-26 22,-13 22,13 0,26 -22,13 -22,-13"
+          fill="none"
+          stroke="#F97316"
+          stroke-width="5"
+          stroke-opacity="0.3"
+        />
+        <polygon
+          points="0,-26 22,-13 22,13 0,26 -22,13 -22,-13"
+          fill="rgba(10, 13, 20, 0.95)"
+          stroke="#F97316"
+          stroke-width="2"
+        />
+        <text
+          x="0"
+          y="5"
+          text-anchor="middle"
+          fill="#FFFFFF"
+          font-size="14"
+          font-weight="900"
+          font-family="sans-serif"
+          letter-spacing="1"
+        >
+          PS
+        </text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- 4. Clean High-End End-Screen UI -->
+  <div id="bottomHero" class="bottom-hero" style="opacity: 0; transform: translateY(12px);">
+    <!-- Minimalist Cockpit Telemetry Status Pill -->
+    <div class="clean-pill">
+      <span style="width:7px; height:7px; border-radius:50%; background:#10B981; display:inline-block; box-shadow:0 0 8px #10B981;"></span>
+      <span style="color:#38BDF8; font-weight:700;">AIR LEVEL 0 (GT LOW)</span>
+      <span style="color:#64748B;">•</span>
+      <span style="color:#F97316; font-weight:700;">GT CRUISE</span>
+      <span style="color:#64748B;">•</span>
+      <span id="rangeVal" style="color:#F1F5F9; font-weight:700;">640 KM RANGE</span>
+      <span style="color:#64748B;">•</span>
+      <span style="color:#10B981; font-weight:700; letter-spacing:0.1em;">FLEET READY</span>
+    </div>
+
+    <!-- Hero Title -->
+    <h1 class="brand-title">PIT STOP</h1>
+
+    <!-- Clean Subtitle -->
+    <p class="brand-sub">PRESTIGE & EXECUTIVE FLEET • 36 TRIQ IL-KBIRA, MGARR, MALTA</p>
+
+    <!-- Bottom Progress Track -->
+    <div class="progress-track">
+      <div id="progressBar" class="progress-bar" style="width: 15%;"></div>
+    </div>
+  </div>
+
+  <script>
+    // Set specific stage for testing
+    window.setStage = function(stage) {
+      const car = document.getElementById("masterCar");
+      const frontIgnition = document.getElementById("frontIgnition");
+      const roofline = document.getElementById("rooflineLaser");
+      const taillight = document.getElementById("taillightFlare");
+      const frontRim = document.getElementById("frontWheelRim");
+      const rearRim = document.getElementById("rearWheelRim");
+      const rocker = document.getElementById("rockerGlow");
+      const halo = document.getElementById("halo");
+      const crest = document.getElementById("psCrest");
+      const beam = document.getElementById("headlightBeam");
+      const bottom = document.getElementById("bottomHero");
+      const pbar = document.getElementById("progressBar");
+      const carStage = document.getElementById("carStage");
+
+      if (stage === 1) { // 01 INIT - COMPLETE DARKNESS
+        car.style.filter = "brightness(0) contrast(200%)";
+        car.style.opacity = "0";
+        frontIgnition.style.opacity = "0";
+        roofline.style.opacity = "0";
+        taillight.style.opacity = "0";
+        frontRim.style.opacity = "0";
+        rearRim.style.opacity = "0";
+        rocker.style.opacity = "0";
+        halo.style.opacity = "0";
+        crest.style.opacity = "0";
+        beam.style.opacity = "0";
+        bottom.style.opacity = "0";
+        pbar.style.width = "10%";
+      } else if (stage === 2) { // 02 FRONT EDGE IGNITION
+        car.style.filter = "brightness(0.03) contrast(180%)";
+        car.style.opacity = "0.9";
+        frontIgnition.style.opacity = "1";
+        roofline.style.opacity = "0";
+        taillight.style.opacity = "0";
+        frontRim.style.opacity = "0.4";
+        rearRim.style.opacity = "0";
+        rocker.style.opacity = "0";
+        halo.style.opacity = "0";
+        crest.style.opacity = "0";
+        beam.style.opacity = "0";
+        bottom.style.opacity = "0";
+        pbar.style.width = "22%";
+      } else if (stage === 3) { // 03 SILHOUETTE TRACING
+        car.style.filter = "brightness(0.04) contrast(180%)";
+        car.style.opacity = "1";
+        frontIgnition.style.opacity = "1";
+        roofline.style.opacity = "1";
+        roofline.classList.add("laser-line-anim");
+        taillight.style.opacity = "0";
+        frontRim.style.opacity = "0.7";
+        rearRim.style.opacity = "0.3";
+        rocker.style.opacity = "0";
+        halo.style.opacity = "0.15";
+        crest.style.opacity = "0";
+        beam.style.opacity = "0";
+        bottom.style.opacity = "0";
+        pbar.style.width = "38%";
+      } else if (stage === 4) { // 04 FULL OUTLINE REVEAL
+        car.style.filter = "brightness(0.05) contrast(180%)";
+        car.style.opacity = "1";
+        frontIgnition.style.opacity = "1";
+        roofline.style.opacity = "1";
+        roofline.style.strokeDashoffset = "0";
+        taillight.style.opacity = "1";
+        frontRim.style.opacity = "0.8";
+        rearRim.style.opacity = "0.8";
+        rocker.style.opacity = "1";
+        halo.style.opacity = "0.3";
+        crest.style.opacity = "0";
+        beam.style.opacity = "0";
+        bottom.style.opacity = "0";
+        pbar.style.width = "52%";
+      } else if (stage === 5) { // 05 MATERIAL & DETAIL FADE IN
+        car.style.filter = "brightness(0.55) contrast(120%)";
+        car.style.opacity = "1";
+        frontIgnition.style.opacity = "1";
+        roofline.style.opacity = "0.7";
+        roofline.style.strokeDashoffset = "0";
+        taillight.style.opacity = "1";
+        frontRim.style.opacity = "0.6";
+        rearRim.style.opacity = "0.6";
+        rocker.style.opacity = "1";
+        halo.style.opacity = "0.6";
+        crest.style.opacity = "0";
+        beam.style.opacity = "0.2";
+        bottom.style.opacity = "0";
+        pbar.style.width = "68%";
+      } else if (stage === 6) { // 06 COMPLETE VEHICLE REVEAL
+        car.style.filter = "brightness(1) contrast(100%)";
+        car.style.opacity = "1";
+        frontIgnition.style.opacity = "0.3";
+        roofline.style.opacity = "0.2";
+        roofline.style.strokeDashoffset = "0";
+        taillight.style.opacity = "1";
+        frontRim.style.opacity = "0";
+        rearRim.style.opacity = "0";
+        rocker.style.opacity = "1";
+        halo.style.opacity = "0.85";
+        crest.style.opacity = "0";
+        beam.style.opacity = "0.4";
+        bottom.style.opacity = "0";
+        pbar.style.width = "78%";
+      } else if (stage === 7) { // 07 BRAND ELEMENTS APPEAR
+        car.style.filter = "brightness(1) contrast(100%)";
+        car.style.opacity = "1";
+        frontIgnition.style.opacity = "0";
+        roofline.style.opacity = "0";
+        taillight.style.opacity = "1";
+        frontRim.style.opacity = "0";
+        rearRim.style.opacity = "0";
+        rocker.style.opacity = "1";
+        halo.style.opacity = "1";
+        crest.style.opacity = "1";
+        crest.style.transform = "translateX(-50%) scale(1)";
+        beam.style.opacity = "0.9";
+        bottom.style.opacity = "0";
+        pbar.style.width = "85%";
+      } else if (stage === 8) { // 08 BRAND + DETAILS REVEAL
+        car.style.filter = "brightness(1) contrast(100%)";
+        car.style.opacity = "1";
+        frontIgnition.style.opacity = "0";
+        roofline.style.opacity = "0";
+        taillight.style.opacity = "1";
+        frontRim.style.opacity = "0";
+        rearRim.style.opacity = "0";
+        rocker.style.opacity = "1";
+        halo.style.opacity = "1";
+        crest.style.opacity = "1";
+        crest.style.transform = "translateX(-50%) scale(1)";
+        beam.style.opacity = "0.9";
+        bottom.style.opacity = "1";
+        bottom.style.transform = "translateY(0)";
+        pbar.style.width = "94%";
+      } else if (stage === 9) { // 09 FINAL HERO (TRANSITION TO SITE)
+        car.style.filter = "brightness(1) contrast(100%)";
+        car.style.opacity = "0.85";
+        frontIgnition.style.opacity = "0";
+        roofline.style.opacity = "0";
+        taillight.style.opacity = "1";
+        frontRim.style.opacity = "0";
+        rearRim.style.opacity = "0";
+        rocker.style.opacity = "1";
+        halo.style.opacity = "1";
+        crest.style.opacity = "1";
+        beam.style.opacity = "1";
+        bottom.style.opacity = "1";
+        bottom.style.transform = "translateY(0)";
+        pbar.style.width = "100%";
+        carStage.style.transform = "translateX(-50px) scale(1.02)";
+      }
+    };
+  </script>
+</body>
+</html>
