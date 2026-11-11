@@ -5,6 +5,7 @@ interface CustomerData {
   lastName: string
   email: string
   phone: string
+  idNumber?: string
 }
 
 interface CheckoutCustomerFormProps {
@@ -23,11 +24,14 @@ export default function CheckoutCustomerForm({
           1
         </span>
         <div>
-          <h2 className="text-base font-bold text-[#17191C] font-heading">
-            Primary Customer Information
+          <h2 className="text-base font-bold text-[#17191C] font-heading flex items-center gap-2">
+            <span>Primary Client Information</span>
+            <span className="text-[10px] uppercase font-mono font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full border border-orange-200">
+              Pit Stop Agreement Header
+            </span>
           </h2>
-          <p className="text-[11px] text-stone-400">
-            Confirmation vouchers and garage pickup notifications are delivered to this address.
+          <p className="text-[11px] text-stone-500">
+            Entered onto official Pit Stop Car Hire rental manifest and booking contract.
           </p>
         </div>
       </div>
@@ -40,6 +44,7 @@ export default function CheckoutCustomerForm({
           <input
             type="text"
             required
+            placeholder="e.g. John"
             value={customer.firstName}
             onChange={(e) =>
               setCustomer((prev) => ({ ...prev, firstName: e.target.value }))
@@ -55,6 +60,7 @@ export default function CheckoutCustomerForm({
           <input
             type="text"
             required
+            placeholder="e.g. Borg"
             value={customer.lastName}
             onChange={(e) =>
               setCustomer((prev) => ({ ...prev, lastName: e.target.value }))
@@ -64,30 +70,57 @@ export default function CheckoutCustomerForm({
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-700 mb-1.5">
-            Email Address <span className="text-rose-500">*</span>
+          <label className="block text-xs font-bold text-stone-700 mb-1.5 flex items-center justify-between">
+            <span>
+              Mob Number <span className="text-rose-500">*</span>
+            </span>
+            <span className="text-[10px] text-stone-400 font-normal">
+              Malta / International
+            </span>
           </label>
           <input
-            type="email"
+            type="tel"
             required
-            value={customer.email}
+            placeholder="+356 9982 7192"
+            value={customer.phone}
             onChange={(e) =>
-              setCustomer((prev) => ({ ...prev, email: e.target.value }))
+              setCustomer((prev) => ({ ...prev, phone: e.target.value }))
             }
             className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-stone-50/50 text-stone-900"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-700 mb-1.5">
-            Phone Number <span className="text-rose-500">*</span>
+          <label className="block text-xs font-bold text-stone-700 mb-1.5 flex items-center justify-between">
+            <span>
+              ID / Passport Number <span className="text-stone-400 font-normal">(Optional)</span>
+            </span>
+            <span className="text-[10px] font-mono text-stone-400">
+              Form field &ldquo;ID:&rdquo;
+            </span>
           </label>
           <input
-            type="tel"
-            required
-            value={customer.phone}
+            type="text"
+            placeholder="e.g. 0123456M or Passport #"
+            value={customer.idNumber || ""}
             onChange={(e) =>
-              setCustomer((prev) => ({ ...prev, phone: e.target.value }))
+              setCustomer((prev) => ({ ...prev, idNumber: e.target.value }))
+            }
+            className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-stone-50/50 text-stone-900"
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-bold text-stone-700 mb-1.5">
+            Email Address <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="email"
+            required
+            placeholder="customer@example.com"
+            value={customer.email}
+            onChange={(e) =>
+              setCustomer((prev) => ({ ...prev, email: e.target.value }))
             }
             className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-stone-50/50 text-stone-900"
           />

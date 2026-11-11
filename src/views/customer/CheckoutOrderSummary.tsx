@@ -8,6 +8,7 @@ import {
   ArrowRightIcon,
   AlertTriangleIcon,
   ShieldIcon,
+  LocationIcon,
 } from "../../components/Icons"
 
 interface PricingResult {
@@ -45,6 +46,11 @@ interface CheckoutOrderSummaryProps {
   isValidatingPromo: boolean
   conflict: ConflictData | null
   submitting: boolean
+  deliveryFee?: number
+  returnFee?: number
+  optionalServicesCost?: number
+  selectedOptionalServices?: string[]
+  securityDeposit?: number
   onApplyPromo: () => void
   onRemovePromo: () => void
   onOpenScheduleModal: () => void
@@ -72,39 +78,70 @@ export default function CheckoutOrderSummary({
   isValidatingPromo,
   conflict,
   submitting,
+  deliveryFee = 0,
+  returnFee = 0,
+  optionalServicesCost = 0,
+  selectedOptionalServices = [],
+  securityDeposit = 700,
   onApplyPromo,
   onRemovePromo,
   onOpenScheduleModal,
   onOpenLegalModal,
 }: CheckoutOrderSummaryProps) {
+  const regNumber = car.plateNumber || "MTR-8842"
+
   return (
     <div className="lg:col-span-4 sticky top-28 space-y-4">
       <div className="bg-white rounded-xl border border-stone-200/90 p-5 sm:p-6 shadow-sm space-y-5">
-        <h3 className="font-heading font-extrabold text-base text-[#17191C] border-b border-stone-100 pb-3">
-          Rental Summary
-        </h3>
-
-        {/* Vehicle Mini Card */}
-        <div className="flex items-center gap-3 bg-stone-50 p-3 rounded-xl border border-stone-200/70">
-          <div className="w-16 h-12 rounded-lg overflow-hidden bg-white flex-shrink-0 border border-stone-200 flex items-center justify-center">
-            <img
-              src={car.image}
-              alt={car.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h4 className="font-bold text-sm text-stone-900 truncate font-heading">
-              {car.name}
-            </h4>
-            <p className="text-[10px] text-stone-500">
-              {car.type} • {car.transmission} • {car.fuelType}
+        {/* Header matching the paper banner */}
+        <div className="border-b border-stone-100 pb-3 flex items-start justify-between">
+          <div>
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-orange-600 block">
+              Official Rental Agreement
+            </span>
+            <h3 className="font-heading font-extrabold text-lg text-[#17191C]">
+              PIT STOP CAR HIRE
+            </h3>
+            <p className="text-[11px] text-stone-500">
+              36 Triq Il-Kbira, Mgarr • 99827192 / 99804255
             </p>
+          </div>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-stone-900 text-white shrink-0">
+            Malta &amp; Gozo
+          </span>
+        </div>
+
+        {/* Hiring & REG (Vehicle Mini Card) */}
+        <div className="bg-stone-50 p-3 rounded-xl border border-stone-200/70 space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-12 rounded-lg overflow-hidden bg-white flex-shrink-0 border border-stone-200 flex items-center justify-center">
+              <img
+                src={car.image}
+                alt={car.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[10px] font-mono text-stone-500 uppercase tracking-wider">
+                  Hiring:
+                </span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200">
+                  REG: {regNumber}
+                </span>
+              </div>
+              <h4 className="font-bold text-sm text-stone-900 truncate font-heading">
+                {car.name}
+              </h4>
+              <p className="text-[10px] text-stone-500">
+                {car.type} • {car.transmission} • {car.fuelType}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Itinerary */}
-        <div className="space-y-3 text-xs border-b border-stone-100 pb-4">
+        {/* Schedule From: till: */}
+        <div className="space-y-2 text-xs border-b border-stone-100 pb-3">
           <div
             onClick={onOpenScheduleModal}
             className="flex items-start justify-between p-2.5 rounded-xl hover:bg-orange-50/50 border border-transparent hover:border-orange-200 transition-all cursor-pointer group"
@@ -115,40 +152,15 @@ export default function CheckoutOrderSummary({
                 className="text-[#F97316] mt-0.5 flex-shrink-0 group-hover:scale-110 transition-transform"
               />
               <div>
-                {isSameDayBooking ? (
-                  <>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-extrabold text-stone-900 block text-xs">
-                        Same-Day Rental ({sameDayHours} Hours)
-                      </span>
-                      <span className="text-[10px] font-extrabold text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.2 rounded">
-                        Same-Day Return
-                      </span>
-                    </div>
-                    <span className="text-stone-700 text-xs font-semibold block mt-0.5">
-                      Date:{" "}
-                      <span className="text-stone-900 font-bold">
-                        {bookingState.pickupDate}
-                      </span>
-                    </span>
-                    <span className="text-stone-500 text-[11px] block mt-0.5">
-                      Schedule:{" "}
-                      <strong className="text-stone-800">
-                        {bookingState.pickupTime} → {bookingState.returnTime}
-                      </strong>
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-bold text-stone-900 block text-xs">
-                      Dates ({days} {days === 1 ? "Day" : "Days"} Duration)
-                    </span>
-                    <span className="text-stone-500 text-xs">
-                      {bookingState.pickupDate} ({bookingState.pickupTime}) →{" "}
-                      {bookingState.returnDate} ({bookingState.returnTime})
-                    </span>
-                  </>
-                )}
+                <span className="font-bold text-stone-900 block text-xs">
+                  Rental Period ({days} {days === 1 ? "Day" : "Days"})
+                </span>
+                <span className="text-stone-700 text-xs block font-medium">
+                  <strong>From:</strong> {bookingState.pickupDate} ({bookingState.pickupTime})
+                </span>
+                <span className="text-stone-700 text-xs block font-medium">
+                  <strong>till:</strong> {bookingState.returnDate} ({bookingState.returnTime})
+                </span>
               </div>
             </div>
             <button
@@ -162,9 +174,14 @@ export default function CheckoutOrderSummary({
               Change
             </button>
           </div>
+
+          {/* Extension Notice banner from paper */}
+          <div className="px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200/80 text-[10px] text-amber-900 font-medium">
+            &ldquo;If Rental will be extended please advise before&rdquo;
+          </div>
         </div>
 
-        {/* European Atelier Privilege Voucher Box */}
+        {/* Privilege Voucher Code */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-stone-500">
@@ -239,7 +256,7 @@ export default function CheckoutOrderSummary({
 
           {quoteMessage && (
             <div
-              className={`p-2.5 rounded-xl text-xs font-semibold text-center animate-fade-in ${
+              className={`p-2 rounded-xl text-xs font-semibold text-center animate-fade-in ${
                 isQuoteSuccess
                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                   : "bg-stone-100 text-stone-700 border border-stone-200"
@@ -250,25 +267,55 @@ export default function CheckoutOrderSummary({
           )}
         </div>
 
-        {/* Calculated Breakdown */}
+        {/* Calculated Breakdown - Strict Mirror of Paper Form */}
         <div className="space-y-2 pt-3 border-t border-stone-100 text-xs text-stone-600">
-          <div className="flex justify-between">
-            <span>
-              {pricingResult.tier === "hourly"
-                ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                : pricingResult.tier === "weekly"
-                  ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                  : pricingResult.tier === "monthly"
-                    ? `Base Rental (${pricingResult.durationText} @ ${pricingResult.rateLabel})`
-                    : `Base (€${car.pricePerDay} × ${days} ${
-                        days === 1 ? "day" : "days"
-                      })`}
-            </span>
+          {/* Daily Rate Row */}
+          <div className="flex justify-between items-center">
+            <span>The Sum of €{car.pricePerDay} Per Day ({days}d)</span>
             <span className="font-semibold text-stone-900">
               €{baseRental.toFixed(2)}
             </span>
           </div>
 
+          {/* Delivery Fee Row */}
+          <div className="flex justify-between items-center">
+            <span className="flex items-center gap-1">
+              <span>Delivery to location Fee</span>
+              {deliveryFee === 0 && (
+                <span className="text-[10px] text-emerald-600 font-bold">(Mgarr Garage)</span>
+              )}
+            </span>
+            <span className="font-semibold text-stone-900">
+              {deliveryFee === 0 ? "€0.00" : `€${deliveryFee.toFixed(2)}`}
+            </span>
+          </div>
+
+          {/* Return Fee Row */}
+          <div className="flex justify-between items-center">
+            <span className="flex items-center gap-1">
+              <span>Return to location Fee</span>
+              {returnFee === 0 && (
+                <span className="text-[10px] text-emerald-600 font-bold">(Mgarr Garage)</span>
+              )}
+            </span>
+            <span className="font-semibold text-stone-900">
+              {returnFee === 0 ? "€0.00" : `€${returnFee.toFixed(2)}`}
+            </span>
+          </div>
+
+          {/* Optional Services Row */}
+          {optionalServicesCost > 0 && (
+            <div className="flex justify-between items-center text-orange-950 bg-orange-50/60 p-1.5 rounded-lg border border-orange-200/60">
+              <span className="font-medium">
+                Optional Services ({selectedOptionalServices.length} hired)
+              </span>
+              <span className="font-bold text-orange-700">
+                +€{optionalServicesCost.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* Privilege Discount */}
           {promoApplied && (
             <div className="flex justify-between text-emerald-600 font-bold">
               <span className="flex items-center gap-1.5 font-mono text-[11px]">
@@ -281,22 +328,40 @@ export default function CheckoutOrderSummary({
             </div>
           )}
 
-          <div className="flex justify-between">
+          {/* VAT */}
+          <div className="flex justify-between items-center">
             <span>Dynamic Taxes (VAT {vatPercent}%)</span>
             <span className="font-semibold text-stone-900">
               €{taxes.toFixed(2)}
             </span>
           </div>
 
-          <div className="flex justify-between pt-2 border-t border-stone-200 text-base font-extrabold text-[#17191C] font-heading">
-            <span>Estimated Total</span>
-            <span className="text-[#F97316] text-xl font-black">
+          {/* Deposit of €___ (Refundable per Clause 4) */}
+          <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-[11px] space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-stone-800 flex items-center gap-1">
+                <ShieldIcon size={13} className="text-orange-500" />
+                Deposit of:
+              </span>
+              <span className="font-mono font-bold text-stone-900">
+                €{securityDeposit}
+              </span>
+            </div>
+            <p className="text-[10px] text-stone-500 leading-tight">
+              Standard insurance excess per Clause 4. Pre-authorized hold at garage handover; refunded on clean return.
+            </p>
+          </div>
+
+          {/* Grand Total */}
+          <div className="flex justify-between pt-2 border-t border-stone-200 text-base font-extrabold text-[#17191C] font-heading items-baseline">
+            <span>Total Sum</span>
+            <span className="text-[#F97316] text-2xl font-black">
               €{grandTotal.toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* Conflict Warning */}
+        {/* Schedule Conflict Warning */}
         {conflict && (
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
             <div className="flex items-center gap-1.5 font-bold">
@@ -309,23 +374,7 @@ export default function CheckoutOrderSummary({
           </div>
         )}
 
-        {/* Security Deposit Notice */}
-        <div className="bg-stone-50 rounded-xl p-3 border border-stone-200/80 text-[11px] text-stone-600 flex items-start gap-2.5">
-          <ShieldIcon size={15} className="text-orange-500 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-stone-800">Refundable Security Deposit:</span>
-              <span className="font-mono font-bold text-stone-900">
-                €{car.securityDeposit != null ? car.securityDeposit.toLocaleString() : "1,000"}
-              </span>
-            </div>
-            <p className="text-[10px] text-stone-500 mt-0.5 leading-tight">
-              Pre-authorized hold at garage key pickup. Automatically released upon clean return.
-            </p>
-          </div>
-        </div>
-
-        {/* Submit Button */}
+        {/* Submit Reservation Request Button */}
         <button
           type="submit"
           disabled={submitting}
@@ -336,7 +385,7 @@ export default function CheckoutOrderSummary({
           ) : (
             <>
               <ZapIcon size={16} />
-              <span>Confirm Reservation (Pay on Pickup)</span>
+              <span>Confirm Reservation Request (Pay on Pickup)</span>
               <ArrowRightIcon
                 size={16}
                 className="group-hover:translate-x-1 transition-transform"
@@ -345,39 +394,44 @@ export default function CheckoutOrderSummary({
           )}
         </button>
 
-        {/* US Policies & Privacy Disclosure */}
-        <p className="text-[10px] text-stone-500 text-center leading-normal">
-          By requesting this vehicle, you agree to Motorly&apos;s{" "}
-          <button
-            type="button"
-            onClick={() => onOpenLegalModal?.("terms")}
-            className="text-orange-600 hover:underline font-semibold cursor-pointer"
-          >
-            Rental Terms &amp; Conditions
-          </button>{" "}
-          and{" "}
-          <button
-            type="button"
-            onClick={() => onOpenLegalModal?.("privacy")}
-            className="text-orange-600 hover:underline font-semibold cursor-pointer"
-          >
-            US Privacy &amp; CAN-SPAM Notice
-          </button>. Zero online charge.
-        </p>
+        {/* Official Paper Clauses Reference */}
+        <div className="pt-2 text-[10px] text-stone-500 text-center space-y-1">
+          <p>
+            By confirming, you agree to{" "}
+            <button
+              type="button"
+              onClick={() => onOpenLegalModal?.("terms")}
+              className="text-orange-600 hover:underline font-semibold cursor-pointer"
+            >
+              Pit Stop Car Hire 21 Rental Clauses
+            </button>{" "}
+            and{" "}
+            <button
+              type="button"
+              onClick={() => onOpenLegalModal?.("deposit")}
+              className="text-orange-600 hover:underline font-semibold cursor-pointer"
+            >
+              €700 Excess Deposit Policy
+            </button>.
+          </p>
+          <p className="text-[9px] text-stone-400">
+            Clause 16: €80 cleaning penalty for dirty returns • Clause 17: Offroading &amp; speeding forbidden
+          </p>
+        </div>
 
         {/* Trust Badges */}
-        <div className="pt-3 border-t border-stone-100 space-y-2 text-xs text-stone-600">
+        <div className="pt-3 border-t border-stone-100 space-y-1.5 text-xs text-stone-600">
           <div className="flex items-center gap-2">
-            <CheckIcon size={14} className="text-emerald-600 flex-shrink-0" />
-            <span>Zero online payment • 100% free reservation request</span>
+            <CheckIcon size={13} className="text-emerald-600 flex-shrink-0" />
+            <span className="text-[11px]">Zero online payment • 100% free reservation request</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckIcon size={14} className="text-emerald-600 flex-shrink-0" />
-            <span>Pay at garage when manager accepts your request</span>
+            <CheckIcon size={13} className="text-emerald-600 flex-shrink-0" />
+            <span className="text-[11px]">Pay directly upon vehicle inspection &amp; key handover</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckIcon size={14} className="text-emerald-600 flex-shrink-0" />
-            <span>Free cancellation anytime before vehicle key handover</span>
+            <CheckIcon size={13} className="text-emerald-600 flex-shrink-0" />
+            <span className="text-[11px]">Free cancellation anytime prior to vehicle dispatch</span>
           </div>
         </div>
       </div>

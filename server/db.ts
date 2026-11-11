@@ -696,6 +696,17 @@ async function initSupabaseTables(pool: pg.Pool) {
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_week REAL;
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 18.0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_type TEXT DEFAULT 'garage';
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_location_custom TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_fee REAL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_type TEXT DEFAULT 'garage';
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_location_custom TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_fee REAL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS optional_services TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS optional_services_cost REAL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS security_deposit REAL DEFAULT 700;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS remarks TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_signature TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -837,6 +848,17 @@ function initSqliteTables() {
     { name: "inspection_notes", type: "TEXT" },
     { name: "inspection_passed", type: "INTEGER DEFAULT 0" },
     { name: "trip_reason", type: "TEXT" },
+    { name: "delivery_type", type: "TEXT DEFAULT 'garage'" },
+    { name: "delivery_location_custom", type: "TEXT" },
+    { name: "delivery_fee", type: "REAL DEFAULT 0" },
+    { name: "return_type", type: "TEXT DEFAULT 'garage'" },
+    { name: "return_location_custom", type: "TEXT" },
+    { name: "return_fee", type: "REAL DEFAULT 0" },
+    { name: "optional_services", type: "TEXT" },
+    { name: "optional_services_cost", type: "REAL DEFAULT 0" },
+    { name: "security_deposit", type: "REAL DEFAULT 700" },
+    { name: "remarks", type: "TEXT" },
+    { name: "client_signature", type: "TEXT" },
   ]
   for (const col of requiredBookingCols) {
     if (!bookingColumns.includes(col.name)) {

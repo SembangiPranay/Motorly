@@ -40020,6 +40020,17 @@ async function initSupabaseTables(pool) {
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_week REAL;
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 18.0;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_type TEXT DEFAULT 'garage';
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_location_custom TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_fee REAL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_type TEXT DEFAULT 'garage';
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_location_custom TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_fee REAL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS optional_services TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS optional_services_cost REAL DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS security_deposit REAL DEFAULT 700;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS remarks TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_signature TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -40232,6 +40243,50 @@ function initSqliteTables() {
 		},
 		{
 			name: "trip_reason",
+			type: "TEXT"
+		},
+		{
+			name: "delivery_type",
+			type: "TEXT DEFAULT 'garage'"
+		},
+		{
+			name: "delivery_location_custom",
+			type: "TEXT"
+		},
+		{
+			name: "delivery_fee",
+			type: "REAL DEFAULT 0"
+		},
+		{
+			name: "return_type",
+			type: "TEXT DEFAULT 'garage'"
+		},
+		{
+			name: "return_location_custom",
+			type: "TEXT"
+		},
+		{
+			name: "return_fee",
+			type: "REAL DEFAULT 0"
+		},
+		{
+			name: "optional_services",
+			type: "TEXT"
+		},
+		{
+			name: "optional_services_cost",
+			type: "REAL DEFAULT 0"
+		},
+		{
+			name: "security_deposit",
+			type: "REAL DEFAULT 700"
+		},
+		{
+			name: "remarks",
+			type: "TEXT"
+		},
+		{
+			name: "client_signature",
 			type: "TEXT"
 		}
 	]) if (!bookingColumns.includes(col.name)) try {
@@ -41489,7 +41544,26 @@ function formatBookingRow(row) {
 		extensionRequest,
 		extensionQuote,
 		inspectionNotes: row.inspection_notes || void 0,
-		inspectionPassed: Boolean(row.inspection_passed)
+		inspectionPassed: Boolean(row.inspection_passed),
+		deliveryType: row.delivery_type || "garage",
+		deliveryLocationCustom: row.delivery_location_custom || void 0,
+		deliveryFee: Number(row.delivery_fee) || 0,
+		returnType: row.return_type || "garage",
+		returnLocationCustom: row.return_location_custom || void 0,
+		returnFee: Number(row.return_fee) || 0,
+		optionalServices: (() => {
+			if (!row.optional_services) return [];
+			try {
+				const parsed = JSON.parse(row.optional_services);
+				return Array.isArray(parsed) ? parsed : [row.optional_services];
+			} catch {
+				return String(row.optional_services).split(",").map((s) => s.trim()).filter(Boolean);
+			}
+		})(),
+		optionalServicesCost: Number(row.optional_services_cost) || 0,
+		securityDeposit: Number(row.security_deposit) || 700,
+		remarks: row.remarks || void 0,
+		clientSignature: row.client_signature || void 0
 	};
 }
 function formatUserRow(row) {
@@ -42346,7 +42420,9 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             pickup_location, return_location, pickup_date, return_date,
             requested_category, matched_car_id, status, total_amount, created_at,
             user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed,
-            trip_reason
+            trip_reason, delivery_type, delivery_location_custom, delivery_fee,
+            return_type, return_location_custom, return_fee,
+            optional_services, optional_services_cost, security_deposit, remarks, client_signature
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -42354,9 +42430,11 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?, ?, 0, 'None', 0,
-            ?
+            ?, ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?, ?, ?
           )
-        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+1 (555) 000-0000", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure");
+        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+356 99827192", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure", b.deliveryType || "garage", b.deliveryLocationCustom || null, Number(b.deliveryFee) || 0, b.returnType || "garage", b.returnLocationCustom || null, Number(b.returnFee) || 0, b.optionalServices ? JSON.stringify(b.optionalServices) : null, Number(b.optionalServicesCost) || 0, Number(b.securityDeposit) || 700, b.remarks || null, b.clientSignature || null);
 			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		});
 		return res.status(201).json(formatBookingRow(createdRow));
@@ -43239,12 +43317,12 @@ app.get("/api/settings", async (_req, res) => {
 		const rows = await db.prepare("SELECT key, value FROM system_settings").all() || [];
 		const settings = {
 			reviews_enabled: true,
-			contact_phone: "+1 (555) 234-5678",
-			contact_email: "concierge@motorly.com",
-			admin_name: "Studio Director",
-			hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
-			google_maps_url: "",
-			support_phone: "+1 (800) 555-MOTOR"
+			contact_phone: "+356 99827192 / +356 99804255",
+			contact_email: "rentals@pitstopcarhire.com",
+			admin_name: "Pit Stop Operations Director",
+			hub_address: "36 Triq Il-Kbira, Mgarr, Malta",
+			google_maps_url: "https://maps.google.com/?q=36+Triq+Il-Kbira+Mgarr+Malta",
+			support_phone: "+356 99827192"
 		};
 		for (const r of rows) if (r.key === "reviews_enabled") settings.reviews_enabled = r.value === "true" || r.value === true || r.value === "1";
 		else settings[r.key] = r.value;
@@ -43258,10 +43336,10 @@ app.get("/api/settings", async (_req, res) => {
 			success: true,
 			settings: {
 				reviews_enabled: true,
-				contact_phone: "+1 (555) 234-5678",
-				contact_email: "concierge@motorly.com",
-				admin_name: "Studio Director",
-				hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport"
+				contact_phone: "+356 99827192 / +356 99804255",
+				contact_email: "rentals@pitstopcarhire.com",
+				admin_name: "Pit Stop Operations Director",
+				hub_address: "36 Triq Il-Kbira, Mgarr, Malta"
 			}
 		});
 	}

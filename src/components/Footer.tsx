@@ -102,27 +102,38 @@ export default function Footer({
               Garage Hours &amp; Contact
             </h4>
             <div className="space-y-3 text-sm text-gray-400">
+              <p className="flex items-start gap-2">
+                <span className="text-[#F97316] font-semibold shrink-0">Address:</span>
+                <span>36 Triq Il-Kbira, Mgarr, Malta</span>
+              </p>
               <p className="flex items-center gap-2">
-                <span className="text-[#F97316] font-semibold">Phone:</span>
+                <span className="text-[#F97316] font-semibold">Phones:</span>
                 <a
-                  href="tel:+15551234567"
+                  href="tel:+35699827192"
                   className="hover:text-white transition-colors"
                 >
-                  +1 (555) 123-4567
+                  +356 99827192
+                </a>
+                <span>/</span>
+                <a
+                  href="tel:+35699804255"
+                  className="hover:text-white transition-colors"
+                >
+                  99804255
                 </a>
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Email:</span>
                 <a
-                  href="mailto:nanikoushik96@gmail.com?subject=Motorly%20Fleet%20Inquiry"
+                  href="mailto:rentals@pitstopcarhire.com?subject=Pit%20Stop%20Fleet%20Inquiry"
                   className="hover:text-white transition-colors underline"
                 >
-                  nanikoushik96@gmail.com
+                  rentals@pitstopcarhire.com
                 </a>
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Hours:</span>
-                <span>Mon – Sat: 8:00 AM – 6:00 PM</span>
+                <span>Mon – Sun: 8:00 AM – 7:00 PM</span>
               </p>
             </div>
           </div>

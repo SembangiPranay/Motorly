@@ -15,6 +15,10 @@ import { ShieldIcon, CheckIcon } from "../components/Icons"
 import CheckoutCustomerForm from "./customer/CheckoutCustomerForm"
 import CheckoutDriverIdForm from "./customer/CheckoutDriverIdForm"
 import CheckoutTripPurpose from "./customer/CheckoutTripPurpose"
+import CheckoutDeliveryOptions from "./customer/CheckoutDeliveryOptions"
+import CheckoutOptionalServices, { AVAILABLE_OPTIONAL_SERVICES } from "./customer/CheckoutOptionalServices"
+import CheckoutRemarksAndExtension from "./customer/CheckoutRemarksAndExtension"
+import CheckoutConditionAndSignature from "./customer/CheckoutConditionAndSignature"
 import CheckoutOrderSummary from "./customer/CheckoutOrderSummary"
 import LegalPoliciesModal from "../components/LegalPoliciesModal"
 
@@ -35,6 +39,17 @@ interface CheckoutViewProps {
     discountAmount?: number
     tripReason?: string
     notes?: string
+    deliveryType?: "garage" | "custom"
+    deliveryLocationCustom?: string
+    deliveryFee?: number
+    returnType?: "garage" | "custom"
+    returnLocationCustom?: string
+    returnFee?: number
+    optionalServices?: string[]
+    optionalServicesCost?: number
+    securityDeposit?: number
+    remarks?: string
+    clientSignature?: string
   }) => void
   onNavigateHome: () => void
   onNavigateListing: () => void
@@ -149,6 +164,16 @@ export default function CheckoutView({
   const [tripDestination, setTripDestination] = useState<string>("")
   const [isLegalModalOpen, setIsLegalModalOpen] = useState<boolean>(false)
   const [legalModalTab, setLegalModalTab] = useState<"privacy" | "terms" | "deposit" | "insurance">("terms")
+
+  // Pit Stop Physical Agreement Fields
+  const [deliveryType, setDeliveryType] = useState<"garage" | "custom">("garage")
+  const [deliveryLocationCustom, setDeliveryLocationCustom] = useState<string>("")
+  const [returnType, setReturnType] = useState<"garage" | "custom">("garage")
+  const [returnLocationCustom, setReturnLocationCustom] = useState<string>("")
+  const [selectedServices, setSelectedServices] = useState<string[]>([])
+  const [remarks, setRemarks] = useState<string>("")
+  const [clientSignature, setClientSignature] = useState<string>("")
+  const [conditionNotes, setConditionNotes] = useState<string>("")
 
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
@@ -382,6 +407,18 @@ export default function CheckoutView({
     })
   }, [car, isSameDayBooking, sameDayHours, days])
 
+  const deliveryFee = deliveryType === "custom" ? 20 : 0
+  const returnFee = returnType === "custom" ? 20 : 0
+  const effectiveDays = Math.max(1, days)
+  const optionalServicesCost = useMemo(() => {
+    const dailyTotal = AVAILABLE_OPTIONAL_SERVICES.filter((s) =>
+      selectedServices.includes(s.id),
+    ).reduce((acc, curr) => acc + curr.pricePerDay, 0)
+    return dailyTotal * effectiveDays
+  }, [selectedServices, effectiveDays])
+
+  const securityDeposit = car?.securityDeposit != null ? car.securityDeposit : 700
+
   const rawRentalTotal = pricingResult.basePrice
   const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
   const promoDiscountAmount = Number(
@@ -391,10 +428,13 @@ export default function CheckoutView({
     car?.vatRate != null && !isNaN(Number(car.vatRate))
       ? Number(car.vatRate)
       : 18
+
+  const subtotalBeforeVat =
+    discountedRentalTotal + deliveryFee + returnFee + optionalServicesCost
   const taxesAndFees = Number(
-    (discountedRentalTotal * (vatPercent / 100)).toFixed(2),
+    (subtotalBeforeVat * (vatPercent / 100)).toFixed(2),
   )
-  const totalAmount = Number((discountedRentalTotal + taxesAndFees).toFixed(2))
+  const totalAmount = Number((subtotalBeforeVat + taxesAndFees).toFixed(2))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -477,8 +517,20 @@ export default function CheckoutView({
       firstName: customer.firstName || nameParts[0] || "Customer",
       lastName: customer.lastName || nameParts.slice(1).join(" ") || "Renter",
       email: cleanEmail,
-      phone: customer.phone || currentUser?.phone || "+1 (555) 019-9000",
+      phone: customer.phone || currentUser?.phone || "+356 99827192",
+      idNumber: customer.idNumber || driver.licenseNumber || undefined,
     }
+
+    const effectiveSignature =
+      clientSignature || `${finalCustomer.firstName} ${finalCustomer.lastName}`
+
+    const combinedNotes = [
+      tripDestination ? `${tripReason}: ${tripDestination}` : tripReason,
+      remarks ? `Remarks: ${remarks}` : null,
+      conditionNotes ? `Condition: ${conditionNotes}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ")
 
     setTimeout(() => {
       onConfirmBooking({
@@ -502,9 +554,20 @@ export default function CheckoutView({
             ? Number((rawRentalTotal * promoDiscount).toFixed(2))
             : undefined,
         tripReason,
-        notes: tripDestination
-          ? `${tripReason}: ${tripDestination}`
-          : tripReason,
+        notes: combinedNotes,
+        deliveryType,
+        deliveryLocationCustom:
+          deliveryType === "custom" ? deliveryLocationCustom : undefined,
+        deliveryFee,
+        returnType,
+        returnLocationCustom:
+          returnType === "custom" ? returnLocationCustom : undefined,
+        returnFee,
+        optionalServices: selectedServices,
+        optionalServicesCost,
+        securityDeposit,
+        remarks,
+        clientSignature: effectiveSignature,
       })
       setIsSubmitting(false)
     }, 300)
@@ -619,6 +682,41 @@ export default function CheckoutView({
             onFileChange={handleFileChange}
           />
 
+          <CheckoutDeliveryOptions
+            deliveryType={deliveryType}
+            setDeliveryType={setDeliveryType}
+            deliveryLocationCustom={deliveryLocationCustom}
+            setDeliveryLocationCustom={setDeliveryLocationCustom}
+            deliveryFee={deliveryFee}
+            returnType={returnType}
+            setReturnType={setReturnType}
+            returnLocationCustom={returnLocationCustom}
+            setReturnLocationCustom={setReturnLocationCustom}
+            returnFee={returnFee}
+          />
+
+          <CheckoutOptionalServices
+            selectedServices={selectedServices}
+            setSelectedServices={setSelectedServices}
+            days={days}
+          />
+
+          <CheckoutRemarksAndExtension
+            remarks={remarks}
+            setRemarks={setRemarks}
+          />
+
+          <CheckoutConditionAndSignature
+            clientSignature={clientSignature}
+            setClientSignature={setClientSignature}
+            conditionNotes={conditionNotes}
+            setConditionNotes={setConditionNotes}
+            onOpenLegalModal={(tab) => {
+              setLegalModalTab(tab)
+              setIsLegalModalOpen(true)
+            }}
+          />
+
           <CheckoutTripPurpose
             tripReason={tripReason}
             setTripReason={setTripReason}
@@ -690,6 +788,11 @@ export default function CheckoutView({
           isValidatingPromo={isValidatingPromo}
           conflict={availabilityCheck.conflict}
           submitting={isSubmitting}
+          deliveryFee={deliveryFee}
+          returnFee={returnFee}
+          optionalServicesCost={optionalServicesCost}
+          selectedOptionalServices={selectedServices}
+          securityDeposit={securityDeposit}
           onApplyPromo={handleApplyPromo}
           onRemovePromo={handleRemovePromo}
           onOpenScheduleModal={() => setIsScheduleModalOpen(true)}

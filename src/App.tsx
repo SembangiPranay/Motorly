@@ -746,33 +746,33 @@ export default function App() {
 
   const handleConfirmBooking = async (details: {
     customer: CustomerInfo
-
     driver: DriverInfo
-
     payment: PaymentInfo
-
     totalAmount: number
-
     bookingId: string
-
     promoCode?: string
-
     discountPercent?: number
-
     discountAmount?: number
-
     tripReason?: string
-
     notes?: string
+    deliveryType?: "garage" | "custom"
+    deliveryLocationCustom?: string
+    deliveryFee?: number
+    returnType?: "garage" | "custom"
+    returnLocationCustom?: string
+    returnFee?: number
+    optionalServices?: string[]
+    optionalServicesCost?: number
+    securityDeposit?: number
+    remarks?: string
+    clientSignature?: string
   }) => {
     if (details.tripReason) {
       setBookingState((prev) => ({ ...prev, tripReason: details.tripReason }))
     }
     if (!currentUser) {
       setAuthReturnView("checkout")
-
       setCurrentView("auth")
-
       return
     }
 
@@ -780,54 +780,58 @@ export default function App() {
       alert(
         "No vehicle selected. Please select a vehicle from our fleet catalog.",
       )
-
       setCurrentView("listing")
-
       return
     }
 
-    const garageLoc =
+    const defaultGarageLoc =
       activeCar.garageAddress ||
       activeCar.garageName ||
       activeCar.location ||
-      "MOTORLY Central Hub"
+      "36 Triq Il-Kbira, Mgarr, Malta"
+
+    const pickupLocation =
+      details.deliveryType === "custom" && details.deliveryLocationCustom
+        ? details.deliveryLocationCustom
+        : defaultGarageLoc
+
+    const returnLocation =
+      details.returnType === "custom" && details.returnLocationCustom
+        ? details.returnLocationCustom
+        : defaultGarageLoc
 
     const newRecordPayload = {
       id: details.bookingId,
-
       customer: details.customer,
-
       driver: details.driver,
-
-      pickupLocation: garageLoc,
-
-      returnLocation: garageLoc,
-
+      pickupLocation,
+      returnLocation,
       pickupDate: bookingState.pickupTime
         ? `${bookingState.pickupDate} ${bookingState.pickupTime}`
         : bookingState.pickupDate,
-
       returnDate: bookingState.returnTime
         ? `${bookingState.returnDate} ${bookingState.returnTime}`
         : bookingState.returnDate,
-
       requestedCategory: activeCar.type,
-
       matchedCarId: activeCar.id,
-
       status: "Assigned" as const,
-
       totalAmount: details.totalAmount,
-
       promoCode: details.promoCode,
-
       createdAt: new Date().toISOString(),
-
       userId: currentUser?.id,
-
       tripReason: details.tripReason || "Travel & Leisure",
-
       notes: details.notes || (details.tripReason ? `Trip Purpose: ${details.tripReason}` : "Travel & Leisure"),
+      deliveryType: details.deliveryType || "garage",
+      deliveryLocationCustom: details.deliveryLocationCustom,
+      deliveryFee: details.deliveryFee || 0,
+      returnType: details.returnType || "garage",
+      returnLocationCustom: details.returnLocationCustom,
+      returnFee: details.returnFee || 0,
+      optionalServices: details.optionalServices || [],
+      optionalServicesCost: details.optionalServicesCost || 0,
+      securityDeposit: details.securityDeposit || 700,
+      remarks: details.remarks || "",
+      clientSignature: details.clientSignature || "",
     }
 
     // Dynamic backend sync into Supabase PostgreSQL

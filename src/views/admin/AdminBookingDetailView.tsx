@@ -938,6 +938,75 @@ export default function AdminBookingDetailView({
                 {booking.notes ? `"${booking.notes}"` : "No special logistics requested by customer."}
               </p>
             </div>
+
+            {/* Pit Stop Car Hire Paper Agreement Parameters */}
+            <div className="p-4 rounded-xl border border-orange-200 bg-orange-50/40 text-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-orange-100 pb-2">
+                <span className="font-bold text-orange-950 font-heading text-xs flex items-center gap-1.5">
+                  <span>PIT STOP RENTAL AGREEMENT SPECIFICATIONS</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-200">
+                  36 Triq Il-Kbira, Mgarr
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+                <div>
+                  <span className="text-stone-500 block">Delivery to Location:</span>
+                  <span className="font-bold text-stone-900">
+                    {booking.deliveryType === "custom"
+                      ? `${booking.deliveryLocationCustom || "Custom Location"} (+€${booking.deliveryFee || 20})`
+                      : "Central Garage Mgarr (€0 Free)"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-500 block">Return to Location:</span>
+                  <span className="font-bold text-stone-900">
+                    {booking.returnType === "custom"
+                      ? `${booking.returnLocationCustom || "Custom Location"} (+€${booking.returnFee || 20})`
+                      : "Central Garage Mgarr (€0 Free)"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-500 block">Optional Services Hired:</span>
+                  <span className="font-bold text-stone-900">
+                    {booking.optionalServices && booking.optionalServices.length > 0
+                      ? `${booking.optionalServices.join(", ")} (+€${booking.optionalServicesCost || 0})`
+                      : "None (Standard hire)"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-stone-500 block">Insurance Excess Deposit (Clause 4):</span>
+                  <span className="font-bold text-stone-900">
+                    €{booking.securityDeposit != null ? booking.securityDeposit : 700} (Pre-authorized hold)
+                  </span>
+                </div>
+              </div>
+
+              {booking.remarks && (
+                <div className="pt-2 border-t border-orange-100 text-[11px]">
+                  <span className="text-stone-500 font-semibold">Remarks on Manifest: </span>
+                  <span className="text-stone-900">{booking.remarks}</span>
+                </div>
+              )}
+
+              {/* Client signature badge */}
+              <div className="flex items-center justify-between pt-2 border-t border-orange-100 text-[11px]">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${booking.clientSignature ? "bg-emerald-500" : "bg-amber-500"}`} />
+                  <span className="font-semibold text-stone-800">
+                    Client Signature: {booking.clientSignature ? "Endorsed & Attached" : "Pending Handover Verification"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadBookingInvoicePdf(booking, matchedCar)}
+                  className="px-2.5 py-1 rounded bg-stone-900 hover:bg-black text-white font-bold text-[10px] transition cursor-pointer"
+                >
+                  Download Pit Stop Agreement PDF
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

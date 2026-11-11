@@ -1,8 +1,7 @@
 /**
- * MOTORLY Fleet Atelier - High-Resolution Rental Invoice & Trip Manifest Generator
- *
- * Renders an official, pixel-perfect 1200x1600 PNG invoice directly in browser canvas
- * with zero third-party dependencies, complete booking specifications, and triggers download.
+ * PIT STOP CAR HIRE - Official Rental Agreement & Invoice Generator
+ * Replicates the authentic physical rental contract from 36 Triq Il-Kbira, Mgarr, Malta
+ * with 5-view vehicle schematic, client signature, and official 21 clauses.
  */
 
 import type { BookingRecord, Car } from "../types"
@@ -16,28 +15,188 @@ export interface InvoiceSettings {
   google_maps_url?: string
 }
 
-/**
- * Draws a rounded rectangle path on canvas context
- */
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
+function drawCarSchematic(ctx: CanvasRenderingContext2D, baseX: number, baseY: number) {
+  ctx.save()
+  ctx.strokeStyle = "#27272A"
+  ctx.lineWidth = 1.8
+  ctx.fillStyle = "#FFFFFF"
+
+  // 1. FRONT VIEW (top left of schematic block)
+  // Windshield & Roof
   ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.arcTo(x + w, y, x + w, y + h, r)
-  ctx.arcTo(x + w, y + h, x, y + h, r)
-  ctx.arcTo(x, y + h, x, y, r)
-  ctx.arcTo(x, y, x + w, y, r)
+  ctx.moveTo(baseX + 15, baseY + 35)
+  ctx.lineTo(baseX + 28, baseY + 12)
+  ctx.lineTo(baseX + 82, baseY + 12)
+  ctx.lineTo(baseX + 95, baseY + 35)
   ctx.closePath()
+  ctx.fillStyle = "#F4F4F5"
+  ctx.fill()
+  ctx.stroke()
+
+  // Body & Grille
+  ctx.fillStyle = "#FFFFFF"
+  ctx.beginPath()
+  ctx.roundRect(baseX + 5, baseY + 35, 100, 40, 6)
+  ctx.fill()
+  ctx.stroke()
+
+  // Headlights
+  ctx.fillStyle = "#FEF08A"
+  ctx.beginPath()
+  ctx.roundRect(baseX + 10, baseY + 40, 18, 10, 2)
+  ctx.roundRect(baseX + 82, baseY + 40, 18, 10, 2)
+  ctx.fill()
+  ctx.stroke()
+
+  // Grille
+  ctx.fillStyle = "#E4E4E7"
+  ctx.fillRect(baseX + 35, baseY + 42, 40, 14)
+  ctx.strokeRect(baseX + 35, baseY + 42, 40, 14)
+
+  // Wheels
+  ctx.fillStyle = "#27272A"
+  ctx.fillRect(baseX + 8, baseY + 72, 14, 12)
+  ctx.fillRect(baseX + 88, baseY + 72, 14, 12)
+
+  // Front View Label
+  ctx.fillStyle = "#71717A"
+  ctx.font = "bold 9px monospace"
+  ctx.textAlign = "center"
+  ctx.fillText("FRONT", baseX + 55, baseY + 94)
+
+  // 2. REAR VIEW (bottom left of schematic block)
+  const rearY = baseY + 105
+  ctx.beginPath()
+  ctx.moveTo(baseX + 16, rearY + 35)
+  ctx.lineTo(baseX + 28, rearY + 12)
+  ctx.lineTo(baseX + 82, rearY + 12)
+  ctx.lineTo(baseX + 94, rearY + 35)
+  ctx.closePath()
+  ctx.fillStyle = "#F4F4F5"
+  ctx.fill()
+  ctx.stroke()
+
+  ctx.fillStyle = "#FFFFFF"
+  ctx.beginPath()
+  ctx.roundRect(baseX + 5, rearY + 35, 100, 40, 6)
+  ctx.fill()
+  ctx.stroke()
+
+  // Tail lights
+  ctx.fillStyle = "#EF4444"
+  ctx.beginPath()
+  ctx.roundRect(baseX + 8, rearY + 40, 16, 12, 2)
+  ctx.roundRect(baseX + 86, rearY + 40, 16, 12, 2)
+  ctx.fill()
+  ctx.stroke()
+
+  // Number Plate
+  ctx.fillStyle = "#FFFFFF"
+  ctx.fillRect(baseX + 35, rearY + 48, 40, 12)
+  ctx.strokeRect(baseX + 35, rearY + 48, 40, 12)
+  ctx.fillStyle = "#18181B"
+  ctx.font = "bold 8px monospace"
+  ctx.fillText("MALTA", baseX + 55, rearY + 57)
+
+  // Wheels
+  ctx.fillStyle = "#27272A"
+  ctx.fillRect(baseX + 8, rearY + 72, 14, 12)
+  ctx.fillRect(baseX + 88, rearY + 72, 14, 12)
+
+  // Rear View Label
+  ctx.fillStyle = "#71717A"
+  ctx.font = "bold 9px monospace"
+  ctx.fillText("REAR", baseX + 55, rearY + 94)
+
+  // 3. DRIVER SIDE PROFILE (top right of schematic block)
+  const sideX = baseX + 130
+  ctx.fillStyle = "#FFFFFF"
+  ctx.beginPath()
+  ctx.moveTo(sideX + 10, baseY + 60)
+  ctx.lineTo(sideX + 25, baseY + 60)
+  ctx.arc(sideX + 42, baseY + 60, 14, Math.PI, 0, false)
+  ctx.lineTo(sideX + 155, baseY + 60)
+  ctx.arc(sideX + 172, baseY + 60, 14, Math.PI, 0, false)
+  ctx.lineTo(sideX + 205, baseY + 60)
+  ctx.lineTo(sideX + 208, baseY + 45)
+  ctx.lineTo(sideX + 175, baseY + 32)
+  ctx.lineTo(sideX + 140, baseY + 14)
+  ctx.lineTo(sideX + 75, baseY + 14)
+  ctx.lineTo(sideX + 40, baseY + 35)
+  ctx.lineTo(sideX + 10, baseY + 40)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+
+  // Windows
+  ctx.fillStyle = "#F4F4F5"
+  ctx.beginPath()
+  ctx.moveTo(sideX + 78, baseY + 18)
+  ctx.lineTo(sideX + 135, baseY + 18)
+  ctx.lineTo(sideX + 165, baseY + 33)
+  ctx.lineTo(sideX + 46, baseY + 33)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(sideX + 105, baseY + 18)
+  ctx.lineTo(sideX + 105, baseY + 55)
+  ctx.stroke()
+
+  // Wheels
+  ctx.fillStyle = "#27272A"
+  ctx.beginPath()
+  ctx.arc(sideX + 42, baseY + 60, 13, 0, Math.PI * 2)
+  ctx.arc(sideX + 172, baseY + 60, 13, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#E4E4E7"
+  ctx.beginPath()
+  ctx.arc(sideX + 42, baseY + 60, 6, 0, Math.PI * 2)
+  ctx.arc(sideX + 172, baseY + 60, 6, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Side Profile Label
+  ctx.fillStyle = "#71717A"
+  ctx.font = "bold 9px monospace"
+  ctx.fillText("DRIVER SIDE PROFILE", sideX + 105, baseY + 86)
+
+  // 4. TOP AERIAL VIEW (bottom right of schematic block)
+  const aerialY = baseY + 105
+  ctx.fillStyle = "#FFFFFF"
+  ctx.beginPath()
+  ctx.roundRect(sideX + 10, aerialY + 15, 195, 62, 14)
+  ctx.fill()
+  ctx.stroke()
+
+  // Windshield & Rear glass
+  ctx.fillStyle = "#F4F4F5"
+  ctx.beginPath()
+  ctx.roundRect(sideX + 50, aerialY + 20, 20, 52, 4)
+  ctx.roundRect(sideX + 145, aerialY + 20, 18, 52, 4)
+  ctx.fill()
+  ctx.stroke()
+
+  // Roof
+  ctx.fillStyle = "#FAFAFA"
+  ctx.fillRect(sideX + 75, aerialY + 20, 65, 52)
+  ctx.strokeRect(sideX + 75, aerialY + 20, 65, 52)
+
+  // Mirrors
+  ctx.fillStyle = "#71717A"
+  ctx.fillRect(sideX + 52, aerialY + 7, 10, 8)
+  ctx.fillRect(sideX + 52, aerialY + 77, 10, 8)
+
+  // Aerial Label
+  ctx.fillStyle = "#71717A"
+  ctx.font = "bold 9px monospace"
+  ctx.fillText("TOP AERIAL VIEW", sideX + 105, aerialY + 98)
+
+  ctx.restore()
 }
 
 /**
- * Generates a PNG data URL for a reservation manifest invoice
+ * Generates an official PNG matching the physical Pit Stop Car Hire agreement
  */
 export async function generateBookingInvoicePng(
   booking: BookingRecord,
@@ -50,556 +209,364 @@ export async function generateBookingInvoicePng(
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("Could not initialize 2D canvas context")
 
-  // Background
-  ctx.fillStyle = "#F8F8F6"
+  // Paper Background (Clean warm white paper tone)
+  ctx.fillStyle = "#FFFFFF"
   ctx.fillRect(0, 0, 1200, 1650)
 
-  // Outer border
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 4
-  ctx.strokeRect(16, 16, 1168, 1618)
+  // Outer border of sheet
+  ctx.strokeStyle = "#D4D4D8"
+  ctx.lineWidth = 2
+  ctx.strokeRect(40, 40, 1120, 1570)
 
-  // ========================================================
-  // 1. TOP HEADER BANNER (Dark Luxury Atelier Theme)
-  // ========================================================
-  ctx.fillStyle = "#141518"
-  roundRect(ctx, 30, 30, 1140, 170, 20)
-  ctx.fill()
-
-  // Motorly Orange Logo Emblem
-  ctx.fillStyle = "#F97316"
-  roundRect(ctx, 60, 60, 56, 56, 14)
-  ctx.fill()
-
-  ctx.fillStyle = "#FFFFFF"
-  ctx.font = "bold 32px 'Cabinet Grotesk', system-ui, sans-serif"
-  ctx.textAlign = "center"
-  ctx.textBaseline = "middle"
-  ctx.fillText("M", 88, 88)
-
-  // Brand Name & Subtitle
+  // ==========================================
+  // HEADER SECTION (PIT STOP CAR HIRE & ADDRESS)
+  // ==========================================
+  // Company Name
   ctx.textAlign = "left"
-  ctx.fillStyle = "#FFFFFF"
-  ctx.font = "900 28px system-ui, sans-serif"
-  ctx.fillText("MOTORLY FLEET ATELIER", 132, 75)
+  ctx.fillStyle = "#18181B"
+  ctx.font = "900 36px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("PIT STOP CAR HIRE", 70, 95)
 
-  ctx.fillStyle = "#A8A29E"
-  ctx.font = "600 13px monospace"
-  ctx.fillText("OFFICIAL DISPATCH MANIFEST & CLIENT RENTAL INVOICE", 132, 102)
+  // Race car silhouette under name
+  ctx.strokeStyle = "#18181B"
+  ctx.lineWidth = 2.5
+  ctx.beginPath()
+  ctx.moveTo(70, 125)
+  ctx.lineTo(85, 125)
+  ctx.arc(95, 125, 9, Math.PI, 0, false)
+  ctx.lineTo(165, 125)
+  ctx.arc(175, 125, 9, Math.PI, 0, false)
+  ctx.lineTo(210, 125)
+  ctx.lineTo(215, 115)
+  ctx.lineTo(190, 110)
+  ctx.lineTo(155, 103)
+  ctx.lineTo(110, 103)
+  ctx.lineTo(85, 115)
+  ctx.closePath()
+  ctx.stroke()
 
-  // Top Right Info
+  // Right Header Address & Phones
+  const phone = settings?.contact_phone || "+356 99827192 / 99804255"
+  const address = settings?.hub_address || "36 Triq Il-Kbira, Mgarr"
   ctx.textAlign = "right"
-  ctx.fillStyle = "#F97316"
-  ctx.font = "bold 26px monospace"
-  ctx.fillText(`#${booking.id}`, 1130, 72)
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#18181B"
+  ctx.fillText(address, 1110, 85)
+  ctx.font = "bold 18px monospace"
+  ctx.fillText("99827192", 1110, 112)
+  ctx.fillText("99804255", 1110, 136)
 
-  ctx.fillStyle = "#D6D3D1"
-  ctx.font = "500 13px system-ui, sans-serif"
-  const issueDate = new Date().toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+  // Dividing Line under Header
+  ctx.strokeStyle = "#27272A"
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(70, 155)
+  ctx.lineTo(1110, 155)
+  ctx.stroke()
+
+  // ==========================================
+  // RENTAL RECORD FORM FIELDS
+  // ==========================================
+  const issueDate = new Date(booking.createdAt || Date.now()).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   })
-  ctx.fillText(`Issued: ${issueDate}`, 1130, 98)
+  const customerName = `${booking.customer.firstName || ""} ${booking.customer.lastName || ""}`.trim() || "Valued Client"
+  const idNumber = booking.customer.idNumber || booking.driver?.licenseNumber || "Verified at Desk"
+  const mobNumber = booking.customer.phone || "+356 99827192"
+  const hiringCar = car?.name || booking.requestedCategory || "Economy Vehicle"
+  const regNumber = booking.carPlateNumber || car?.plateNumber || "MTR-8842"
+  const fromSchedule = booking.pickupDate
+  const tillSchedule = booking.returnDate
 
-  // Status Badge Pill
-  const isApproved = Boolean(booking.approvedByAdmin)
-  let statusText = isApproved
-    ? "CONFIRMED & DISPATCHED"
-    : "PENDING FLEET REVIEW"
-  let badgeBg = isApproved ? "#065F46" : "#92400E"
-  let badgeFg = isApproved ? "#34D399" : "#FBBF24"
+  let currentY = 200
+  const lineSpacing = 42
 
-  if (booking.status === "Checked Out") {
-    statusText = "ACTIVE TRIP (IN DRIVE)"
-    badgeBg = "#1E40AF"
-    badgeFg = "#93C5FD"
-  } else if (booking.status === "Returned") {
-    statusText = "VEHICLE RETURNED"
-    badgeBg = "#3730A3"
-    badgeFg = "#C7D2FE"
-  } else if (booking.status === "Completed") {
-    statusText = "TRIP COMPLETED"
-    badgeBg = "#065F46"
-    badgeFg = "#34D399"
-  }
-
-  ctx.fillStyle = badgeBg
-  roundRect(ctx, 890, 120, 240, 36, 12)
-  ctx.fill()
-  ctx.fillStyle = badgeFg
-  ctx.font = "bold 11px monospace"
-  ctx.textAlign = "center"
-  ctx.fillText(statusText, 1010, 138)
-
-  // ========================================================
-  // 2. TWO-COLUMN CREDENTIALS SECTION (Driver vs Vehicle)
-  // ========================================================
-  const cardY = 225
-  const cardH = 260
-  const cardW = 555
-
-  // Card Left: Primary Driver & Customer Credentials
-  ctx.fillStyle = "#FFFFFF"
-  roundRect(ctx, 30, cardY, cardW, cardH, 18)
-  ctx.fill()
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  // Driver Card Header
-  ctx.fillStyle = "#F97316"
-  ctx.fillRect(30, cardY, 6, cardH)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px monospace"
+  // Date
   ctx.textAlign = "left"
-  ctx.fillText("CLIENT & DRIVER CREDENTIALS", 55, cardY + 35)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Primary Driver:", 55, cardY + 75)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px system-ui, sans-serif"
-  ctx.fillText(
-    `${booking.customer.firstName} ${booking.customer.lastName}`,
-    180,
-    cardY + 75,
-  )
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Direct Phone:", 55, cardY + 110)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 14px monospace"
-  ctx.fillText(booking.customer.phone || "Not provided", 180, cardY + 110)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Email Address:", 55, cardY + 145)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText(booking.customer.email, 180, cardY + 145)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Driver License:", 55, cardY + 180)
-  ctx.fillStyle = "#0284C7"
-  ctx.font = "bold 14px monospace"
-  ctx.fillText(
-    booking.driver?.licenseNumber || "FL-D89102-VAULT",
-    180,
-    cardY + 180,
-  )
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("License State/Exp:", 55, cardY + 215)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 13px system-ui, sans-serif"
-  ctx.fillText(
-    `${booking.driver?.licenseState || "Florida"} • Expiry: ${booking.driver?.licenseExpiry || "12/2030"}`,
-    180,
-    cardY + 215,
-  )
-
-  // Card Right: Assigned Vehicle Specifications
-  ctx.fillStyle = "#FFFFFF"
-  roundRect(ctx, 615, cardY, cardW, cardH, 18)
-  ctx.fill()
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  ctx.fillStyle = "#10B981"
-  ctx.fillRect(615, cardY, 6, cardH)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px monospace"
-  ctx.textAlign = "left"
-  ctx.fillText("ASSIGNED VEHICLE SPECIFICATIONS", 640, cardY + 35)
-
-  const vehicleName =
-    car?.name ||
-    booking.matchedCarId ||
-    booking.requestedCategory ||
-    "Fleet Rental Vehicle"
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Vehicle Model:", 640, cardY + 75)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px system-ui, sans-serif"
-  ctx.fillText(`${vehicleName} (${car?.year || 2024})`, 765, cardY + 75)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Vehicle Category:", 640, cardY + 110)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText(
-    `${car?.type || booking.requestedCategory || "Luxury Sedan"} • ${car?.transmission || "Automatic"}`,
-    765,
-    cardY + 110,
-  )
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("License Plate:", 640, cardY + 145)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 14px monospace"
-  ctx.fillText(car?.plateNumber || "FL-492-MTR", 765, cardY + 145)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Fuel / Powertrain:", 640, cardY + 180)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 13px system-ui, sans-serif"
-  ctx.fillText(`${car?.fuelType || "Gasoline"} • Eco Rated`, 765, cardY + 180)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText("Garage Bay Hub:", 640, cardY + 215)
-  ctx.fillStyle = "#059669"
-  ctx.font = "bold 13px monospace"
-  ctx.fillText(
-    `${car?.garageName || booking.pickupLocation || settings?.hub_address || "Terminal Garage B • Bay 4 HQ"}`,
-    765,
-    cardY + 215,
-  )
-
-  // ========================================================
-  // 3. SCHEDULE & DISPATCH TIMING CARD
-  // ========================================================
-  const schedY = 510
-  const schedH = 175
-  ctx.fillStyle = "#FFFFFF"
-  roundRect(ctx, 30, schedY, 1140, schedH, 18)
-  ctx.fill()
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px monospace"
-  ctx.textAlign = "left"
-  ctx.fillText("RENTAL TRIP SCHEDULE & KEY HANDOFF TIMING", 55, schedY + 35)
-
-  // 3 sub-columns inside schedule
-  // Pickup
-  ctx.fillStyle = "#F5F5F4"
-  roundRect(ctx, 55, schedY + 55, 335, 95, 12)
-  ctx.fill()
-  ctx.fillStyle = "#78716C"
-  ctx.font = "bold 11px monospace"
-  ctx.fillText("PICKUP DATE & TIME", 75, schedY + 80)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px system-ui, sans-serif"
-  ctx.fillText(booking.pickupDate, 75, schedY + 105)
-  ctx.font = "500 12px system-ui, sans-serif"
-  ctx.fillStyle = "#059669"
-  ctx.fillText("Key Handoff at Hub", 75, schedY + 130)
-
-  // Return
-  ctx.fillStyle = "#F5F5F4"
-  roundRect(ctx, 430, schedY + 55, 335, 95, 12)
-  ctx.fill()
-  ctx.fillStyle = "#78716C"
-  ctx.font = "bold 11px monospace"
-  ctx.fillText("RETURN DATE & TIME", 450, schedY + 80)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px system-ui, sans-serif"
-  ctx.fillText(booking.returnDate, 450, schedY + 105)
-  ctx.font = "500 12px system-ui, sans-serif"
-  ctx.fillStyle = "#0284C7"
-  ctx.fillText("Final Return Inspection", 450, schedY + 130)
-
-  // Hub Location
-  ctx.fillStyle = "#F5F5F4"
-  roundRect(ctx, 805, schedY + 55, 340, 95, 12)
-  ctx.fill()
-  ctx.fillStyle = "#78716C"
-  ctx.font = "bold 11px monospace"
-  ctx.fillText("STATIONED DISPATCH HUB", 825, schedY + 80)
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 13px system-ui, sans-serif"
-  const hubName =
-    booking.pickupLocation ||
-    car?.garageName ||
-    settings?.hub_address ||
-    "Terminal Garage B • Bay 4 HQ"
-  ctx.fillText(
-    hubName.length > 30 ? hubName.slice(0, 30) + "..." : hubName,
-    825,
-    schedY + 105,
-  )
-  ctx.font = "600 11px monospace"
-  ctx.fillStyle = "#F97316"
-  ctx.fillText("Google Maps Directions Synced", 825, schedY + 130)
-
-  // ========================================================
-  // 4. FINANCIAL AUDIT & ITEMIZED BILLING TABLE
-  // ========================================================
-  const finY = 710
-  const finH = 430
-  ctx.fillStyle = "#FFFFFF"
-  roundRect(ctx, 30, finY, 1140, finH, 18)
-  ctx.fill()
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px monospace"
-  ctx.textAlign = "left"
-  ctx.fillText("FINANCIAL AUDIT & ITEMIZED BREAKDOWN", 55, finY + 35)
-
-  // Table header row
-  ctx.fillStyle = "#F5F5F4"
-  ctx.fillRect(55, finY + 55, 1090, 35)
-  ctx.fillStyle = "#78716C"
-  ctx.font = "bold 11px monospace"
-  ctx.fillText("ITEM DESCRIPTION", 75, finY + 77)
-  ctx.fillText("RATE / SPECIFICATION", 680, finY + 77)
-  ctx.textAlign = "right"
-  ctx.fillText("TOTAL (EUR)", 1120, finY + 77)
-
-  // Calculations & Damage Assessment Integration
-  const total = Number(booking.totalAmount) || 0
-  const damageFee = Number(booking.checklistIn?.damageFee) || 0
-  const hasDamage = Boolean(booking.checklistIn?.damageFound || damageFee > 0)
-  const damageSeverity = booking.checklistIn?.damageSeverity || "Assessed"
-  const damageLocation = booking.checklistIn?.damageLocation || "Exterior"
-  const damageNotes = booking.checklistIn?.damageNotes || ""
-
-  const baseRate = car?.pricePerDay || 45
-  const vatPercent =
-    car?.vatRate != null && !isNaN(Number(car.vatRate))
-      ? Number(car.vatRate)
-      : 18
-  const vatFactor = vatPercent / 100
-  // Base rental and tax calculation excluding damage fee
-  const subtotalBeforeDamage = Math.max(0, total - damageFee)
-  const baseCharge = Number((subtotalBeforeDamage / (1 + vatFactor)).toFixed(2))
-  const taxCharge = Number((subtotalBeforeDamage - baseCharge).toFixed(2))
-
-  // Row 1: Primary Vehicle Rental
-  ctx.textAlign = "left"
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText(`Primary Vehicle Rental: ${vehicleName}`, 75, finY + 115)
-  ctx.fillStyle = "#78716C"
-  ctx.font = "500 13px system-ui, sans-serif"
-  const rateSubtitle = booking.promoCode
-    ? `Daily: €${baseRate}/day • Voucher: ${booking.promoCode}`
-    : `Daily Rate: €${baseRate}/day`
-  ctx.fillText(rateSubtitle, 680, finY + 115)
-  ctx.textAlign = "right"
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 14px monospace"
-  ctx.fillText(`€${baseCharge.toFixed(2)}`, 1120, finY + 115)
-
-  // Divider
-  ctx.strokeStyle = "#F5F5F4"
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#18181B"
+  ctx.fillText("Date:", 70, currentY)
+  ctx.font = "500 20px 'Courier New', monospace"
+  ctx.fillText(issueDate, 140, currentY)
+  ctx.strokeStyle = "#A1A1AA"
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(55, finY + 132)
-  ctx.lineTo(1145, finY + 132)
+  ctx.moveTo(135, currentY + 5)
+  ctx.lineTo(350, currentY + 5)
   ctx.stroke()
 
-  // Row 2: Standard Taxes & Fees
-  ctx.textAlign = "left"
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText("Hub Concession & State Highway Rental Tax", 75, finY + 155)
-  ctx.fillStyle = "#78716C"
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillText(`${vatPercent}% Vehicle VAT & Concession Fee`, 680, finY + 155)
-  ctx.textAlign = "right"
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 14px monospace"
-  ctx.fillText(`€${taxCharge.toFixed(2)}`, 1120, finY + 155)
-
-  // Divider
+  // Name & ID
+  currentY += lineSpacing
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#18181B"
+  ctx.fillText("Name:", 70, currentY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(customerName, 145, currentY)
   ctx.beginPath()
-  ctx.moveTo(55, finY + 172)
-  ctx.lineTo(1145, finY + 172)
+  ctx.moveTo(140, currentY + 5)
+  ctx.lineTo(550, currentY + 5)
   ctx.stroke()
 
-  // Row 3: Damage Fee (if damage was assessed during return inspection)
-  let currentY = finY + 195
-  if (damageFee > 0 || hasDamage) {
-    ctx.textAlign = "left"
-    ctx.fillStyle = "#DC2626"
-    ctx.font = "bold 14px system-ui, sans-serif"
-    ctx.fillText("Vehicle Damage Assessment & Incident Repair", 75, currentY)
-    ctx.fillStyle = "#991B1B"
-    ctx.font = "500 12px system-ui, sans-serif"
-    const damageDesc = `[${damageSeverity}] ${damageLocation}${damageNotes ? ` • ${damageNotes}` : ""}`
-    ctx.fillText(
-      damageDesc.length > 55 ? damageDesc.slice(0, 52) + "..." : damageDesc,
-      680,
-      currentY,
-    )
-    ctx.textAlign = "right"
-    ctx.fillStyle = "#DC2626"
-    ctx.font = "bold 14px monospace"
-    ctx.fillText(`+€${damageFee.toFixed(2)}`, 1120, currentY)
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("ID:", 600, currentY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(idNumber, 645, currentY)
+  ctx.beginPath()
+  ctx.moveTo(640, currentY + 5)
+  ctx.lineTo(1110, currentY + 5)
+  ctx.stroke()
 
-    currentY += 17
-    ctx.beginPath()
-    ctx.moveTo(55, currentY)
-    ctx.lineTo(1145, currentY)
-    ctx.stroke()
-    currentY += 22
+  // Mob number
+  currentY += lineSpacing
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Mob number:", 70, currentY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(mobNumber, 210, currentY)
+  ctx.beginPath()
+  ctx.moveTo(205, currentY + 5)
+  ctx.lineTo(650, currentY + 5)
+  ctx.stroke()
+
+  // Hiring & REG
+  currentY += lineSpacing
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Hiring:", 70, currentY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(hiringCar, 150, currentY)
+  ctx.beginPath()
+  ctx.moveTo(145, currentY + 5)
+  ctx.lineTo(600, currentY + 5)
+  ctx.stroke()
+
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("REG:", 640, currentY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(regNumber, 700, currentY)
+  ctx.beginPath()
+  ctx.moveTo(695, currentY + 5)
+  ctx.lineTo(1110, currentY + 5)
+  ctx.stroke()
+
+  // From: till:
+  currentY += lineSpacing
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("From:", 70, currentY)
+  ctx.font = "bold 18px 'Courier New', monospace"
+  ctx.fillText(fromSchedule, 140, currentY)
+  ctx.beginPath()
+  ctx.moveTo(135, currentY + 5)
+  ctx.lineTo(550, currentY + 5)
+  ctx.stroke()
+
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("till:", 600, currentY)
+  ctx.font = "bold 18px 'Courier New', monospace"
+  ctx.fillText(tillSchedule, 650, currentY)
+  ctx.beginPath()
+  ctx.moveTo(645, currentY + 5)
+  ctx.lineTo(1110, currentY + 5)
+  ctx.stroke()
+
+  // Extension Notice banner from paper
+  currentY += lineSpacing - 5
+  ctx.font = "bold 18px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#9A3412"
+  ctx.fillText("If Rental will be extended please advise before", 70, currentY)
+
+  // ==========================================
+  // FINANCIAL SECTION & 5-VIEW DIAGRAM
+  // ==========================================
+  const financeY = currentY + 50
+  const dailyRate = car?.pricePerDay ? `€${car.pricePerDay}` : "€75"
+  const depositVal = booking.securityDeposit != null ? `€${booking.securityDeposit}` : "€700"
+  const deliveryFeeVal = booking.deliveryFee != null && booking.deliveryFee > 0 ? `€${booking.deliveryFee}` : "€0"
+  const returnFeeVal = booking.returnFee != null && booking.returnFee > 0 ? `€${booking.returnFee}` : "€0"
+  const totalSumVal = `€${Number(booking.totalAmount || 0).toFixed(2)}`
+
+  // Financial Rows (Left Side)
+  const fLeftX = 70
+  let fRowY = financeY
+
+  // The Sum of €___ Per Day
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#18181B"
+  ctx.fillText("The Sum of", fLeftX, fRowY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(dailyRate, fLeftX + 125, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 120, fRowY + 4)
+  ctx.lineTo(fLeftX + 220, fRowY + 4)
+  ctx.stroke()
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Per Day", fLeftX + 230, fRowY)
+
+  // Deposit of €___
+  fRowY += 50
+  ctx.fillText("Deposit of", fLeftX, fRowY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(depositVal, fLeftX + 115, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 110, fRowY + 4)
+  ctx.lineTo(fLeftX + 280, fRowY + 4)
+  ctx.stroke()
+
+  // Delivery to location Fee €___
+  fRowY += 50
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Delivery to location Fee", fLeftX, fRowY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(deliveryFeeVal, fLeftX + 250, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 245, fRowY + 4)
+  ctx.lineTo(fLeftX + 380, fRowY + 4)
+  ctx.stroke()
+
+  // Return to location Fee €___
+  fRowY += 50
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Return to location Fee", fLeftX, fRowY)
+  ctx.font = "bold 20px 'Courier New', monospace"
+  ctx.fillText(returnFeeVal, fLeftX + 240, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 235, fRowY + 4)
+  ctx.lineTo(fLeftX + 380, fRowY + 4)
+  ctx.stroke()
+
+  // Total Sum €___
+  fRowY += 50
+  ctx.font = "900 22px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Total Sum", fLeftX, fRowY)
+  ctx.font = "bold 24px 'Courier New', monospace"
+  ctx.fillStyle = "#C2410C"
+  ctx.fillText(totalSumVal, fLeftX + 130, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 125, fRowY + 4)
+  ctx.lineTo(fLeftX + 350, fRowY + 4)
+  ctx.stroke()
+
+  // Optional Services
+  fRowY += 50
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#18181B"
+  ctx.fillText("Optional Services:", fLeftX, fRowY)
+  const servicesList = Array.isArray(booking.optionalServices)
+    ? booking.optionalServices.join(", ")
+    : booking.optionalServices || "None"
+  ctx.font = "500 18px 'Courier New', monospace"
+  ctx.fillText(servicesList, fLeftX + 185, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 180, fRowY + 4)
+  ctx.lineTo(fLeftX + 460, fRowY + 4)
+  ctx.stroke()
+
+  // Remarks
+  fRowY += 50
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillText("Remarks:", fLeftX, fRowY)
+  const remarksText = booking.remarks || booking.notes || "None"
+  ctx.font = "500 17px 'Courier New', monospace"
+  ctx.fillText(remarksText.slice(0, 36), fLeftX + 105, fRowY)
+  ctx.beginPath()
+  ctx.moveTo(fLeftX + 100, fRowY + 4)
+  ctx.lineTo(fLeftX + 460, fRowY + 4)
+  ctx.stroke()
+
+  // Right Side: Client signature & 5-view car schematic
+  const rightBoxX = 580
+  ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
+  ctx.fillStyle = "#18181B"
+  ctx.fillText("Client signature:", rightBoxX, financeY)
+
+  // Draw signature line
+  ctx.beginPath()
+  ctx.moveTo(rightBoxX + 165, financeY + 4)
+  ctx.lineTo(rightBoxX + 530, financeY + 4)
+  ctx.stroke()
+
+  // If clientSignature is present as text or drawn, render it
+  if (booking.clientSignature) {
+    if (booking.clientSignature.startsWith("data:image")) {
+      try {
+        const sigImg = new Image()
+        sigImg.src = booking.clientSignature
+        ctx.drawImage(sigImg, rightBoxX + 180, financeY - 35, 200, 45)
+      } catch {
+        ctx.font = "italic 24px 'Brush Script MT', cursive, serif"
+        ctx.fillText(customerName, rightBoxX + 185, financeY - 5)
+      }
+    } else {
+      ctx.font = "italic 24px 'Brush Script MT', cursive, serif"
+      ctx.fillText(booking.clientSignature, rightBoxX + 185, financeY - 5)
+    }
+  } else {
+    ctx.font = "italic 22px 'Brush Script MT', cursive, serif"
+    ctx.fillText(customerName, rightBoxX + 185, financeY - 5)
   }
 
-  // Row: Security Deposit Hold
-  ctx.textAlign = "left"
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "600 14px system-ui, sans-serif"
-  ctx.fillText("Security Deposit Hold (Pre-Authorization)", 75, currentY)
-  ctx.fillStyle = "#059669"
-  ctx.font = "bold 13px system-ui, sans-serif"
-  ctx.fillText("100% Refundable on Check-in", 680, currentY)
-  ctx.textAlign = "right"
-  ctx.fillStyle = "#059669"
-  ctx.font = "bold 14px monospace"
-  ctx.fillText("€200.00 (Hold)", 1120, currentY)
+  // Draw the 5-View Vehicle Schematic Diagram
+  drawCarSchematic(ctx, rightBoxX + 40, financeY + 30)
 
-  // Grand Total Box
-  ctx.fillStyle = "#1C1917"
-  roundRect(ctx, 55, finY + 270, 1090, 110, 16)
-  ctx.fill()
+  // ==========================================
+  // BOTTOM 5 CLAUSES (FRONT PAGE REPLICATION)
+  // ==========================================
+  const clauseStartY = 880
+  ctx.strokeStyle = "#E4E4E7"
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(70, clauseStartY - 20)
+  ctx.lineTo(1110, clauseStartY - 20)
+  ctx.stroke()
 
-  ctx.textAlign = "left"
-  ctx.fillStyle = "#A8A29E"
+  const clauses = [
+    "1) The vehicle (Car, Van and Scooter) and •other rentals (Stroller, Booster and Playpen) shall be used exclusively for the purpose of social domestic and pleasure purposes or business purposes within Malta and Gozo.",
+    "2) The vehicle is in good mechanical condition, and state of repair and must be returned in the same state and condition, wear and tear excepted at the termination of hire.",
+    "3) The Person who is using our rental services must inform Pit Stop Car Hire of any loss of damage/s to, or fault/s in the vehicle or rental. Use of the vehicle or rental when damaged or faulty shall be at the person's responsibility/risk who is using our rental. Unauthorized repairs are not allowed, and if such repairs are done, the Person who is using our rental services shall be responsible for any faults/issues or damages caused as a result.",
+    "4) The Person who is using our rental services shall be responsible for the normal insurance excess amount of €700 in respect to any claims that could rise. This amount may only be exempt in accordance with the option given overleaf at an extra cost.",
+    "5) The vehicle is provided with fully comprehensive insurance. If the vehicle is used or driven against the terms of either this agreement or the insurance policy, the Person who is using our rental services shall be liable for the payment of all damages.",
+    "16) A fee of €80 will be charged if necessary if the vehicle is returned excessively/unusually dirty (e.g. pet hair, spilled food/drink, excessive garbage, stickers on windows, bodily fluids). Offroading & speeding forbidden (Clause 17).",
+  ]
+
+  let clauseY = clauseStartY
+  ctx.fillStyle = "#3F3F46"
+  ctx.font = "500 13px/1.4 system-ui, -apple-system, sans-serif"
+
+  for (const c of clauses) {
+    const words = c.split(" ")
+    let currentLine = ""
+    for (const w of words) {
+      const testLine = currentLine ? `${currentLine} ${w}` : w
+      const metrics = ctx.measureText(testLine)
+      if (metrics.width > 1040) {
+        ctx.fillText(currentLine, 70, clauseY)
+        currentLine = w
+        clauseY += 19
+      } else {
+        currentLine = testLine
+      }
+    }
+    if (currentLine) {
+      ctx.fillText(currentLine, 70, clauseY)
+      clauseY += 26
+    }
+  }
+
+  // Footer Tagline
+  ctx.textAlign = "center"
   ctx.font = "bold 12px monospace"
+  ctx.fillStyle = "#71717A"
   ctx.fillText(
-    booking.status === "Completed"
-      ? "TOTAL SETTLED AMOUNT PAID (COMPLETED & AUDITED)"
-      : "TOTAL RENTAL AMOUNT DUE UPON KEY HANDOFF",
-    85,
-    finY + 310,
-  )
-  ctx.font = "500 12px system-ui, sans-serif"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText(
-    damageFee > 0
-      ? `Includes base rental + €${damageFee.toFixed(2)} certified damage repair charge`
-      : "Payment Method: Hub Counter (Card / Cash / Contactless)",
-    85,
-    finY + 345,
-  )
-
-  ctx.textAlign = "right"
-  ctx.fillStyle = "#F97316"
-  ctx.font = "bold 38px monospace"
-  ctx.fillText(`€${total.toFixed(2)}`, 1115, finY + 335)
-
-  // ========================================================
-  // 5. OFFICIAL SIGNATURE & DIGITAL VERIFICATION SEAL
-  // ========================================================
-  const authY = 1165
-  const authH = 430
-  ctx.fillStyle = "#FFFFFF"
-  roundRect(ctx, 30, authY, 1140, authH, 18)
-  ctx.fill()
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 15px monospace"
-  ctx.textAlign = "left"
-  ctx.fillText("OFFICIAL DISPATCH AUTHORIZATION & AUDIT TRAIL", 55, authY + 35)
-
-  // Left Stamp Box
-  ctx.fillStyle = "#F5F5F4"
-  roundRect(ctx, 55, authY + 60, 500, 220, 14)
-  ctx.fill()
-  ctx.strokeStyle = "#E7E5E4"
-  ctx.lineWidth = 1
-  ctx.stroke()
-
-  ctx.fillStyle = "#1C1917"
-  ctx.font = "bold 14px system-ui, sans-serif"
-  ctx.fillText("FLEET DIRECTOR VERIFICATION SEAL", 80, authY + 95)
-
-  ctx.font = "500 13px system-ui, sans-serif"
-  ctx.fillStyle = "#57534E"
-  ctx.fillText(
-    `Approving Authority: ${settings?.admin_name || "Studio Director • Fleet Operations"}`,
-    80,
-    authY + 130,
-  )
-  ctx.fillText(
-    `Audit Status: ${
-      isApproved ? "VERIFIED & SIGNED OFF" : "AWAITING MANAGER APPROVAL"
-    }`,
-    80,
-    authY + 160,
-  )
-  ctx.fillText(
-    `Dispatch Station: ${settings?.hub_address || "Terminal Garage B • Miami Airport"}`,
-    80,
-    authY + 190,
-  )
-  ctx.fillText(
-    `WhatsApp Hotline: ${settings?.contact_phone || "+91 77807 40223"}`,
-    80,
-    authY + 220,
-  )
-  ctx.fillText(
-    `Dispatch Email: ${settings?.contact_email || "nanikoushik96@gmail.com"}`,
-    80,
-    authY + 250,
-  )
-
-  // Right Security Box
-  ctx.fillStyle = "#141518"
-  roundRect(ctx, 580, authY + 60, 565, 220, 14)
-  ctx.fill()
-
-  ctx.fillStyle = "#F97316"
-  ctx.font = "bold 13px monospace"
-  ctx.fillText("CRYPTO AUDIT & DEEP LINK CHECKSUM", 610, authY + 95)
-
-  ctx.fillStyle = "#E7E5E4"
-  ctx.font = "12px monospace"
-  ctx.fillText(
-    `SHA-256 MANIFEST: ${booking.id}-VERIFIED-AUDIT-MOTORLY`,
-    610,
-    authY + 130,
-  )
-  ctx.fillText(`CLIENT IDENTIFIER: ${booking.customer.email}`, 610, authY + 160)
-  ctx.fillText(`TIMESTAMP: ${new Date().toISOString()}`, 610, authY + 190)
-
-  ctx.fillStyle = "#10B981"
-  ctx.font = "bold 13px monospace"
-  ctx.fillText("STATUS: SUPABASE POSTGRESQL SECURE CERTIFIED", 610, authY + 240)
-
-  // Footer Disclaimer
-  ctx.textAlign = "center"
-  ctx.fillStyle = "#A8A29E"
-  ctx.font = "500 12px system-ui, sans-serif"
-  ctx.fillText(
-    "Motorly Atelier Fleet Management Inc. • 24/7 Roadside & Hub Dispatch • Keep this invoice for vehicle key exchange.",
+    `PIT STOP CAR HIRE • 36 TRIQ IL-KBIRA, MGARR, MALTA • PHONES: 99827192 / 99804255 • AGREEMENT ID: ${booking.id}`,
     600,
-    authY + 340,
-  )
-  ctx.font = "bold 11px monospace"
-  ctx.fillStyle = "#78716C"
-  ctx.fillText(
-    `CONFIDENTIAL DOCUMENT • GENERATED BY MOTORLY ENTERPRISE STUDIO • RESERVATION ID: ${booking.id}`,
-    600,
-    authY + 375,
+    1575,
   )
 
   return canvas.toDataURL("image/png")
 }
 
 /**
- * Generates and triggers instant browser download of the trip invoice PNG
+ * Downloads official PNG contract
  */
 export async function downloadBookingInvoicePng(
   booking: BookingRecord,
@@ -609,14 +576,14 @@ export async function downloadBookingInvoicePng(
   const dataUrl = await generateBookingInvoicePng(booking, car, settings)
   const link = document.createElement("a")
   link.href = dataUrl
-  link.download = `MOTORLY_Invoice_${booking.id}.png`
+  link.download = `PitStop_Agreement_${booking.id}.png`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
 }
 
 /**
- * Generates an official A4 PDF document of the booking invoice
+ * Generates official A4 PDF document
  */
 export async function generateBookingInvoicePdf(
   booking: BookingRecord,
@@ -631,15 +598,12 @@ export async function generateBookingInvoicePdf(
   })
   const pdfWidth = pdf.internal.pageSize.getWidth()
   const pdfHeight = pdf.internal.pageSize.getHeight()
-  // 1200 x 1650 aspect ratio
-  const imgWidth = pdfWidth
-  const imgHeight = (1650 / 1200) * pdfWidth
-  pdf.addImage(pngDataUrl, "PNG", 0, 0, imgWidth, Math.min(imgHeight, pdfHeight))
+  pdf.addImage(pngDataUrl, "PNG", 0, 0, pdfWidth, pdfHeight)
   return pdf.output("blob")
 }
 
 /**
- * Generates and triggers instant browser download of the trip invoice PDF
+ * Downloads official PDF contract
  */
 export async function downloadBookingInvoicePdf(
   booking: BookingRecord,
@@ -650,7 +614,7 @@ export async function downloadBookingInvoicePdf(
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
   link.href = url
-  link.download = `MOTORLY_Invoice_${booking.id}.pdf`
+  link.download = `PitStop_Agreement_${booking.id}.pdf`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)

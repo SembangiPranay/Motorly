@@ -715,7 +715,7 @@ export default function Header({
                   <input
                     type="text"
                     required
-                    placeholder="(555) 123-4567 or email@example.com"
+                    placeholder="+356 99827192 or email@example.com"
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
@@ -744,9 +744,9 @@ export default function Header({
             <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
               <span className="flex items-center gap-1 font-semibold text-gray-800">
                 <HeadsetIcon size={14} className="text-[#F97316]" /> Direct
-                Line: (555) 123-4567
+                Line: +356 99827192 / 99804255
               </span>
-              <span>Garage Service &amp; Maintenance Bay</span>
+              <span>36 Triq Il-Kbira, Mgarr, Malta</span>
             </div>
           </div>
         </div>

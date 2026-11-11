@@ -69,6 +69,18 @@ export interface BookingState {
   promoCode?: string
   discountPercent?: number
   tripReason?: string
+  // Pit Stop Agreement Parameters
+  deliveryType?: "garage" | "custom"
+  deliveryLocationCustom?: string
+  deliveryFee?: number
+  returnType?: "garage" | "custom"
+  returnLocationCustom?: string
+  returnFee?: number
+  optionalServices?: string[]
+  optionalServicesCost?: number
+  remarks?: string
+  clientSignature?: string
+  securityDeposit?: number
 }
 
 export interface CustomerInfo {
@@ -76,6 +88,7 @@ export interface CustomerInfo {
   lastName: string
   email: string
   phone: string
+  idNumber?: string
 }
 
 export interface DriverInfo {
@@ -202,6 +215,19 @@ export interface BookingRecord {
   checklistIn?: InspectionChecklistIn
   inspectionNotes?: string
   inspectionPassed?: boolean
+  // Pit Stop Rental Agreement Record Properties
+  deliveryType?: "garage" | "custom"
+  deliveryLocationCustom?: string
+  deliveryFee?: number
+  returnType?: "garage" | "custom"
+  returnLocationCustom?: string
+  returnFee?: number
+  optionalServices?: string[]
+  optionalServicesCost?: number
+  securityDeposit?: number
+  remarks?: string
+  clientSignature?: string
+  carPlateNumber?: string
 }
 
 export interface CustomerUser {
