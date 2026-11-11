@@ -182,19 +182,24 @@ export default function CarEntranceAnimation({
     >
       {/* 1. Overhead Ambient Studio Softbox Halo */}
       <div
-        className={`absolute top-[36%] left-1/2 -translate-x-1/2 w-[950px] max-w-[120vw] h-[480px] rounded-full blur-3xl pointer-events-none transition-all duration-1200 ${
+        className={`absolute top-[38%] left-1/2 -translate-x-1/2 w-[1000px] max-w-[120vw] h-[520px] rounded-full pointer-events-none transition-all duration-1200 ${
           isHero
-            ? "bg-orange-500/24 scale-110 opacity-100"
+            ? "scale-105 opacity-100"
             : isBrand
-            ? "bg-orange-500/20 scale-100 opacity-90"
+            ? "scale-100 opacity-90"
             : isRevealed
-            ? "bg-orange-600/16 scale-95 opacity-75"
+            ? "scale-95 opacity-75"
             : isMaterial
-            ? "bg-orange-950/22 scale-90 opacity-40"
+            ? "scale-90 opacity-40"
             : isTracing || isOutline
-            ? "bg-orange-950/12 scale-85 opacity-20"
+            ? "scale-85 opacity-20"
             : "opacity-0 scale-80"
         }`}
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 45%, rgba(249, 115, 22, 0.22) 0%, rgba(234, 88, 12, 0.12) 35%, rgba(15, 23, 42, 0.05) 65%, transparent 85%)",
+          filter: "blur(60px)",
+        }}
       />
 
       {/* 2. Top Navigation Bar: Brand Watermark & Skip Intro Button */}
@@ -250,6 +255,10 @@ export default function CarEntranceAnimation({
                   ? "brightness(0.65) contrast(120%)"
                   : "brightness(1) contrast(100%)",
               opacity: phase === "init" ? 0 : 1,
+              maskImage:
+                "radial-gradient(ellipse 92% 86% at 50% 50%, black 70%, transparent 100%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 92% 86% at 50% 50%, black 70%, transparent 100%)",
               transitionDuration:
                 phase === "material" ? "1200ms" : phase === "reveal" ? "1200ms" : "700ms",
             }}
@@ -348,21 +357,14 @@ export default function CarEntranceAnimation({
               }}
             />
 
-            {/* Specular Roofline Laser Ribbon (Storyboard Stages 03 & 04) */}
+            {/* Specular Roofline Laser Ribbon (Storyboard Stages 03 & 04 - Complete uninterrupted flow) */}
             <path
               d={ROOFLINE_PATH}
               fill="none"
               stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeDasharray="1250"
-              strokeDashoffset={
-                phase === "init" || phase === "ignition"
-                  ? "1250"
-                  : phase === "tracing"
-                  ? "450"
-                  : "0"
-              }
-              className={`transition-all duration-1200 ease-out ${
+              className={`${
                 isTracing
                   ? "opacity-95"
                   : isOutline
@@ -372,6 +374,14 @@ export default function CarEntranceAnimation({
                   : "opacity-0"
               }`}
               style={{
+                strokeDashoffset:
+                  phase === "init" || phase === "ignition"
+                    ? "1250"
+                    : "0",
+                transition:
+                  phase === "tracing"
+                    ? "stroke-dashoffset 1600ms cubic-bezier(0.25, 1, 0.5, 1), opacity 800ms ease-out"
+                    : "stroke-dashoffset 800ms ease-out, opacity 800ms ease-out",
                 filter: "drop-shadow(0 0 6px #FFFFFF) drop-shadow(0 0 18px #38BDF8)",
                 willChange: "stroke-dashoffset, opacity",
               }}
