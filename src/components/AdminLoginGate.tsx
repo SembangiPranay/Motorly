@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { api } from "../services/api"
 import { ShieldIcon, LockIcon, ArrowRightIcon } from "./Icons"
+import PitStopLogo from "./PitStopLogo"
 
 interface AdminLoginGateProps {
   onSuccess: () => void
@@ -41,8 +42,8 @@ export default function AdminLoginGate({
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 bg-[#FDFBF7]">
       <div className="w-full max-w-md bg-stone-900 rounded-3xl p-8 sm:p-10 text-white shadow-2xl border border-stone-800 space-y-6">
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-2xl bg-stone-800 border border-stone-700 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
-            <ShieldIcon size={32} />
+          <div className="flex justify-center pb-1">
+            <PitStopLogo size="xl" showText={false} variant="badge" />
           </div>
           <div className="inline-block px-3 py-1 rounded-full bg-orange-950/80 border border-orange-800/60 text-orange-400 text-[10px] font-extrabold uppercase tracking-wider font-mono">
             Restricted Operational Area

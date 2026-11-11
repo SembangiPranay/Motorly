@@ -1,5 +1,6 @@
 import React from "react"
 import { ArrowRightIcon } from "../../components/Icons"
+import PitStopLogo from "../../components/PitStopLogo"
 
 interface HomeHeroProps {
   onSearch: () => void
@@ -11,10 +12,10 @@ export default function HomeHero({ onSearch }: HomeHeroProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
         {/* Left Content Column: Bold Editorial Typography & Direct Atelier Narrative */}
         <div className="lg:col-span-6 z-10 flex flex-col justify-center space-y-6 lg:pr-4">
-          {/* Eyebrow - Clean uppercase text with generous tracking */}
-          <div className="inline-flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-[#F97316] animate-pulse" />
-            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.25em] text-[#F97316]">
+          {/* Eyebrow - Clean uppercase text with authentic F1 brand mark */}
+          <div className="inline-flex items-center gap-3">
+            <PitStopLogo size="sm" showText={false} variant="badge" />
+            <p className="text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-[#F97316]">
               PIT STOP CAR HIRE • 36 TRIQ IL-KBIRA, MGARR, MALTA
             </p>
           </div>

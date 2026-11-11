@@ -24,6 +24,7 @@ import {
 import { getWhatsAppUrls } from "../utils/whatsapp"
 import InvoiceModal from "../components/InvoiceModal"
 import GarageMapViewer from "../components/GarageMapViewer"
+import PitStopLogo from "../components/PitStopLogo"
 
 interface MyBookingsViewProps {
   cars: Car[]
@@ -1648,13 +1649,16 @@ export default function MyBookingsView({
               {/* Header / Boarding Pass Style */}
               <div className="bg-[#17191C] text-white p-6 relative">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#F97316]">
-                      PIT STOP CAR HIRE BOARDING PASS
-                    </span>
-                    <h3 className="text-xl font-black mt-0.5">
-                      Rental Agreement #{selectedVoucher.booking.id}
-                    </h3>
+                  <div className="flex items-center gap-3">
+                    <PitStopLogo size="sm" showText={false} variant="badge" />
+                    <div>
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-[#F97316]">
+                        PIT STOP CAR HIRE BOARDING PASS
+                      </span>
+                      <h3 className="text-lg sm:text-xl font-black mt-0.5 leading-tight">
+                        Rental Agreement #{selectedVoucher.booking.id}
+                      </h3>
+                    </div>
                   </div>
                   <button
                     data-testid="close-voucher-modal"

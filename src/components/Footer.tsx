@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import type { ViewMode } from "../types"
 import LegalPoliciesModal from "./LegalPoliciesModal"
+import PitStopLogo from "./PitStopLogo"
 
 export default function Footer({
   onNavigate,
@@ -15,12 +16,7 @@ export default function Footer({
           {/* Brand Col */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[#F97316] rounded-xl flex items-center justify-center text-white font-bold">
-                PS
-              </div>
-              <span className="text-xl font-extrabold tracking-tight font-heading">
-                PIT STOP CAR HIRE
-              </span>
+              <PitStopLogo size="lg" theme="light" subtitle="Malta & Gozo Fleet" />
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
               Official local garage fleet and vehicle rentals in Mgarr, Malta. Clean cars, transparent

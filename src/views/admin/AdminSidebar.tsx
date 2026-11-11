@@ -13,6 +13,7 @@ import {
   PhoneIcon,
   GlobeIcon,
 } from "../../components/Icons"
+import { PIT_STOP_F1_PATH } from "../../components/PitStopLogo"
 
 export type AdminTab =
   | "manifest"
@@ -141,8 +142,10 @@ export default function AdminSidebar({
         {/* Brand Header */}
         <div className="h-14 p-3 border-b border-stone-800/80 flex items-center justify-between shrink-0">
           <div className={`flex items-center ${isCollapsed ? "justify-center w-full" : "gap-2.5 truncate"}`}>
-            <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0">
-              PS
+            <div className="w-10 h-8 rounded-lg bg-orange-500/10 border border-orange-500/30 text-[#F97316] flex items-center justify-center p-1 shrink-0">
+              <svg viewBox="5.8 13.7 174.5 51.0" fill="currentColor" fillRule="evenodd" className="w-full h-full">
+                <path d={PIT_STOP_F1_PATH} />
+              </svg>
             </div>
             {!isCollapsed && (
               <div className="truncate">

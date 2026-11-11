@@ -10,6 +10,7 @@ import {
   ShieldIcon,
   LocationIcon,
 } from "../../components/Icons"
+import PitStopLogo from "../../components/PitStopLogo"
 
 interface PricingResult {
   tier: "hourly" | "daily" | "weekly" | "monthly"
@@ -94,19 +95,22 @@ export default function CheckoutOrderSummary({
     <div className="lg:col-span-4 sticky top-28 space-y-4">
       <div className="bg-white rounded-xl border border-stone-200/90 p-5 sm:p-6 shadow-sm space-y-5">
         {/* Header matching the paper banner */}
-        <div className="border-b border-stone-100 pb-3 flex items-start justify-between">
-          <div>
-            <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-orange-600 block">
-              Official Rental Agreement
-            </span>
-            <h3 className="font-heading font-extrabold text-lg text-[#17191C]">
-              PIT STOP CAR HIRE
-            </h3>
-            <p className="text-[11px] text-stone-500">
-              36 Triq Il-Kbira, Mgarr • 99827192 / 99804255
-            </p>
+        <div className="border-b border-stone-100 pb-3 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <PitStopLogo size="sm" showText={false} variant="badge" />
+            <div>
+              <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-orange-600 block">
+                Official Rental Agreement
+              </span>
+              <h3 className="font-heading font-extrabold text-base sm:text-lg text-[#17191C] leading-tight">
+                PIT STOP CAR HIRE
+              </h3>
+              <p className="text-[11px] text-stone-500">
+                36 Triq Il-Kbira, Mgarr • 99827192 / 99804255
+              </p>
+            </div>
           </div>
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-stone-900 text-white shrink-0">
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-stone-900 text-white shrink-0 mt-0.5">
             Malta &amp; Gozo
           </span>
         </div>

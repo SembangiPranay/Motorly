@@ -21,6 +21,7 @@ import {
   type InvoiceSettings,
 } from "../utils/invoiceGenerator"
 import { openWhatsAppDirect } from "../utils/whatsapp"
+import PitStopLogo from "./PitStopLogo"
 
 interface InvoiceModalProps {
   booking: BookingRecord | null
@@ -124,9 +125,7 @@ export default function InvoiceModal({
         {/* Modal Top Control Bar (Hidden on Print) */}
         <div className="p-3 sm:px-6 sm:py-3.5 bg-stone-900 text-white flex flex-wrap items-center justify-between gap-2 border-b border-stone-800 print:hidden">
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg bg-[#F97316] text-white flex items-center justify-center font-bold text-xs">
-              M
-            </span>
+            <PitStopLogo size="sm" showText={false} variant="badge" />
             <div>
               <span className="font-heading font-black text-xs sm:text-sm tracking-wide uppercase">
                 Official Trip Invoice
@@ -186,9 +185,7 @@ export default function InvoiceModal({
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-6 border-b border-stone-200">
             <div>
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl bg-[#F97316] text-white flex items-center justify-center font-heading font-black text-xl shadow-xs">
-                  M
-                </div>
+                <PitStopLogo size="lg" showText={false} variant="badge" />
                 <div>
                   <h1 className="font-heading font-black text-xl tracking-tight text-stone-950">
                     PIT STOP CAR HIRE
