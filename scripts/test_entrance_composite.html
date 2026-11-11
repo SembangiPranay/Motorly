@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Entrance Composite Prototype V3</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #030406;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #040507;
+    }
+
+    /* 1. Atmospheric Wet Road & Fog Background */
+    .road-backdrop {
+      position: absolute;
+      inset: 0;
+      background-image: url('../public/images/entrance/dark_road_smoke.jpg');
+      background-size: cover;
+      background-position: center bottom;
+      opacity: 0.7;
+      filter: contrast(1.1) brightness(0.88);
+    }
+
+    .vignette-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, transparent 20%, rgba(4,5,7,0.72) 65%, #040507 94%),
+                  linear-gradient(to bottom, #040507 0%, transparent 20%, transparent 72%, #040507 100%);
+      pointer-events-none;
+    }
+
+    /* 2. Procedural Drifting Smoke Particles */
+    @keyframes driftSmokeA {
+      0% { transform: translateX(50px) translateY(0px) scale(1); opacity: 0.35; }
+      50% { transform: translateX(-30px) translateY(-10px) scale(1.15); opacity: 0.6; }
+      100% { transform: translateX(-120px) translateY(4px) scale(1.25); opacity: 0.25; }
+    }
+    @keyframes driftSmokeB {
+      0% { transform: translateX(80px) scale(0.9); opacity: 0.3; }
+      50% { transform: translateX(-20px) scale(1.2); opacity: 0.55; }
+      100% { transform: translateX(-100px) scale(1.3); opacity: 0.2; }
+    }
+
+    .smoke-layer {
+      position: absolute;
+      bottom: 22%;
+      width: 150%;
+      height: 280px;
+      pointer-events-none;
+      filter: blur(34px);
+    }
+    .smoke-layer-1 {
+      background: radial-gradient(ellipse at 45% 70%, rgba(249, 115, 22, 0.18), rgba(56, 189, 248, 0.08) 50%, transparent 75%);
+      animation: driftSmokeA 8s ease-in-out infinite alternate;
+    }
+    .smoke-layer-2 {
+      background: radial-gradient(ellipse at 65% 75%, rgba(255, 255, 255, 0.25), rgba(14, 165, 233, 0.14) 45%, transparent 70%);
+      animation: driftSmokeB 10s ease-in-out infinite alternate;
+    }
+
+    /* 3. The Car Stage */
+    .car-stage {
+      position: relative;
+      width: 100%;
+      max-width: 1100px;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .car-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 960px;
+      /* Seamless blend onto road: feather top/sides, keep bottom reflection grounded */
+      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%),
+                          linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
+      -webkit-mask-composite: source-in;
+      mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%),
+                  linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
+      mask-composite: intersect;
+    }
+
+    .car-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      user-select: none;
+    }
+
+    /* Precision Headlight Volumetric Beam Flare originating exactly from the front headlight lens */
+    .headlight-flare {
+      position: absolute;
+      top: 45%;
+      left: -32%;
+      width: 440px;
+      height: 180px;
+      /* Projecting forward from the front lens (right edge of cone at lens) */
+      background: radial-gradient(ellipse at 100% 32%, rgba(255, 255, 255, 0.98) 0%, rgba(186, 230, 253, 0.82) 20%, rgba(56, 189, 248, 0.35) 50%, rgba(2, 132, 199, 0.08) 80%, transparent 95%);
+      clip-path: polygon(100% 32%, 0% 15%, 0% 85%, 100% 48%);
+      filter: blur(8px);
+      pointer-events-none;
+      animation: beamPulse 2.2s ease-in-out infinite alternate;
+      mix-blend-mode: screen;
+    }
+
+    .headlight-drl-pupil {
+      position: absolute;
+      top: 48%;
+      left: 7.2%;
+      width: 14px;
+      height: 14px;
+      background: #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 25px 8px #38bdf8, 0 0 50px 18px #0284c7;
+      pointer-events-none;
+    }
+
+    .taillight-blade {
+      position: absolute;
+      top: 41.5%;
+      right: 5.5%;
+      width: 8px;
+      height: 14px;
+      background: #ff1e44;
+      border-radius: 50%;
+      box-shadow: 0 0 25px 8px #ff1e44, 0 0 55px 18px #be123c;
+      pointer-events-none;
+    }
+
+    @keyframes beamPulse {
+      0% { opacity: 0.88; transform: scaleY(0.97); }
+      100% { opacity: 1; transform: scaleY(1.03); }
+    }
+
+    /* Wet Road Caustic Under Bumper */
+    .asphalt-headlight-sheen {
+      position: absolute;
+      top: 55%;
+      left: -15%;
+      width: 320px;
+      height: 80px;
+      background: radial-gradient(ellipse at 50% 50%, rgba(186, 230, 253, 0.45), rgba(56, 189, 248, 0.2) 40%, rgba(2, 132, 199, 0.05) 70%, transparent 90%);
+      filter: blur(12px);
+      mix-blend-mode: screen;
+      pointer-events-none;
+    }
+
+    /* HUD Bar */
+    .telemetry-hud {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(11, 14, 20, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 24px;
+      border-radius: 9999px;
+      backdrop-filter: blur(12px);
+      font-family: monospace;
+      font-size: 11px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .hud-label { color: #94a3b8; }
+    .hud-val { color: #f1f5f9; font-weight: bold; }
+    .hud-accent { color: #f97316; font-weight: bold; }
+    .hud-emerald { color: #10b981; font-weight: bold; }
+
+    /* Brand Typography */
+    .brand-title {
+      margin-top: 16px;
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      background: linear-gradient(to right, #ffffff, #f1f5f9 60%, #f97316 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+    .brand-sub {
+      font-size: 11px;
+      font-family: monospace;
+      letter-spacing: 0.45em;
+      color: #94a3b8;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* Top Watermark */
+    .top-bar {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 30;
+    }
+    .skip-btn {
+      padding: 6px 16px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.2s;
+    }
+    .skip-btn:hover {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="viewport">
+    <div class="road-backdrop"></div>
+    <div class="smoke-layer smoke-layer-1"></div>
+    <div class="smoke-layer smoke-layer-2"></div>
+    <div class="vignette-overlay"></div>
+
+    <div class="top-bar">
+      <div style="display:flex; align-items:center; gap:8px; font-family:monospace; font-size:10px; color:#94a3b8; letter-spacing:0.2em;">
+        <span style="width:8px; height:8px; border-radius:50%; background:#f97316; display:inline-block;"></span>
+        PIT STOP CAR HIRE • MGARR ATELIER • MALTA
+      </div>
+      <button class="skip-btn">Skip Intro &rarr;</button>
+    </div>
+
+    <div class="car-stage">
+      <div class="car-wrapper">
+        <img class="car-img" src="../public/images/entrance/luxury_gt_car.jpg" alt="Luxury GT Coupe">
+        <div class="headlight-flare"></div>
+        <div class="headlight-drl-pupil"></div>
+        <div class="asphalt-headlight-sheen"></div>
+        <div class="taillight-blade"></div>
+      </div>
+
+      <div class="telemetry-hud">
+        <div><span class="hud-label">CHASSIS:</span> <span class="hud-val">AIR LEVEL 0 (GT LOW)</span></div>
+        <div style="width:1px; height:12px; background:#475569;"></div>
+        <div><span class="hud-label">MODE:</span> <span class="hud-accent">GT CRUISE</span></div>
+        <div style="width:1px; height:12px; background:#475569;"></div>
+        <div><span class="hud-label">EST. RANGE:</span> <span class="hud-emerald">640 KM</span></div>
+        <div style="width:1px; height:12px; background:#475569;"></div>
+        <div style="color:#10b981; font-weight:bold;">● MALTA FLEET DISPATCH READY</div>
+      </div>
+
+      <div class="brand-title">PIT STOP</div>
+      <div class="brand-sub">PRESTIGE & EXECUTIVE FLEET • 36 TRIQ IL-KBIRA, MGARR, MALTA</div>
+    </div>
+  </div>
+</body>
+</html>

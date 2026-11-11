@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pit Stop Formula 1 Entrance Cinematic Prototype</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&family=JetBrains+Mono:wght@700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #07080B;
+      color: #FFFFFF;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    .header-banner {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(249, 115, 22, 0.12);
+      border: 1px solid rgba(249, 115, 22, 0.35);
+      color: #F97316;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #F97316;
+      box-shadow: 0 0 8px #F97316;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      max-width: 1100px;
+      height: 520px;
+      background: radial-gradient(ellipse at 50% 30%, rgba(249, 115, 22, 0.15) 0%, rgba(10, 12, 17, 0.95) 50%, #040507 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    /* Perspective Showroom Grid */
+    .grid-floor {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 260px;
+      background-image:
+        linear-gradient(to right, rgba(249, 115, 22, 0.16) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(249, 115, 22, 0.16) 1px, transparent 1px);
+      background-size: 50px 50px;
+      transform: perspective(350px) rotateX(65deg) translate3d(0, -10px, 0);
+      transform-origin: bottom center;
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .grid-vignette {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, transparent 0%, #07080B 80%);
+      pointer-events: none;
+    }
+    .car-container {
+      position: relative;
+      width: 95%;
+      max-width: 980px;
+      z-index: 10;
+    }
+    /* HUD Telemetry */
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 8px 24px;
+      background: rgba(14, 16, 22, 0.85);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      backdrop-filter: blur(12px);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #A1A1AA;
+      margin-top: 18px;
+      z-index: 20;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+    }
+    .telemetry-bar strong {
+      color: #FFFFFF;
+      font-weight: 800;
+    }
+    .telemetry-bar .val-orange {
+      color: #F97316;
+      font-weight: 800;
+    }
+    .telemetry-bar .val-green {
+      color: #10B981;
+      font-weight: 800;
+    }
+    .pulse-rain-light {
+      animation: rainLightBlink 0.4s infinite alternate;
+    }
+    @keyframes rainLightBlink {
+      0% { opacity: 0.3; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1.1); filter: drop-shadow(0 0 10px #EF4444); }
+    }
+    .wind-tracer {
+      stroke-dasharray: 80, 160;
+      animation: windFlow 1.6s linear infinite;
+    }
+    @keyframes windFlow {
+      0% { stroke-dashoffset: 240; opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.8; }
+      100% { stroke-dashoffset: -240; opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-banner">
+    <div>
+      <h1 style="font-size: 22px; font-weight: 900; letter-spacing: -0.02em;">Pit Stop Car Hire — F1 Masterpiece Entrance Cinematic</h1>
+      <p style="color: #71717A; font-size: 13px; margin-top: 4px;">Ultra-High Realistic Formula 1 Prototype vs. Previous Road Sedan</p>
+    </div>
+    <div class="badge">
+      <span class="dot"></span>
+      1:1 Brand Logo Car Match
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="grid-floor"></div>
+    <div class="grid-vignette"></div>
+
+    <div class="car-container">
+      <svg viewBox="0 0 1000 420" width="100%" height="auto" style="overflow: visible;">
+        <defs>
+          <!-- Shaders & Gradients -->
+          <!-- 1. Carbon Monocoque Paint -->
+          <linearGradient id="f1CarbonPaint" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#2E333D" />
+            <stop offset="25%" stopColor="#1E222A" />
+            <stop offset="55%" stopColor="#12151B" />
+            <stop offset="85%" stopColor="#0B0D11" />
+            <stop offset="100%" stopColor="#040507" />
+          </linearGradient>
+
+          <!-- 2. Metallic Orange Racing Livery -->
+          <linearGradient id="f1OrangeLivery" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#EA580C" />
+            <stop offset="40%" stopColor="#F97316" />
+            <stop offset="70%" stopColor="#FB923C" />
+            <stop offset="100%" stopColor="#EA580C" />
+          </linearGradient>
+
+          <!-- 3. Specular Ridge Highlight -->
+          <linearGradient id="f1SpecularHighlight" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
+            <stop offset="50%" stopColor="#FED7AA" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#F97316" stopOpacity="0.6" />
+          </linearGradient>
+
+          <!-- 4. Carbon Fiber Wing Composite -->
+          <linearGradient id="carbonWing" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1C1F26" />
+            <stop offset="50%" stopColor="#111317" />
+            <stop offset="100%" stopColor="#08090C" />
+          </linearGradient>
+
+          <!-- 5. Racing Slick Tire Radial -->
+          <radialGradient id="slickTireGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="65%" stopColor="#16181D" />
+            <stop offset="85%" stopColor="#242831" />
+            <stop offset="96%" stopColor="#0C0D11" />
+            <stop offset="100%" stopColor="#040506" />
+          </radialGradient>
+
+          <!-- 6. Magnesium Centerlock Rim -->
+          <radialGradient id="f1RimGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#F97316" />
+            <stop offset="25%" stopColor="#27272A" />
+            <stop offset="75%" stopColor="#09090B" />
+            <stop offset="100%" stopColor="#18181B" />
+          </radialGradient>
+
+          <!-- 7. Carbon Ceramic Brake Rotor Heat Glow -->
+          <radialGradient id="brakeHeatGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FF7A00" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#EA580C" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#7C2D12" stopOpacity="0" />
+          </radialGradient>
+
+          <!-- 8. FIA Rear Rain LED Light -->
+          <radialGradient id="fiaRainLightGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+            <stop offset="20%" stopColor="#FF2222" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#DC2626" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#7F1D1D" stopOpacity="0" />
+          </radialGradient>
+
+          <!-- 9. Ground Shadow -->
+          <radialGradient id="f1GroundShadow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#000000" stopOpacity="0.95" />
+            <stop offset="50%" stopColor="#000000" stopOpacity="0.65" />
+            <stop offset="85%" stopColor="#000000" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+          </radialGradient>
+
+          <!-- 10. Underbody Amber Ground Glow -->
+          <radialGradient id="f1Underglow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#F97316" stopOpacity="0.45" />
+            <stop offset="45%" stopColor="#F97316" stopOpacity="0.18" />
+            <stop offset="80%" stopColor="#F97316" stopOpacity="0.02" />
+            <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <!-- 1. GROUND EFFECT SHADOW & NEON PIT LANE REFLECTION -->
+        <ellipse cx="500" cy="358" rx="460" ry="24" fill="url(#f1GroundShadow)" />
+        <ellipse cx="490" cy="355" rx="380" ry="14" fill="url(#f1Underglow)" />
+        <!-- Direct contact patches for open tires -->
+        <ellipse cx="195" cy="352" rx="42" ry="7" fill="#000000" opacity="0.95" />
+        <ellipse cx="795" cy="350" rx="48" ry="8" fill="#000000" opacity="0.95" />
+
+        <!-- 2. AERODYNAMIC WIND TUNNEL LASER FLOW TRACERS -->
+        <path d="M 30,285 C 90,285 130,290 190,270 C 260,245 320,225 410,215 C 470,210 520,185 580,180 C 650,175 730,175 840,195 L 980,195" 
+              fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round" class="wind-tracer" opacity="0.75" />
+        <path d="M 40,305 C 110,305 160,310 240,305 C 340,300 450,295 560,295 C 670,295 720,310 820,305 L 970,305" 
+              fill="none" stroke="#38BDF8" stroke-width="1.5" stroke-linecap="round" class="wind-tracer" opacity="0.5" />
+        <path d="M 60,320 C 140,320 220,325 350,322 C 480,320 620,320 740,325 L 960,328" 
+              fill="none" stroke="#F97316" stroke-width="1.8" stroke-linecap="round" class="wind-tracer" opacity="0.6" />
+
+        <!-- 3. INNER SUSPENSION CARBON WISHBONES (Behind front wheel) -->
+        <!-- Upper and Lower Carbon Wishbones -->
+        <line x1="200" y1="285" x2="310" y2="265" stroke="#181A20" stroke-width="5" stroke-linecap="round" />
+        <line x1="200" y1="285" x2="310" y2="265" stroke="#383E4D" stroke-width="1.5" stroke-linecap="round" />
+        <line x1="195" y1="315" x2="320" y2="305" stroke="#181A20" stroke-width="6" stroke-linecap="round" />
+        <!-- Steering Tie-rod -->
+        <line x1="210" y1="298" x2="315" y2="290" stroke="#F97316" stroke-width="2" />
+
+        <!-- 4. REAR SUSPENSION PUSHROD & DRIVESHAFT -->
+        <line x1="795" y1="280" x2="710" y2="255" stroke="#181A20" stroke-width="6" stroke-linecap="round" />
+        <line x1="795" y1="315" x2="715" y2="305" stroke="#181A20" stroke-width="7" stroke-linecap="round" />
+
+        <!-- 5. MAIN FORMULA 1 MONOCOQUE CHASSIS & SCULPTED BODYWORK -->
+        <!-- Main Chassis Body Profile: Matches authentic paper F1 logo geometry! -->
+        <path d="
+          M 75,302 
+          C 95,298 120,292 165,285 
+          C 210,278 260,268 310,256 
+          C 350,246 385,236 415,234 
+          L 455,234 
+          C 465,220 480,185 505,178 
+          C 530,172 555,172 575,182 
+          C 590,190 595,205 600,225 
+          C 640,228 690,230 735,235 
+          C 780,240 820,242 850,240 
+          L 870,245 
+          L 870,290 
+          C 860,305 845,318 820,325 
+          L 730,325 
+          C 660,328 580,325 500,322 
+          C 420,318 350,315 280,312 
+          L 155,310 
+          Z" 
+          fill="url(#f1CarbonPaint)" 
+          stroke="#1E222A" 
+          stroke-width="1.5" 
+        />
+
+        <!-- Aerodynamic Shark Fin (Extends from Airbox to Rear Wing pylon) -->
+        <path d="M 540,175 L 835,185 L 835,242 L 590,210 Z" fill="url(#carbonWing)" opacity="0.95" />
+        <!-- Shark Fin Edge Highlight -->
+        <path d="M 540,175 L 835,185" stroke="#F97316" stroke-width="2.5" stroke-linecap="round" />
+
+        <!-- Engine Induction Airbox Intake Scoop (Hollow opening above driver helmet) -->
+        <ellipse cx="525" cy="188" rx="14" ry="11" fill="#050608" stroke="#F97316" stroke-width="2" />
+        <ellipse cx="525" cy="188" rx="10" ry="7" fill="#000000" />
+
+        <!-- Driver Cockpit with Titanium Halo Safety Ring -->
+        <!-- Driver Helmet Silhouette with Visor Reflection -->
+        <ellipse cx="468" cy="226" rx="16" ry="15" fill="#18181B" stroke="#3F3F46" stroke-width="1.5" />
+        <!-- Iridescent Gold Helmet Visor -->
+        <path d="M 458,222 C 465,220 472,220 478,225 L 476,231 C 470,228 464,228 458,229 Z" fill="#F59E0B" />
+        <!-- Titanium Halo Arc -->
+        <path d="M 432,236 C 445,212 485,212 510,230" fill="none" stroke="#E4E4E7" stroke-width="4.5" stroke-linecap="round" />
+        <path d="M 432,236 C 445,212 485,212 510,230" fill="none" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" />
+        <!-- Center Halo Pylon -->
+        <line x1="472" y1="216" x2="470" y2="236" stroke="#E4E4E7" stroke-width="3" />
+
+        <!-- Sidepod Radiator Air Intake Duct (Aggressive Ground Effect Undercut) -->
+        <path d="M 380,250 C 430,252 500,258 580,265 C 640,270 700,285 745,302 L 740,318 C 660,318 560,312 480,305 C 410,298 360,285 345,268 Z" 
+              fill="url(#carbonWing)" stroke="rgba(249,115,22,0.5)" stroke-width="1.2" />
+
+        <!-- Dynamic Orange Performance Livery Swoosh across Nose & Sidepod -->
+        <path d="M 120,298 C 180,290 250,280 340,265 C 410,255 490,256 570,264 C 630,270 710,290 770,305 L 755,312 C 690,298 620,282 560,276 C 480,268 400,266 330,278 C 240,292 170,304 115,306 Z" 
+              fill="url(#f1OrangeLivery)" />
+        <!-- Specular Highlight Streak -->
+        <path d="M 140,293 C 210,284 280,274 360,262 C 440,252 520,254 600,262" 
+              fill="none" stroke="url(#f1SpecularHighlight)" stroke-width="2.5" stroke-linecap="round" />
+
+        <!-- Pit Stop Brand Logo Monogram on F1 Engine Cover -->
+        <g transform="translate(615, 238) scale(0.65)">
+          <rect x="0" y="0" width="110" height="34" rx="8" fill="#0C0E12" stroke="#F97316" stroke-width="1" />
+          <text x="14" y="16" fill="#FFFFFF" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="11" letter-spacing="1">PIT STOP</text>
+          <text x="14" y="27" fill="#F97316" font-family="'JetBrains Mono', monospace" font-weight="800" font-size="7.5" letter-spacing="2">CAR HIRE</text>
+        </g>
+
+        <!-- 6. HIGH-DOWNFORCE FRONT WING ASSEMBLY (1:1 with Logo Aerodynamics) -->
+        <!-- Front Wing Main Plane -->
+        <polygon points="50,326 215,326 215,318 60,314" fill="#0D0F14" stroke="#F97316" stroke-width="1.5" />
+        <!-- Front Wing Cascading Flaps -->
+        <polygon points="55,315 200,317 195,312 62,310" fill="#181A22" stroke="#2C3240" stroke-width="1" />
+        <polygon points="65,310 185,311 180,306 72,305" fill="#181A22" stroke="#2C3240" stroke-width="1" />
+        <!-- Front Wing Aerodynamic Endplate with Diveplane -->
+        <path d="M 45,330 L 48,296 L 72,304 L 70,328 Z" fill="url(#carbonWing)" stroke="#F97316" stroke-width="1.5" />
+        <path d="M 48,310 C 58,308 68,312 75,314" fill="none" stroke="#F97316" stroke-width="2" />
+
+        <!-- 7. REAR WING ASSEMBLY & FIA SAFETY RAIN BEACON -->
+        <!-- Rear Wing Endplates -->
+        <path d="M 830,248 L 840,172 L 915,170 L 910,250 Z" fill="url(#carbonWing)" stroke="#27272A" stroke-width="1.5" />
+        <!-- Main Plane & DRS Wing Flap -->
+        <polygon points="840,172 915,170 915,182 840,184" fill="#0C0E14" stroke="#F97316" stroke-width="1.5" />
+        <polygon points="840,188 915,186 915,198 840,200" fill="#151820" stroke="#3F3F46" stroke-width="1" />
+        <!-- DRS Actuator Hydraulic Pod in Center -->
+        <rect x="872" y="166" width="10" height="18" rx="2" fill="#F97316" />
+
+        <!-- Rear Lower Beam Wing & Venturi Diffuser -->
+        <polygon points="820,320 905,314 910,326 815,330" fill="#090A0D" stroke="#F97316" stroke-width="1" />
+
+        <!-- FIA Formula 1 Rear Rain Safety Warning Strobe (Pulsing Red LED) -->
+        <g class="pulse-rain-light">
+          <ellipse cx="912" cy="275" rx="14" ry="14" fill="url(#fiaRainLightGlow)" />
+          <rect x="908" y="271" width="8" height="8" rx="2" fill="#FFFFFF" />
+        </g>
+
+        <!-- 8. FRONT OPEN RACING SLICK (Exposed F1 Wheel with Pirelli-Style Stripe) -->
+        <g transform="translate(195, 302)">
+          <!-- Brake Rotor Glowing Inside -->
+          <circle cx="0" cy="0" r="28" fill="#18181B" stroke="#F97316" stroke-width="2" />
+          <circle cx="0" cy="0" r="24" fill="url(#brakeHeatGlow)" />
+          <!-- Orange Brembo Monobloc Caliper -->
+          <path d="M -18,-18 L -6,-24 L -4,-10 L -16,-6 Z" fill="#F97316" />
+
+          <!-- Main Black Slick Tire Rubber -->
+          <circle cx="0" cy="0" r="44" fill="none" stroke="url(#slickTireGrad)" stroke-width="26" />
+          <circle cx="0" cy="0" r="54" fill="none" stroke="#050608" stroke-width="4" />
+          <!-- Pirelli-style High-Speed Orange Wall Line -->
+          <circle cx="0" cy="0" r="45" fill="none" stroke="#F97316" stroke-width="2.5" stroke-dasharray="14, 6" />
+
+          <!-- Centerlock Wheel Rim (BBS Magnesium Motorsport Styling) -->
+          <circle cx="0" cy="0" r="28" fill="url(#f1RimGrad)" stroke="#3F3F46" stroke-width="1" />
+          <!-- Wheel Spokes -->
+          <g stroke="#71717A" stroke-width="2.2" stroke-linecap="round">
+            <line x1="0" y1="-24" x2="0" y2="24" />
+            <line x1="-24" y1="0" x2="24" y2="0" />
+            <line x1="-17" y1="-17" x2="17" y2="17" />
+            <line x1="17" y1="-17" x2="-17" y2="17" />
+          </g>
+          <!-- Centerlock Anodized Orange Nut -->
+          <circle cx="0" cy="0" r="8" fill="#EA580C" stroke="#FFFFFF" stroke-width="1.5" />
+          <circle cx="0" cy="0" r="4" fill="#000000" />
+        </g>
+
+        <!-- 9. REAR OPEN RACING SLICK (Wider Profile) -->
+        <g transform="translate(795, 298)">
+          <!-- Brake Rotor Glowing Inside -->
+          <circle cx="0" cy="0" r="32" fill="#18181B" stroke="#F97316" stroke-width="2.5" />
+          <circle cx="0" cy="0" r="28" fill="url(#brakeHeatGlow)" />
+          <!-- Orange Caliper -->
+          <path d="M -22,-20 L -8,-28 L -6,-12 L -20,-8 Z" fill="#F97316" />
+
+          <!-- Extra Wide Rear Slick Tire Rubber -->
+          <circle cx="0" cy="0" r="48" fill="none" stroke="url(#slickTireGrad)" stroke-width="28" />
+          <circle cx="0" cy="0" r="59" fill="none" stroke="#050608" stroke-width="4" />
+          <!-- Pirelli-style High-Speed Orange Wall Line -->
+          <circle cx="0" cy="0" r="50" fill="none" stroke="#F97316" stroke-width="3" stroke-dasharray="16, 7" />
+
+          <!-- Centerlock Wheel Rim -->
+          <circle cx="0" cy="0" r="32" fill="url(#f1RimGrad)" stroke="#3F3F46" stroke-width="1" />
+          <!-- Spokes -->
+          <g stroke="#71717A" stroke-width="2.5" stroke-linecap="round">
+            <line x1="0" y1="-28" x2="0" y2="28" />
+            <line x1="-28" y1="0" x2="28" y2="0" />
+            <line x1="-20" y1="-20" x2="20" y2="20" />
+            <line x1="20" y1="-20" x2="-20" y2="20" />
+          </g>
+          <!-- Centerlock Anodized Orange Nut -->
+          <circle cx="0" cy="0" r="9" fill="#EA580C" stroke="#FFFFFF" stroke-width="1.5" />
+          <circle cx="0" cy="0" r="4.5" fill="#000000" />
+        </g>
+
+      </svg>
+    </div>
+
+    <!-- Real-Time F1 Telemetry HUD -->
+    <div class="telemetry-bar">
+      <span>TACHOMETER: <strong class="val-orange">11,400</strong> RPM</span>
+      <span style="color: rgba(255,255,255,0.2);">|</span>
+      <span>GEAR: <strong>7TH</strong></span>
+      <span style="color: rgba(255,255,255,0.2);">|</span>
+      <span>DRS: <strong class="val-green">● ARMED</strong></span>
+      <span style="color: rgba(255,255,255,0.2);">|</span>
+      <span>BRAKE TEMP: <strong class="val-orange">640°C</strong></span>
+      <span style="color: rgba(255,255,255,0.2);">|</span>
+      <span>STATION: <strong>MGARR PIT LANE</strong></span>
+    </div>
+  </div>
+
+</body>
+</html>
