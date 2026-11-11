@@ -1,3 +1,4 @@
+import PitStopLogo from "./PitStopLogo"
 import React, { useState } from "react"
 
 import type { ViewMode, CustomerUser } from "../types"
@@ -131,21 +132,9 @@ export default function Header({
           {/* Logo (Visible on mobile/tablet; hidden on desktop where persistent sidebar already shows logo) */}
           <div
             onClick={() => onNavigate("home")}
-            className="flex lg:hidden items-center gap-2.5 cursor-pointer select-none group shrink-0 mr-2"
+            className="cursor-pointer select-none group"
           >
-            {/* Ribbon M Logo */}
-            <div className="w-7 h-6 relative flex items-end">
-              <svg viewBox="0 0 28 24" fill="none" className="w-full h-full">
-                <path
-                  d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z"
-                  fill="#F97316"
-                />
-                <path d="M21 22L26 5L24 22H21Z" fill="#EA580C" opacity="0.8" />
-              </svg>
-            </div>
-            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-[#17191C] font-heading">
-              MOTORLY
-            </span>
+            <PitStopLogo size="md" subtitle="Car Hire • Mgarr" />
           </div>
 
           {/* Desktop Navigation Links - Compact & responsive for 14" & 16" laptops */}
@@ -373,7 +362,7 @@ export default function Header({
               }}
               className="block w-full text-left py-2 font-medium text-gray-700"
             >
-              About MOTORLY
+              About Pit Stop Car Hire
             </button>
             <button
               onClick={() => {
@@ -459,7 +448,7 @@ export default function Header({
                 M
               </div>
               <span className="font-heading font-extrabold text-xl">
-                MOTORLY Account
+                Pit Stop Account
               </span>
             </div>
 

@@ -43,7 +43,7 @@ export default function InvoiceModal({
     car?.garageName ||
     "Main Garage Facility, Bay 1 Handoff Station, Miami, FL 33101"
   const contactPhone = settings?.contact_phone || "+1 (555) 234-5678"
-  const contactEmail = settings?.contact_email || "concierge@motorly.com"
+  const contactEmail = settings?.contact_email || "rentals@pitstopcarhire.com"
   const adminName = settings?.admin_name || "Studio Director"
 
   const customerName =
@@ -101,16 +101,16 @@ export default function InvoiceModal({
   }
 
   const handleSendWhatsApp = () => {
-    const text = `*MOTORLY ATELIER - OFFICIAL TRIP INVOICE*\nInvoice #${booking.id}\nClient: ${customerName}\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nDuration: ${booking.pickupDate} to ${booking.returnDate}\nTotal Settled: €${totalAmount.toFixed(2)}\nStatus: PAID & AUDITED\n\nThank you for choosing Motorly Atelier!`
+    const text = `*PIT STOP CAR HIRE - OFFICIAL TRIP INVOICE*\nInvoice #${booking.id}\nClient: ${customerName}\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nDuration: ${booking.pickupDate} to ${booking.returnDate}\nTotal Settled: €${totalAmount.toFixed(2)}\nStatus: PAID & AUDITED\n\nThank you for choosing Pit Stop Car Hire (Mgarr, Malta)!`
     openWhatsAppDirect(booking.customer.phone, text)
   }
 
   const handleSendEmail = () => {
     const subject = encodeURIComponent(
-      `MOTORLY Atelier - Trip Invoice #${booking.id}`,
+      `Pit Stop Car Hire - Trip Invoice #${booking.id}`,
     )
     const body = encodeURIComponent(
-      `Hello ${customerName},\n\nPlease find your official trip receipt and completed rental invoice for reservation #${booking.id}.\n\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nRental Period: ${booking.pickupDate} to ${booking.returnDate}\nTotal Amount Paid: €${totalAmount.toFixed(2)}\nReturn Status: Inspected & Settled\n\nThank you for driving with MOTORLY Atelier.\n\nBest regards,\n${adminName}\nMotorly Fleet Management`,
+      `Hello ${customerName},\n\nPlease find your official trip receipt and completed rental invoice for reservation #${booking.id}.\n\nVehicle: ${car?.brand || ""} ${car?.model || "Fleet Vehicle"} (${car?.plateNumber || "FL-908-MTR"})\nRental Period: ${booking.pickupDate} to ${booking.returnDate}\nTotal Amount Paid: €${totalAmount.toFixed(2)}\nReturn Status: Inspected & Settled\n\nThank you for driving with Pit Stop Car Hire.\n\nBest regards,\n${adminName}\nPit Stop Fleet Management`,
     )
     window.location.href = `mailto:${booking.customer.email}?subject=${subject}&body=${body}`
   }
@@ -191,7 +191,7 @@ export default function InvoiceModal({
                 </div>
                 <div>
                   <h1 className="font-heading font-black text-xl tracking-tight text-stone-950">
-                    MOTORLY ATELIER
+                    PIT STOP CAR HIRE
                   </h1>
                   <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500">
                     Executive Fleet Management &amp; Dispatch
@@ -207,7 +207,7 @@ export default function InvoiceModal({
                   Tel: {contactPhone} • Email: {contactEmail}
                 </p>
                 <p className="text-[10px] font-mono text-stone-400">
-                  Tax / Commercial Registry: US-FL-MTR-99401-EX
+                  Tax / Commercial Registry: MT-MGARR-PS-99827
                 </p>
               </div>
             </div>
@@ -259,7 +259,7 @@ export default function InvoiceModal({
                 Phone: {booking.customer.phone || "On File"}
               </p>
               <p className="text-stone-600">
-                Email: {booking.customer.email || "guest@motorly.com"}
+                Email: {booking.customer.email || "guest@pitstopcarhire.com"}
               </p>
               <p className="text-stone-500 text-[11px] pt-1 border-t border-stone-200/60">
                 Driver License:{" "}
@@ -544,7 +544,7 @@ export default function InvoiceModal({
                 Audited &amp; Authorized By: {adminName}
               </p>
               <p className="text-[11px]">
-                Motorly Atelier Certified Station Hub • Vehicle Keys Returned
+                Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr) • Vehicle Keys Returned
                 &amp; Checked
               </p>
             </div>
@@ -558,7 +558,7 @@ export default function InvoiceModal({
         {/* Modal Footer Controls (Hidden on Print) */}
         <div className="p-3 sm:px-6 bg-stone-100 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <p className="text-[11px] text-stone-500 font-mono">
-            Generated directly from Motorly Dispatch Database
+            Generated directly from Pit Stop Car Hire Dispatch Database
           </p>
 
           <div className="flex items-center gap-2">

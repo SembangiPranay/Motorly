@@ -448,7 +448,7 @@ export default function AdminView({
     const result = await api.createCounterBooking({
       firstName,
       lastName,
-      email: `walkin_${Date.now()}@motorly.local`,
+      email: `walkin_${Date.now()}@pitstopcarhire.local`,
       phone: data.customerPhone,
       carId: data.carId,
       pickupDate: today,

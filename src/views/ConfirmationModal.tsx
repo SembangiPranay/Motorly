@@ -70,7 +70,7 @@ export default function ConfirmationModal({
     "Customer"
 
   // Exact minimal message template as requested
-  const minimalTemplate = `🚗 *MOTORLY – NEW BOOKING REQUEST*
+  const minimalTemplate = `🚗 *PIT STOP CAR HIRE – NEW BOOKING REQUEST*
 
 📋 *Booking ID:* ${bookingId}
 🟡 *Status:* Pending Approval
@@ -90,7 +90,7 @@ export default function ConfirmationModal({
 ⚡ *Review & Approve:*
 ${adminApprovalLink}
 
-_MOTORLY | Smarter Car Rentals_`
+_PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
 
   // Smart device-adaptive WhatsApp routing:
   // - On Mobile: routes to native WhatsApp mobile app (api.whatsapp.com)
@@ -103,7 +103,7 @@ _MOTORLY | Smarter Car Rentals_`
   const primaryWhatsAppUrl = whatsappUrls.smartUrl
 
   // Direct Mail Link
-  const mailSubject = `MOTORLY – NEW BOOKING REQUEST: ${bookingId} (${car.name})`
+  const mailSubject = `PIT STOP CAR HIRE – NEW BOOKING REQUEST: ${bookingId} (${car.name})`
   const mailtoUrl = `mailto:${studioSettings.contact_email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(minimalTemplate.replace(/\*/g, ""))}`
 
   // Automatic & simultaneous dispatch on booking confirmation

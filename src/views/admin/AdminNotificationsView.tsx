@@ -145,7 +145,7 @@ export default function AdminNotificationsView({
                       const cPhone = b.customer?.phone || ""
                       const { webUrl } = getWhatsAppUrls(
                         cPhone,
-                        `Hello ${cName}, regarding your Motorly reservation ${b.id}...`
+                        `Hello ${cName}, regarding your Pit Stop Car Hire reservation ${b.id}...`
                       )
 
                       return (

@@ -13,7 +13,7 @@ interface GarageMapViewerProps {
 }
 
 export default function GarageMapViewer({
-  garageName = "MOTORLY Central Hub & Garage Bay 4",
+  garageName = "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
   garageAddress = "4200 NW 21st St, Miami, FL 33142",
   garageBay = "Bay 14-B",
   lat = 25.7959,
@@ -160,7 +160,7 @@ export default function GarageMapViewer({
       })
 
       const pinIcon = L.divIcon({
-        className: "motorly-custom-pin",
+        className: "pit-stop-custom-pin",
         html: `
           <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: ${
             isEditable ? "grab" : "default"

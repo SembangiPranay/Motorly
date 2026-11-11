@@ -119,7 +119,7 @@ export default function AdminCrmView({
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {filtered.map((c) => {
-                  const { webUrl } = getWhatsAppUrls(c.phone || "", `Hello ${c.name}, greetings from Motorly Atelier.`)
+                  const { webUrl } = getWhatsAppUrls(c.phone || "", `Hello ${c.name}, greetings from Pit Stop Car Hire.`)
                   return (
                     <tr key={c.id || c.phone || c.email} className="hover:bg-stone-50/80 transition">
                       <td className="py-3 px-4">

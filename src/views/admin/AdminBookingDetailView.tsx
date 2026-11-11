@@ -105,7 +105,7 @@ export default function AdminBookingDetailView({
   const { webUrl: whatsAppUrl } = useMemo(() => {
     return getWhatsAppUrls(
       customerPhone,
-      `Hello ${customerName}, this is Motorly Atelier Dispatch regarding your reservation ${booking.id}...`
+      `Hello ${customerName}, this is Pit Stop Car Hire Dispatch regarding your reservation ${booking.id}...`
     )
   }, [customerPhone, customerName, booking.id])
 
@@ -401,7 +401,7 @@ export default function AdminBookingDetailView({
               <span>•</span>
               <span className="flex items-center gap-1">
                 <LocationIcon size={13} className="text-stone-400" />
-                <span>Station: {booking.pickupLocation || "Motorly Atelier Flagship Facility"}</span>
+                <span>Station: {booking.pickupLocation || "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}</span>
               </span>
             </div>
           </div>
@@ -905,7 +905,7 @@ export default function AdminBookingDetailView({
                   {booking.pickupDate}
                 </p>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  Location: {booking.pickupLocation || "Motorly Atelier Flagship Facility"}
+                  Location: {booking.pickupLocation || "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}
                 </p>
               </div>
 
@@ -919,7 +919,7 @@ export default function AdminBookingDetailView({
                   {booking.returnDate}
                 </p>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  Location: {booking.returnLocation || booking.pickupLocation || "Motorly Atelier Flagship Facility"}
+                  Location: {booking.returnLocation || booking.pickupLocation || "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}
                 </p>
               </div>
             </div>

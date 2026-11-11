@@ -299,7 +299,7 @@ export default function ListingVehicleGrid({
                                   car.garageAddress ||
                                     car.garageName ||
                                     car.location ||
-                                    "MOTORLY Central Hub",
+                                    "Pit Stop Central Garage (Mgarr)",
                                 )}`
                           }
                           target="_blank"
@@ -534,7 +534,7 @@ export default function ListingVehicleGrid({
                                 car.garageAddress ||
                                   car.garageName ||
                                   car.location ||
-                                  "MOTORLY Central Hub",
+                                  "Pit Stop Central Garage (Mgarr)",
                               )}`
                         }
                         target="_blank"

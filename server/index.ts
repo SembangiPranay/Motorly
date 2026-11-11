@@ -25,7 +25,7 @@ try {
   console.warn("[DB Init Warning]", err?.message)
 }
 
-let cachedHubAddress: string = "MOTORLY Central Operations Hub"
+let cachedHubAddress: string = "36 Triq Il-Kbira, Mgarr, Malta"
 
 // Helper to retrieve active operating hub from settings
 async function getActiveOperatingHub(): Promise<{ address: string; lat: number | null; lng: number | null }> {
@@ -35,7 +35,7 @@ async function getActiveOperatingHub(): Promise<{ address: string; lat: number |
         "SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')",
       )
       .all()
-    let address = cachedHubAddress || "MOTORLY Central Operations Hub"
+    let address = cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta"
     let lat: number | null = null
     let lng: number | null = null
     const list = Array.isArray(rows) ? rows : []
@@ -49,7 +49,7 @@ async function getActiveOperatingHub(): Promise<{ address: string; lat: number |
     }
     return { address, lat, lng }
   } catch {
-    return { address: cachedHubAddress || "MOTORLY Central Operations Hub", lat: null, lng: null }
+    return { address: cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", lat: null, lng: null }
   }
 }
 
@@ -427,7 +427,7 @@ app.use((req, _res, next) => {
 app.get(["/api", "/api/health"], async (_req, res) => {
   res.json({
     status: "ok",
-    service: "MOTORLY Fleet API",
+    service: "Pit Stop Car Hire API",
     supabase: db.isSupabase,
     database: {
       active: db.isSupabase ? "supabase" : "sqlite",
@@ -459,7 +459,7 @@ function formatCarRow(
   const cleanHub =
     fallbackHub && fallbackHub.trim().length > 2
       ? fallbackHub.trim()
-      : "MOTORLY Central Operations Hub"
+      : "36 Triq Il-Kbira, Mgarr, Malta"
 
   const cleanGarageAddress = !isStaleMiami(row.garage_address)
     ? row.garage_address
@@ -666,7 +666,7 @@ function formatBookingRow(row: any) {
   const isStaleMiamiLoc = (loc?: string) =>
     !loc || loc.includes("Miami") || loc.includes("Main Garage")
 
-  const defaultHub = cachedHubAddress || "MOTORLY Central Operations Hub"
+  const defaultHub = cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta"
 
   const cleanPickupLoc = !isStaleMiamiLoc(row.pickup_location)
     ? row.pickup_location
@@ -1008,7 +1008,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   const adminPayload: JwtUserPayload = {
     userId: authenticatedAdmin?.id || "usr_admin",
-    email: authenticatedAdmin?.email || email || "admin@motorly.com",
+    email: authenticatedAdmin?.email || email || "admin@pitstopcarhire.com",
     name: authenticatedAdmin?.name || "Fleet Operations Admin",
     role: "admin",
     vipTier: "VIP",
@@ -1994,7 +1994,7 @@ function validateCustomerContact(
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!email || !emailRegex.test(email)) {
-    customer.email = "guest@motorly.com"
+    customer.email = "guest@pitstopcarhire.com"
   }
   if (!phone || phone.replace(/\D/g, "").length < 7) {
     customer.phone = "+1 (555) 019-9000"
@@ -2548,7 +2548,7 @@ app.get(
   
   <!-- Header Bar -->
   <rect x="20" y="20" width="560" height="60" rx="16" fill="#1F2126"/>
-  <text x="45" y="55" fill="#F97316" font-size="12" font-weight="900" letter-spacing="2">OFFICIAL MOTORLY DRIVER IDENTIFICATION RECORD</text>
+  <text x="45" y="55" fill="#F97316" font-size="12" font-weight="900" letter-spacing="2">OFFICIAL PIT STOP DRIVER IDENTIFICATION RECORD</text>
   <text x="450" y="55" fill="#10B981" font-size="11" font-weight="700">✓ VERIFIED BY OPS</text>
   
   <!-- Photo Mock Box -->
@@ -2586,7 +2586,7 @@ app.get(
         : booking.driver_license_back_file
       : "dl_back.png"
   }</text>
-  <text x="410" y="335" fill="#F97316" font-size="11" font-weight="800">MOTORLY SECURE ID</text>
+  <text x="410" y="335" fill="#F97316" font-size="11" font-weight="800">PIT STOP SECURE ID</text>
 </svg>`
 
     const isDownload = req.query.download === "1"
@@ -3680,7 +3680,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         id,
         b.firstName || "Walk-In",
         b.lastName || "Customer",
-        b.email || "counter.guest@motorly.com",
+        b.email || "counter.guest@pitstopcarhire.com",
         b.phone || "+1 (555) 019-9922",
         b.dob || "01/01/1990",
         b.licenseNumber ||
@@ -3693,12 +3693,12 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
           ? b.pickupLocation
           : car.location && !car.location.includes("Miami")
             ? car.location
-            : (cachedHubAddress || "MOTORLY Central Operations Hub"),
+            : (cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta"),
         b.returnLocation && !b.returnLocation.includes("Miami")
           ? b.returnLocation
           : car.location && !car.location.includes("Miami")
             ? car.location
-            : (cachedHubAddress || "MOTORLY Central Operations Hub"),
+            : (cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta"),
         pickupDateStr,
         returnDateStr,
         car.type,
@@ -4646,7 +4646,7 @@ app.use(
 // Start Express Server (standalone / local mode)
 if (process.env.VERCEL !== "1" && !process.env.NOW_REGION) {
   app.listen(PORT, () => {
-    console.log(`[Backend] MOTORLY Server running on port ${PORT}`)
+    console.log(`[Backend] PIT STOP CAR HIRE Server running on port ${PORT}`)
     console.log(
       `[Backend] Admin authentication initialized (${
         isProduction ? "production mode" : "development mode"

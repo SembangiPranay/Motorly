@@ -36,8 +36,8 @@ export default function WhatsAppSupportFAB({
     e.stopPropagation()
 
     const greeting = activeCar
-      ? `Hello MOTORLY Studio Concierge, I am inquiring about reserving the ${activeCar.name} (${activeCar.year || 2024} ${activeCar.type || "Vehicle"}). Could you assist me with priority availability and booking?`
-      : "Hello MOTORLY Studio Concierge, I would like to inquire about fleet availability and reserving a vehicle."
+      ? `Hello Pit Stop Car Hire Concierge, I am inquiring about reserving the ${activeCar.name} (${activeCar.year || 2024} ${activeCar.type || "Vehicle"}). Could you assist me with priority availability and booking?`
+      : "Hello Pit Stop Car Hire Concierge, I would like to inquire about fleet availability and reserving a vehicle."
 
     openWhatsAppDirect(adminPhone, greeting)
   }

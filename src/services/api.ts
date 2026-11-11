@@ -983,20 +983,20 @@ class ApiService {
       return (
         data.settings || {
           reviews_enabled: true,
-          contact_phone: "+1 (555) 234-5678",
-          contact_email: "concierge@motorly.com",
-          admin_name: "Studio Director",
-          hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+          contact_phone: "+356 9982 7192",
+          contact_email: "rentals@pitstopcarhire.com",
+          admin_name: "Pit Stop Station Manager",
+          hub_address: "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
           google_maps_url: "",
         }
       )
     } catch {
       return {
         reviews_enabled: true,
-        contact_phone: "+1 (555) 234-5678",
-        contact_email: "concierge@motorly.com",
-        admin_name: "Studio Director",
-        hub_address: "Terminal Garage B • Bay 4 HQ, Miami Airport",
+        contact_phone: "+356 9982 7192",
+        contact_email: "rentals@pitstopcarhire.com",
+        admin_name: "Pit Stop Station Manager",
+        hub_address: "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
         google_maps_url: "",
       }
     }

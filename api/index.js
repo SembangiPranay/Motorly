@@ -41094,11 +41094,11 @@ try {
 } catch (err) {
 	console.warn("[DB Init Warning]", err?.message);
 }
-let cachedHubAddress = "MOTORLY Central Operations Hub";
+let cachedHubAddress = "36 Triq Il-Kbira, Mgarr, Malta";
 async function getActiveOperatingHub() {
 	try {
 		const rows = await db.prepare("SELECT key, value FROM system_settings WHERE key IN ('hub_address', 'hub_lat', 'hub_lng')").all();
-		let address = cachedHubAddress || "MOTORLY Central Operations Hub";
+		let address = cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta";
 		let lat = null;
 		let lng = null;
 		const list = Array.isArray(rows) ? rows : [];
@@ -41117,7 +41117,7 @@ async function getActiveOperatingHub() {
 		};
 	} catch {
 		return {
-			address: cachedHubAddress || "MOTORLY Central Operations Hub",
+			address: cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta",
 			lat: null,
 			lng: null
 		};
@@ -41340,7 +41340,7 @@ app.use((req, _res, next) => {
 app.get(["/api", "/api/health"], async (_req, res) => {
 	res.json({
 		status: "ok",
-		service: "MOTORLY Fleet API",
+		service: "Pit Stop Car Hire API",
 		supabase: db.isSupabase,
 		database: {
 			active: db.isSupabase ? "supabase" : "sqlite",
@@ -41354,7 +41354,7 @@ app.get(["/api", "/api/health"], async (_req, res) => {
 function formatCarRow(row, fallbackHub, fallbackLat, fallbackLng) {
 	if (!row) return null;
 	const isStaleMiami = (val) => !val || val.includes("Miami") || val.includes("Central Hub & Garage Bay 4") || val.includes("4200 NW 21st St");
-	const cleanHub = fallbackHub && fallbackHub.trim().length > 2 ? fallbackHub.trim() : "MOTORLY Central Operations Hub";
+	const cleanHub = fallbackHub && fallbackHub.trim().length > 2 ? fallbackHub.trim() : "36 Triq Il-Kbira, Mgarr, Malta";
 	const cleanGarageAddress = !isStaleMiami(row.garage_address) ? row.garage_address : !isStaleMiami(row.location) ? row.location : cleanHub;
 	const cleanGarageName = !isStaleMiami(row.garage_name) ? row.garage_name : cleanGarageAddress;
 	const cleanLocation = !isStaleMiami(row.location) ? row.location : cleanGarageAddress;
@@ -41496,7 +41496,7 @@ function formatBookingRow(row) {
 	const licensePhotoFront = hasFrontBase64 ? `/api/bookings/${row.id}/download-license?side=front` : row.driver_license_file || void 0;
 	const licensePhotoBack = hasBackBase64 ? `/api/bookings/${row.id}/download-license?side=back` : row.driver_license_back_file || void 0;
 	const isStaleMiamiLoc = (loc) => !loc || loc.includes("Miami") || loc.includes("Main Garage");
-	const defaultHub = cachedHubAddress || "MOTORLY Central Operations Hub";
+	const defaultHub = cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta";
 	const cleanPickupLoc = !isStaleMiamiLoc(row.pickup_location) ? row.pickup_location : defaultHub;
 	const cleanReturnLoc = !isStaleMiamiLoc(row.return_location) ? row.return_location : defaultHub;
 	return {
@@ -41717,7 +41717,7 @@ app.post("/api/auth/login", async (req, res) => {
 	clearLoginAttempts(clientIp);
 	const adminPayload = {
 		userId: authenticatedAdmin?.id || "usr_admin",
-		email: authenticatedAdmin?.email || email || "admin@motorly.com",
+		email: authenticatedAdmin?.email || email || "admin@pitstopcarhire.com",
 		name: authenticatedAdmin?.name || "Fleet Operations Admin",
 		role: "admin",
 		vipTier: "VIP"
@@ -42201,7 +42201,7 @@ function validateCustomerContact(customer) {
 		customer.lastName = "Customer";
 	} else if (!lastName) customer.lastName = "Customer";
 	else if (!firstName) customer.firstName = "Guest";
-	if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) customer.email = "guest@motorly.com";
+	if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) customer.email = "guest@pitstopcarhire.com";
 	if (!phone || phone.replace(/\D/g, "").length < 7) customer.phone = "+1 (555) 019-9000";
 	return { valid: true };
 }
@@ -42484,7 +42484,7 @@ app.get("/api/bookings/:id/download-license", requireAuth, async (req, res) => {
   
   <!-- Header Bar -->
   <rect x="20" y="20" width="560" height="60" rx="16" fill="#1F2126"/>
-  <text x="45" y="55" fill="#F97316" font-size="12" font-weight="900" letter-spacing="2">OFFICIAL MOTORLY DRIVER IDENTIFICATION RECORD</text>
+  <text x="45" y="55" fill="#F97316" font-size="12" font-weight="900" letter-spacing="2">OFFICIAL PIT STOP DRIVER IDENTIFICATION RECORD</text>
   <text x="450" y="55" fill="#10B981" font-size="11" font-weight="700">✓ VERIFIED BY OPS</text>
   
   <!-- Photo Mock Box -->
@@ -42510,7 +42510,7 @@ app.get("/api/bookings/:id/download-license", requireAuth, async (req, res) => {
   <line x1="45" y1="295" x2="555" y2="295" stroke="#2B2D31" stroke-width="1"/>
   <text x="45" y="325" fill="#6B7280" font-size="10" font-family="monospace">BOOKING TICKET: ${booking.id}</text>
   <text x="45" y="342" fill="#6B7280" font-size="10">ATTACHMENT: ${booking.driver_license_file ? booking.driver_license_file.startsWith("data:") ? "Original Photo (Front)" : booking.driver_license_file : "dl_front.png"} + ${booking.driver_license_back_file ? booking.driver_license_back_file.startsWith("data:") ? "Original Photo (Back)" : booking.driver_license_back_file : "dl_back.png"}</text>
-  <text x="410" y="335" fill="#F97316" font-size="11" font-weight="800">MOTORLY SECURE ID</text>
+  <text x="410" y="335" fill="#F97316" font-size="11" font-weight="800">PIT STOP SECURE ID</text>
 </svg>`;
 	const isDownload = req.query.download === "1";
 	res.setHeader("Content-Type", "image/svg+xml");
@@ -43015,7 +43015,7 @@ app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
         ?, ?, ?, 1, ?,
         ?
       )
-    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@motorly.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licensePhotoFront || b.licenseFile || b.licenseFileName || "counter_scanned_id.jpg", b.licensePhotoBack || "", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "MOTORLY Central Operations Hub", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString(), b.tripReason || "Walk-In Counter Dispatch");
+    `).run(id, b.firstName || "Walk-In", b.lastName || "Customer", b.email || "counter.guest@pitstopcarhire.com", b.phone || "+1 (555) 019-9922", b.dob || "01/01/1990", b.licenseNumber || `DL-${Math.floor(1e7 + Math.random() * 9e7)}`, b.licenseState || "Florida", b.licenseExpiry || "12/2029", b.licensePhotoFront || b.licenseFile || b.licenseFileName || "counter_scanned_id.jpg", b.licensePhotoBack || "", b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : car.location && !car.location.includes("Miami") ? car.location : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDateStr, returnDateStr, car.type, carId, initialStatus, Number(b.totalAmount) || car.price_per_day * 3, `Counter Dispatch (${nowText})`, b.odometerOut || 15400, b.fuelLevelOut || "100%", b.notes || "Express counter walk-in reservation.", (/* @__PURE__ */ new Date()).toISOString(), b.tripReason || "Walk-In Counter Dispatch");
 		await tx.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 		const created = await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		return res.status(201).json({
@@ -43553,7 +43553,7 @@ app.use((err, req, res, next) => {
 	});
 });
 if (process.env.VERCEL !== "1" && !process.env.NOW_REGION) app.listen(PORT, () => {
-	console.log(`[Backend] MOTORLY Server running on port ${PORT}`);
+	console.log(`[Backend] PIT STOP CAR HIRE Server running on port ${PORT}`);
 	console.log(`[Backend] Admin authentication initialized (${isProduction ? "production mode" : "development mode"})`);
 	console.log(`[Backend] API Endpoints ready at http://localhost:${PORT}/api/`);
 });

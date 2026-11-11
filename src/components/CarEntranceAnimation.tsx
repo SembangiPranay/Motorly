@@ -107,7 +107,7 @@ export default function CarEntranceAnimation({
   return (
     <div
       role="banner"
-      aria-label="Motorly Brand Entrance"
+      aria-label="Pit Stop Car Hire Brand Entrance"
       className={`fixed inset-0 z-[10000] bg-[#07080B] text-white flex flex-col items-center justify-center overflow-hidden select-none transition-all duration-700 ease-out ${
         isExiting ? "opacity-0 scale-105 pointer-events-none" : "opacity-100 scale-100"
       }`}
@@ -151,7 +151,7 @@ export default function CarEntranceAnimation({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
           <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400">
-            MOTORLY ATELIER • SYSTEM INITIALIZATION
+            PIT STOP CAR HIRE • MALTA FLEET DISPATCH
           </span>
         </div>
 
@@ -679,7 +679,7 @@ export default function CarEntranceAnimation({
               <circle cx="-22" cy="0" r="1.2" fill="#0A0C10" />
               <circle cx="22" cy="0" r="1.2" fill="#0A0C10" />
 
-              {/* Performance Orange Motorly Monobloc Brake Caliper (Top-Left) */}
+              {/* Performance Orange Pit Stop Monobloc Brake Caliper (Top-Left) */}
               <path
                 d="M -30,-12 C -36,0 -34,18 -26,28 L -18,22 C -24,14 -26,2 -20,-8 Z"
                 fill="#F97316"
@@ -734,7 +734,7 @@ export default function CarEntranceAnimation({
               <circle cx="-22" cy="0" r="1.2" fill="#0A0C10" />
               <circle cx="22" cy="0" r="1.2" fill="#0A0C10" />
 
-              {/* Performance Orange Motorly Monobloc Brake Caliper (Top-Left) */}
+              {/* Performance Orange Pit Stop Monobloc Brake Caliper (Top-Left) */}
               <path
                 d="M -30,-12 C -36,0 -34,18 -26,28 L -18,22 C -24,14 -26,2 -20,-8 Z"
                 fill="#F97316"
@@ -764,7 +764,7 @@ export default function CarEntranceAnimation({
               <circle cx="0" cy="0" r="4.5" fill="#F97316" />
             </g>
 
-            {/* 13. SIGNATURE MOTORLY HEXAGON MONOGRAM CREST (Top Center) */}
+            {/* 13. SIGNATURE PIT STOP HEXAGON MONOGRAM CREST (Top Center) */}
             <g
               transform="translate(500, 68)"
               className={`transition-all duration-700 ${
@@ -786,25 +786,19 @@ export default function CarEntranceAnimation({
                 stroke="url(#monogramGold)"
                 strokeWidth="2.2"
               />
-              {/* Geometric Precision "M" Lettermark Outer Aura */}
-              <path
-                d="M -18,16 L -18,-12 L 0,6 L 18,-12 L 18,16"
-                fill="none"
-                stroke="#F97316"
-                strokeWidth="6"
-                strokeOpacity="0.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {/* Geometric Precision "M" Lettermark Core */}
-              <path
-                d="M -18,16 L -18,-12 L 0,6 L 18,-12 L 18,16"
-                fill="none"
-                stroke="url(#monogramGold)"
-                strokeWidth="3.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              /* Precision "PS" Lettermark */
+              <text
+                x="0"
+                y="8"
+                textAnchor="middle"
+                fill="#FFFFFF"
+                fontSize="20"
+                fontWeight="900"
+                fontFamily="sans-serif"
+                letterSpacing="1"
+              >
+                PS
+              </text>
             </g>
           </svg>
         </div>
@@ -853,10 +847,10 @@ export default function CarEntranceAnimation({
           }}
         >
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-[0.38em] text-transparent bg-clip-text bg-gradient-to-r from-white via-orange-100 to-orange-500 uppercase font-heading">
-            MOTORLY
+            PIT STOP
           </h1>
           <p className="text-[11px] sm:text-xs font-mono uppercase tracking-[0.45em] text-stone-400 font-semibold">
-            ATELIER • PRIVATE FLEET CONCIERGE
+            CAR HIRE • 36 TRIQ IL-KBIRA, MGARR, MALTA
           </p>
         </div>
 

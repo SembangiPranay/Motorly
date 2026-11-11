@@ -1,3 +1,4 @@
+import PitStopLogo from "./PitStopLogo"
 import React from "react"
 import type { ViewMode, CustomerUser } from "../types"
 import { UserIcon } from "./Icons"
@@ -104,7 +105,7 @@ export default function CustomerSidebar({
     },
     {
       id: "about" as ViewMode,
-      label: "About MOTORLY",
+      label: "About Pit Stop Car Hire",
       icon: (
         <svg
           className="w-4 h-4"
@@ -154,25 +155,9 @@ export default function CustomerSidebar({
         <div className="flex items-center justify-between pb-4 border-b border-stone-200/60">
           <div
             onClick={() => handleItemClick("home")}
-            className="flex items-center gap-2.5 cursor-pointer select-none group"
+            className="cursor-pointer select-none group"
           >
-            <div className="w-7 h-6 relative flex items-end">
-              <svg viewBox="0 0 28 24" fill="none" className="w-full h-full">
-                <path
-                  d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z"
-                  fill="#F97316"
-                />
-                <path d="M21 22L26 5L24 22H21Z" fill="#EA580C" opacity="0.8" />
-              </svg>
-            </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-[#17191C] font-heading block leading-none">
-                MOTORLY
-              </span>
-              <span className="text-[9px] font-light tracking-[0.22em] uppercase text-stone-400 block mt-1">
-                Direct Garage
-              </span>
-            </div>
+            <PitStopLogo size="md" subtitle="Car Hire • Malta" />
           </div>
 
           {onCloseMobile && (

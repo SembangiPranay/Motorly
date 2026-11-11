@@ -394,7 +394,7 @@ export default function AdminOrdersView({
 
                   const { webUrl } = getWhatsAppUrls(
                     customerPhone,
-                    `Hello ${customerName}, this is Motorly Dispatch regarding reservation ${b.id}.`
+                    `Hello ${customerName}, this is Pit Stop Car Hire Dispatch regarding reservation ${b.id}.`
                   )
 
                   return (
@@ -629,7 +629,7 @@ export default function AdminOrdersView({
               <span className="font-bold text-stone-800">{bookings.length}</span> total bookings
             </span>
             <span className="text-[11px] font-mono text-stone-400">
-              Motorly Studio Dispatch Engine
+              Pit Stop Studio Dispatch Engine
             </span>
           </div>
         </div>

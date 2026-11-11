@@ -11,6 +11,7 @@ import {
   LockIcon,
 } from "../components/Icons"
 import LegalPoliciesModal from "../components/LegalPoliciesModal"
+import PitStopLogo from "../components/PitStopLogo"
 
 interface AuthViewProps {
   initialTab?: "customer" | "admin"
@@ -127,20 +128,9 @@ export default function AuthView({
       <header className="w-full border-b border-stone-200/70 bg-white/80 backdrop-blur-md px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-30">
         <div
           onClick={onNavigateHome}
-          className="flex items-center gap-2.5 cursor-pointer select-none group"
+          className="cursor-pointer select-none group"
         >
-          <div className="w-7 h-6 relative flex items-end">
-            <svg viewBox="0 0 28 24" fill="none" className="w-full h-full">
-              <path
-                d="M2 22L7.5 3L11.5 13L15.5 3L21 22H16.5L14 11L11.5 17.5L9 11L6.5 22H2Z"
-                fill="#F97316"
-              />
-              <path d="M21 22L26 5L24 22H21Z" fill="#EA580C" opacity="0.8" />
-            </svg>
-          </div>
-          <span className="text-xl font-extrabold tracking-tight text-[#17191C] font-heading">
-            MOTORLY
-          </span>
+          <PitStopLogo size="sm" subtitle="Car Hire • Malta" />
         </div>
 
         <div className="flex items-center gap-3">
@@ -229,7 +219,7 @@ export default function AuthView({
                 {"★".repeat(5)}
               </div>
               <p className="text-xs text-stone-200 italic leading-relaxed">
-                "MOTORLY makes car rental effortless. Reserved my vehicle
+                "Pit Stop Car Hire makes car rental effortless. Reserved my vehicle
                 online, walked to the garage, and drove off in minutes with zero
                 paperwork delays."
               </p>
@@ -600,7 +590,7 @@ export default function AuthView({
 
       {/* Footer minimal info */}
       <footer className="w-full border-t border-stone-200/60 py-6 px-4 text-center text-xs text-stone-400">
-        &copy; 2026 MOTORLY Car Rental Systems. All rights reserved.
+        &copy; 2026 Pit Stop Car Hire (Mgarr, Malta). All rights reserved.
       </footer>
     </div>
   )

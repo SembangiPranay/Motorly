@@ -142,13 +142,13 @@ export default function AdminSidebar({
         <div className="h-14 p-3 border-b border-stone-800/80 flex items-center justify-between shrink-0">
           <div className={`flex items-center ${isCollapsed ? "justify-center w-full" : "gap-2.5 truncate"}`}>
             <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0">
-              M
+              PS
             </div>
             {!isCollapsed && (
               <div className="truncate">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-black text-white text-sm tracking-tight">MOTORLY</span>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">Atelier</span>
+                  <span className="font-black text-white text-sm tracking-tight">PIT STOP CAR HIRE</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">Mgarr</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
@@ -255,12 +255,12 @@ export default function AdminSidebar({
           {!isCollapsed ? (
             <>
               <a
-                href="tel:5550199922"
+                href="tel:+35699827192"
                 className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-stone-800/40 hover:bg-stone-800 text-stone-300 text-xs font-medium transition"
               >
                 <div className="flex items-center gap-2 truncate">
                   <PhoneIcon size={13} className="text-emerald-400 shrink-0" />
-                  <span className="truncate">(555) 019-9922</span>
+                  <span className="truncate">+356 9982 7192</span>
                 </div>
                 <span className="text-[9px] text-emerald-400 font-bold shrink-0">24/7</span>
               </a>

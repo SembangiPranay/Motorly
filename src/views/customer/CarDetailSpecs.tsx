@@ -191,7 +191,7 @@ export default function CarDetailSpecs({
         <div className="space-y-6 pt-2 animate-fade-in">
           <p className="text-sm text-stone-600 leading-relaxed">
             {car.description ||
-              "Precision-engineered vehicle curated and serviced inside the Motorly Atelier garage fleet. Available for daily and long-term reservation."}
+              "Precision-engineered vehicle curated and serviced inside the Pit Stop Car Hire garage fleet. Available for daily and long-term reservation."}
           </p>
 
           {/* Specs Grid */}
@@ -235,7 +235,7 @@ export default function CarDetailSpecs({
                         car.garageAddress ||
                           car.garageName ||
                           car.location ||
-                          "MOTORLY Central Hub",
+                          "Pit Stop Central Garage (Mgarr)",
                       )}`
                 }
                 target="_blank"
@@ -326,7 +326,7 @@ export default function CarDetailSpecs({
                       car.garageAddress ||
                         car.garageName ||
                         car.location ||
-                        "MOTORLY Central Hub",
+                        "Pit Stop Central Garage (Mgarr)",
                     )}`
               }
               target="_blank"

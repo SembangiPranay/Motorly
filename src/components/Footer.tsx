@@ -16,18 +16,18 @@ export default function Footer({
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-[#F97316] rounded-xl flex items-center justify-center text-white font-bold">
-                M
+                PS
               </div>
               <span className="text-xl font-extrabold tracking-tight font-heading">
-                MOTORLY
+                PIT STOP CAR HIRE
               </span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
-              Local garage fleet and vehicle rentals. Clean cars, transparent
+              Official local garage fleet and vehicle rentals in Mgarr, Malta. Clean cars, transparent
               pricing, and direct manager service.
             </p>
             <div className="text-xs text-gray-400">
-              <p>Garage Service Facility • Bay 1 Handoff</p>
+              <p>36 Triq Il-Kbira, Mgarr • Malta & Gozo Fleet</p>
             </div>
           </div>
 
@@ -140,7 +140,7 @@ export default function Footer({
         </div>
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
-          <p>© 2026 Garage Fleet Management. All rights reserved.</p>
+          <p>© 2026 Pit Stop Car Hire (Mgarr, Malta). All rights reserved.</p>
           <div className="flex space-x-6 items-center">
             <button
               type="button"

@@ -39,7 +39,7 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
     setSubmitted(true)
 
     // Automatically construct formatted WhatsApp inquiry
-    const inquiryText = `MOTORLY – RENTAL INQUIRY
+    const inquiryText = `PIT STOP CAR HIRE – RENTAL INQUIRY
 ----------------------------------------
 From: ${formData.name}
 Phone: ${formData.phone || "Not provided"}
@@ -50,7 +50,7 @@ Preferred Vehicle: ${formData.preferredVehicle || "Any available"}
 Message:
 ${formData.message}
 
-Sent via MOTORLY Direct Contact Portal`
+Sent via Pit Stop Car Hire Contact Portal`
 
     // Smart device-adaptive WhatsApp routing:
     // Opens WhatsApp Web on Laptop/Desktop, and WhatsApp App on Mobile
@@ -117,7 +117,7 @@ Sent via MOTORLY Direct Contact Portal`
           </h1>
           <p className="text-base text-stone-600 leading-relaxed">
             No automated phone trees. No offshore ticket queues. When you reach
-            out to MOTORLY, you are speaking directly with the garage owner who
+            out to Pit Stop Car Hire, you are speaking directly with the garage owner who
             personally services and prepares your vehicle.
           </p>
         </div>
@@ -172,7 +172,7 @@ Sent via MOTORLY Direct Contact Portal`
               href={
                 getWhatsAppUrls(
                   ownerPhone,
-                  "Hello! I am interested in renting a car from MOTORLY.",
+                  "Hello! I am interested in renting a car from Pit Stop Car Hire.",
                 ).smartUrl
               }
               target="_blank"
@@ -201,7 +201,7 @@ Sent via MOTORLY Direct Contact Portal`
               </div>
             </div>
             <a
-              href={`mailto:${ownerEmail}?subject=MOTORLY%20Rental%20Inquiry`}
+              href={`mailto:${ownerEmail}?subject=Pit%20Stop%20Rental%20Inquiry`}
               className="w-full py-2.5 bg-stone-900 hover:bg-black text-white font-bold text-xs rounded-xl text-center transition block cursor-pointer"
             >
               Send Direct Email

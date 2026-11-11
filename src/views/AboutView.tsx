@@ -46,7 +46,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
             </h1>
 
             <p className="text-base sm:text-lg text-stone-600 leading-relaxed max-w-2xl">
-              MOTORLY was built as the direct antithesis to corporate airport
+              PIT STOP CAR HIRE was built as the direct antithesis to corporate airport
               car rental agencies. We are an independent, single-operator garage
               fleet where every vehicle is personally owned, meticulously
               inspected, and handed over to you directly by the owner in under 3
@@ -128,7 +128,7 @@ export default function AboutView({ onNavigate }: AboutViewProps) {
                     Rental Experience Feature
                   </th>
                   <th className="py-4 px-6 font-extrabold text-[#F97316] bg-orange-50/50">
-                    MOTORLY (Independent Owner)
+                    PIT STOP CAR HIRE (Mgarr, Malta)
                   </th>
                   <th className="py-4 px-6 font-semibold text-stone-500">
                     Corporate Agencies (Hertz / Avis / Budget)

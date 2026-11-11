@@ -21,9 +21,9 @@ export default function AdminSettingsView({
   onLogoutAdmin,
   onShowToast,
 }: AdminSettingsViewProps) {
-  const [companyName, setCompanyName] = useState("MOTORLY Central Hub")
+  const [companyName, setCompanyName] = useState("Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)")
   const [phone, setPhone] = useState("+1 (555) 019-9922")
-  const [email, setEmail] = useState("support@motorly.com")
+  const [email, setEmail] = useState("rentals@pitstopcarhire.com")
   const [address, setAddress] = useState("4200 NW 21st St, Miami, FL 33142")
   const [lat, setLat] = useState(25.7959)
   const [lng, setLng] = useState(-80.287)

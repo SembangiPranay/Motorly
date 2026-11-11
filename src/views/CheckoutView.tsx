@@ -639,7 +639,7 @@ export default function CheckoutView({
             </div>
             <div>
               <h3 className="text-sm font-bold text-stone-900">
-                Have an existing client profile with Motorly?
+                Have an existing client profile with Pit Stop Car Hire?
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
                 Sign in to auto-fill your saved credentials, verified driver

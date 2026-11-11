@@ -15,7 +15,7 @@ export default function HomeHero({ onSearch }: HomeHeroProps) {
           <div className="inline-flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-[#F97316] animate-pulse" />
             <p className="text-[11px] font-mono font-bold uppercase tracking-[0.25em] text-[#F97316]">
-              MOTORLY ATELIER • PRIVATE FLEET CONCIERGE
+              PIT STOP CAR HIRE • 36 TRIQ IL-KBIRA, MGARR, MALTA
             </p>
           </div>
 

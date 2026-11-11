@@ -436,7 +436,7 @@ export default function MyBookingsView({
         setCurrentUser(res.user)
         setBookings([])
         showActionSuccess(
-          `Account created! Welcome to MOTORLY, ${res.user.name}.`,
+          `Account created! Welcome to Pit Stop Car Hire, ${res.user.name}.`,
         )
       } else {
         setAuthError(res.message || "Registration failed.")
@@ -935,7 +935,7 @@ export default function MyBookingsView({
                                   </span>
                                   <h5 className="font-bold text-stone-900 text-sm">
                                     {matedCar?.garageName ||
-                                      "MOTORLY Central Hub & Garage Bay 4"}
+                                      "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}
                                   </h5>
                                   <p className="text-xs text-stone-500">
                                     {matedCar?.garageAddress ||
@@ -950,7 +950,7 @@ export default function MyBookingsView({
                                               matedCar?.garageAddress ||
                                                 matedCar?.garageName ||
                                                 b.pickupLocation ||
-                                                "MOTORLY Operations Hub"
+                                                "Pit Stop Operations Hub (Mgarr, Malta)"
                                             )}`
                                       }
                                       target="_blank"
@@ -1022,7 +1022,7 @@ export default function MyBookingsView({
                               </div>
                             </div>
                             <a
-                              href={getWhatsAppUrls("7780740223", `🚗 MOTORLY RESERVATION #${b.id} APPROVAL REQUEST\n\nHello Fleet Admin Marcus,\nI have booked ${b.requestedCategory || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
+                              href={getWhatsAppUrls("7780740223", `🚗 PIT STOP CAR HIRE RESERVATION #${b.id} APPROVAL REQUEST\n\nHello Fleet Admin Marcus,\nI have booked ${b.requestedCategory || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="py-2.5 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer self-stretch md:self-auto justify-center"
@@ -1240,7 +1240,7 @@ export default function MyBookingsView({
                                         : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                                             b.pickupLocation ||
                                               matedCar?.garageAddress ||
-                                              "MOTORLY Central Hub"
+                                              "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"
                                           )}`
                                     }
                                     target="_blank"
@@ -1650,7 +1650,7 @@ export default function MyBookingsView({
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[10px] uppercase font-bold tracking-widest text-[#F97316]">
-                      MOTORLY EXPRESS BOARDING PASS
+                      PIT STOP CAR HIRE BOARDING PASS
                     </span>
                     <h3 className="text-xl font-black mt-0.5">
                       Rental Agreement #{selectedVoucher.booking.id}

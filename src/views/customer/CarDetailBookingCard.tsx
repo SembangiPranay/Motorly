@@ -134,7 +134,7 @@ export default function CarDetailBookingCard({
                 />
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-xs text-stone-900 truncate">
-                    {car.garageName || car.garageAddress || "MOTORLY Central Operations Hub"}
+                    {car.garageName || car.garageAddress || "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}
                   </p>
                   <p className="text-[11px] text-stone-600 truncate mt-0.5">
                     {car.garageAddress || car.location || "Main Garage Facility"}
@@ -152,7 +152,7 @@ export default function CarDetailBookingCard({
                             car.garageAddress ||
                               car.garageName ||
                               car.location ||
-                              "MOTORLY Central Hub",
+                              "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
                           )}`
                     }
                     target="_blank"
