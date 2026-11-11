@@ -353,6 +353,21 @@ export default function CarDetailBookingCard({
                 €{grandTotal.toFixed(2)}
               </span>
             </div>
+
+            {/* Refundable Security Deposit Card */}
+            <div className="p-3 bg-stone-50/80 rounded-xl border border-stone-200/90 flex items-center justify-between text-xs mt-2">
+              <div>
+                <span className="font-bold text-stone-900 block">
+                  Refundable Security Deposit
+                </span>
+                <span className="text-[11px] text-stone-500">
+                  Pre-authorized hold at garage key release
+                </span>
+              </div>
+              <span className="font-mono font-bold text-stone-900 text-sm">
+                €{(car.securityDeposit || 1000).toLocaleString()}
+              </span>
+            </div>
           </div>
 
           {/* Book Now Primary Button */}

@@ -87,7 +87,7 @@ export default function CarDetailSpecs({
       </div>
 
       {/* Quick Specs Badges Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
         <div className="flex items-center gap-2.5 p-3 rounded-xl bg-stone-50 border border-stone-100">
           <UserIcon size={18} className="text-[#F97316]" />
           <div>
@@ -116,10 +116,10 @@ export default function CarDetailSpecs({
           <FuelIcon size={18} className="text-[#F97316]" />
           <div>
             <p className="text-[10px] text-stone-400 font-semibold uppercase">
-              Fuel &amp; Powertrain
+              Powertrain
             </p>
             <p className="text-xs font-bold text-stone-800">
-              {car.fuelType} ({formatFuelDisplay(car.mileage, car.fuelType)})
+              {car.fuelType}
             </p>
           </div>
         </div>
@@ -131,7 +131,31 @@ export default function CarDetailSpecs({
               Luggage
             </p>
             <p className="text-xs font-bold text-stone-800">
-              {car.luggage || "2 Suitcases"}
+              {car.luggage || "2 Bags"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-stone-50 border border-stone-100">
+          <ShieldIcon size={18} className="text-emerald-600" />
+          <div>
+            <p className="text-[10px] text-stone-400 font-semibold uppercase">
+              Deposit
+            </p>
+            <p className="text-xs font-bold text-stone-900">
+              €{(car.securityDeposit || 1000).toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-stone-50 border border-stone-100">
+          <LocationIcon size={18} className="text-orange-500" />
+          <div>
+            <p className="text-[10px] text-stone-400 font-semibold uppercase">
+              Garage Bay
+            </p>
+            <p className="text-xs font-bold text-stone-900 truncate">
+              {car.garageBay || "Bay 01"}
             </p>
           </div>
         </div>

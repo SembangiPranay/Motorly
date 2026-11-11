@@ -34,6 +34,9 @@ export default function HomeFeaturedFleet({
   compareIds = [],
   onToggleCompare,
 }: HomeFeaturedFleetProps) {
+  const [isExpanded, setIsExpanded] = React.useState(false)
+  const displayedCars = isExpanded ? featuredCars : featuredCars.slice(0, 8)
+
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="featured-fleet">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-3">
@@ -48,7 +51,7 @@ export default function HomeFeaturedFleet({
             Garage Fleet Ready for Pickup
           </h2>
           <p className="text-xs sm:text-sm text-stone-500 mt-1">
-            Serviced, clean vehicles maintained and staged at our facility.
+            Serviced, clean vehicles maintained and staged at our facility ({featuredCars.length} available).
           </p>
         </div>
 
@@ -58,7 +61,10 @@ export default function HomeFeaturedFleet({
             <button
               key={cat}
               type="button"
-              onClick={() => setFleetFilter(cat)}
+              onClick={() => {
+                setFleetFilter(cat)
+                setIsExpanded(false)
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 fleetFilter === cat
                   ? "bg-[#17191C] text-white shadow-xs"
@@ -71,11 +77,11 @@ export default function HomeFeaturedFleet({
         </div>
       </div>
 
-      {/* 4 Cards Grid */}
+      {/* Grid of Vehicles */}
       {featuredCars.length === 0 ? (
         <div className="py-16 text-center text-stone-500 bg-white rounded-xl border border-stone-200/80 shadow-xs">
           <p className="text-base font-bold text-stone-800">
-            No vehicles currently listed in the fleet.
+            No vehicles currently listed in this category.
           </p>
           <p className="text-xs text-stone-400 mt-1">
             Check back soon as new vehicles are added to inventory.
@@ -83,7 +89,7 @@ export default function HomeFeaturedFleet({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {featuredCars.map((car) => (
+          {displayedCars.map((car) => (
             <CustomerCarCard
               key={car.id}
               car={car}
@@ -96,6 +102,30 @@ export default function HomeFeaturedFleet({
               onToggleCompare={onToggleCompare}
             />
           ))}
+        </div>
+      )}
+
+      {/* Expand / Collapse All Vehicles Button */}
+      {featuredCars.length > 8 && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="px-6 py-2.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl shadow-2xs hover:shadow-xs transition flex items-center gap-2 cursor-pointer group"
+          >
+            <span>
+              {isExpanded
+                ? "Show Less"
+                : `View All ${featuredCars.length} Fleet Vehicles`}
+            </span>
+            <span
+              className={`transform transition-transform text-[#F97316] font-bold ${
+                isExpanded ? "rotate-180" : ""
+              }`}
+            >
+              ↓
+            </span>
+          </button>
         </div>
       )}
 

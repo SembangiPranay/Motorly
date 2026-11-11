@@ -41960,21 +41960,46 @@ app.post("/api/cars", requireAdmin, async (req, res) => {
 app.put("/api/cars/:id", requireAdmin, async (req, res) => {
 	const car = req.body;
 	const carId = req.params.id;
-	if (!await db.prepare("SELECT id FROM vehicles WHERE id = ?").get(carId)) return res.status(404).json({ error: "Vehicle not found." });
-	const galleryJson = safeJsonStringify(car.gallery || [car.image]);
-	const featuresJson = safeJsonStringify(car.features || []);
+	const existing = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
+	if (!existing) return res.status(404).json({ error: "Vehicle not found." });
+	const updatedName = car.name || existing.name || "Custom Vehicle";
+	const updatedBrand = car.brand || existing.brand || "Toyota";
+	const updatedModel = car.model || existing.model || "Camry";
+	const updatedYear = Number(car.year) || existing.year || 2024;
+	const updatedType = car.type || existing.type || "Sedan";
+	const updatedDaily = Number(car.pricePerDay) || existing.price_per_day || 50;
+	const updatedHourly = Number(car.pricePerHour) || existing.price_per_hour || Math.max(1, Math.round(updatedDaily / 8));
+	const updatedWeekly = Number(car.pricePerWeek) || existing.price_per_week || Math.round(updatedDaily * 6);
+	const updatedMonthly = Number(car.pricePerMonth) || existing.price_per_month || Math.round(updatedDaily * 22);
+	const updatedImage = car.image || existing.image || "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?auto=format&fit=crop&w=1200&q=80";
+	const galleryJson = safeJsonStringify(car.gallery && car.gallery.length > 0 ? car.gallery : existing.gallery ? typeof existing.gallery === "string" ? JSON.parse(existing.gallery) : existing.gallery : [updatedImage]);
+	const updatedSeats = Number(car.seats) || existing.seats || 5;
+	const updatedTransmission = car.transmission || existing.transmission || "Automatic";
+	const updatedFuel = car.fuelType || existing.fuel_type || "Petrol";
+	const updatedMileage = car.mileage || existing.mileage || "45 Liters";
+	const updatedLuggage = car.luggage || existing.luggage || "3 Bags";
+	const featuresJson = safeJsonStringify(car.features && car.features.length > 0 ? car.features : existing.features ? typeof existing.features === "string" ? JSON.parse(existing.features) : existing.features : ["Bluetooth", "Apple CarPlay"]);
+	const updatedDesc = car.description || existing.description || "Premium rental vehicle.";
+	const updatedStatus = car.status || existing.status || "Available";
+	const updatedPlate = car.plateNumber || existing.plate_number || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`;
+	const updatedLocation = car.location || existing.location || "Operating Fleet Hub";
+	const updatedHealth = Number(car.healthScore) || existing.health_score || 95;
+	const updatedPopular = car.isPopular !== void 0 ? car.isPopular ? 1 : 0 : existing.is_popular ? 1 : 0;
+	const updatedBay = car.garageBay || existing.garage_bay || "Bay 1";
+	const updatedVat = car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : existing.vat_rate != null ? Number(existing.vat_rate) : 18;
+	const updatedDeposit = car.securityDeposit != null && !isNaN(Number(car.securityDeposit)) ? Number(car.securityDeposit) : existing.security_deposit != null ? Number(existing.security_deposit) : 1e3;
 	await db.prepare(`
     UPDATE vehicles SET
       name = ?, brand = ?, model = ?, year = ?, type = ?, price_per_day = ?, price_per_hour = ?, price_per_week = ?, price_per_month = ?,
       image = ?, gallery = ?, seats = ?, transmission = ?, fuel_type = ?,
-      mileage = ?, luggage = ?, features = ?, description = ?, status = ?,
+      mileage = ?, luggage = ?, features = ?, description = ?, is_popular = ?, status = ?,
       plate_number = ?, location = ?, health_score = ?,
       insurance_policy = ?, insurance_provider = ?, insurance_expiry = ?,
       purchase_date = ?, purchase_cost = ?, current_odometer = ?,
       garage_name = ?, garage_address = ?, garage_lat = ?, garage_lng = ?, garage_bay = ?,
       vat_rate = ?, security_deposit = ?
     WHERE id = ?
-  `).run(car.name, car.brand, car.model, Number(car.year) || 2024, car.type, Number(car.pricePerDay) || 50, Number(car.pricePerHour) || Math.max(1, Math.round((Number(car.pricePerDay) || 50) / 8)), Number(car.pricePerWeek) || Math.round((Number(car.pricePerDay) || 50) * 6), Number(car.pricePerMonth) || Math.round((Number(car.pricePerDay) || 50) * 22), car.image, galleryJson, Number(car.seats) || 5, car.transmission, car.fuelType, car.mileage, car.luggage, featuresJson, car.description, car.status, car.plateNumber, car.location, Number(car.healthScore) || 95, car.insurancePolicy !== void 0 ? car.insurancePolicy : "", car.insuranceProvider !== void 0 ? car.insuranceProvider : "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : "", car.purchaseDate || "2024-01-10", Number(car.purchaseCost) || 28500, Number(car.currentOdometer) || 14250, car.garageName || car.location || "Operating Fleet Hub", car.garageAddress || car.location || "Operating Fleet Hub", Number(car.garageLat) || 17.4646, Number(car.garageLng) || 78.3582, car.garageBay || "Bay 1", car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18, car.securityDeposit != null && !isNaN(Number(car.securityDeposit)) ? Number(car.securityDeposit) : 1e3, carId);
+  `).run(updatedName, updatedBrand, updatedModel, updatedYear, updatedType, updatedDaily, updatedHourly, updatedWeekly, updatedMonthly, updatedImage, galleryJson, updatedSeats, updatedTransmission, updatedFuel, updatedMileage, updatedLuggage, featuresJson, updatedDesc, updatedPopular, updatedStatus, updatedPlate, updatedLocation, updatedHealth, car.insurancePolicy !== void 0 ? car.insurancePolicy : existing.insurance_policy || "", car.insuranceProvider !== void 0 ? car.insuranceProvider : existing.insurance_provider || "", car.insuranceExpiry !== void 0 ? car.insuranceExpiry : existing.insurance_expiry || "", car.purchaseDate || existing.purchase_date || "2024-01-10", Number(car.purchaseCost) || existing.purchase_cost || 28500, Number(car.currentOdometer) || existing.current_odometer || 14250, car.garageName || existing.garage_name || updatedLocation, car.garageAddress || existing.garage_address || updatedLocation, Number(car.garageLat) || existing.garage_lat || 17.4646, Number(car.garageLng) || existing.garage_lng || 78.3582, updatedBay, updatedVat, updatedDeposit, carId);
 	const updated = await db.prepare("SELECT * FROM vehicles WHERE id = ?").get(carId);
 	return res.json(formatCarRow(updated));
 });

@@ -153,12 +153,10 @@ export default function HomeView({
   }
 
   // Filter featured vehicles from live fleet
-  const featuredCars = (cars.length > 0 ? cars : [])
-    .filter((car) => {
-      if (fleetFilter === "All") return true
-      return car.type === fleetFilter
-    })
-    .slice(0, 4)
+  const featuredCars = (cars.length > 0 ? cars : []).filter((car) => {
+    if (fleetFilter === "All") return true
+    return car.type === fleetFilter
+  })
 
   return (
     <div className="space-y-16 sm:space-y-20 pb-24 animate-fade-in bg-[#FAF7F2]">

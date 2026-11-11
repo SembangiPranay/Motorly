@@ -13,7 +13,7 @@ const TRIP_PURPOSES = [
   { id: "Road Trip & Outstation", icon: "🚗", label: "Road Trip / Outstation" },
   { id: "Daily Commute & City Drive", icon: "🏙️", label: "Daily City Commute" },
   { id: "Special Event / Wedding", icon: "🎉", label: "Wedding / Event" },
-  { id: "Temporary Vehicle Replacement", icon: "🔧", label: "Car in Service" },
+  { id: "Pit Stop & Service Replacement", icon: "🔧", label: "Pit Stop / In Service" },
 ]
 
 export default function CheckoutTripPurpose({

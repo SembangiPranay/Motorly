@@ -109,6 +109,8 @@ export default function AdminCarModal({
   )
   const [fuelType, setFuelType] = useState<FuelType>(car?.fuelType || "Petrol")
   const [garageBay, setGarageBay] = useState(car?.garageBay || "Bay 14-A")
+  const [isPopular, setIsPopular] = useState<boolean>(Boolean(car?.isPopular))
+  const [description, setDescription] = useState(car?.description || "")
 
   // Multi-Photo Gallery Studio State
   const initialGallery: string[] =
@@ -216,6 +218,13 @@ export default function AdminCarModal({
         image: primaryCover,
         gallery: gallery.length > 0 ? gallery : [primaryCover],
         status: car?.status || "Available",
+        isPopular,
+        mileage: car?.mileage || "45 Liters",
+        luggage: car?.luggage || "3 Bags",
+        description:
+          description.trim() ||
+          car?.description ||
+          "High-performance track-staged vehicle tuned for endurance and rapid pit stop turnaround.",
       })
     } catch (err: any) {
       alert("Failed to save vehicle: " + err.message)
@@ -433,6 +442,26 @@ export default function AdminCarModal({
                     placeholder="e.g. Bay 14-A"
                     className="w-full h-10 px-3 text-xs bg-stone-50 rounded-xl border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
                   />
+                </div>
+
+                <div className="sm:col-span-2 pt-1 flex items-center justify-between p-3 bg-amber-50/60 rounded-xl border border-amber-200/80">
+                  <div>
+                    <span className="text-xs font-bold text-stone-900 block">
+                      Feature on Storefront Homepage
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      Showcase this vehicle at the top of Popular Choices
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isPopular}
+                      onChange={(e) => setIsPopular(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F97316]"></div>
+                  </label>
                 </div>
               </div>
             </div>
