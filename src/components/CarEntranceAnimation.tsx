@@ -13,30 +13,30 @@ export default function CarEntranceAnimation({
     "arrival" | "ignition" | "revving" | "launch" | "exit"
   >("arrival")
 
-  // Refs for zero-rerender tachometer and telemetry HUD (guarantees 120fps on Safari WebKit)
+  // Refs for zero-rerender tachometer and telemetry HUD (guarantees 120fps on Safari WebKit & Chrome)
   const rpmRef = useRef<HTMLSpanElement>(null)
   const statusRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    // Stage 1: Arrival & Suspension Glide (0ms - 850ms)
-    // The full car glides into center frame, wheels roll, and studio light sweeps across metallic panels.
+    // Stage 1: Arrival & Pit Lane Glide (0ms - 850ms)
+    // The F1 machine glides into center frame, open racing slicks rotate, aerodynamics settle
     const t1 = setTimeout(() => {
       setPhase("ignition")
     }, 850)
 
-    // Stage 2: Dual Matrix LED Ignition & Volumetric Projection (850ms - 1550ms)
-    // Projectors ignite with a sharp dual flash; ruby OLED lightblade and interior dashboard wake up.
+    // Stage 2: Telemetry Calibration & FIA Rain Strobe Ignition (850ms - 1550ms)
+    // Carbon-ceramic brakes heat up, laser wind-tunnel tracers ignite, DRS arms
     const t2 = setTimeout(() => {
       setPhase("revving")
     }, 1550)
 
-    // Stage 3: Throttle Spooling & Atelier Typography Reveal (1550ms - 2350ms)
-    // Tachometer spools to 7,600 RPM; luxury gold branding expands.
+    // Stage 3: Throttle Spooling & Pit Stop Atelier Typography Reveal (1550ms - 2450ms)
+    // V6 Turbo-Hybrid spools to 12,400 RPM; brand typography expands
     const t3 = setTimeout(() => {
       setPhase("launch")
-    }, 2350)
+    }, 2450)
 
-    // Stage 4: High-Speed Forward Acceleration & Dissolve (2350ms - 2950ms)
+    // Stage 4: High-Speed Pit Exit Launch & Dissolve (2450ms - 2950ms)
     const t4 = setTimeout(() => {
       setPhase("exit")
     }, 2850)
@@ -44,7 +44,7 @@ export default function CarEntranceAnimation({
     // Stage 5: Final completion callback
     const t5 = setTimeout(() => {
       onComplete()
-    }, 3050)
+    }, 3100)
 
     return () => {
       clearTimeout(t1)
@@ -55,28 +55,28 @@ export default function CarEntranceAnimation({
     }
   }, [onComplete])
 
-  // Native requestAnimationFrame Tachometer Counter (Zero React re-renders, 60-120fps on Safari)
+  // Native requestAnimationFrame Tachometer Counter (Zero React re-renders, 60-120fps)
   useEffect(() => {
     if (phase === "ignition" || phase === "revving" || phase === "launch") {
       let startTimestamp: number | null = null
-      const duration = 750
-      const startRpm = 0
-      const targetRpm = 7600
+      const duration = 850
+      const startRpm = 4200
+      const targetRpm = 12400
       let rafId: number
 
       const step = (now: number) => {
         if (!startTimestamp) startTimestamp = now
         const elapsed = now - startTimestamp
         const progress = Math.min(elapsed / duration, 1)
-        // Dynamic sports cam power curve
+        // High-rev Formula 1 power curve
         const ease = 1 - Math.pow(1 - progress, 3)
         const current = Math.round(startRpm + (targetRpm - startRpm) * ease)
 
         if (rpmRef.current) {
           rpmRef.current.textContent = current.toLocaleString()
         }
-        if (statusRef.current && current >= 6800) {
-          statusRef.current.textContent = "V12 TWIN-TURBO ENGAGED"
+        if (statusRef.current && current >= 10500) {
+          statusRef.current.textContent = "V6 TURBO HYBRID ENGAGED"
         }
 
         if (progress < 1) {
@@ -107,7 +107,7 @@ export default function CarEntranceAnimation({
   return (
     <div
       role="banner"
-      aria-label="Pit Stop Car Hire Brand Entrance"
+      aria-label="Pit Stop Car Hire Formula 1 Grand Entrance"
       className={`fixed inset-0 z-[10000] bg-[#07080B] text-white flex flex-col items-center justify-center overflow-hidden select-none transition-all duration-700 ease-out ${
         isExiting ? "opacity-0 scale-105 pointer-events-none" : "opacity-100 scale-100"
       }`}
@@ -122,15 +122,15 @@ export default function CarEntranceAnimation({
       }}
     >
       {/* 1. Deep Space Carbon & Amber Studio Spotlight Atmosphere */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/20 via-[#0A0C11] to-[#040507] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/25 via-[#0A0C11] to-[#040507] pointer-events-none" />
 
-      {/* 2. High-Tech Perspective Road & Showroom Floor Grid (WebKit 3D hardware-composited) */}
-      <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden pointer-events-none opacity-20">
+      {/* 2. High-Tech Perspective Pit Lane Grid (WebKit 3D hardware-composited) */}
+      <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden pointer-events-none opacity-25">
         <div
           className="w-full h-full"
           style={{
             backgroundImage:
-              "linear-gradient(to right, rgba(249, 115, 22, 0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(249, 115, 22, 0.18) 1px, transparent 1px)",
+              "linear-gradient(to right, rgba(249, 115, 22, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(249, 115, 22, 0.2) 1px, transparent 1px)",
             backgroundSize: "56px 56px",
             WebkitTransform: "perspective(380px) rotateX(65deg) translate3d(0, -20px, 0)",
             transform: "perspective(380px) rotateX(65deg) translate3d(0, -20px, 0)",
@@ -151,7 +151,7 @@ export default function CarEntranceAnimation({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
           <span className="text-[10px] uppercase font-mono tracking-widest text-stone-400">
-            PIT STOP CAR HIRE • MALTA FLEET DISPATCH
+            PIT STOP CAR HIRE • MALTA PIT LANE DISPATCH
           </span>
         </div>
 
@@ -161,15 +161,15 @@ export default function CarEntranceAnimation({
           className="group px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 backdrop-blur-md text-[11px] font-bold tracking-wider text-stone-300 hover:text-white transition cursor-pointer flex items-center gap-2 shadow-2xs"
         >
           <span>Skip Intro</span>
-          <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+          <span className="group-hover:translate-x-0.5 transition-transform">&rarr;</span>
         </button>
       </div>
 
-      {/* 4. Main Stage: The Ultra-Rich Hypercar & Atelier Presentation */}
+      {/* 4. Main Stage: The Ultra-Realistic Formula 1 Machine */}
       <div className="relative w-full max-w-5xl px-4 flex flex-col items-center justify-center z-10">
         {/* Overhead Ambient Studio Spotlight */}
         <div
-          className={`absolute w-[600px] h-72 rounded-full blur-3xl transition-all duration-1000 pointer-events-none ${
+          className={`absolute w-[680px] h-72 rounded-full blur-3xl transition-all duration-1000 pointer-events-none ${
             isIgnited
               ? "bg-orange-600/25 scale-125 opacity-100"
               : "bg-orange-500/10 scale-90 opacity-40"
@@ -180,13 +180,13 @@ export default function CarEntranceAnimation({
           }}
         />
 
-        {/* The Full Car Motion Container (Smooth Glide, Suspension Settle & Launch) */}
+        {/* The Full Car Motion Container (Smooth Glide, Suspension Settle & High-Speed Launch) */}
         <div
           className={`relative w-full max-w-4xl transition-all ease-out ${
             isGliding
               ? "translate-x-12 translate-y-1 duration-1000"
               : isLaunching
-              ? "-translate-x-16 -translate-y-1 scale-105 duration-700"
+              ? "-translate-x-20 -translate-y-1 scale-105 duration-700"
               : "translate-x-0 translate-y-0 duration-800"
           }`}
           style={{
@@ -205,573 +205,356 @@ export default function CarEntranceAnimation({
             }}
           >
             <defs>
-              {/* 1. Metallic Obsidian & Titanium Paint Gradient */}
-              <linearGradient id="metallicBodyPaint" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#2E3440" />
-                <stop offset="18%" stopColor="#1E232E" />
-                <stop offset="42%" stopColor="#151922" />
-                <stop offset="70%" stopColor="#0E1017" />
-                <stop offset="90%" stopColor="#080A0E" />
+              {/* 1. Carbon Monocoque Paint */}
+              <linearGradient id="f1CarbonPaint" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#2E333D" />
+                <stop offset="25%" stopColor="#1E222A" />
+                <stop offset="55%" stopColor="#12151B" />
+                <stop offset="85%" stopColor="#0B0D11" />
                 <stop offset="100%" stopColor="#040507" />
               </linearGradient>
 
-              {/* 2. Specular Shoulder Reflection Gradient */}
-              <linearGradient id="shoulderHighlight" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#F97316" stopOpacity="0.8" />
-                <stop offset="35%" stopColor="#FFFFFF" stopOpacity="0.9" />
-                <stop offset="65%" stopColor="#FB923C" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#EA580C" stopOpacity="0.85" />
+              {/* 2. Metallic Orange Racing Livery */}
+              <linearGradient id="f1OrangeLivery" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#EA580C" />
+                <stop offset="40%" stopColor="#F97316" />
+                <stop offset="70%" stopColor="#FB923C" />
+                <stop offset="100%" stopColor="#EA580C" />
               </linearGradient>
 
-              {/* 3. Deep Carbon Side Aero Scoop Shadow Gradient */}
-              <linearGradient id="scoopGradient" x1="0%" y1="0%" x2="100%" y2="50%">
-                <stop offset="0%" stopColor="#06070A" />
-                <stop offset="40%" stopColor="#0B0D13" />
-                <stop offset="75%" stopColor="#161A24" />
-                <stop offset="100%" stopColor="#222838" />
+              {/* 3. Specular Ridge Highlight */}
+              <linearGradient id="f1SpecularHighlight" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.85" />
+                <stop offset="50%" stopColor="#FED7AA" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#F97316" stopOpacity="0.6" />
               </linearGradient>
 
-              {/* 4. Tinted Privacy Glass & Cockpit Shader */}
-              <linearGradient id="cockpitGlass" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#0B0D13" stopOpacity="0.98" />
-                <stop offset="35%" stopColor="#141822" stopOpacity="0.95" />
-                <stop offset="70%" stopColor="#0B0D13" stopOpacity="0.98" />
-                <stop offset="100%" stopColor="#050609" stopOpacity="1" />
+              {/* 4. Carbon Fiber Wing Composite */}
+              <linearGradient id="carbonWing" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#1C1F26" />
+                <stop offset="50%" stopColor="#111317" />
+                <stop offset="100%" stopColor="#08090C" />
               </linearGradient>
 
-              {/* 5. Glass Surface High-Gloss Reflections */}
-              <linearGradient id="glassReflect1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.38" />
-                <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.12" />
-                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-              </linearGradient>
-
-              <linearGradient id="glassReflect2" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.25" />
-                <stop offset="60%" stopColor="#FFFFFF" stopOpacity="0.05" />
-                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-              </linearGradient>
-
-              {/* 6. Diamond-Cut Forged Alloy Rim Spoke Gradient */}
-              <linearGradient id="forgedAlloy" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#F8FAFC" />
-                <stop offset="40%" stopColor="#94A3B8" />
-                <stop offset="75%" stopColor="#475569" />
-                <stop offset="100%" stopColor="#1E293B" />
-              </linearGradient>
-
-              {/* 7. Carbon-Ceramic Ventilated Brake Rotor Gradient */}
-              <radialGradient id="ceramicRotor" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#1E2026" />
-                <stop offset="60%" stopColor="#2C303A" />
-                <stop offset="90%" stopColor="#424755" />
-                <stop offset="100%" stopColor="#181A20" />
+              {/* 5. Racing Slick Tire Radial */}
+              <radialGradient id="slickTireGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="65%" stopColor="#16181D" />
+                <stop offset="85%" stopColor="#242831" />
+                <stop offset="96%" stopColor="#0C0D11" />
+                <stop offset="100%" stopColor="#040506" />
               </radialGradient>
 
-              {/* 8. Volumetric Headlight High-Speed Projection Beam */}
-              <linearGradient id="headlightVolumetricBeam" x1="100%" y1="50%" x2="0%" y2="50%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-                <stop offset="12%" stopColor="#E0F2FE" stopOpacity="0.8" />
-                <stop offset="35%" stopColor="#38BDF8" stopOpacity="0.45" />
-                <stop offset="65%" stopColor="#0284C7" stopOpacity="0.16" />
-                <stop offset="90%" stopColor="#0369A1" stopOpacity="0.03" />
-                <stop offset="100%" stopColor="#0369A1" stopOpacity="0" />
-              </linearGradient>
+              {/* 6. Magnesium Centerlock Rim */}
+              <radialGradient id="f1RimGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#F97316" />
+                <stop offset="25%" stopColor="#27272A" />
+                <stop offset="75%" stopColor="#09090B" />
+                <stop offset="100%" stopColor="#18181B" />
+              </radialGradient>
 
-              {/* 9. Optical Projector Lens Flare Glint (100% GPU Native) */}
-              <radialGradient id="projectorLensGlow" cx="50%" cy="50%" r="50%">
+              {/* 7. Carbon Ceramic Brake Rotor Heat Glow */}
+              <radialGradient id="brakeHeatGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FF7A00" stopOpacity="0.9" />
+                <stop offset="60%" stopColor="#EA580C" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#7C2D12" stopOpacity="0" />
+              </radialGradient>
+
+              {/* 8. FIA Rear Rain LED Light */}
+              <radialGradient id="fiaRainLightGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                <stop offset="25%" stopColor="#BAE6FD" stopOpacity="0.85" />
-                <stop offset="55%" stopColor="#38BDF8" stopOpacity="0.4" />
-                <stop offset="80%" stopColor="#0284C7" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="#0284C7" stopOpacity="0" />
-              </radialGradient>
-
-              {/* 10. Ground Contact Occlusion Shadow */}
-              <radialGradient id="groundShadow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#000000" stopOpacity="0.95" />
-                <stop offset="45%" stopColor="#000000" stopOpacity="0.6" />
-                <stop offset="75%" stopColor="#000000" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#000000" stopOpacity="0" />
-              </radialGradient>
-
-              {/* 11. Amber Wet Asphalt Underglow Reflection */}
-              <radialGradient id="groundAmberGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#F97316" stopOpacity="0.35" />
-                <stop offset="45%" stopColor="#F97316" stopOpacity="0.15" />
-                <stop offset="80%" stopColor="#F97316" stopOpacity="0.03" />
-                <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
-              </radialGradient>
-
-              {/* 12. Ruby Taillight Laser Glow */}
-              <radialGradient id="rubyTaillightGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#EF4444" stopOpacity="0.95" />
-                <stop offset="35%" stopColor="#DC2626" stopOpacity="0.55" />
-                <stop offset="70%" stopColor="#991B1B" stopOpacity="0.18" />
+                <stop offset="20%" stopColor="#FF2222" stopOpacity="0.9" />
+                <stop offset="60%" stopColor="#DC2626" stopOpacity="0.5" />
                 <stop offset="100%" stopColor="#7F1D1D" stopOpacity="0" />
               </radialGradient>
 
-              {/* 13. Dynamic Studio Light Sweep Gradient */}
-              <linearGradient id="studioSweepGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
-                <stop offset="35%" stopColor="#FFFFFF" stopOpacity="0.15" />
-                <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.45" />
-                <stop offset="65%" stopColor="#FFFFFF" stopOpacity="0.15" />
-                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-              </linearGradient>
+              {/* 9. Ground Shadow */}
+              <radialGradient id="f1GroundShadow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#000000" stopOpacity="0.95" />
+                <stop offset="50%" stopColor="#000000" stopOpacity="0.65" />
+                <stop offset="85%" stopColor="#000000" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+              </radialGradient>
 
-              {/* 14. Monogram Chrome & Gold Gradient */}
+              {/* 10. Underbody Amber Ground Glow */}
+              <radialGradient id="f1Underglow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#F97316" stopOpacity="0.45" />
+                <stop offset="45%" stopColor="#F97316" stopOpacity="0.18" />
+                <stop offset="80%" stopColor="#F97316" stopOpacity="0.02" />
+                <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+              </radialGradient>
+
+              {/* 11. Monogram Gold Gradient */}
               <linearGradient id="monogramGold" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="#FFF7ED" />
                 <stop offset="40%" stopColor="#FB923C" />
                 <stop offset="100%" stopColor="#EA580C" />
               </linearGradient>
 
-              {/* 15. Precise Car Body Silhouette Clip Path for Specular Sweep */}
-              <clipPath id="carBodyClip">
-                <path d="M 70,318 L 72,280 C 76,268 85,258 105,248 C 140,232 180,222 240,218 C 280,218 320,222 345,208 L 470,142 C 500,142 540,142 580,146 C 630,152 670,165 740,208 C 780,220 830,224 895,220 L 912,230 C 915,245 912,265 905,285 C 898,300 890,310 900,322 L 786,322 A 64,64 0 0,0 674,322 L 296,322 A 64,64 0 0,0 184,322 L 70,318 Z" />
-              </clipPath>
+              <style>{`
+                @keyframes windFlow {
+                  0% { stroke-dashoffset: 240; opacity: 0; }
+                  20% { opacity: 0.85; }
+                  80% { opacity: 0.85; }
+                  100% { stroke-dashoffset: -240; opacity: 0; }
+                }
+                .wind-tracer {
+                  stroke-dasharray: 80, 160;
+                  animation: windFlow 1.6s linear infinite;
+                }
+                @keyframes rainLightBlink {
+                  0% { opacity: 0.35; transform: scale(0.9); }
+                  100% { opacity: 1; transform: scale(1.15); filter: drop-shadow(0 0 10px #EF4444); }
+                }
+                .pulse-rain-light {
+                  animation: rainLightBlink 0.35s infinite alternate;
+                  transform-origin: 912px 275px;
+                }
+                @keyframes wheelRotate {
+                  from { transform: rotate(0deg); }
+                  to { transform: rotate(360deg); }
+                }
+                .safari-f1-wheel-spin {
+                  animation: wheelRotate 0.5s linear infinite;
+                }
+              `}</style>
             </defs>
 
-            {/* 1. GROUND SHADOW & WET ASPHALT UNDERGLOW */}
-            <ellipse cx="490" cy="344" rx="430" ry="22" fill="url(#groundShadow)" />
+            {/* 1. GROUND EFFECT SHADOW & NEON PIT LANE REFLECTION */}
+            <ellipse cx="500" cy="358" rx="460" ry="24" fill="url(#f1GroundShadow)" />
             {isIgnited && (
               <ellipse
-                cx="470"
-                cy="342"
-                rx="360"
+                cx="490"
+                cy="355"
+                rx="380"
                 ry="14"
-                fill="url(#groundAmberGlow)"
+                fill="url(#f1Underglow)"
                 className="transition-opacity duration-700"
               />
             )}
-            {/* Direct Wheel Contact Occlusion Patches */}
-            <ellipse cx="240" cy="340" rx="46" ry="6" fill="#000000" opacity="0.9" />
-            <ellipse cx="730" cy="340" rx="46" ry="6" fill="#000000" opacity="0.9" />
+            {/* Direct contact patches for open tires */}
+            <ellipse cx="195" cy="352" rx="42" ry="7" fill="#000000" opacity="0.95" />
+            <ellipse cx="795" cy="350" rx="48" ry="8" fill="#000000" opacity="0.95" />
 
-            {/* 2. INNER WHEEL WELL LINERS (Behind the Wheels) */}
-            <path d="M 184,322 A 64,64 0 0,1 296,322 Z" fill="#07080A" />
-            <path d="M 674,322 A 64,64 0 0,1 786,322 Z" fill="#07080A" />
-
-            {/* 3. SOLID METALLIC HYPERCAR BODY SHELL */}
-            <g clipPath="url(#carBodyClip)">
-              {/* Main Metallic Paint Bodywork */}
-              <path
-                d="M 70,318 L 72,280 C 76,268 85,258 105,248 C 140,232 180,222 240,218 C 280,218 320,222 345,208 L 470,142 C 500,142 540,142 580,146 C 630,152 670,165 740,208 C 780,220 830,224 895,220 L 912,230 C 915,245 912,265 905,285 C 898,300 890,310 900,322 L 786,322 A 64,64 0 0,0 674,322 L 296,322 A 64,64 0 0,0 184,322 L 70,318 Z"
-                fill="url(#metallicBodyPaint)"
-              />
-
-              {/* Dynamic Studio Overhead Light Sweep (Animates Across Metallic Panels) */}
-              <rect
-                x="-300"
-                y="100"
-                width="320"
-                height="260"
-                fill="url(#studioSweepGradient)"
-                className={isGliding ? "studio-light-sweep" : ""}
-                style={{
-                  WebkitTransform: "translate3d(0, 0, 0)",
-                  transform: "translate3d(0, 0, 0)",
-                }}
-              />
-            </g>
-
-            {/* 4. DEEP SCULPTED SIDE AERO INTAKE SCOOP (3D Hypercar Channel) */}
-            <path
-              d="M 320,234 C 380,240 450,248 520,248 C 570,248 620,238 660,228 L 670,268 C 630,286 560,296 480,296 C 410,296 350,282 316,268 Z"
-              fill="url(#scoopGradient)"
-            />
-            {/* Side Air Radiator Honeycomb Intake Cavity */}
-            <path
-              d="M 640,234 L 670,268 L 650,278 L 620,242 Z"
-              fill="#08090C"
-              stroke="rgba(249,115,22,0.4)"
-              strokeWidth="0.8"
-            />
-
-            {/* 5. CARBON FIBER AERODYNAMIC PACKAGE (Splitters, Skirts & Venturi Diffuser) */}
-            {/* Front Carbon Splitter */}
-            <polygon
-              points="60,320 184,324 184,316 68,312"
-              fill="#14171E"
-              stroke="#2C3240"
-              strokeWidth="1"
-            />
-            {/* Front Aero Canard Winglet */}
-            <path
-              d="M 60,320 L 56,306 L 66,310 L 68,318 Z"
-              fill="#F97316"
-            />
-
-            {/* Aerodynamic Carbon Side Skirt Sill */}
-            <polygon
-              points="296,322 674,322 674,328 296,328"
-              fill="#0F1116"
-              stroke="#F97316"
-              strokeWidth="1"
-              strokeOpacity="0.45"
-            />
-
-            {/* Rear Carbon Venturi Diffuser with Titanium Exhaust */}
-            <polygon
-              points="786,322 915,316 920,326 786,328"
-              fill="#14171E"
-              stroke="#2C3240"
-              strokeWidth="1"
-            />
-            <ellipse
-              cx="902"
-              cy="316"
-              rx="8"
-              ry="4.5"
-              fill="#08090D"
-              stroke="#F97316"
-              strokeWidth="1.5"
-            />
-            <ellipse
-              cx="914"
-              cy="314"
-              rx="8"
-              ry="4.5"
-              fill="#08090D"
-              stroke="#F97316"
-              strokeWidth="1.5"
-            />
-
-            {/* 6. MUSCULAR BODY CREASES & CHARACTER HIGHLIGHT LINES */}
-            {/* Front Fender Flare Peak Crease */}
-            <path
-              d="M 105,248 C 160,230 220,222 290,226"
-              fill="none"
-              stroke="url(#shoulderHighlight)"
-              strokeWidth="1.8"
-            />
-            {/* Main Waistline Shoulder Crease from Mirror to Rear Haunches */}
-            <path
-              d="M 370,218 C 480,226 580,226 710,214 C 760,210 820,214 895,220"
-              fill="none"
-              stroke="rgba(255,255,255,0.45)"
-              strokeWidth="1.2"
-            />
-            {/* Aerodynamic Roof Arch Edge Highlight */}
-            <path
-              d="M 345,208 L 470,142 C 500,142 540,142 580,146 C 630,152 670,165 740,208"
-              fill="none"
-              stroke="url(#shoulderHighlight)"
-              strokeWidth="1.6"
-            />
-            {/* Door Panel Shut Line */}
-            <path
-              d="M 570,146 L 576,236 L 590,322"
-              fill="none"
-              stroke="rgba(0,0,0,0.6)"
-              strokeWidth="1.6"
-            />
-            {/* Flush Aerodynamic Door Handle */}
-            <rect
-              x="470"
-              y="234"
-              width="28"
-              height="4.5"
-              rx="2.25"
-              fill="#0A0C10"
-              stroke="rgba(255,255,255,0.2)"
-              strokeWidth="0.8"
-            />
-
-            {/* 7. HIGH-GLOSS GREENHOUSE GLASS & LUXURY COCKPIT */}
-            {/* Base Glass Pane */}
-            <path
-              d="M 352,204 L 468,146 Q 550,142 638,156 L 735,206 L 352,204 Z"
-              fill="url(#cockpitGlass)"
-              stroke="#2E3544"
-              strokeWidth="1.2"
-            />
-            {/* Interior Cockpit Driver Sport Seat Silhouette */}
-            <path
-              d="M 530,198 C 525,180 532,165 544,165 C 556,165 562,180 558,198 Z"
-              fill="#08090C"
-              stroke="rgba(249,115,22,0.3)"
-              strokeWidth="1"
-            />
-            {/* GT Sport Steering Wheel Rim Silhouette */}
-            <path
-              d="M 425,190 C 420,180 435,176 440,186 C 445,196 435,202 425,198"
-              fill="none"
-              stroke="#383D48"
-              strokeWidth="2.5"
-            />
-            {/* Ambient Instrument Cluster Amber Glow */}
-            <rect
-              x="410"
-              y="196"
-              width="24"
-              height="4"
-              rx="2"
-              fill="#F97316"
-              opacity={isIgnited ? 0.9 : 0.4}
-              className="transition-opacity duration-500"
-            />
-            {/* High-Gloss Windshield & Window Reflection Ribbons */}
-            <polygon
-              points="410,204 480,146 510,146 440,204"
-              fill="url(#glassReflect1)"
-            />
-            <polygon
-              points="530,204 570,146 590,146 550,204"
-              fill="url(#glassReflect2)"
-            />
-
-            {/* Aerodynamic Carbon Stalk Side Mirror */}
-            <path
-              d="M 380,204 L 372,192 C 372,188 385,186 398,188 L 404,196 Z"
-              fill="#12151C"
-              stroke="#383F50"
-              strokeWidth="1"
-            />
-            {/* Integrated Amber LED Turn Indicator Ribbon */}
-            <line
-              x1="376"
-              y1="192"
-              x2="394"
-              y2="190"
-              stroke={isIgnited ? "#F97316" : "rgba(249,115,22,0.3)"}
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-
-            {/* 8. VOLUMETRIC HIGH-INTENSITY HEADLIGHT BEAMS (Ignited Phase) */}
+            {/* 2. AERODYNAMIC WIND TUNNEL LASER FLOW TRACERS */}
             {isIgnited && (
-              <g className="transition-opacity duration-500 opacity-95 animate-fade-in">
-                {/* Wide Conical Light Slice cutting forward across asphalt */}
-                <polygon
-                  points="120,244 0,140 0,380 120,256"
-                  fill="url(#headlightVolumetricBeam)"
+              <g className="transition-opacity duration-500">
+                <path
+                  d="M 30,285 C 90,285 130,290 190,270 C 260,245 320,225 410,215 C 470,210 520,185 580,180 C 650,175 730,175 840,195 L 980,195"
+                  fill="none"
+                  stroke="#F97316"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  className="wind-tracer"
+                  opacity="0.8"
                 />
-                {/* Piercing High-Intensity Optical Core */}
-                <polygon
-                  points="120,244 0,195 0,315 120,252"
-                  fill="url(#headlightVolumetricBeam)"
-                  opacity="0.9"
-                />
-                {/* Projector Lens Flare Glint */}
-                <circle cx="122" cy="246" r="26" fill="url(#projectorLensGlow)" />
-                <circle cx="122" cy="246" r="5" fill="#FFFFFF" />
-                {/* Horizontal Anamorphic Glint Lines */}
-                <line
-                  x1="75"
-                  y1="246"
-                  x2="170"
-                  y2="246"
-                  stroke="#FFFFFF"
-                  strokeWidth="1.8"
-                  strokeOpacity="0.95"
-                />
-                <line
-                  x1="50"
-                  y1="246"
-                  x2="195"
-                  y2="246"
+                <path
+                  d="M 40,305 C 110,305 160,310 240,305 C 340,300 450,295 560,295 C 670,295 720,310 820,305 L 970,305"
+                  fill="none"
                   stroke="#38BDF8"
-                  strokeWidth="3.5"
-                  strokeOpacity="0.45"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  className="wind-tracer"
+                  opacity="0.6"
+                />
+                <path
+                  d="M 60,320 C 140,320 220,325 350,322 C 480,320 620,320 740,325 L 960,328"
+                  fill="none"
+                  stroke="#F97316"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  className="wind-tracer"
+                  opacity="0.7"
                 />
               </g>
             )}
 
-            {/* 9. FRONT MATRIX QUAD-JEWEL HEADLIGHT CLUSTER */}
-            <g>
-              {/* Headlight Housing Pocket */}
-              <path
-                d="M 105,252 L 180,226 L 175,236 L 115,258 Z"
-                fill="#0A0C10"
-                stroke="#38BDF8"
-                strokeWidth="0.8"
-                strokeOpacity="0.7"
-              />
-              {/* L-Shaped Crystal DRL (Daytime Running Light) Guide */}
-              <path
-                d="M 105,252 L 178,226"
-                stroke={isIgnited ? "#E0F2FE" : "rgba(249,115,22,0.4)"}
-                strokeWidth="3"
-                strokeLinecap="round"
-                className="transition-colors duration-500"
-              />
-              {/* Triple Matrix Projector Lenses */}
-              <rect
-                x="120"
-                y="244"
-                width="7"
-                height="6"
-                rx="1.5"
-                fill={isIgnited ? "#FFFFFF" : "#1E293B"}
-                stroke="#38BDF8"
-                strokeWidth="0.8"
-              />
-              <rect
-                x="138"
-                y="238"
-                width="7"
-                height="6"
-                rx="1.5"
-                fill={isIgnited ? "#FFFFFF" : "#1E293B"}
-                stroke="#38BDF8"
-                strokeWidth="0.8"
-              />
-              <rect
-                x="156"
-                y="232"
-                width="7"
-                height="6"
-                rx="1.5"
-                fill={isIgnited ? "#FFFFFF" : "#1E293B"}
-                stroke="#38BDF8"
-                strokeWidth="0.8"
-              />
+            {/* 3. INNER SUSPENSION CARBON WISHBONES (Behind front wheel) */}
+            <line x1="200" y1="285" x2="310" y2="265" stroke="#181A20" strokeWidth="5" strokeLinecap="round" />
+            <line x1="200" y1="285" x2="310" y2="265" stroke="#383E4D" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="195" y1="315" x2="320" y2="305" stroke="#181A20" strokeWidth="6" strokeLinecap="round" />
+            <line x1="210" y1="298" x2="315" y2="290" stroke="#F97316" strokeWidth="2" />
+
+            {/* 4. REAR SUSPENSION PUSHROD & DRIVESHAFT */}
+            <line x1="795" y1="280" x2="710" y2="255" stroke="#181A20" strokeWidth="6" strokeLinecap="round" />
+            <line x1="795" y1="315" x2="715" y2="305" stroke="#181A20" strokeWidth="7" strokeLinecap="round" />
+
+            {/* 5. MAIN FORMULA 1 MONOCOQUE CHASSIS & SCULPTED BODYWORK */}
+            {/* Main Chassis Body Profile: 1:1 match with authentic paper F1 logo geometry! */}
+            <path
+              d="
+                M 75,302 
+                C 95,298 120,292 165,285 
+                C 210,278 260,268 310,256 
+                C 350,246 385,236 415,234 
+                L 455,234 
+                C 465,220 480,185 505,178 
+                C 530,172 555,172 575,182 
+                C 590,190 595,205 600,225 
+                C 640,228 690,230 735,235 
+                C 780,240 820,242 850,240 
+                L 870,245 
+                L 870,290 
+                C 860,305 845,318 820,325 
+                L 730,325 
+                C 660,328 580,325 500,322 
+                C 420,318 350,315 280,312 
+                L 155,310 
+                Z"
+              fill="url(#f1CarbonPaint)"
+              stroke="#1E222A"
+              strokeWidth="1.5"
+            />
+
+            {/* Aerodynamic Shark Fin (Extends from Airbox to Rear Wing pylon) */}
+            <path d="M 540,175 L 835,185 L 835,242 L 590,210 Z" fill="url(#carbonWing)" opacity="0.95" />
+            <path d="M 540,175 L 835,185" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" />
+
+            {/* Engine Induction Airbox Intake Scoop (Hollow opening above driver helmet) */}
+            <ellipse cx="525" cy="188" rx="14" ry="11" fill="#050608" stroke="#F97316" strokeWidth="2" />
+            <ellipse cx="525" cy="188" rx="10" ry="7" fill="#000000" />
+
+            {/* Driver Cockpit with Titanium Halo Safety Ring */}
+            <ellipse cx="468" cy="226" rx="16" ry="15" fill="#18181B" stroke="#3F3F46" strokeWidth="1.5" />
+            {/* Iridescent Gold Helmet Visor */}
+            <path d="M 458,222 C 465,220 472,220 478,225 L 476,231 C 470,228 464,228 458,229 Z" fill="#F59E0B" />
+            {/* Titanium Halo Arc */}
+            <path d="M 432,236 C 445,212 485,212 510,230" fill="none" stroke="#E4E4E7" strokeWidth="4.5" strokeLinecap="round" />
+            <path d="M 432,236 C 445,212 485,212 510,230" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="472" y1="216" x2="470" y2="236" stroke="#E4E4E7" strokeWidth="3" />
+
+            {/* Sidepod Radiator Air Intake Duct (Aggressive Ground Effect Undercut) */}
+            <path
+              d="M 380,250 C 430,252 500,258 580,265 C 640,270 700,285 745,302 L 740,318 C 660,318 560,312 480,305 C 410,298 360,285 345,268 Z"
+              fill="url(#carbonWing)"
+              stroke="rgba(249,115,22,0.5)"
+              strokeWidth="1.2"
+            />
+
+            {/* Dynamic Orange Performance Livery Swoosh across Nose & Sidepod */}
+            <path
+              d="M 120,298 C 180,290 250,280 340,265 C 410,255 490,256 570,264 C 630,270 710,290 770,305 L 755,312 C 690,298 620,282 560,276 C 480,268 400,266 330,278 C 240,292 170,304 115,306 Z"
+              fill="url(#f1OrangeLivery)"
+            />
+            {/* Specular Highlight Streak */}
+            <path
+              d="M 140,293 C 210,284 280,274 360,262 C 440,252 520,254 600,262"
+              fill="none"
+              stroke="url(#f1SpecularHighlight)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+
+            {/* Pit Stop Brand Monogram on F1 Engine Cover */}
+            <g transform="translate(615, 238) scale(0.65)">
+              <rect x="0" y="0" width="110" height="34" rx="8" fill="#0C0E12" stroke="#F97316" strokeWidth="1" />
+              <text x="14" y="16" fill="#FFFFFF" fontFamily="'Plus Jakarta Sans', sans-serif" fontWeight="900" fontSize="11" letterSpacing="1">
+                PIT STOP
+              </text>
+              <text x="14" y="27" fill="#F97316" fontFamily="'JetBrains Mono', monospace" fontWeight="800" fontSize="7.5" letterSpacing="2">
+                CAR HIRE
+              </text>
             </g>
 
-            {/* 10. REAR 3D RUBY OLED LIGHTBLADE */}
-            <g>
-              {/* Continuous Razor Light Blade */}
-              <path
-                d="M 870,223 Q 895,221 912,230"
-                fill="none"
-                stroke={isIgnited ? "#EF4444" : "rgba(239,68,68,0.3)"}
-                strokeWidth="4.5"
-                strokeLinecap="round"
-                className="transition-colors duration-500"
-              />
-              <path
-                d="M 870,223 Q 895,221 912,230"
-                fill="none"
-                stroke={isIgnited ? "#FECACA" : "transparent"}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                className="transition-colors duration-500"
-              />
-              {isIgnited && (
-                <circle cx="910" cy="230" r="16" fill="url(#rubyTaillightGlow)" />
-              )}
-            </g>
+            {/* 6. HIGH-DOWNFORCE FRONT WING ASSEMBLY (1:1 with Official Vector) */}
+            <polygon points="50,326 215,326 215,318 60,314" fill="#0D0F14" stroke="#F97316" strokeWidth="1.5" />
+            <polygon points="55,315 200,317 195,312 62,310" fill="#181A22" stroke="#2C3240" strokeWidth="1" />
+            <polygon points="65,310 185,311 180,306 72,305" fill="#181A22" stroke="#2C3240" strokeWidth="1" />
+            {/* Front Wing Endplate with Diveplane */}
+            <path d="M 45,330 L 48,296 L 72,304 L 70,328 Z" fill="url(#carbonWing)" stroke="#F97316" strokeWidth="1.5" />
+            <path d="M 48,310 C 58,308 68,312 75,314" fill="none" stroke="#F97316" strokeWidth="2" />
 
-            {/* 11. FRONT FORGED ALLOY WHEEL & BRAKE ROTOR (240, 292) */}
-            <g transform="translate(240, 292)">
-              {/* Outer High-Grip Tire */}
-              <circle cx="0" cy="0" r="48" fill="#14161B" stroke="#282C36" strokeWidth="2" />
-              {/* Tire Sidewall Inner Bead */}
-              <circle cx="0" cy="0" r="44" fill="#0E1015" />
-              {/* Carbon-Ceramic Cross-Drilled Rotor Disc */}
-              <circle
-                cx="0"
-                cy="0"
-                r="35"
-                fill="url(#ceramicRotor)"
-                stroke="#383F50"
-                strokeWidth="1"
-              />
-              {/* Rotor Cross-Drill Ventilation Holes */}
-              <circle cx="-16" cy="-16" r="1.2" fill="#0A0C10" />
-              <circle cx="16" cy="16" r="1.2" fill="#0A0C10" />
-              <circle cx="-16" cy="16" r="1.2" fill="#0A0C10" />
-              <circle cx="16" cy="-16" r="1.2" fill="#0A0C10" />
-              <circle cx="0" cy="-22" r="1.2" fill="#0A0C10" />
-              <circle cx="0" cy="22" r="1.2" fill="#0A0C10" />
-              <circle cx="-22" cy="0" r="1.2" fill="#0A0C10" />
-              <circle cx="22" cy="0" r="1.2" fill="#0A0C10" />
+            {/* 7. REAR WING ASSEMBLY & FIA SAFETY RAIN BEACON */}
+            <path d="M 830,248 L 840,172 L 915,170 L 910,250 Z" fill="url(#carbonWing)" stroke="#27272A" strokeWidth="1.5" />
+            <polygon points="840,172 915,170 915,182 840,184" fill="#0C0E14" stroke="#F97316" strokeWidth="1.5" />
+            <polygon points="840,188 915,186 915,198 840,200" fill="#151820" stroke="#3F3F46" strokeWidth="1" />
+            {/* DRS Hydraulic Pod */}
+            <rect x="872" y="166" width="10" height="18" rx="2" fill="#F97316" />
+            {/* Rear Diffuser */}
+            <polygon points="820,320 905,314 910,326 815,330" fill="#090A0D" stroke="#F97316" strokeWidth="1" />
 
-              {/* Performance Orange Pit Stop Monobloc Brake Caliper (Top-Left) */}
-              <path
-                d="M -30,-12 C -36,0 -34,18 -26,28 L -18,22 C -24,14 -26,2 -20,-8 Z"
-                fill="#F97316"
-                stroke="#EA580C"
-                strokeWidth="1"
-              />
+            {/* FIA Formula 1 Rear Rain Safety Warning Strobe (Pulsing Red LED) */}
+            {isIgnited && (
+              <g className="pulse-rain-light">
+                <ellipse cx="912" cy="275" rx="14" ry="14" fill="url(#fiaRainLightGlow)" />
+                <rect x="908" y="271" width="8" height="8" rx="2" fill="#FFFFFF" />
+              </g>
+            )}
 
-              {/* Rotating Twin-5-Spoke Forged Alloy Rims (Safari 120fps Hardware-Accelerated) */}
+            {/* 8. FRONT OPEN RACING SLICK (Exposed F1 Wheel with Pirelli-Style Stripe) */}
+            <g transform="translate(195, 302)">
+              {/* Brake Rotor Glowing Inside */}
+              <circle cx="0" cy="0" r="28" fill="#18181B" stroke="#F97316" strokeWidth="2" />
+              <circle cx="0" cy="0" r="24" fill="url(#brakeHeatGlow)" />
+              {/* Orange Brembo Monobloc Caliper */}
+              <path d="M -18,-18 L -6,-24 L -4,-10 L -16,-6 Z" fill="#F97316" />
+
+              {/* Main Black Slick Tire Rubber */}
+              <circle cx="0" cy="0" r="44" fill="none" stroke="url(#slickTireGrad)" strokeWidth="26" />
+              <circle cx="0" cy="0" r="54" fill="none" stroke="#050608" strokeWidth="4" />
+              {/* Pirelli-style High-Speed Orange Wall Line */}
+              <circle cx="0" cy="0" r="45" fill="none" stroke="#F97316" strokeWidth="2.5" strokeDasharray="14, 6" />
+
+              {/* Centerlock Magnesium Rim (Rotates during glide/launch) */}
               <g
-                className={isGliding || isLaunching ? "safari-wheel-spin" : ""}
+                className={isGliding || isLaunching ? "safari-f1-wheel-spin" : ""}
                 style={{
                   transformBox: "fill-box",
                   transformOrigin: "center",
                 }}
               >
-                {/* 5 Dual Spokes (10 Spokes Total) */}
-                <line x1="-34" y1="-5" x2="34" y2="5" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="-34" y1="5" x2="34" y2="-5" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="-5" y1="-34" x2="5" y2="34" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="5" y1="-34" x2="-5" y2="34" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="-24" y1="-24" x2="24" y2="24" stroke="url(#forgedAlloy)" strokeWidth="2.5" />
-                <line x1="-24" y1="24" x2="24" y2="-24" stroke="url(#forgedAlloy)" strokeWidth="2.5" />
+                <circle cx="0" cy="0" r="28" fill="url(#f1RimGrad)" stroke="#3F3F46" strokeWidth="1" />
+                <g stroke="#71717A" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="0" y1="-24" x2="0" y2="24" />
+                  <line x1="-24" y1="0" x2="24" y2="0" />
+                  <line x1="-17" y1="-17" x2="17" y2="17" />
+                  <line x1="17" y1="-17" x2="-17" y2="17" />
+                </g>
+                <circle cx="0" cy="0" r="8" fill="#EA580C" stroke="#FFFFFF" strokeWidth="1.5" />
+                <circle cx="0" cy="0" r="4" fill="#000000" />
               </g>
-
-              {/* Center Lock Nut in Anodized Orange */}
-              <circle cx="0" cy="0" r="11" fill="#0F1117" stroke="#F97316" strokeWidth="2" />
-              <circle cx="0" cy="0" r="4.5" fill="#F97316" />
             </g>
 
-            {/* 12. REAR FORGED ALLOY WHEEL & BRAKE ROTOR (730, 292) */}
-            <g transform="translate(730, 292)">
-              {/* Outer High-Grip Tire */}
-              <circle cx="0" cy="0" r="48" fill="#14161B" stroke="#282C36" strokeWidth="2" />
-              {/* Tire Sidewall Inner Bead */}
-              <circle cx="0" cy="0" r="44" fill="#0E1015" />
-              {/* Carbon-Ceramic Cross-Drilled Rotor Disc */}
-              <circle
-                cx="0"
-                cy="0"
-                r="35"
-                fill="url(#ceramicRotor)"
-                stroke="#383F50"
-                strokeWidth="1"
-              />
-              {/* Rotor Cross-Drill Ventilation Holes */}
-              <circle cx="-16" cy="-16" r="1.2" fill="#0A0C10" />
-              <circle cx="16" cy="16" r="1.2" fill="#0A0C10" />
-              <circle cx="-16" cy="16" r="1.2" fill="#0A0C10" />
-              <circle cx="16" cy="-16" r="1.2" fill="#0A0C10" />
-              <circle cx="0" cy="-22" r="1.2" fill="#0A0C10" />
-              <circle cx="0" cy="22" r="1.2" fill="#0A0C10" />
-              <circle cx="-22" cy="0" r="1.2" fill="#0A0C10" />
-              <circle cx="22" cy="0" r="1.2" fill="#0A0C10" />
+            {/* 9. REAR OPEN RACING SLICK (Wider Profile) */}
+            <g transform="translate(795, 298)">
+              {/* Brake Rotor Glowing Inside */}
+              <circle cx="0" cy="0" r="32" fill="#18181B" stroke="#F97316" strokeWidth="2.5" />
+              <circle cx="0" cy="0" r="28" fill="url(#brakeHeatGlow)" />
+              {/* Orange Caliper */}
+              <path d="M -22,-20 L -8,-28 L -6,-12 L -20,-8 Z" fill="#F97316" />
 
-              {/* Performance Orange Pit Stop Monobloc Brake Caliper (Top-Left) */}
-              <path
-                d="M -30,-12 C -36,0 -34,18 -26,28 L -18,22 C -24,14 -26,2 -20,-8 Z"
-                fill="#F97316"
-                stroke="#EA580C"
-                strokeWidth="1"
-              />
+              {/* Extra Wide Rear Slick Tire Rubber */}
+              <circle cx="0" cy="0" r="48" fill="none" stroke="url(#slickTireGrad)" strokeWidth="28" />
+              <circle cx="0" cy="0" r="59" fill="none" stroke="#050608" strokeWidth="4" />
+              {/* Pirelli-style High-Speed Orange Wall Line */}
+              <circle cx="0" cy="0" r="50" fill="none" stroke="#F97316" strokeWidth="3" strokeDasharray="16, 7" />
 
-              {/* Rotating Twin-5-Spoke Forged Alloy Rims (Safari 120fps Hardware-Accelerated) */}
+              {/* Centerlock Rim (Rotates during glide/launch) */}
               <g
-                className={isGliding || isLaunching ? "safari-wheel-spin" : ""}
+                className={isGliding || isLaunching ? "safari-f1-wheel-spin" : ""}
                 style={{
                   transformBox: "fill-box",
                   transformOrigin: "center",
                 }}
               >
-                {/* 5 Dual Spokes (10 Spokes Total) */}
-                <line x1="-34" y1="-5" x2="34" y2="5" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="-34" y1="5" x2="34" y2="-5" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="-5" y1="-34" x2="5" y2="34" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="5" y1="-34" x2="-5" y2="34" stroke="url(#forgedAlloy)" strokeWidth="3" />
-                <line x1="-24" y1="-24" x2="24" y2="24" stroke="url(#forgedAlloy)" strokeWidth="2.5" />
-                <line x1="-24" y1="24" x2="24" y2="-24" stroke="url(#forgedAlloy)" strokeWidth="2.5" />
+                <circle cx="0" cy="0" r="32" fill="url(#f1RimGrad)" stroke="#3F3F46" strokeWidth="1" />
+                <g stroke="#71717A" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="0" y1="-28" x2="0" y2="28" />
+                  <line x1="-28" y1="0" x2="28" y2="0" />
+                  <line x1="-20" y1="-20" x2="20" y2="20" />
+                  <line x1="20" y1="-20" x2="-20" y2="20" />
+                </g>
+                <circle cx="0" cy="0" r="9" fill="#EA580C" stroke="#FFFFFF" strokeWidth="1.5" />
+                <circle cx="0" cy="0" r="4.5" fill="#000000" />
               </g>
-
-              {/* Center Lock Nut in Anodized Orange */}
-              <circle cx="0" cy="0" r="11" fill="#0F1117" stroke="#F97316" strokeWidth="2" />
-              <circle cx="0" cy="0" r="4.5" fill="#F97316" />
             </g>
 
-            {/* 13. SIGNATURE PIT STOP HEXAGON MONOGRAM CREST (Top Center) */}
+            {/* 10. SIGNATURE PIT STOP HEXAGON MONOGRAM CREST (Top Center) */}
             <g
               transform="translate(500, 68)"
               className={`transition-all duration-700 ${
                 isIgnited ? "scale-105 opacity-100" : "scale-90 opacity-45"
               }`}
             >
-              {/* Outer Glowing Hex Ring Halo */}
               <polygon
                 points="0,-36 32,-18 32,18 0,36 -32,18 -32,-18"
                 fill="none"
@@ -779,14 +562,12 @@ export default function CarEntranceAnimation({
                 strokeWidth="6"
                 strokeOpacity="0.25"
               />
-              {/* Inner Solid Hex Ring */}
               <polygon
                 points="0,-36 32,-18 32,18 0,36 -32,18 -32,-18"
                 fill="rgba(10, 11, 16, 0.92)"
                 stroke="url(#monogramGold)"
                 strokeWidth="2.2"
               />
-              /* Precision "PS" Lettermark */
               <text
                 x="0"
                 y="8"
@@ -803,7 +584,7 @@ export default function CarEntranceAnimation({
           </svg>
         </div>
 
-        {/* 5. Center High-Tech HUD & Tachometer Gauge (Zero React Re-renders, Pure RAF) */}
+        {/* 5. Pit Wall Telemetry & Tachometer HUD */}
         <div
           className={`mt-3 flex flex-col items-center justify-center transition-all duration-500 ${
             isIgnited ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
@@ -813,22 +594,31 @@ export default function CarEntranceAnimation({
             transform: "translate3d(0, 0, 0)",
           }}
         >
-          {/* Digital RPM & Cockpit Readiness Counter */}
-          <div className="flex items-center gap-4 bg-stone-900/85 border border-white/12 px-4 py-1.5 rounded-full backdrop-blur-md shadow-2xs">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 bg-stone-900/85 border border-white/12 px-4 sm:px-6 py-2 rounded-full backdrop-blur-md shadow-2xs font-mono text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-mono font-bold text-stone-400">
+              <span className="text-[10px] uppercase font-bold text-stone-400">
                 TACHOMETER
               </span>
-              <span className="font-mono font-black text-sm text-orange-500">
+              <span className="font-black text-sm text-orange-500">
                 <span ref={rpmRef}>0</span> <span className="text-[10px] text-stone-400">RPM</span>
               </span>
+            </div>
+            <div className="hidden sm:block h-3 w-px bg-stone-700" />
+            <div className="hidden sm:flex items-center gap-1.5 text-stone-300 text-[11px]">
+              <span className="text-stone-500">GEAR:</span>
+              <strong className="text-white">7TH</strong>
+            </div>
+            <div className="hidden sm:block h-3 w-px bg-stone-700" />
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-stone-500">DRS:</span>
+              <strong className="text-emerald-400 font-bold">&bull; ARMED</strong>
             </div>
             <div className="h-3 w-px bg-stone-700" />
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span
                 ref={statusRef}
-                className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider"
+                className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider"
               >
                 SYSTEM CALIBRATION
               </span>
