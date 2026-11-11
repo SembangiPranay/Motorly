@@ -121,42 +121,16 @@ export default function CarEntranceAnimation({
         willChange: "transform, opacity",
       }}
     >
-      
-      {/* Real Wet Asphalt Road & Smoke Atmosphere */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-45 mix-blend-screen"
-        style={{
-          backgroundImage: "url('/images/entrance/dark_road_smoke.jpg')",
-          backgroundPosition: "center bottom",
-          filter: "contrast(1.15) brightness(0.85)",
-        }}
-      />
-      {/* Procedural Rolling Smoke & Tire Mist */}
-      <div
-        className="absolute bottom-[20%] -left-[10%] w-[130%] h-60 pointer-events-none filter blur-3xl opacity-40"
-        style={{
-          background: "radial-gradient(ellipse at 40% 70%, rgba(249, 115, 22, 0.18), rgba(56, 189, 248, 0.08) 50%, transparent 75%)",
-          animation: "driftSmokeA 9s ease-in-out infinite alternate",
-        }}
-      />
-      <div
-        className="absolute bottom-[16%] -right-[10%] w-[130%] h-64 pointer-events-none filter blur-3xl opacity-35"
-        style={{
-          background: "radial-gradient(ellipse at 65% 75%, rgba(255, 255, 255, 0.2), rgba(14, 165, 233, 0.1) 45%, transparent 70%)",
-          animation: "driftSmokeB 11s ease-in-out infinite alternate",
-        }}
-      />
-
       {/* 1. Deep Space Carbon & Amber Studio Spotlight Atmosphere */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/20 via-[#0A0C11] to-[#040507] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/25 via-[#0A0C11] to-[#040507] pointer-events-none" />
 
-      {/* 2. High-Tech Perspective Road & Showroom Floor Grid (WebKit 3D hardware-composited) */}
-      <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden pointer-events-none opacity-20">
+      {/* 2. High-Tech Synchronized Perspective Runway Grid (100% Vector Studio Harmony) */}
+      <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden pointer-events-none opacity-25">
         <div
           className="w-full h-full"
           style={{
             backgroundImage:
-              "linear-gradient(to right, rgba(249, 115, 22, 0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(249, 115, 22, 0.18) 1px, transparent 1px)",
+              "linear-gradient(to right, rgba(249, 115, 22, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(249, 115, 22, 0.16) 1px, transparent 1px)",
             backgroundSize: "56px 56px",
             WebkitTransform: "perspective(380px) rotateX(65deg) translate3d(0, -20px, 0)",
             transform: "perspective(380px) rotateX(65deg) translate3d(0, -20px, 0)",
@@ -166,6 +140,8 @@ export default function CarEntranceAnimation({
             backfaceVisibility: "hidden",
             WebkitTransformOrigin: "bottom center",
             transformOrigin: "bottom center",
+            maskImage: "linear-gradient(to top, rgba(0,0,0,0.9) 20%, transparent 85%)",
+            WebkitMaskImage: "linear-gradient(to top, rgba(0,0,0,0.9) 20%, transparent 85%)",
           }}
         />
         {/* Road Horizon Vignette */}
