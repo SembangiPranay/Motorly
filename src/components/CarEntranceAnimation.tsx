@@ -37,55 +37,55 @@ export default function CarEntranceAnimation({
   const rangeRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    // 01 INIT: Complete darkness (0ms - 700ms)
+    // 01 INIT: High-speed start (0ms - 60ms)
     const t1 = setTimeout(() => {
       setPhase("ignition")
-    }, 700)
+    }, 60)
 
-    // 02 FRONT EDGE IGNITION: Nose & DRL flare (700ms - 1700ms)
+    // 02 FRONT EDGE IGNITION: DRL pulse & blue lens flare (60ms - 200ms)
     const t2 = setTimeout(() => {
       setPhase("tracing")
-    }, 1700)
+    }, 200)
 
-    // 03 SILHOUETTE TRACING: Specular laser ribbon climbs roofline (1700ms - 3300ms)
+    // 03 SILHOUETTE TRACING: Specular laser ribbon sweeps roofline (200ms - 480ms)
     const t3 = setTimeout(() => {
       setPhase("outline")
-    }, 3300)
+    }, 480)
 
-    // 04 FULL OUTLINE REVEAL: Taillight & underglow ignite (3300ms - 4500ms)
+    // 04 FULL OUTLINE REVEAL: OLED taillights & rocker ground blade (480ms - 680ms)
     const t4 = setTimeout(() => {
       setPhase("material")
-    }, 4500)
+    }, 680)
 
-    // 05 MATERIAL & DETAIL FADE IN: Clearcoat & BMW aero turbine wheels emerge (4500ms - 5700ms)
+    // 05 MATERIAL & DETAIL FADE IN: Clearcoat & BMW aero turbine wheels (680ms - 880ms)
     const t5 = setTimeout(() => {
       setPhase("reveal")
-    }, 5700)
+    }, 880)
 
-    // 06 COMPLETE VEHICLE REVEAL: 8K studio lighting & wet floor reflection (5700ms - 6900ms)
+    // 06 COMPLETE VEHICLE REVEAL: 8K studio lighting & wet floor reflection (880ms - 1060ms)
     const t6 = setTimeout(() => {
       setPhase("brand")
-    }, 6900)
+    }, 1060)
 
-    // 07 BRAND ELEMENTS APPEAR: PS crest, headlight beam throw, amber halo (6900ms - 8100ms)
+    // 07 BRAND ELEMENTS APPEAR: PS crest & projector beam throw (1060ms - 1200ms)
     const t7 = setTimeout(() => {
       setPhase("hero")
-    }, 8100)
+    }, 1200)
 
-    // 08 BRAND + DETAILS REVEAL: Clean telemetry HUD pill, PIT STOP typography (8100ms - 9500ms)
+    // 08 BRAND + DETAILS REVEAL: Telemetry HUD pill & PIT STOP branding (1200ms - 1500ms)
     const t8 = setTimeout(() => {
       setPhase("launch")
-    }, 9500)
+    }, 1500)
 
-    // 09 FINAL HERO & DISSOLVE: Forward glide & seamless showroom transition (9500ms - 10300ms)
+    // 09 FINAL HERO & DISSOLVE: Forward glide & seamless showroom transition (1500ms - 1650ms)
     const t9 = setTimeout(() => {
       setPhase("exit")
-    }, 10300)
+    }, 1650)
 
-    // 10 SITE ENTRY: Main application mounted (10600ms)
+    // 10 SITE ENTRY: Main application mounted (1.75s total sequence)
     const t10 = setTimeout(() => {
       onCompleteRef.current()
-    }, 10600)
+    }, 1750)
 
     return () => {
       clearTimeout(t1)
@@ -105,7 +105,7 @@ export default function CarEntranceAnimation({
   useEffect(() => {
     if (phase === "hero" || phase === "launch" || phase === "exit") {
       let startTimestamp: number | null = null
-      const duration = 900
+      const duration = 180
       const startRange = 540
       const targetRange = 640
       let rafId: number
@@ -169,7 +169,7 @@ export default function CarEntranceAnimation({
     <div
       role="banner"
       aria-label="Pit Stop Car Hire Cinematic Photorealistic Entrance"
-      className={`fixed inset-0 z-[10000] bg-[#000000] text-white flex flex-col items-center justify-between p-3 sm:p-6 lg:p-8 overflow-hidden select-none transition-all duration-700 ease-out ${
+      className={`fixed inset-0 z-[10000] bg-[#000000] text-white flex flex-col items-center justify-between p-3 sm:p-6 lg:p-8 overflow-hidden select-none transition-all duration-300 ease-out ${
         isExiting ? "opacity-0 scale-102 pointer-events-none" : "opacity-100 scale-100"
       }`}
       style={{
@@ -182,7 +182,7 @@ export default function CarEntranceAnimation({
     >
       {/* 1. Overhead Ambient Studio Softbox Halo */}
       <div
-        className={`absolute top-[38%] left-1/2 -translate-x-1/2 w-[1000px] max-w-[120vw] h-[520px] rounded-full pointer-events-none transition-all duration-1200 ${
+        className={`absolute top-[38%] left-1/2 -translate-x-1/2 w-[1000px] max-w-[120vw] h-[520px] rounded-full pointer-events-none transition-all duration-350 ease-out ${
           isHero
             ? "scale-105 opacity-100"
             : isBrand
@@ -227,8 +227,8 @@ export default function CarEntranceAnimation({
         <div
           className={`relative w-full max-w-4xl aspect-[1376/768] flex items-center justify-center transition-all ease-out ${
             isLaunching
-              ? "-translate-x-4 sm:-translate-x-16 scale-[1.02] duration-800"
-              : "translate-x-0 scale-100 duration-1000"
+              ? "-translate-x-4 sm:-translate-x-16 scale-[1.02] duration-350"
+              : "translate-x-0 scale-100 duration-400"
           }`}
           style={{
             WebkitTransform: "translate3d(0, 0, 0)",
@@ -260,7 +260,7 @@ export default function CarEntranceAnimation({
               WebkitMaskImage:
                 "radial-gradient(ellipse 92% 86% at 50% 50%, black 70%, transparent 100%)",
               transitionDuration:
-                phase === "material" ? "1200ms" : phase === "reveal" ? "1200ms" : "700ms",
+                phase === "material" ? "250ms" : phase === "reveal" ? "250ms" : "180ms",
             }}
             loading="eager"
             decoding="async"
@@ -292,7 +292,7 @@ export default function CarEntranceAnimation({
 
             {/* Volumetric Forward Projector Beam (Storyboard Stages 07 onwards) */}
             <g
-              className={`transition-opacity duration-1000 ${
+              className={`transition-opacity duration-250 ease-out ${
                 isBrand ? "opacity-95" : isRevealed ? "opacity-35" : "opacity-0"
               }`}
               style={{ mixBlendMode: "screen" }}
@@ -334,7 +334,7 @@ export default function CarEntranceAnimation({
               cy="488"
               r="7"
               fill="#FFFFFF"
-              className={`transition-opacity duration-500 ${
+              className={`transition-opacity duration-180 ${
                 isIgnition ? "opacity-100" : "opacity-0"
               }`}
               style={{
@@ -349,7 +349,7 @@ export default function CarEntranceAnimation({
               y2="488"
               stroke="#38BDF8"
               strokeWidth="2.5"
-              className={`transition-opacity duration-500 ${
+              className={`transition-opacity duration-180 ${
                 isIgnition ? "opacity-90" : "opacity-0"
               }`}
               style={{
@@ -380,8 +380,8 @@ export default function CarEntranceAnimation({
                     : "0",
                 transition:
                   phase === "tracing"
-                    ? "stroke-dashoffset 1600ms cubic-bezier(0.25, 1, 0.5, 1), opacity 800ms ease-out"
-                    : "stroke-dashoffset 800ms ease-out, opacity 800ms ease-out",
+                    ? "stroke-dashoffset 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease-out"
+                    : "stroke-dashoffset 150ms ease-out, opacity 150ms ease-out",
                 filter: "drop-shadow(0 0 6px #FFFFFF) drop-shadow(0 0 18px #38BDF8)",
                 willChange: "stroke-dashoffset, opacity",
               }}
@@ -396,7 +396,7 @@ export default function CarEntranceAnimation({
               stroke="#FF1E44"
               strokeWidth="4.5"
               strokeLinecap="round"
-              className={`transition-opacity duration-500 ${
+              className={`transition-opacity duration-180 ${
                 isPermanentGlow ? "opacity-100" : "opacity-0"
               }`}
               style={{
@@ -408,7 +408,7 @@ export default function CarEntranceAnimation({
               cy="436"
               r="6"
               fill="#FF1E44"
-              className={`transition-opacity duration-500 ${
+              className={`transition-opacity duration-180 ${
                 isPermanentGlow ? "opacity-100" : "opacity-0"
               }`}
               style={{
@@ -425,7 +425,7 @@ export default function CarEntranceAnimation({
               stroke="#38BDF8"
               strokeWidth="1.8"
               strokeDasharray="6 4"
-              className={`transition-opacity duration-600 ${
+              className={`transition-opacity duration-180 ${
                 isWheelOutline ? "opacity-75" : "opacity-0"
               }`}
               style={{
@@ -442,7 +442,7 @@ export default function CarEntranceAnimation({
               stroke="#38BDF8"
               strokeWidth="1.8"
               strokeDasharray="6 4"
-              className={`transition-opacity duration-600 ${
+              className={`transition-opacity duration-180 ${
                 isOutline ? "opacity-75" : "opacity-0"
               }`}
               style={{
@@ -458,7 +458,7 @@ export default function CarEntranceAnimation({
               y2="514"
               stroke="#F97316"
               strokeWidth="3"
-              className={`transition-opacity duration-600 ${
+              className={`transition-opacity duration-180 ${
                 isPermanentGlow ? "opacity-100" : "opacity-0"
               }`}
               style={{
@@ -471,7 +471,7 @@ export default function CarEntranceAnimation({
               rx="280"
               ry="12"
               fill="rgba(249, 115, 22, 0.45)"
-              className={`transition-opacity duration-600 ${
+              className={`transition-opacity duration-180 ${
                 isPermanentGlow ? "opacity-100" : "opacity-0"
               }`}
               style={{
@@ -482,7 +482,7 @@ export default function CarEntranceAnimation({
 
           {/* Overhead PS Hexagon Crest Badge */}
           <div
-            className={`absolute top-[4%] sm:top-[6%] left-1/2 -translate-x-1/2 transition-all duration-800 ease-out z-30 pointer-events-none ${
+            className={`absolute top-[4%] sm:top-[6%] left-1/2 -translate-x-1/2 transition-all duration-250 ease-out z-30 pointer-events-none ${
               isBrand ? "scale-100 opacity-100" : "scale-85 opacity-0"
             }`}
           >
@@ -518,8 +518,8 @@ export default function CarEntranceAnimation({
 
         {/* 4. Clean, High-End Storyboard End-Screen Reveal */}
         <div
-          className={`mt-1 sm:mt-3 flex flex-col items-center justify-center transition-all duration-700 px-2 ${
-            isHero ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+          className={`mt-1 sm:mt-3 flex flex-col items-center justify-center transition-all duration-120 ease-out px-2 ${
+            isHero ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
           }`}
           style={{
             WebkitTransform: "translate3d(0, 0, 0)",
@@ -555,7 +555,7 @@ export default function CarEntranceAnimation({
           {/* Bottom Linear Acceleration Progress Line */}
           <div className="w-48 sm:w-64 h-1 bg-stone-800/80 rounded-full mt-2.5 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-orange-600 via-amber-400 to-white transition-all duration-800 ease-out"
+              className="h-full bg-gradient-to-r from-orange-600 via-amber-400 to-white transition-all duration-180 ease-out"
               style={{
                 width:
                   phase === "init"
