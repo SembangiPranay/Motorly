@@ -227,7 +227,7 @@ export default function CarEntranceAnimation({
         <div
           className={`relative w-full max-w-4xl aspect-[1376/768] flex items-center justify-center transition-all ease-out ${
             isLaunching
-              ? "-translate-x-4 sm:-translate-x-16 scale-[1.02] duration-350"
+              ? "-translate-x-8 sm:-translate-x-24 scale-[1.02] duration-350"
               : "translate-x-0 scale-100 duration-400"
           }`}
           style={{
@@ -288,6 +288,14 @@ export default function CarEntranceAnimation({
                 <stop offset="60%" stopColor="#0284C7" stopOpacity="0.2" />
                 <stop offset="100%" stopColor="#000000" stopOpacity="0" />
               </radialGradient>
+
+              {/* BMW Wheel Circular Rim Clips for Dynamic Forward Rotation */}
+              <clipPath id="frontWheelAeroClip">
+                <circle cx="0" cy="0" r="77.5" />
+              </clipPath>
+              <clipPath id="rearWheelAeroClip">
+                <circle cx="0" cy="0" r="77.5" />
+              </clipPath>
             </defs>
 
             {/* Volumetric Forward Projector Beam (Storyboard Stages 07 onwards) */}
@@ -449,6 +457,62 @@ export default function CarEntranceAnimation({
                 filter: "drop-shadow(0 0 6px #38BDF8)",
               }}
             />
+
+            {/* Front BMW Aero Turbine Wheel with High-Speed Forward Rolling Rotation */}
+            <g
+              transform="translate(308, 472)"
+              className={`transition-opacity duration-250 ${
+                isRevealed ? "opacity-100" : isMaterial ? "opacity-60" : "opacity-0"
+              }`}
+            >
+              <g
+                style={{
+                  transformOrigin: "0px 0px",
+                  transform: isLaunching ? "rotate(-540deg)" : "rotate(0deg)",
+                  transition: isLaunching
+                    ? "transform 350ms cubic-bezier(0.2, 0.8, 0.3, 1)"
+                    : "transform 250ms ease-out",
+                  willChange: "transform",
+                }}
+              >
+                <image
+                  href="/images/entrance/bmw_wheel_disc.png"
+                  x="-78.5"
+                  y="-78.5"
+                  width="157"
+                  height="157"
+                  clipPath="url(#frontWheelAeroClip)"
+                />
+              </g>
+            </g>
+
+            {/* Rear BMW Aero Turbine Wheel with High-Speed Forward Rolling Rotation */}
+            <g
+              transform="translate(1074, 472)"
+              className={`transition-opacity duration-250 ${
+                isRevealed ? "opacity-100" : isMaterial ? "opacity-60" : "opacity-0"
+              }`}
+            >
+              <g
+                style={{
+                  transformOrigin: "0px 0px",
+                  transform: isLaunching ? "rotate(-540deg)" : "rotate(0deg)",
+                  transition: isLaunching
+                    ? "transform 350ms cubic-bezier(0.2, 0.8, 0.3, 1)"
+                    : "transform 250ms ease-out",
+                  willChange: "transform",
+                }}
+              >
+                <image
+                  href="/images/entrance/bmw_wheel_disc.png"
+                  x="-78.5"
+                  y="-78.5"
+                  width="157"
+                  height="157"
+                  clipPath="url(#rearWheelAeroClip)"
+                />
+              </g>
+            </g>
 
             {/* Amber Rocker Panel Ground Blade & Floor Bounce */}
             <line
