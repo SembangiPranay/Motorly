@@ -28,8 +28,6 @@ interface HeaderProps {
   onLogoutCustomer?: () => void
 
   isAdminAuthenticated?: boolean
-
-  onToggleSidebar?: () => void
 }
 
 export default function Header({
@@ -46,8 +44,6 @@ export default function Header({
   onLogoutCustomer,
 
   isAdminAuthenticated = false,
-
-  onToggleSidebar,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -129,10 +125,10 @@ export default function Header({
     <>
       <header className="w-full bg-[#FAF7F2] transition-colors border-b border-gray-200/50 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-6 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4 lg:gap-4 xl:gap-6">
-          {/* Logo (Visible on mobile/tablet; hidden on desktop where persistent sidebar already shows logo) */}
+          {/* Brand Logo */}
           <div
             onClick={() => onNavigate("home")}
-            className="cursor-pointer select-none group lg:hidden"
+            className="cursor-pointer select-none group flex items-center shrink-0"
           >
             <PitStopLogo size="sm" subtitle="Car Hire" singleLine={true} caption="Mgarr, Malta" />
           </div>

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test"
 
-test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Executive Theme, Gmail Admin Auth & Zero Hardcoded Data", () => {
+test.describe("Professional QA End-to-End Test Suite: Clean Customer Navbar (No Sidebar), Admin Logo Expansion, Gmail Admin Auth & Zero Hardcoded Data", () => {
   test.beforeEach(async ({ page }) => {
     // Dismiss entrance animation to jump straight to interface
     await page.addInitScript(() => {
@@ -9,60 +9,34 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
     })
   })
 
-  test("1. Customer Sidebar: Color combination matches admin sidebar dark palette", async ({ page }) => {
+  test("1. Customer Storefront: Full-width layout with top Navbar info and zero customer sidebar", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 })
     await page.goto("http://localhost:3000")
     await page.waitForLoadState("domcontentloaded")
     await page.waitForTimeout(1000)
 
-    // Locate desktop customer sidebar
-    const sidebar = page.locator("aside").first()
-    await expect(sidebar).toBeVisible()
+    // Verify top navbar is visible with brand logo and navigation portals
+    const header = page.locator("header").first()
+    await expect(header).toBeVisible()
+    await expect(header.locator("text=Pit Stop").first()).toBeVisible()
+    await expect(header.locator("button:has-text('Home')").first()).toBeVisible()
+    await expect(header.locator("button:has-text('Fleet & Cars')").first()).toBeVisible()
+    await expect(header.locator("button:has-text('Compare')").first()).toBeVisible()
+    await expect(header.locator("button:has-text('My Trips')").first()).toBeVisible()
+    await expect(header.locator("button:has-text('Sign In')").first()).toBeVisible()
 
-    // Verify dark palette matching admin sidebar (#141619, border-stone-800)
-    const classList = await sidebar.getAttribute("class")
-    expect(classList).toContain("bg-[#141619]")
-    expect(classList).toContain("border-stone-800")
+    // Verify Customer Sidebar is completely removed from the page
+    const customerSidebar = page.locator("aside:has-text('Portals')")
+    await expect(customerSidebar).toHaveCount(0)
 
-    // Verify active portal item has bg-orange-600 styling
-    const activeItem = sidebar.locator("button.bg-orange-600").first()
-    await expect(activeItem).toBeVisible()
-    await expect(activeItem).toContainText("Home Overview")
+    // Verify main content is full-width (no leftover pl-60 or pl-16 margin)
+    const mainWrapper = page.locator("div.w-full.max-w-full.min-h-screen").first()
+    const classList = (await mainWrapper.getAttribute("class")) || ""
+    expect(classList).not.toContain("lg:pl-60")
+    expect(classList).not.toContain("lg:pl-16")
   })
 
-  test("2. Customer Sidebar: Tapping Motorly logo expands sidebar when collapsed", async ({ page }) => {
-    await page.setViewportSize({ width: 1400, height: 900 })
-    await page.goto("http://localhost:3000")
-    await page.waitForLoadState("domcontentloaded")
-    await page.waitForTimeout(1000)
-
-    const sidebar = page.locator("aside").first()
-    await expect(sidebar).toBeVisible()
-
-    // 1. Collapse sidebar using desktop collapse button «
-    const collapseBtn = sidebar.locator("button[title='Collapse Sidebar']")
-    if (await collapseBtn.isVisible()) {
-      await collapseBtn.click()
-      await page.waitForTimeout(400)
-    }
-
-    // Verify sidebar is collapsed to w-16 rail
-    let currentClasses = await sidebar.getAttribute("class")
-    expect(currentClasses).toContain("w-16")
-
-    // 2. Tap on the Motorly 'M' logo button in the header
-    const motorlyLogo = sidebar.locator("button[aria-label='Expand sidebar']").first()
-    await expect(motorlyLogo).toBeVisible()
-    await motorlyLogo.click()
-    await page.waitForTimeout(400)
-
-    // Verify sidebar is now fully expanded
-    currentClasses = await sidebar.getAttribute("class")
-    expect(currentClasses).not.toContain("w-16")
-    expect(currentClasses).toMatch(/w-60|w-64/)
-  })
-
-  test("3. Admin Gmail Authentication: Proper Google/Gmail login verifies and unlocks console", async ({ page }) => {
+  test("2. Admin Gmail Authentication: Proper Google/Gmail login verifies and unlocks console", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 })
     await page.addInitScript(() => {
       localStorage.removeItem("motorly_admin_token")
@@ -121,7 +95,7 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
     expect(adminClasses).not.toContain("w-16")
   })
 
-  test("4. Zero Hardcoded User Data: No demo user chips in Customer Sign-In or Reservations", async ({ page }) => {
+  test("3. Zero Hardcoded User Data: No demo user chips in Customer Sign-In or Reservations", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 })
     await page.goto("http://localhost:3000")
     await page.waitForLoadState("domcontentloaded")

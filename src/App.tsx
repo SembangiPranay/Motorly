@@ -46,8 +46,6 @@ import AboutView from "./views/AboutView"
 
 import ContactView from "./views/ContactView"
 
-import CustomerSidebar from "./components/CustomerSidebar"
-
 import WhatsAppSupportFAB from "./components/WhatsAppSupportFAB"
 import CarEntranceAnimation from "./components/CarEntranceAnimation"
 
@@ -394,28 +392,6 @@ export default function App() {
   })
 
   // Confirmed booking modal state
-
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const [isCustomerSidebarCollapsed, setIsCustomerSidebarCollapsed] =
-    useState<boolean>(() => {
-      try {
-        return (
-          localStorage.getItem("motorly_customer_sidebar_collapsed") === "true"
-        )
-      } catch {
-        return false
-      }
-    })
-
-  const handleToggleCustomerSidebar = () => {
-    setIsCustomerSidebarCollapsed((prev) => {
-      const next = !prev
-      try {
-        localStorage.setItem("motorly_customer_sidebar_collapsed", String(next))
-      } catch {}
-      return next
-    })
-  }
 
   const [confirmedBooking, setConfirmedBooking] = useState<{
     bookingId: string
@@ -900,15 +876,7 @@ export default function App() {
   }
 
   return (
-    <div
-      className={`w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C] transition-all duration-200 ${
-        currentView !== "admin" && currentView !== "auth"
-          ? isCustomerSidebarCollapsed
-            ? "lg:pl-16"
-            : "lg:pl-60"
-          : ""
-      }`}
-    >
+    <div className="w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C]">
       {/* 0. Cinematic Car Intro Animation (Like Keka starting animation) */}
       {showEntrance && (
         <CarEntranceAnimation
@@ -926,32 +894,6 @@ export default function App() {
           }}
         />
       )}
-      {/* Desktop Persistent Left Sidebar & Mobile Drawer (Portals Only) */}
-      {currentView !== "admin" && currentView !== "auth" && (
-        <CustomerSidebar
-          currentView={currentView}
-          onNavigate={handleNavigate}
-          currentUser={currentUser}
-          onLogoutCustomer={() => {
-            api.logoutCustomer()
-
-            setCurrentUser(null)
-          }}
-          compareCount={compareIds.length}
-          activeBookingsCount={
-            bookings.filter(
-              (b) =>
-                b.status === "Pending Assignment" ||
-                b.status === "Assigned" ||
-                b.status === "Checked Out",
-            ).length
-          }
-          isOpenMobile={isMobileSidebarOpen}
-          onCloseMobile={() => setIsMobileSidebarOpen(false)}
-          isCollapsed={isCustomerSidebarCollapsed}
-          onToggleCollapse={handleToggleCustomerSidebar}
-        />
-      )}
 
       {/* Header (hidden in dedicated full-screen admin & auth mode for cleaner layout) */}
       {currentView !== "admin" && currentView !== "auth" && (
@@ -962,7 +904,6 @@ export default function App() {
           setCurrentUser={setCurrentUser}
           compareCount={compareIds.length}
           isAdminAuthenticated={isAdminAuthenticated}
-          onToggleSidebar={() => setIsMobileSidebarOpen(true)}
           onLogoutCustomer={() => {
             api.logoutCustomer()
 
