@@ -43,7 +43,7 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
     const collapseBtn = sidebar.locator("button[title='Collapse Sidebar']")
     if (await collapseBtn.isVisible()) {
       await collapseBtn.click()
-      await page.waitForTimeout(300)
+      await page.waitForTimeout(400)
     }
 
     // Verify sidebar is collapsed to w-16 rail
@@ -54,7 +54,7 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
     const motorlyLogo = sidebar.locator("button[aria-label='Expand sidebar']").first()
     await expect(motorlyLogo).toBeVisible()
     await motorlyLogo.click()
-    await page.waitForTimeout(300)
+    await page.waitForTimeout(400)
 
     // Verify sidebar is now fully expanded
     currentClasses = await sidebar.getAttribute("class")
@@ -62,65 +62,14 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
     expect(currentClasses).toMatch(/w-60|w-64/)
   })
 
-  test("3. Admin Sidebar: Tapping Motorly logo expands sidebar when collapsed", async ({ page }) => {
-    // Seed authenticated admin session
-    await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_completed", "true")
-      localStorage.setItem("motorly_admin_token", "qa_test_admin_jwt_token")
-      localStorage.setItem(
-        "motorly_admin_user",
-        JSON.stringify({
-          userId: "usr_admin",
-          email: "nanikoushik96@gmail.com",
-          name: "QA Admin Director",
-          role: "admin",
-          vipTier: "VIP",
-        }),
-      )
-      localStorage.setItem("motorly_current_view", "admin")
-    })
-
+  test("3. Admin Gmail Authentication: Proper Google/Gmail login verifies and unlocks console", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 })
-    await page.goto("http://localhost:3000")
-    await page.waitForLoadState("domcontentloaded")
-    await page.waitForTimeout(1000)
-
-    const adminSidebar = page.locator("aside").first()
-    await expect(adminSidebar).toBeVisible()
-
-    // Collapse sidebar if expanded
-    const collapseBtn = adminSidebar.locator("button[title='Collapse Sidebar']")
-    if (await collapseBtn.isVisible()) {
-      await collapseBtn.click()
-      await page.waitForTimeout(300)
-    }
-
-    // Verify admin sidebar is collapsed
-    let adminClasses = await adminSidebar.getAttribute("class")
-    expect(adminClasses).toContain("w-16")
-
-    // Click on the orange Motorly 'M' logo button
-    const adminLogo = adminSidebar.locator("button[aria-label='Expand sidebar']").first()
-    await expect(adminLogo).toBeVisible()
-    await adminLogo.click()
-    await page.waitForTimeout(300)
-
-    // Verify admin sidebar expands
-    adminClasses = await adminSidebar.getAttribute("class")
-    expect(adminClasses).not.toContain("w-16")
-  })
-
-  test("4. Admin Gmail Authentication: Proper Google/Gmail login verifies and unlocks console", async ({ page }) => {
-    await page.setViewportSize({ width: 1400, height: 900 })
-    // Navigate to admin view unauthenticated
     await page.addInitScript(() => {
       localStorage.removeItem("motorly_admin_token")
       localStorage.removeItem("motorly_admin_user")
-      sessionStorage.setItem("motorly_intro_completed", "true")
-      localStorage.setItem("motorly_current_view", "admin")
     })
 
-    await page.goto("http://localhost:3000")
+    await page.goto("http://localhost:3000/?view=admin")
     await page.waitForLoadState("domcontentloaded")
     await page.waitForTimeout(1000)
 
@@ -149,9 +98,30 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
 
     const token = await page.evaluate(() => localStorage.getItem("motorly_admin_token"))
     expect(token).toBeTruthy()
+
+    // Verify Admin Sidebar: Tapping Motorly logo expands when collapsed
+    const adminSidebar = page.locator("aside").first()
+    await expect(adminSidebar).toBeVisible()
+
+    const adminCollapseBtn = adminSidebar.locator("button[title='Collapse Sidebar']")
+    if (await adminCollapseBtn.isVisible()) {
+      await adminCollapseBtn.click()
+      await page.waitForTimeout(400)
+    }
+
+    let adminClasses = await adminSidebar.getAttribute("class")
+    expect(adminClasses).toContain("w-16")
+
+    const adminLogo = adminSidebar.locator("button[aria-label='Expand sidebar']").first()
+    await expect(adminLogo).toBeVisible()
+    await adminLogo.click()
+    await page.waitForTimeout(400)
+
+    adminClasses = await adminSidebar.getAttribute("class")
+    expect(adminClasses).not.toContain("w-16")
   })
 
-  test("5. Zero Hardcoded User Data: No demo user chips in Customer Sign-In or Reservations", async ({ page }) => {
+  test("4. Zero Hardcoded User Data: No demo user chips in Customer Sign-In or Reservations", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 })
     await page.goto("http://localhost:3000")
     await page.waitForLoadState("domcontentloaded")
@@ -169,8 +139,8 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
       await expect(page.locator("text=david.c@techventure.io")).toHaveCount(0)
       await expect(page.locator("text=sarah.m@vipclient.com")).toHaveCount(0)
 
-      // Close modal
-      await page.locator("button[aria-label='Close']").or(page.locator("button:has-text('✕')")).first().click()
+      await page.keyboard.press("Escape")
+      await page.waitForTimeout(300)
     }
 
     // Navigate to My Reservations
