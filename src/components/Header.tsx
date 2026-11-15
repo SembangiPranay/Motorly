@@ -482,39 +482,6 @@ export default function Header({
               </div>
             )}
 
-            {/* Quick Demo Autofill chips */}
-            {authTab === "signin" && (
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-2.5">
-                <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">
-                  1-Click Demo Logins:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthEmail("john.doe@email.com")
-
-                      setAuthPassword("pass123")
-                    }}
-                    className="px-2 py-0.5 rounded bg-white border border-stone-200 text-[11px] font-medium text-stone-700 hover:border-orange-500 transition"
-                  >
-                    John Doe (Gold)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthEmail("david.c@techventure.io")
-
-                      setAuthPassword("pass123")
-                    }}
-                    className="px-2 py-0.5 rounded bg-white border border-stone-200 text-[11px] font-medium text-stone-700 hover:border-orange-500 transition"
-                  >
-                    David Chen (VIP)
-                  </button>
-                </div>
-              </div>
-            )}
-
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               {authTab === "register" && (
                 <>

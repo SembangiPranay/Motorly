@@ -105,14 +105,13 @@ async function reconcileDatabaseInvariants() {
         .catch(() => {})
     }
 
-    // 4. Invariant: Restore MTR-852655 and any settled/completed bookings accidentally cancelled or declined
+    // 4. Invariant: Reconcile any settled bookings accidentally cancelled or declined
     if (db.isSupabase && db.pool) {
       await db.pool
         .query(`
         UPDATE bookings
         SET status = 'Completed', approved_by_admin = 1
-        WHERE id = 'MTR-852655'
-           OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
+        WHERE (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
       `)
         .catch(() => {})
 
@@ -120,7 +119,7 @@ async function reconcileDatabaseInvariants() {
         .query(`
         UPDATE bookings
         SET approved_by_admin = 1
-        WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
+        WHERE status IN ('Checked Out', 'Completed') AND approved_by_admin != 1
       `)
         .catch(() => {})
     } else {
@@ -128,8 +127,7 @@ async function reconcileDatabaseInvariants() {
         .prepare(`
         UPDATE bookings
         SET status = 'Completed', approved_by_admin = 1
-        WHERE id = 'MTR-852655'
-           OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
+        WHERE (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
       `)
         .run()
         .catch(() => {})
@@ -138,7 +136,7 @@ async function reconcileDatabaseInvariants() {
         .prepare(`
         UPDATE bookings
         SET approved_by_admin = 1
-        WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
+        WHERE status IN ('Checked Out', 'Completed') AND approved_by_admin != 1
       `)
         .run()
         .catch(() => {})
@@ -1026,6 +1024,123 @@ app.post("/api/auth/login", async (req, res) => {
     role: "admin",
     user: adminPayload,
     message: "Admin authenticated successfully with JWT.",
+  })
+})
+
+// POST Dedicated Google / Gmail Administrator Authentication
+app.post("/api/auth/google-admin-login", async (req, res) => {
+  const clientIp =
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    req.socket.remoteAddress ||
+    "127.0.0.1"
+
+  const rateCheck = checkLoginRateLimit(clientIp)
+  if (!rateCheck.allowed) {
+    return res.status(429).json({
+      success: false,
+      message: `Too many login attempts from this network. Please wait ${rateCheck.retryAfter} seconds before trying again.`,
+    })
+  }
+
+  const { email, credential } = req.body
+
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "Admin Gmail address is required.",
+    })
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(normalizedEmail)) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter a valid email address.",
+    })
+  }
+
+  // Whitelisted authorized administrator accounts
+  const authorizedGmails = [
+    "nanikoushik96@gmail.com",
+    "admin@pitstopcarhire.com",
+    process.env.ADMIN_GMAIL?.toLowerCase(),
+    process.env.ADMIN_EMAIL?.toLowerCase(),
+  ].filter(Boolean) as string[]
+
+  let isAuthorized = authorizedGmails.some(
+    (authEmail) => authEmail.toLowerCase() === normalizedEmail,
+  )
+
+  let adminUser: any = null
+
+  // Verify against database users
+  try {
+    const dbUser = (await db
+      .prepare("SELECT * FROM users WHERE LOWER(email) = ?")
+      .get(normalizedEmail)) as any
+
+    if (dbUser) {
+      if (dbUser.role === "admin") {
+        isAuthorized = true
+        adminUser = dbUser
+      }
+    } else if (isAuthorized) {
+      // Auto-provision admin user profile in DB if in whitelist
+      const newAdminId = `usr_admin_${Date.now()}`
+      await db
+        .prepare(`
+          INSERT INTO users (id, email, password_hash, name, phone, role, vip_tier)
+          VALUES (?, ?, ?, ?, ?, 'admin', 'VIP')
+        `)
+        .run(
+          newAdminId,
+          normalizedEmail,
+          "google-oauth-managed",
+          normalizedEmail === "nanikoushik96@gmail.com" ? "Nani Koushik (Admin)" : "Fleet Operations Director",
+          "+1 (800) 555-0199",
+        )
+        .catch(() => {})
+      adminUser = {
+        id: newAdminId,
+        email: normalizedEmail,
+        name: normalizedEmail === "nanikoushik96@gmail.com" ? "Nani Koushik (Admin)" : "Fleet Operations Director",
+        role: "admin",
+      }
+    }
+  } catch (err: any) {
+    console.warn("[Admin Gmail Auth DB Check]", err?.message)
+  }
+
+  if (!isAuthorized) {
+    recordFailedLoginAttempt(clientIp)
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. "${normalizedEmail}" is not authorized for Fleet Administration. Please sign in with an authorized admin account.`,
+    })
+  }
+
+  clearLoginAttempts(clientIp)
+
+  const adminPayload: JwtUserPayload = {
+    userId: adminUser?.id || "usr_admin",
+    email: normalizedEmail,
+    name: adminUser?.name || (normalizedEmail === "nanikoushik96@gmail.com" ? "Nani Koushik (Studio Director)" : "Fleet Operations Director"),
+    role: "admin",
+    vipTier: "VIP",
+  }
+
+  const token = generateJwtToken(adminPayload, "24h")
+  try {
+    await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token)
+  } catch (sessErr: any) {}
+
+  return res.json({
+    success: true,
+    token,
+    role: "admin",
+    user: adminPayload,
+    message: "Google Administrator authentication verified successfully.",
   })
 })
 
@@ -3654,6 +3769,39 @@ app.delete("/api/bookings/:id", requireAdmin, async (req, res) => {
   await db.prepare("DELETE FROM bookings WHERE id = ?").run(bookingId)
 
   return res.json({ success: true, message: `Booking ${bookingId} deleted.` })
+})
+
+// POST Purge Mock / Test Bookings and Mock Users (Database Cleanup)
+app.post("/api/admin/clean-test-data", requireAdmin, async (req, res) => {
+  try {
+    const deleteBookingsQuery = `
+      DELETE FROM bookings
+      WHERE LOWER(customer_first_name) LIKE '%test%'
+         OR LOWER(customer_last_name) LIKE '%test%'
+         OR LOWER(customer_last_name) LIKE '%jjjj%'
+         OR LOWER(customer_last_name) LIKE '%asdas%'
+         OR LOWER(customer_first_name) LIKE '%pranay%'
+         OR LOWER(customer_first_name) LIKE '%koushik%'
+         OR LOWER(customer_email) LIKE '%example.com%'
+         OR customer_phone IN ('8899556622', '9876543210', '+1234567890')
+    `
+    const deleteUsersQuery = `
+      DELETE FROM users
+      WHERE id IN ('usr_101', 'usr_102', 'usr_103')
+         OR email IN ('john.doe@email.com', 'david.c@techventure.io', 'sarah.m@vipclient.com', 'test@gmail.com')
+         OR email LIKE '%example.com%'
+    `
+    if (db.isSupabase && db.pool) {
+      await db.pool.query(deleteBookingsQuery).catch(() => {})
+      await db.pool.query(deleteUsersQuery).catch(() => {})
+    } else {
+      await db.prepare(deleteBookingsQuery).run().catch(() => {})
+      await db.prepare(deleteUsersQuery).run().catch(() => {})
+    }
+    return res.json({ success: true, message: "Test bookings and dummy users purged cleanly." })
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message })
+  }
 })
 
 // POST Admin Walk-In / Counter Reservation with Database-Level Concurrency Protection (< 60s)

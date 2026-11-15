@@ -383,6 +383,60 @@ class ApiService {
     }
   }
 
+  async adminGoogleLogin(email: string, credential?: string): Promise<{
+    success: boolean
+    token?: string
+    role?: string
+    user?: any
+    message?: string
+  }> {
+    try {
+      const res = await this.request(
+        "/auth/google-admin-login",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, credential }),
+        },
+        "admin",
+      )
+      const data = await this.safeJson(res, null)
+      if (!res.ok || !data) {
+        return {
+          success: false,
+          message:
+            data?.message ||
+            data?.error ||
+            `Google Admin authentication failed (HTTP ${res.status}).`,
+        }
+      }
+      if (data.token) {
+        localStorage.setItem("motorly_admin_token", data.token)
+        if (data.user) {
+          localStorage.setItem("motorly_admin_user", JSON.stringify(data.user))
+        }
+      }
+      return data
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || "Network error connecting to fleet authorization server.",
+      }
+    }
+  }
+
+  async cleanTestData(): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await this.request(
+        "/admin/clean-test-data",
+        { method: "POST" },
+        "admin",
+      )
+      return (await this.safeJson(res, { success: false })) || { success: false }
+    } catch {
+      return { success: false }
+    }
+  }
+
   hasAdminToken(): boolean {
     try {
       return Boolean(

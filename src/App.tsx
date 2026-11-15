@@ -396,6 +396,26 @@ export default function App() {
   // Confirmed booking modal state
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isCustomerSidebarCollapsed, setIsCustomerSidebarCollapsed] =
+    useState<boolean>(() => {
+      try {
+        return (
+          localStorage.getItem("motorly_customer_sidebar_collapsed") === "true"
+        )
+      } catch {
+        return false
+      }
+    })
+
+  const handleToggleCustomerSidebar = () => {
+    setIsCustomerSidebarCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem("motorly_customer_sidebar_collapsed", String(next))
+      } catch {}
+      return next
+    })
+  }
 
   const [confirmedBooking, setConfirmedBooking] = useState<{
     bookingId: string
@@ -881,8 +901,12 @@ export default function App() {
 
   return (
     <div
-      className={`w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C] ${
-        currentView !== "admin" && currentView !== "auth" ? "lg:pl-60" : ""
+      className={`w-full max-w-full overflow-x-hidden min-h-screen flex flex-col bg-[#FAF7F2] text-[#17191C] transition-all duration-200 ${
+        currentView !== "admin" && currentView !== "auth"
+          ? isCustomerSidebarCollapsed
+            ? "lg:pl-16"
+            : "lg:pl-60"
+          : ""
       }`}
     >
       {/* 0. Cinematic Car Intro Animation (Like Keka starting animation) */}
@@ -902,7 +926,7 @@ export default function App() {
           }}
         />
       )}
-      {/* Desktop Persistent Minimal Left Sidebar & Mobile Drawer (Portals Only) */}
+      {/* Desktop Persistent Left Sidebar & Mobile Drawer (Portals Only) */}
       {currentView !== "admin" && currentView !== "auth" && (
         <CustomerSidebar
           currentView={currentView}
@@ -924,6 +948,8 @@ export default function App() {
           }
           isOpenMobile={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          isCollapsed={isCustomerSidebarCollapsed}
+          onToggleCollapse={handleToggleCustomerSidebar}
         />
       )}
 

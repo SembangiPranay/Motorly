@@ -1636,81 +1636,28 @@ function seedBookings() {
 
 function seedUsers() {
   if (!sqlite) return
-  const insertStmt = sqlite.prepare(`
-    INSERT INTO users (
-      id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-
-  const initialUsers = [
-    {
-      id: "usr_101",
-      email: "john.doe@email.com",
-      password_hash: "pass123",
-      name: "John Doe",
-      phone: "+1 (305) 123-4567",
-      driver_license_num: "D12345678",
-      driver_license_state: "Florida",
-      driver_license_expiry: "05/15/2030",
-      role: "customer",
-      vip_tier: "Gold",
-    },
-    {
-      id: "usr_102",
-      email: "david.c@techventure.io",
-      password_hash: "pass123",
-      name: "David Chen",
-      phone: "+1 (415) 880-9921",
-      driver_license_num: "NY-8401928",
-      driver_license_state: "New York",
-      driver_license_expiry: "03/2027",
-      role: "customer",
-      vip_tier: "VIP",
-    },
-    {
-      id: "usr_103",
-      email: "sarah.m@vipclient.com",
-      password_hash: "pass123",
-      name: "Sarah Miller",
-      phone: "+1 (312) 555-8901",
-      driver_license_num: "IL-9912041",
-      driver_license_state: "Illinois",
-      driver_license_expiry: "11/2028",
-      role: "customer",
-      vip_tier: "VIP",
-    },
-    {
-      id: "usr_admin",
-      email: "admin@pitstopcarhire.com",
-      password_hash: bcrypt.hashSync(
-        process.env.ADMIN_PASSWORD || "0709",
-        10,
-      ),
-      name: "Fleet Operations Admin",
-      phone: "+1 (800) 555-0199",
-      driver_license_num: "ADM-9901-FL",
-      driver_license_state: "Florida",
-      driver_license_expiry: "12/2035",
-      role: "admin",
-      vip_tier: "VIP",
-    },
-  ]
-
-  for (const u of initialUsers) {
+  const adminExists = sqlite
+    .prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1")
+    .get()
+  if (!adminExists) {
+    const insertStmt = sqlite.prepare(`
+      INSERT INTO users (
+        id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
     insertStmt.run(
-      u.id,
-      u.email,
-      u.password_hash,
-      u.name,
-      u.phone,
-      u.driver_license_num,
-      u.driver_license_state,
-      u.driver_license_expiry,
-      u.role,
-      u.vip_tier,
+      "usr_admin",
+      "admin@pitstopcarhire.com",
+      bcrypt.hashSync(process.env.ADMIN_PASSWORD || "0709", 10),
+      "Fleet Operations Admin",
+      "+1 (800) 555-0199",
+      "ADM-9901-FL",
+      "Florida",
+      "12/2035",
+      "admin",
+      "VIP",
     )
   }
-  console.log(`[DB] Seeded ${initialUsers.length} users into database.`)
 }
 
 function seedPromos() {

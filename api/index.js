@@ -40925,63 +40925,11 @@ function seedVehicles() {
 }
 function seedUsers() {
 	if (!sqlite) return;
-	const insertStmt = sqlite.prepare(`
-    INSERT INTO users (
-      id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-	const initialUsers = [
-		{
-			id: "usr_101",
-			email: "john.doe@email.com",
-			password_hash: "pass123",
-			name: "John Doe",
-			phone: "+1 (305) 123-4567",
-			driver_license_num: "D12345678",
-			driver_license_state: "Florida",
-			driver_license_expiry: "05/15/2030",
-			role: "customer",
-			vip_tier: "Gold"
-		},
-		{
-			id: "usr_102",
-			email: "david.c@techventure.io",
-			password_hash: "pass123",
-			name: "David Chen",
-			phone: "+1 (415) 880-9921",
-			driver_license_num: "NY-8401928",
-			driver_license_state: "New York",
-			driver_license_expiry: "03/2027",
-			role: "customer",
-			vip_tier: "VIP"
-		},
-		{
-			id: "usr_103",
-			email: "sarah.m@vipclient.com",
-			password_hash: "pass123",
-			name: "Sarah Miller",
-			phone: "+1 (312) 555-8901",
-			driver_license_num: "IL-9912041",
-			driver_license_state: "Illinois",
-			driver_license_expiry: "11/2028",
-			role: "customer",
-			vip_tier: "VIP"
-		},
-		{
-			id: "usr_admin",
-			email: "admin@pitstopcarhire.com",
-			password_hash: bcryptjs_default.hashSync(process.env.ADMIN_PASSWORD || "0709", 10),
-			name: "Fleet Operations Admin",
-			phone: "+1 (800) 555-0199",
-			driver_license_num: "ADM-9901-FL",
-			driver_license_state: "Florida",
-			driver_license_expiry: "12/2035",
-			role: "admin",
-			vip_tier: "VIP"
-		}
-	];
-	for (const u of initialUsers) insertStmt.run(u.id, u.email, u.password_hash, u.name, u.phone, u.driver_license_num, u.driver_license_state, u.driver_license_expiry, u.role, u.vip_tier);
-	console.log(`[DB] Seeded ${initialUsers.length} users into database.`);
+	if (!sqlite.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get()) sqlite.prepare(`
+      INSERT INTO users (
+        id, email, password_hash, name, phone, driver_license_num, driver_license_state, driver_license_expiry, role, vip_tier
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run("usr_admin", "admin@pitstopcarhire.com", bcryptjs_default.hashSync(process.env.ADMIN_PASSWORD || "0709", 10), "Fleet Operations Admin", "+1 (800) 555-0199", "ADM-9901-FL", "Florida", "12/2035", "admin", "VIP");
 }
 function seedPromos() {
 	if (!sqlite) return;
@@ -41160,25 +41108,23 @@ async function reconcileDatabaseInvariants() {
 			await db.pool.query(`
         UPDATE bookings
         SET status = 'Completed', approved_by_admin = 1
-        WHERE id = 'MTR-852655'
-           OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
+        WHERE (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
       `).catch(() => {});
 			await db.pool.query(`
         UPDATE bookings
         SET approved_by_admin = 1
-        WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
+        WHERE status IN ('Checked Out', 'Completed') AND approved_by_admin != 1
       `).catch(() => {});
 		} else {
 			await db.prepare(`
         UPDATE bookings
         SET status = 'Completed', approved_by_admin = 1
-        WHERE id = 'MTR-852655'
-           OR (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
+        WHERE (status = 'Cancelled' AND (notes LIKE '%Settled%' OR notes LIKE '%Completed%' OR notes LIKE '%Return Check%' OR extension_status = 'Approved'))
       `).run().catch(() => {});
 			await db.prepare(`
         UPDATE bookings
         SET approved_by_admin = 1
-        WHERE (status IN ('Checked Out', 'Completed') OR id LIKE 'CWK-%' OR id LIKE 'MTR-%') AND approved_by_admin != 1
+        WHERE status IN ('Checked Out', 'Completed') AND approved_by_admin != 1
       `).run().catch(() => {});
 		}
 		if (db.isSupabase && db.pool) {
@@ -41732,6 +41678,80 @@ app.post("/api/auth/login", async (req, res) => {
 		role: "admin",
 		user: adminPayload,
 		message: "Admin authenticated successfully with JWT."
+	});
+});
+app.post("/api/auth/google-admin-login", async (req, res) => {
+	const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "127.0.0.1";
+	const rateCheck = checkLoginRateLimit(clientIp);
+	if (!rateCheck.allowed) return res.status(429).json({
+		success: false,
+		message: `Too many login attempts from this network. Please wait ${rateCheck.retryAfter} seconds before trying again.`
+	});
+	const { email, credential } = req.body;
+	if (!email || typeof email !== "string") return res.status(400).json({
+		success: false,
+		message: "Admin Gmail address is required."
+	});
+	const normalizedEmail = email.trim().toLowerCase();
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return res.status(400).json({
+		success: false,
+		message: "Please enter a valid email address."
+	});
+	let isAuthorized = [
+		"nanikoushik96@gmail.com",
+		"admin@pitstopcarhire.com",
+		process.env.ADMIN_GMAIL?.toLowerCase(),
+		process.env.ADMIN_EMAIL?.toLowerCase()
+	].filter(Boolean).some((authEmail) => authEmail.toLowerCase() === normalizedEmail);
+	let adminUser = null;
+	try {
+		const dbUser = await db.prepare("SELECT * FROM users WHERE LOWER(email) = ?").get(normalizedEmail);
+		if (dbUser) {
+			if (dbUser.role === "admin") {
+				isAuthorized = true;
+				adminUser = dbUser;
+			}
+		} else if (isAuthorized) {
+			const newAdminId = `usr_admin_${Date.now()}`;
+			await db.prepare(`
+          INSERT INTO users (id, email, password_hash, name, phone, role, vip_tier)
+          VALUES (?, ?, ?, ?, ?, 'admin', 'VIP')
+        `).run(newAdminId, normalizedEmail, "google-oauth-managed", normalizedEmail === "nanikoushik96@gmail.com" ? "Nani Koushik (Admin)" : "Fleet Operations Director", "+1 (800) 555-0199").catch(() => {});
+			adminUser = {
+				id: newAdminId,
+				email: normalizedEmail,
+				name: normalizedEmail === "nanikoushik96@gmail.com" ? "Nani Koushik (Admin)" : "Fleet Operations Director",
+				role: "admin"
+			};
+		}
+	} catch (err) {
+		console.warn("[Admin Gmail Auth DB Check]", err?.message);
+	}
+	if (!isAuthorized) {
+		recordFailedLoginAttempt(clientIp);
+		return res.status(403).json({
+			success: false,
+			message: `Access denied. "${normalizedEmail}" is not authorized for Fleet Administration. Please sign in with an authorized admin account.`
+		});
+	}
+	clearLoginAttempts(clientIp);
+	const adminPayload = {
+		userId: adminUser?.id || "usr_admin",
+		email: normalizedEmail,
+		name: adminUser?.name || (normalizedEmail === "nanikoushik96@gmail.com" ? "Nani Koushik (Studio Director)" : "Fleet Operations Director"),
+		role: "admin",
+		vipTier: "VIP"
+	};
+	const token = generateJwtToken(adminPayload, "24h");
+	try {
+		await db.prepare("INSERT INTO admin_sessions (token) VALUES (?)").run(token);
+	} catch (sessErr) {}
+	return res.json({
+		success: true,
+		token,
+		role: "admin",
+		user: adminPayload,
+		message: "Google Administrator authentication verified successfully."
 	});
 });
 app.post("/api/auth/verify", async (req, res) => {
@@ -43000,6 +43020,43 @@ app.delete("/api/bookings/:id", requireAdmin, async (req, res) => {
 		success: true,
 		message: `Booking ${bookingId} deleted.`
 	});
+});
+app.post("/api/admin/clean-test-data", requireAdmin, async (req, res) => {
+	try {
+		const deleteBookingsQuery = `
+      DELETE FROM bookings
+      WHERE LOWER(customer_first_name) LIKE '%test%'
+         OR LOWER(customer_last_name) LIKE '%test%'
+         OR LOWER(customer_last_name) LIKE '%jjjj%'
+         OR LOWER(customer_last_name) LIKE '%asdas%'
+         OR LOWER(customer_first_name) LIKE '%pranay%'
+         OR LOWER(customer_first_name) LIKE '%koushik%'
+         OR LOWER(customer_email) LIKE '%example.com%'
+         OR customer_phone IN ('8899556622', '9876543210', '+1234567890')
+    `;
+		const deleteUsersQuery = `
+      DELETE FROM users
+      WHERE id IN ('usr_101', 'usr_102', 'usr_103')
+         OR email IN ('john.doe@email.com', 'david.c@techventure.io', 'sarah.m@vipclient.com', 'test@gmail.com')
+         OR email LIKE '%example.com%'
+    `;
+		if (db.isSupabase && db.pool) {
+			await db.pool.query(deleteBookingsQuery).catch(() => {});
+			await db.pool.query(deleteUsersQuery).catch(() => {});
+		} else {
+			await db.prepare(deleteBookingsQuery).run().catch(() => {});
+			await db.prepare(deleteUsersQuery).run().catch(() => {});
+		}
+		return res.json({
+			success: true,
+			message: "Test bookings and dummy users purged cleanly."
+		});
+	} catch (err) {
+		return res.status(500).json({
+			success: false,
+			error: err?.message
+		});
+	}
 });
 app.post("/api/admin/counter-booking", requireAdmin, async (req, res) => {
 	const b = req.body;

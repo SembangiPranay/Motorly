@@ -449,12 +449,6 @@ export default function MyBookingsView({
     }
   }
 
-  // Demo 1-Click Login
-  const handleQuickDemoLogin = (email: string) => {
-    setEmailInput(email)
-    setPasswordInput("pass123")
-  }
-
   // Logout Handler
   const handleLogout = () => {
     api.logoutCustomer()
@@ -637,44 +631,6 @@ export default function MyBookingsView({
                   {lookupFeedback}
                 </p>
               )}
-            </div>
-
-            {/* Quick Demo Autofill Chips */}
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 mb-6">
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
-                Demo Quick-Fill Accounts:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin("test@gmail.com")}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition flex items-center gap-1"
-                >
-                  <CheckIcon size={12} className="text-emerald-600" />
-                  <span>test@gmail.com (MTR-852655 Completed Trip)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin("john.doe@email.com")}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-xs font-medium text-stone-700 hover:border-orange-500 transition"
-                >
-                  John Doe (Active Sedan)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin("david.c@techventure.io")}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-xs font-medium text-stone-700 hover:border-orange-500 transition"
-                >
-                  David Chen (Luxury BMW)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin("sarah.m@vipclient.com")}
-                  className="px-2.5 py-1 rounded-lg bg-white border border-stone-200 text-xs font-medium text-stone-700 hover:border-orange-500 transition"
-                >
-                  Sarah Miller (VIP Client)
-                </button>
-              </div>
             </div>
 
             {authError && (

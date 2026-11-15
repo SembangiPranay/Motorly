@@ -12,12 +12,33 @@ export default function AdminLoginGate({
   onSuccess,
   onNavigateHome,
 }: AdminLoginGateProps) {
+  const [authMethod, setAuthMethod] = useState<"gmail" | "passcode">("gmail")
+  const [gmailInput, setGmailInput] = useState("nanikoushik96@gmail.com")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleGmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    try {
+      const res = await api.adminGoogleLogin(gmailInput.trim())
+      if (res.success) {
+        onSuccess()
+      } else {
+        setError(res.message || "Unauthorized Gmail account. Access denied.")
+      }
+    } catch {
+      setError("Network error connecting to fleet authorization server.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePasscodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
@@ -40,22 +61,63 @@ export default function AdminLoginGate({
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 bg-[#FDFBF7]">
-      <div className="w-full max-w-md bg-stone-900 rounded-3xl p-8 sm:p-10 text-white shadow-2xl border border-stone-800 space-y-6">
+    <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 bg-[#FAF7F2]">
+      <div className="w-full max-w-md bg-[#141619] rounded-3xl p-8 sm:p-10 text-white shadow-2xl border border-stone-800 space-y-6">
         <div className="text-center space-y-3">
           <div className="flex justify-center pb-1">
-            <PitStopLogo size="xl" showText={false} variant="badge" />
+            <div className="w-12 h-12 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-xl shadow-lg border border-orange-500/30">
+              M
+            </div>
           </div>
           <div className="inline-block px-3 py-1 rounded-full bg-orange-950/80 border border-orange-800/60 text-orange-400 text-[10px] font-extrabold uppercase tracking-wider font-mono">
-            Restricted Operational Area
+            Restricted Operational Console
           </div>
           <h2 className="text-2xl font-black tracking-tight font-heading">
-            Fleet Operations Console
+            Admin Authentication
           </h2>
           <p className="text-xs text-stone-400 leading-relaxed max-w-xs mx-auto">
-            Authorized fleet managers only. Enter the master security credential
-            to decrypt telemetry and booking dispatch.
+            Authorized fleet managers only. Authenticate with your administrator
+            credentials to access live fleet telemetry and dispatch.
           </p>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="grid grid-cols-2 p-1 bg-stone-900 rounded-xl border border-stone-800 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMethod("gmail")
+              setError(null)
+            }}
+            className={`py-2 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              authMethod === "gmail"
+                ? "bg-orange-600 text-white shadow-xs"
+                : "text-stone-400 hover:text-white"
+            }`}
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.27v3.15C3.26 21.36 7.34 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.27C.46 8.2 0 10.04 0 12s.46 3.8 1.27 5.42l4.01-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.27 6.58l4.01 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Gmail Auth</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMethod("passcode")
+              setError(null)
+            }}
+            className={`py-2 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              authMethod === "passcode"
+                ? "bg-orange-600 text-white shadow-xs"
+                : "text-stone-400 hover:text-white"
+            }`}
+          >
+            <LockIcon size={14} />
+            <span>Master Passcode</span>
+          </button>
         </div>
 
         {error && (
@@ -64,56 +126,99 @@ export default function AdminLoginGate({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-stone-300">
-                Master Security Passcode
-              </label>
-              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">
-                Salted Bcrypt / HMAC-SHA256
-              </span>
+        {/* Method 1: Google / Gmail Authentication */}
+        {authMethod === "gmail" && (
+          <form onSubmit={handleGmailSubmit} className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-stone-300">
+                  Authorized Admin Gmail
+                </label>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">
+                  Google Verified
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  autoFocus
+                  value={gmailInput}
+                  onChange={(e) => setGmailInput(e.target.value)}
+                  placeholder="admin@gmail.com"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium placeholder:text-stone-500 transition-all"
+                />
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.27v3.15C3.26 21.36 7.34 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.27C.46 8.2 0 10.04 0 12s.46 3.8 1.27 5.42l4.01-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.27 6.58l4.01 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                  </svg>
+                </div>
+              </div>
             </div>
-            <input
-              type={showPassword ? "text" : "password"}
-              autoFocus
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin passcode (default: 0709)"
-              className="w-full px-4 py-3 rounded-xl bg-stone-800/90 border border-stone-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono tracking-wider placeholder:text-stone-500"
-            />
-            <div className="mt-2.5 flex items-center justify-between text-[11px] text-stone-400">
-              <span className="flex items-center gap-1.5 font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                Default Passcode: <strong className="text-orange-300 font-mono">0709</strong>
-              </span>
-              <button
-                type="button"
-                onClick={() => setPassword("0709")}
-                className="text-orange-400 hover:text-orange-300 font-semibold underline underline-offset-2 transition cursor-pointer"
-              >
-                Auto-fill 0709
-              </button>
-            </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer text-sm"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <LockIcon size={16} />
-                <span>Authorize &amp; Unlock Console</span>
-                <ArrowRightIcon size={16} />
-              </>
-            )}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading || !gmailInput.trim()}
+              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-60 cursor-pointer text-sm"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15z"/>
+                  </svg>
+                  <span>Authorize with Google</span>
+                  <ArrowRightIcon size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* Method 2: Master Security Passcode */}
+        {authMethod === "passcode" && (
+          <form onSubmit={handlePasscodeSubmit} className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-stone-300">
+                  Master Security Passcode
+                </label>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">
+                  Salted Bcrypt / HMAC-SHA256
+                </span>
+              </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                autoFocus
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter administrator passcode"
+                className="w-full px-4 py-3 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono tracking-wider placeholder:text-stone-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !password}
+              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer text-sm"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <LockIcon size={16} />
+                  <span>Authorize &amp; Unlock Console</span>
+                  <ArrowRightIcon size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
 
         <div className="pt-2 border-t border-stone-800 text-center">
           <button

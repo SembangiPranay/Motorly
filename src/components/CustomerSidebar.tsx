@@ -1,4 +1,3 @@
-import PitStopLogo from "./PitStopLogo"
 import React from "react"
 import type { ViewMode, CustomerUser } from "../types"
 import { UserIcon } from "./Icons"
@@ -12,6 +11,8 @@ interface CustomerSidebarProps {
   activeBookingsCount?: number
   isOpenMobile?: boolean
   onCloseMobile?: () => void
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 export default function CustomerSidebar({
@@ -23,6 +24,8 @@ export default function CustomerSidebar({
   activeBookingsCount = 0,
   isOpenMobile = false,
   onCloseMobile,
+  isCollapsed = false,
+  onToggleCollapse,
 }: CustomerSidebarProps) {
   const navPortals = [
     {
@@ -148,38 +151,79 @@ export default function CustomerSidebar({
     if (onCloseMobile) onCloseMobile()
   }
 
-  const sidebarBody = (
-    <div className="h-full flex flex-col justify-between p-5 bg-white/95 backdrop-blur-md">
-      {/* Top Branding */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-stone-200/60">
-          <div
-            onClick={() => handleItemClick("home")}
-            className="cursor-pointer select-none group"
+  const renderContent = (collapsed: boolean) => (
+    <div className="h-full flex flex-col justify-between bg-[#141619] text-stone-200 select-none">
+      {/* Brand Header */}
+      <div>
+        <div className="h-14 p-3 border-b border-stone-800/80 flex items-center justify-between shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (collapsed && onToggleCollapse) {
+                onToggleCollapse()
+              } else {
+                handleItemClick("home")
+              }
+            }}
+            className={`flex items-center text-left ${
+              collapsed
+                ? "justify-center w-full cursor-pointer hover:opacity-90 group focus:outline-hidden"
+                : "gap-2.5 truncate cursor-pointer group"
+            }`}
+            title={collapsed ? "Tap to fully expand sidebar" : "Motorly Home Overview"}
+            aria-label={collapsed ? "Expand sidebar" : "Motorly"}
           >
-            <PitStopLogo
-              size="md"
-              subtitle="Car Hire"
-              caption="36 Triq Il-Kbira • Mgarr, Malta"
-              layout="grounded"
-            />
-          </div>
+            <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0 group-hover:scale-105 active:scale-95 transition-transform">
+              M
+            </div>
+            {!collapsed && (
+              <div className="truncate">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-black text-white text-sm tracking-tight">MOTORLY</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">Mgarr</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="truncate">Fleet Customer Portal</span>
+                </div>
+              </div>
+            )}
+          </button>
 
+          {/* Desktop Collapse Button */}
+          {!collapsed && onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="hidden lg:flex p-1.5 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800/80 transition cursor-pointer"
+              title="Collapse Sidebar"
+              aria-label="Collapse Sidebar"
+            >
+              <span className="font-mono font-bold text-xs">«</span>
+            </button>
+          )}
+
+          {/* Mobile Close Button */}
           {onCloseMobile && (
             <button
+              type="button"
               onClick={onCloseMobile}
-              className="lg:hidden p-1.5 rounded-xl hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition cursor-pointer"
+              className="lg:hidden p-1.5 text-stone-400 hover:text-white rounded-lg hover:bg-stone-800 cursor-pointer transition"
+              title="Close Menu"
+              aria-label="Close Menu"
             >
               ✕
             </button>
           )}
         </div>
 
-        {/* Portals Navigation Only */}
-        <div className="space-y-1">
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-stone-400 px-3 mb-2">
-            Portals
-          </p>
+        {/* Portals Navigation Section */}
+        <div className="p-3 space-y-1">
+          {!collapsed && (
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-stone-500 px-3 mb-2 font-mono">
+              Portals
+            </p>
+          )}
           {navPortals.map((item) => {
             const isActive = currentView === item.id
             return (
@@ -187,32 +231,50 @@ export default function CustomerSidebar({
                 key={item.id}
                 type="button"
                 onClick={() => handleItemClick(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-150 cursor-pointer ${
+                title={collapsed ? item.label : undefined}
+                className={`w-full flex items-center rounded-xl text-xs transition-all duration-150 cursor-pointer ${
+                  collapsed
+                    ? "justify-center px-0 py-2.5 relative group"
+                    : "justify-between px-3.5 py-2.5 font-medium"
+                } ${
                   isActive
-                    ? "bg-[#17191C] text-white shadow-xs font-semibold"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/70 font-medium"
+                    ? "bg-orange-600 text-white font-semibold shadow-xs"
+                    : "text-stone-400 hover:text-white hover:bg-stone-800/80"
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
                   <span
                     className={`${
-                      isActive ? "text-[#F97316]" : "text-stone-400"
+                      isActive ? "text-white" : "text-stone-400 group-hover:text-white"
                     }`}
                   >
                     {item.icon}
                   </span>
-                  <span>{item.label}</span>
+                  {!collapsed && <span>{item.label}</span>}
                 </div>
-                {item.badge !== undefined && (
+
+                {!collapsed && item.badge !== undefined && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
                       isActive
-                        ? "bg-[#F97316] text-white"
-                        : "bg-orange-100 text-orange-700"
+                        ? "bg-white/20 text-white"
+                        : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
                     }`}
                   >
                     {item.badge}
                   </span>
+                )}
+
+                {collapsed && item.badge !== undefined && (
+                  <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-orange-500" />
+                )}
+
+                {/* Floating tooltip on hover when collapsed */}
+                {collapsed && (
+                  <div className="absolute left-full ml-2 px-2.5 py-1 bg-stone-900 text-white text-[11px] font-medium rounded-md shadow-xl border border-stone-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+                    {item.label}
+                    {item.badge !== undefined ? ` (${item.badge})` : ""}
+                  </div>
                 )}
               </button>
             )
@@ -220,65 +282,94 @@ export default function CustomerSidebar({
         </div>
       </div>
 
-      {/* Super-Clean Bottom Area */}
-      <div className="pt-4 border-t border-stone-200/60 space-y-3">
+      {/* Super-Clean Bottom Profile / Sign In Area */}
+      <div className="p-3 border-t border-stone-800/80">
         {currentUser ? (
-          <div className="flex items-center justify-between px-2 text-xs">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-stone-900 text-white flex items-center justify-center font-bold text-[11px] shrink-0">
+          collapsed ? (
+            <div
+              className="flex justify-center group relative cursor-pointer"
+              onClick={() => handleItemClick("my-bookings")}
+              title={`${currentUser.name || "User"} (${currentUser.vipTier || "Member"})`}
+            >
+              <div className="w-8 h-8 rounded-full bg-stone-800 border border-stone-700 text-stone-200 flex items-center justify-center font-bold text-xs hover:border-orange-500 transition-colors">
                 {(currentUser.name || currentUser.firstName || currentUser.email || "U").charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-stone-800 text-xs truncate">
-                  {(currentUser.name || "User").split(" ")[0]}
-                </p>
-                <p className="text-[10px] font-light text-stone-400 truncate">
-                  {currentUser.vipTier || "Member"}
-                </p>
+              <div className="absolute left-full ml-2 px-2.5 py-1 bg-stone-900 text-white text-[11px] font-medium rounded-md shadow-xl border border-stone-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                {currentUser.name || "User"} &bull; {currentUser.vipTier || "Member"}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onLogoutCustomer}
-              className="text-[11px] text-stone-400 hover:text-red-600 transition cursor-pointer font-medium"
-            >
-              Logout
-            </button>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between p-2 rounded-xl bg-stone-900/60 border border-stone-800 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-stone-800 border border-stone-700 text-stone-200 flex items-center justify-center font-bold text-[11px] shrink-0">
+                  {(currentUser.name || currentUser.firstName || currentUser.email || "U").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-stone-200 text-xs truncate">
+                    {(currentUser.name || "User").split(" ")[0]}
+                  </p>
+                  <p className="text-[10px] font-mono text-stone-400 truncate">
+                    {currentUser.vipTier || "Member"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onLogoutCustomer}
+                className="text-[11px] text-stone-400 hover:text-red-400 transition cursor-pointer font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          )
+        ) : collapsed ? (
+          <button
+            type="button"
+            onClick={() => handleItemClick("auth")}
+            className="w-full py-2.5 flex items-center justify-center rounded-xl text-stone-400 hover:text-white hover:bg-stone-800/80 transition cursor-pointer group relative"
+            title="Sign In"
+          >
+            <UserIcon size={16} />
+            <div className="absolute left-full ml-2 px-2.5 py-1 bg-stone-900 text-white text-[11px] font-medium rounded-md shadow-xl border border-stone-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+              Sign In
+            </div>
+          </button>
         ) : (
           <button
             type="button"
             onClick={() => handleItemClick("auth")}
-            className="w-full py-2 px-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center gap-2 border border-stone-200/70 transition cursor-pointer"
+            className="w-full py-2 px-3 rounded-xl bg-stone-800/90 hover:bg-stone-700 text-stone-200 hover:text-white text-xs font-medium flex items-center justify-center gap-2 border border-stone-700 transition cursor-pointer"
           >
             <UserIcon size={14} className="text-stone-400" />
             <span>Sign In</span>
           </button>
         )}
-
-
       </div>
     </div>
   )
 
   return (
     <>
-      {/* Desktop Persistent Minimal Sidebar */}
-      <aside className="hidden lg:block w-60 bg-white border-r border-stone-200/60 fixed inset-y-0 left-0 z-30">
-        {sidebarBody}
+      {/* Desktop Persistent Sidebar with Collapsible Rail */}
+      <aside
+        className={`hidden lg:block bg-[#141619] border-r border-stone-800 fixed inset-y-0 left-0 z-30 transition-all duration-200 ease-in-out ${
+          isCollapsed ? "w-16" : "w-60 lg:w-64"
+        }`}
+      >
+        {renderContent(isCollapsed)}
       </aside>
 
       {/* Mobile Slide-Out Drawer */}
       {isOpenMobile && (
         <div
-          className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs animate-fade-in flex"
+          className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs animate-fade-in flex"
           onClick={onCloseMobile}
         >
           <div
-            className="w-64 max-w-[80vw] h-full bg-white shadow-2xl relative animate-slide-right"
+            className="w-64 max-w-[80vw] h-full bg-[#141619] border-r border-stone-800 shadow-2xl relative animate-slide-right"
             onClick={(e) => e.stopPropagation()}
           >
-            {sidebarBody}
+            {renderContent(false)}
           </div>
         </div>
       )}
