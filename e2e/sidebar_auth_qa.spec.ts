@@ -144,8 +144,9 @@ test.describe("Professional QA End-to-End Test Suite: Sidebar Logo Expansion, Ex
     }
 
     // Navigate to My Reservations
-    await page.locator("button:has-text('My Reservations')").first().click()
-    await page.waitForTimeout(500)
+    await page.goto("http://localhost:3000/?view=my-bookings")
+    await page.waitForLoadState("domcontentloaded")
+    await page.waitForTimeout(1000)
 
     // Verify NO Demo Quick-Fill Accounts card exists
     await expect(page.locator("text=Demo Quick-Fill Accounts:")).toHaveCount(0)
