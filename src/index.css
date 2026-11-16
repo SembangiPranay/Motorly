@@ -172,3 +172,50 @@ input[type="number"] {
   animation: studioLightSweep 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: transform, opacity;
 }
+
+/* Restrained showroom entrance choreography */
+.motorly-intro-car {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0) scale(0.985);
+  filter: brightness(0.72);
+  transition:
+    opacity 900ms ease,
+    transform 1200ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    filter 1200ms ease;
+}
+
+.motorly-intro-car.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: brightness(1);
+}
+
+.motorly-intro-copy {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+  transition:
+    opacity 700ms ease,
+    transform 800ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.motorly-intro-copy.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.motorly-intro-progress {
+  width: 0;
+  transition: width 2.45s cubic-bezier(0.2, 0.65, 0.3, 1);
+}
+
+.motorly-intro-progress.is-moving {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motorly-intro-car,
+  .motorly-intro-copy,
+  .motorly-intro-progress {
+    transition-duration: 1ms;
+  }
+}
