@@ -59,7 +59,7 @@ export default function CheckoutDeliveryOptions({
             </span>
           </h2>
           <p className="text-[11px] text-stone-500">
-            Collect at our central garage in Mgarr or select custom delivery anywhere across Malta &amp; Gozo.
+            Collect at our central garage or select custom delivery anywhere worldwide.
           </p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function CheckoutDeliveryOptions({
                   Custom Location Delivery
                 </span>
                 <span className="text-[11px] text-stone-500 block mt-0.5">
-                  Malta Airport (MLA), Hotel or Ferry
+                  Airport, Hotel, Residence or Custom Address
                 </span>
               </div>
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-stone-900 text-white">
@@ -135,8 +135,8 @@ export default function CheckoutDeliveryOptions({
               onChange={(coords) => setDeliveryCoordinates?.(coords)}
               addressText={deliveryLocationCustom}
               onAddressChange={setDeliveryLocationCustom}
-              label="Custom Delivery Location &amp; Dispatch Pin"
-              placeholder="e.g. Malta International Airport (MLA) Terminal / Sliema Hotel"
+              label="Custom Delivery Location & Dispatch Pin"
+              placeholder="Search any address, airport, hotel, or city in the world..."
             />
           </div>
         )}
@@ -196,7 +196,7 @@ export default function CheckoutDeliveryOptions({
                   Return at Custom Location
                 </span>
                 <span className="text-[11px] text-stone-500 block mt-0.5">
-                  Malta Airport (MLA), Hotel or Ferry
+                  Airport, Hotel, Residence or Custom Address
                 </span>
               </div>
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-stone-900 text-white">
@@ -213,8 +213,8 @@ export default function CheckoutDeliveryOptions({
               onChange={(coords) => setReturnCoordinates?.(coords)}
               addressText={returnLocationCustom}
               onAddressChange={setReturnLocationCustom}
-              label="Custom Return Handover Location &amp; Pin"
-              placeholder="e.g. Malta International Airport (MLA) Departures / St. Julian's Hotel"
+              label="Custom Return Handover Location & Pin"
+              placeholder="Search any address, airport, hotel, or city in the world..."
             />
           </div>
         )}
