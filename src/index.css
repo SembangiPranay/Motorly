@@ -173,49 +173,51 @@ input[type="number"] {
   will-change: transform, opacity;
 }
 
-/* Restrained showroom entrance choreography */
-.motorly-intro-car {
-  opacity: 0;
-  transform: translate3d(0, 18px, 0) scale(0.985);
-  filter: brightness(0.72);
-  transition:
-    opacity 900ms ease,
-    transform 1200ms cubic-bezier(0.2, 0.75, 0.25, 1),
-    filter 1200ms ease;
-}
-
-.motorly-intro-car.is-visible {
+/* Cinematic reference footage entrance */
+.motorly-intro {
   opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-  filter: brightness(1);
+  transition: opacity 560ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.motorly-intro-copy {
+.motorly-intro.is-exiting {
   opacity: 0;
-  transform: translate3d(0, 12px, 0);
-  transition:
-    opacity 700ms ease,
-    transform 800ms cubic-bezier(0.2, 0.75, 0.25, 1);
+  pointer-events: none;
 }
 
-.motorly-intro-copy.is-visible {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
+.motorly-intro-video {
+  background: #000;
 }
 
-.motorly-intro-progress {
-  width: 0;
-  transition: width 2.45s cubic-bezier(0.2, 0.65, 0.3, 1);
+.motorly-intro-warm-reflection {
+  background: radial-gradient(ellipse 34% 12% at 50% 88%, rgba(249, 115, 22, 0.2), transparent 76%);
+  opacity: 0;
+  animation: warmReflection 3.2s ease-in-out both;
 }
 
-.motorly-intro-progress.is-moving {
-  width: 100%;
+.motorly-intro-brand {
+  opacity: 0;
+  animation: introBrand 3.2s ease both;
+}
+
+@keyframes warmReflection {
+  0%, 20% { opacity: 0; }
+  34%, 68% { opacity: 0.72; }
+  88%, 100% { opacity: 0; }
+}
+
+@keyframes introBrand {
+  0%, 38% { opacity: 0; transform: translateY(7px); }
+  52%, 76% { opacity: 0.76; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-3px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motorly-intro-car,
-  .motorly-intro-copy,
-  .motorly-intro-progress {
+  .motorly-intro {
     transition-duration: 1ms;
+  }
+
+  .motorly-intro-warm-reflection,
+  .motorly-intro-brand {
+    animation-duration: 1ms;
   }
 }
