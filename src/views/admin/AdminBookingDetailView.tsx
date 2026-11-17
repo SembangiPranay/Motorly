@@ -960,19 +960,31 @@ export default function AdminBookingDetailView({
                       : "Central Garage Mgarr (€0 Free)"}
                   </span>
                   {booking.deliveryType === "custom" && booking.deliveryCoordinates && (
-                    <div className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
-                      <span className="font-mono text-[10px] text-orange-700 bg-orange-100/80 px-1.5 py-0.5 rounded border border-orange-200 font-semibold flex items-center gap-1">
-                        <span>📍 GPS: {booking.deliveryCoordinates.lat.toFixed(4)}° N, {booking.deliveryCoordinates.lng.toFixed(4)}° E</span>
-                      </span>
-                      <a
-                        href={`https://www.google.com/maps?q=${booking.deliveryCoordinates.lat},${booking.deliveryCoordinates.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
-                        title="Open coordinates in Google Maps"
-                      >
-                        <span>Open in Google Maps ↗</span>
-                      </a>
+                    <div className="mt-2 space-y-2">
+                      <div className="rounded-lg overflow-hidden border border-stone-200 h-36 w-full bg-stone-100">
+                        <iframe
+                          title="Delivery Dispatch Location Map"
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          scrolling="no"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${booking.deliveryCoordinates.lng - 0.008}%2C${booking.deliveryCoordinates.lat - 0.005}%2C${booking.deliveryCoordinates.lng + 0.008}%2C${booking.deliveryCoordinates.lat + 0.005}&layer=mapnik&marker=${booking.deliveryCoordinates.lat}%2C${booking.deliveryCoordinates.lng}`}
+                        />
+                      </div>
+                      <div className="pt-1 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                        <span className="font-mono text-[10px] text-orange-700 bg-orange-100/80 px-1.5 py-0.5 rounded border border-orange-200 font-semibold flex items-center gap-1">
+                          <span>📍 GPS: {booking.deliveryCoordinates.lat.toFixed(5)}° N, {booking.deliveryCoordinates.lng.toFixed(5)}° E</span>
+                        </span>
+                        <a
+                          href={`https://www.google.com/maps?q=${booking.deliveryCoordinates.lat},${booking.deliveryCoordinates.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                          title="Open coordinates in Google Maps"
+                        >
+                          <span>Open in Google Maps ↗</span>
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -984,19 +996,31 @@ export default function AdminBookingDetailView({
                       : "Central Garage Mgarr (€0 Free)"}
                   </span>
                   {booking.returnType === "custom" && booking.returnCoordinates && (
-                    <div className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
-                      <span className="font-mono text-[10px] text-orange-700 bg-orange-100/80 px-1.5 py-0.5 rounded border border-orange-200 font-semibold flex items-center gap-1">
-                        <span>📍 GPS: {booking.returnCoordinates.lat.toFixed(4)}° N, {booking.returnCoordinates.lng.toFixed(4)}° E</span>
-                      </span>
-                      <a
-                        href={`https://www.google.com/maps?q=${booking.returnCoordinates.lat},${booking.returnCoordinates.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
-                        title="Open coordinates in Google Maps"
-                      >
-                        <span>Open in Google Maps ↗</span>
-                      </a>
+                    <div className="mt-2 space-y-2">
+                      <div className="rounded-lg overflow-hidden border border-stone-200 h-36 w-full bg-stone-100">
+                        <iframe
+                          title="Return Handover Location Map"
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          scrolling="no"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${booking.returnCoordinates.lng - 0.008}%2C${booking.returnCoordinates.lat - 0.005}%2C${booking.returnCoordinates.lng + 0.008}%2C${booking.returnCoordinates.lat + 0.005}&layer=mapnik&marker=${booking.returnCoordinates.lat}%2C${booking.returnCoordinates.lng}`}
+                        />
+                      </div>
+                      <div className="pt-1 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                        <span className="font-mono text-[10px] text-orange-700 bg-orange-100/80 px-1.5 py-0.5 rounded border border-orange-200 font-semibold flex items-center gap-1">
+                          <span>📍 GPS: {booking.returnCoordinates.lat.toFixed(5)}° N, {booking.returnCoordinates.lng.toFixed(5)}° E</span>
+                        </span>
+                        <a
+                          href={`https://www.google.com/maps?q=${booking.returnCoordinates.lat},${booking.returnCoordinates.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                          title="Open coordinates in Google Maps"
+                        >
+                          <span>Open in Google Maps ↗</span>
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>

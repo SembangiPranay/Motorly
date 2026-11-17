@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { LocationIcon, CheckIcon } from "../Icons"
 import type { DeliveryCoordinates } from "../../types"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 
 interface MaltaLocationMapPickerProps {
   value?: DeliveryCoordinates
@@ -9,15 +11,6 @@ interface MaltaLocationMapPickerProps {
   onAddressChange: (address: string) => void
   label?: string
   placeholder?: string
-}
-
-// Bounding box for the Maltese Archipelago (Gozo + Comino + Malta)
-// Approx: Lat 35.79 to 36.08, Lng 14.18 to 14.58
-const MALTA_BOUNDS = {
-  minLat: 35.79,
-  maxLat: 36.08,
-  minLng: 14.18,
-  maxLng: 14.58,
 }
 
 export const MALTA_PRESETS: { name: string; lat: number; lng: number; desc: string }[] = [
@@ -65,29 +58,25 @@ export const MALTA_PRESETS: { name: string; lat: number; lng: number; desc: stri
   },
 ]
 
-// Convert geographic GPS coordinates into SVG viewBox (0,0 to 1000, 600)
-function coordsToSvg(lat: number, lng: number) {
-  const x =
-    ((lng - MALTA_BOUNDS.minLng) / (MALTA_BOUNDS.maxLng - MALTA_BOUNDS.minLng)) * 1000
-  // Invert Y because SVG coordinates increase downwards
-  const y =
-    ((MALTA_BOUNDS.maxLat - lat) / (MALTA_BOUNDS.maxLat - MALTA_BOUNDS.minLat)) * 600
-  return {
-    x: Math.max(20, Math.min(980, x)),
-    y: Math.max(20, Math.min(580, y)),
-  }
-}
-
-// Convert SVG viewBox (0,0 to 1000, 600) into geographic GPS coordinates
-function svgToCoords(x: number, y: number) {
-  const lng =
-    MALTA_BOUNDS.minLng + (x / 1000) * (MALTA_BOUNDS.maxLng - MALTA_BOUNDS.minLng)
-  const lat =
-    MALTA_BOUNDS.maxLat - (y / 600) * (MALTA_BOUNDS.maxLat - MALTA_BOUNDS.minLat)
-  return {
-    lat: Number(lat.toFixed(5)),
-    lng: Number(lng.toFixed(5)),
-  }
+// Custom Leaflet DivIcon for crisp, modern Pit Stop orange pin marker
+function createCustomPinIcon() {
+  return L.divIcon({
+    className: "custom-map-pin",
+    html: `
+      <div style="position: relative; width: 36px; height: 44px; transform: translate(-18px, -44px);">
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: rgba(249, 115, 22, 0.35); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: rgba(0, 0, 0, 0.35); border-radius: 50%; filter: blur(1px);"></div>
+        <svg viewBox="0 0 36 44" width="36" height="44" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); position: relative; z-index: 2;">
+          <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.94-8.06-18-18-18z" fill="#F97316" stroke="#FFFFFF" stroke-width="2"/>
+          <circle cx="18" cy="17" r="6" fill="#FFFFFF"/>
+          <circle cx="18" cy="17" r="3" fill="#EA580C"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [36, 44],
+    iconAnchor: [18, 44],
+    popupAnchor: [0, -42],
+  })
 }
 
 export default function MaltaLocationMapPicker({
@@ -95,28 +84,34 @@ export default function MaltaLocationMapPicker({
   onChange,
   addressText,
   onAddressChange,
-  label = "Custom Delivery Location",
+  label = "Custom Delivery Location & Dispatch Pin",
   placeholder = "e.g. Malta Airport (MLA) Terminal / Sliema Hotel",
 }: MaltaLocationMapPickerProps) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapInstanceRef = useRef<L.Map | null>(null)
+  const markerRef = useRef<L.Marker | null>(null)
+
   const [isLocating, setIsLocating] = useState(false)
+  const [isGeocoding, setIsGeocoding] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
-  const svgRef = useRef<SVGSVGElement | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isSearching, setIsSearching] = useState(false)
 
   // Current active coordinates (default to Malta Airport MLA if empty)
   const currentCoords = value || {
     lat: 35.8575,
     lng: 14.4775,
     address: addressText || "Malta International Airport (MLA) Terminal",
-    placeName: "Malta International Airport (MLA)",
+    placeName: "Malta Airport",
   }
 
-  const pinSvgPos = coordsToSvg(currentCoords.lat, currentCoords.lng)
-
-  // Reverse geocoding helper (OpenStreetMap Nominatim)
+  // Reverse geocoding helper via OpenStreetMap Nominatim
   const reverseGeocode = useCallback(
-    async (lat: number, lng: number) => {
+    async (lat: number, lng: number, flyTo = false) => {
+      setIsGeocoding(true)
+      setGeoError(null)
+
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
@@ -125,32 +120,56 @@ export default function MaltaLocationMapPicker({
         if (res.ok) {
           const data = await res.json()
           if (data && data.display_name) {
-            const shortName =
-              data.address?.road ||
-              data.address?.suburb ||
-              data.address?.village ||
-              data.address?.town ||
-              data.address?.city ||
+            const addr = data.address || {}
+            const roadOrPlace =
+              addr.road ||
+              addr.hotel ||
+              addr.building ||
+              addr.suburb ||
+              addr.village ||
+              addr.town ||
+              addr.city ||
               data.display_name.split(",")[0]
-            const fullReadable = shortName
-              ? `${shortName}, ${data.address?.state || data.address?.country || "Malta"}`
-              : data.display_name
-            onAddressChange(fullReadable)
+            const town = addr.village || addr.town || addr.city || addr.suburb || ""
+            const formatted = town && roadOrPlace !== town
+              ? `${roadOrPlace}, ${town}, Malta`
+              : `${roadOrPlace}, Malta`
+
+            onAddressChange(formatted)
             onChange({
               lat,
               lng,
-              address: fullReadable,
-              placeName: shortName || "Custom Location Pin",
+              address: formatted,
+              placeName: roadOrPlace || "Custom Location Pin",
             })
+
+            // Update marker popup
+            if (markerRef.current) {
+              markerRef.current.setLatLng([lat, lng])
+              markerRef.current
+                .bindPopup(
+                  `<div style="font-family:system-ui,sans-serif;padding:2px;">
+                    <div style="font-weight:bold;font-size:12px;color:#17191C;">${roadOrPlace}</div>
+                    <div style="font-size:11px;color:#555;margin-top:2px;">${town ? town + ", Malta" : "Malta"}</div>
+                    <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                  </div>`
+                )
+                .openPopup()
+            }
+
+            if (flyTo && mapInstanceRef.current) {
+              mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 1 })
+            }
+            setIsGeocoding(false)
             return
           }
         }
       } catch (e) {
-        // Fallback gracefully without throwing
+        // Fallback gracefully without breaking
       }
 
-      // If geocoding fails or offline, provide a clean GPS label
-      const fallback = `Malta Custom Pin (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)`
+      // Fallback coordinate label
+      const fallback = `Malta Pin (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E)`
       if (!addressText) {
         onAddressChange(fallback)
       }
@@ -160,46 +179,138 @@ export default function MaltaLocationMapPicker({
         address: addressText || fallback,
         placeName: "Custom Location Pin",
       })
+
+      if (markerRef.current) {
+        markerRef.current.setLatLng([lat, lng])
+        markerRef.current
+          .bindPopup(
+            `<div style="font-family:system-ui,sans-serif;padding:2px;">
+              <div style="font-weight:bold;font-size:12px;color:#17191C;">Custom Selected Location</div>
+              <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+            </div>`
+          )
+          .openPopup()
+      }
+      setIsGeocoding(false)
     },
     [addressText, onAddressChange, onChange]
   )
 
-  // Handle clicking or tapping on the SVG map to place pin
-  const handleMapPointerEvent = (
-    e: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>
-  ) => {
-    if (!svgRef.current) return
-    const rect = svgRef.current.getBoundingClientRect()
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY
+  // Initialize the Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapInstanceRef.current) return
 
-    const relX = ((clientX - rect.left) / rect.width) * 1000
-    const relY = ((clientY - rect.top) / rect.height) * 600
+    const initialLat = currentCoords.lat || 35.8575
+    const initialLng = currentCoords.lng || 14.4775
 
-    const { lat, lng } = svgToCoords(
-      Math.max(10, Math.min(990, relX)),
-      Math.max(10, Math.min(590, relY))
+    // Initialize map
+    const map = L.map(mapContainerRef.current, {
+      center: [initialLat, initialLng],
+      zoom: 13,
+      zoomControl: true,
+      attributionControl: true,
+      maxBounds: [
+        [35.6, 14.0],
+        [36.3, 14.8],
+      ],
+      minZoom: 10,
+      maxZoom: 18,
+    })
+
+    // High quality canonical OpenStreetMap street & road tile layer
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map)
+
+    // Create Draggable Marker
+    const icon = createCustomPinIcon()
+    const marker = L.marker([initialLat, initialLng], {
+      icon,
+      draggable: true,
+      autoPan: true,
+    }).addTo(map)
+
+    marker.bindPopup(
+      `<div style="font-family:system-ui,sans-serif;padding:2px;">
+        <div style="font-weight:bold;font-size:12px;color:#17191C;">${currentCoords.placeName || "Malta Delivery Location"}</div>
+        <div style="font-size:11px;color:#555;margin-top:2px;">${addressText || "Selected Dispatch Point"}</div>
+        <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${initialLat.toFixed(5)}° N, ${initialLng.toFixed(5)}° E</div>
+      </div>`
     )
 
-    setSelectedPreset(null)
-    setGeoError(null)
+    // Handle marker dragend
+    marker.on("dragend", () => {
+      const pos = marker.getLatLng()
+      setSelectedPreset(null)
+      reverseGeocode(pos.lat, pos.lng)
+    })
 
-    // Check if close to any preset
-    const closePreset = MALTA_PRESETS.find(
-      (p) => Math.abs(p.lat - lat) < 0.015 && Math.abs(p.lng - lng) < 0.015
-    )
-
-    if (closePreset) {
-      setSelectedPreset(closePreset.name)
-      onAddressChange(closePreset.name)
-      onChange({
-        lat: closePreset.lat,
-        lng: closePreset.lng,
-        address: closePreset.name,
-        placeName: closePreset.name,
-      })
-    } else {
+    // Handle map click: move marker to clicked spot and geocode
+    map.on("click", (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng
+      marker.setLatLng([lat, lng])
+      setSelectedPreset(null)
       reverseGeocode(lat, lng)
+    })
+
+    mapInstanceRef.current = map
+    markerRef.current = marker
+
+    // Invalidate map size shortly after rendering to ensure proper tile coverage
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+    }, 250)
+
+    return () => {
+      clearTimeout(timer)
+      map.remove()
+      mapInstanceRef.current = null
+      markerRef.current = null
+    }
+  }, [])
+
+  // Sync external coordinate changes with map marker
+  useEffect(() => {
+    if (markerRef.current && currentCoords.lat && currentCoords.lng) {
+      const currentPos = markerRef.current.getLatLng()
+      if (
+        Math.abs(currentPos.lat - currentCoords.lat) > 0.0001 ||
+        Math.abs(currentPos.lng - currentCoords.lng) > 0.0001
+      ) {
+        markerRef.current.setLatLng([currentCoords.lat, currentCoords.lng])
+      }
+    }
+  }, [currentCoords.lat, currentCoords.lng])
+
+  // Handle Preset Selection
+  const handleSelectPreset = (preset: (typeof MALTA_PRESETS)[0]) => {
+    setSelectedPreset(preset.name)
+    setGeoError(null)
+    onAddressChange(preset.name)
+    onChange({
+      lat: preset.lat,
+      lng: preset.lng,
+      address: preset.name,
+      placeName: preset.name,
+    })
+
+    if (mapInstanceRef.current && markerRef.current) {
+      markerRef.current.setLatLng([preset.lat, preset.lng])
+      mapInstanceRef.current.flyTo([preset.lat, preset.lng], 15, {
+        animate: true,
+        duration: 1,
+      })
+      markerRef.current
+        .bindPopup(
+          `<div style="font-family:system-ui,sans-serif;padding:2px;">
+            <div style="font-weight:bold;font-size:12px;color:#17191C;">${preset.name}</div>
+            <div style="font-size:11px;color:#555;margin-top:2px;">${preset.desc}</div>
+            <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${preset.lat.toFixed(5)}° N, ${preset.lng.toFixed(5)}° E</div>
+          </div>`
+        )
+        .openPopup()
     }
   }
 
@@ -219,15 +330,13 @@ export default function MaltaLocationMapPicker({
         let lat = Number(pos.coords.latitude.toFixed(5))
         let lng = Number(pos.coords.longitude.toFixed(5))
 
-        // If user is currently located in Malta bounds, use real GPS
+        // Check if inside Malta bounds
         const isWithinMalta =
           lat >= 35.75 && lat <= 36.15 && lng >= 14.15 && lng <= 14.65
 
         if (!isWithinMalta) {
-          // If testing overseas (e.g. developer laptop outside Malta), gently snap to Malta Central / Airport
-          // while noting that live GPS was received
           setGeoError(
-            `Live GPS detected (${lat.toFixed(3)}, ${lng.toFixed(3)}). Pinned to Malta gateway hub for Island delivery dispatch.`
+            `Live GPS detected (${lat.toFixed(3)}, ${lng.toFixed(3)}). Map centered on Malta Airport gateway for island dispatch.`
           )
           lat = 35.8575
           lng = 14.4775
@@ -239,54 +348,120 @@ export default function MaltaLocationMapPicker({
             address: "Malta International Airport (MLA) Terminal",
             placeName: "Live GPS (Malta Airport Dispatch)",
           })
+          if (mapInstanceRef.current && markerRef.current) {
+            markerRef.current.setLatLng([lat, lng])
+            mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 1 })
+          }
           return
         }
 
         setSelectedPreset(null)
-        reverseGeocode(lat, lng)
+        reverseGeocode(lat, lng, true)
       },
       (err) => {
         setIsLocating(false)
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError("Location permission was denied. Tap anywhere on the map to pin your location.")
+          setGeoError("Location permission denied. Click or drag anywhere on the map to pin your location.")
         } else {
-          setGeoError("Unable to retrieve GPS location. Tap anywhere on the map to place a pin.")
+          setGeoError("Unable to retrieve GPS location. Click anywhere on the map to drop a pin.")
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
   }
 
-  const handleSelectPreset = (preset: (typeof MALTA_PRESETS)[0]) => {
-    setSelectedPreset(preset.name)
+  // Search Malta addresses / landmarks
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setIsSearching(true)
     setGeoError(null)
-    onAddressChange(preset.name)
-    onChange({
-      lat: preset.lat,
-      lng: preset.lng,
-      address: preset.name,
-      placeName: preset.name,
-    })
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          searchQuery.trim() + ", Malta"
+        )}&format=json&limit=1&addressdetails=1`,
+        { headers: { "Accept-Language": "en" } }
+      )
+      if (res.ok) {
+        const results = await res.json()
+        if (results && results.length > 0) {
+          const first = results[0]
+          const lat = Number(parseFloat(first.lat).toFixed(5))
+          const lng = Number(parseFloat(first.lon).toFixed(5))
+          const addr = first.address || {}
+          const roadOrPlace =
+            addr.road ||
+            addr.hotel ||
+            addr.building ||
+            addr.suburb ||
+            addr.village ||
+            addr.town ||
+            first.display_name.split(",")[0]
+          const town = addr.village || addr.town || addr.city || addr.suburb || ""
+          const formatted = town && roadOrPlace !== town
+            ? `${roadOrPlace}, ${town}, Malta`
+            : `${roadOrPlace}, Malta`
+
+          onAddressChange(formatted)
+          onChange({
+            lat,
+            lng,
+            address: formatted,
+            placeName: roadOrPlace || searchQuery,
+          })
+
+          if (mapInstanceRef.current && markerRef.current) {
+            markerRef.current.setLatLng([lat, lng])
+            mapInstanceRef.current.flyTo([lat, lng], 16, { animate: true, duration: 1 })
+            markerRef.current
+              .bindPopup(
+                `<div style="font-family:system-ui,sans-serif;padding:2px;">
+                  <div style="font-weight:bold;font-size:12px;color:#17191C;">${roadOrPlace}</div>
+                  <div style="font-size:11px;color:#555;margin-top:2px;">${town ? town + ", Malta" : "Malta"}</div>
+                  <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                </div>`
+              )
+              .openPopup()
+          }
+          setIsSearching(false)
+          setSearchQuery("")
+          return
+        }
+      }
+      setGeoError(`No results found in Malta for "${searchQuery}". Tap on the map to drop a pin.`)
+    } catch {
+      setGeoError("Search request failed. Please tap directly on the map.")
+    } finally {
+      setIsSearching(false)
+    }
   }
 
   return (
-    <div className="space-y-3 pt-2 bg-stone-50/80 p-4 rounded-xl border border-stone-200">
+    <div className="space-y-3 pt-2 bg-stone-50/90 p-4 sm:p-5 rounded-xl border border-stone-200 shadow-xs">
       {/* Header bar with Live GPS trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-          <LocationIcon size={14} className="text-[#F97316]" />
-          <span>{label}</span>
-          <span className="text-[10px] font-mono text-stone-500 font-normal">
-            (Malta &amp; Gozo GPS Pin)
-          </span>
-        </label>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div>
+          <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+            <LocationIcon size={14} className="text-[#F97316]" />
+            <span>{label}</span>
+            <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">
+              LIVE MALTA MAP
+            </span>
+          </label>
+          <p className="text-[11px] text-stone-500 mt-0.5">
+            Click anywhere on the map or drag the pin to pinpoint the exact delivery address.
+          </p>
+        </div>
 
         {/* Live GPS button */}
         <button
           type="button"
           onClick={handleUseLiveLocation}
           disabled={isLocating}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white hover:bg-orange-50 text-[#F97316] hover:text-orange-700 border border-orange-200 hover:border-orange-300 rounded-lg shadow-2xs transition cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white hover:bg-orange-50 text-[#F97316] hover:text-orange-700 border border-orange-200 hover:border-orange-300 rounded-lg shadow-2xs transition cursor-pointer self-start sm:self-auto shrink-0"
         >
           {isLocating ? (
             <>
@@ -305,21 +480,54 @@ export default function MaltaLocationMapPicker({
         </button>
       </div>
 
-      {/* Address Text Input */}
+      {/* Address Search Bar */}
+      <form onSubmit={handleSearchSubmit} className="flex gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Search hotel, street, or landmark in Malta (e.g. Hilton St. Julian's, Golden Bay)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] text-stone-900 shadow-2xs"
+          />
+          <span className="absolute left-2.5 top-2.5 text-stone-400">
+            <LocationIcon size={13} />
+          </span>
+        </div>
+        <button
+          type="submit"
+          disabled={isSearching || !searchQuery.trim()}
+          className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-2xs transition disabled:opacity-50 cursor-pointer shrink-0"
+        >
+          {isSearching ? "Searching..." : "Find on Map"}
+        </button>
+      </form>
+
+      {/* Selected Address Display Field */}
       <div className="relative">
+        <div className="flex items-center justify-between mb-1 text-[11px] font-semibold text-stone-700">
+          <span>Pinned Delivery Address:</span>
+          {isGeocoding && (
+            <span className="text-orange-600 font-bold flex items-center gap-1">
+              <span className="w-2.5 h-2.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              Detecting street address...
+            </span>
+          )}
+        </div>
         <input
           type="text"
           placeholder={placeholder}
           value={addressText}
           onChange={(e) => onAddressChange(e.target.value)}
-          className="w-full px-3.5 py-2.5 bg-white border border-stone-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] text-stone-900 shadow-2xs"
+          className="w-full px-3.5 py-2.5 bg-white border border-stone-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#F97316] text-stone-900 shadow-2xs"
         />
+
         {currentCoords && (
           <div className="mt-1.5 flex items-center justify-between text-[11px] text-stone-500 px-1">
             <span className="font-mono text-stone-700 font-semibold flex items-center gap-1">
               <span className="text-orange-600">📍</span>
               <span>
-                {currentCoords.lat.toFixed(4)}° N, {currentCoords.lng.toFixed(4)}° E
+                {currentCoords.lat.toFixed(5)}° N, {currentCoords.lng.toFixed(5)}° E
               </span>
             </span>
             <a
@@ -335,226 +543,29 @@ export default function MaltaLocationMapPicker({
       </div>
 
       {geoError && (
-        <div className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200 p-2 rounded-lg">
+        <div className="text-[11px] bg-amber-50 text-amber-900 border border-amber-200 p-2 rounded-lg font-medium">
           {geoError}
         </div>
       )}
 
-      {/* Interactive Map of Malta & Gozo */}
-      <div className="relative bg-[#0F172A] rounded-xl overflow-hidden border border-slate-700 shadow-inner group">
-        <div className="absolute top-2.5 left-3 z-10 flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-900/90 text-orange-400 border border-orange-500/30 backdrop-blur-xs">
-            MALTA ARCHIPELAGO NAVIGATOR
-          </span>
-          <span className="text-[10px] text-slate-400 hidden sm:inline">
-            Tap or click anywhere to drop dispatch pin
-          </span>
+      {/* REAL INTERACTIVE LEAFLET STREET MAP */}
+      <div className="relative rounded-xl overflow-hidden border border-stone-300 shadow-md">
+        {/* Map Header Overlay Bar */}
+        <div className="absolute top-2 left-2 z-[400] flex items-center gap-1.5 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-stone-200 shadow-xs text-[11px] font-semibold text-stone-800">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Click anywhere to move pin or drag marker</span>
         </div>
 
-        {/* Map SVG canvas */}
-        <svg
-          ref={svgRef}
-          viewBox="0 0 1000 600"
-          className="w-full h-52 sm:h-64 cursor-crosshair select-none touch-none"
-          onClick={handleMapPointerEvent}
-        >
-          {/* Subtle grid lines */}
-          <defs>
-            <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-              <path
-                d="M 50 0 L 0 0 0 50"
-                fill="none"
-                stroke="#1E293B"
-                strokeWidth="0.8"
-              />
-            </pattern>
-            <radialGradient id="waterGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#1E293B" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#0F172A" stopOpacity="1" />
-            </radialGradient>
-            <linearGradient id="islandFill" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#334155" />
-              <stop offset="100%" stopColor="#1E293B" />
-            </linearGradient>
-          </defs>
+        {/* Leaflet DOM container */}
+        <div
+          ref={mapContainerRef}
+          className="w-full h-72 sm:h-80 z-0 bg-[#e5e3df]"
+        />
 
-          {/* Background water */}
-          <rect width="1000" height="600" fill="url(#waterGlow)" />
-          <rect width="1000" height="600" fill="url(#grid)" opacity="0.6" />
-
-          {/* Island 1: GOZO (Northwest) */}
-          <g id="gozo-island" className="transition-opacity">
-            <path
-              d="M 120 110 C 145 90, 210 80, 260 105 C 310 130, 325 170, 305 195 C 285 220, 240 235, 185 220 C 130 205, 100 170, 105 140 Z"
-              fill="url(#islandFill)"
-              stroke="#64748B"
-              strokeWidth="2.5"
-            />
-            {/* Gozo secondary contour */}
-            <path
-              d="M 140 120 C 170 100, 240 100, 280 125 C 295 155, 275 190, 235 195 C 190 200, 140 170, 135 140 Z"
-              fill="#293548"
-              opacity="0.8"
-            />
-            <text x="200" y="155" fill="#94A3B8" fontSize="14" fontWeight="bold" textAnchor="middle" letterSpacing="2">
-              GOZO
-            </text>
-            <text x="200" y="172" fill="#64748B" fontSize="10" textAnchor="middle">
-              (Victoria / Mgarr Harbour)
-            </text>
-          </g>
-
-          {/* Island 2: COMINO (Middle) */}
-          <g id="comino-island">
-            <ellipse
-              cx="355"
-              cy="235"
-              rx="28"
-              ry="18"
-              fill="#334155"
-              stroke="#64748B"
-              strokeWidth="2"
-            />
-            <text x="355" y="240" fill="#94A3B8" fontSize="10" fontWeight="bold" textAnchor="middle">
-              COMINO
-            </text>
-          </g>
-
-          {/* Island 3: MAIN ISLAND OF MALTA (Southeast) */}
-          <g id="malta-main-island">
-            {/* Detailed coastal geometry of mainland Malta */}
-            <path
-              d="M 390 260 
-                 C 425 240, 480 250, 520 280 
-                 C 560 300, 610 305, 660 325 
-                 C 715 345, 770 380, 810 420 
-                 C 840 450, 850 490, 830 520 
-                 C 800 555, 740 550, 690 535 
-                 C 630 515, 570 480, 510 450 
-                 C 450 420, 410 380, 395 340 
-                 C 380 305, 370 280, 390 260 Z"
-              fill="url(#islandFill)"
-              stroke="#64748B"
-              strokeWidth="2.8"
-            />
-
-            {/* Inner terrain contour & ridge */}
-            <path
-              d="M 430 280 
-                 C 480 280, 570 320, 640 345 
-                 C 710 375, 770 420, 780 460 
-                 C 760 500, 700 500, 640 470 
-                 C 580 440, 500 390, 450 350 
-                 C 420 325, 410 295, 430 280 Z"
-              fill="#243042"
-              opacity="0.9"
-            />
-
-            {/* Major Arterial Highway lines across Malta */}
-            <path
-              d="M 395 265 Q 460 310 520 340 T 630 380 T 730 450 T 800 480"
-              stroke="#475569"
-              strokeWidth="2"
-              strokeDasharray="4,4"
-              fill="none"
-            />
-            <path
-              d="M 520 340 Q 560 400 600 440 T 680 490"
-              stroke="#475569"
-              strokeWidth="1.5"
-              strokeDasharray="3,3"
-              fill="none"
-            />
-
-            <text x="610" y="420" fill="#94A3B8" fontSize="18" fontWeight="black" textAnchor="middle" letterSpacing="3">
-              MALTA
-            </text>
-          </g>
-
-          {/* Landmark Guide Dots on Map */}
-          {MALTA_PRESETS.map((preset) => {
-            const p = coordsToSvg(preset.lat, preset.lng)
-            const isCurrent =
-              Math.abs(preset.lat - currentCoords.lat) < 0.008 &&
-              Math.abs(preset.lng - currentCoords.lng) < 0.008
-            return (
-              <g
-                key={preset.name}
-                className="cursor-pointer group/dot"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectPreset(preset)
-                }}
-              >
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={isCurrent ? "6" : "3.5"}
-                  fill={isCurrent ? "#F97316" : "#94A3B8"}
-                  stroke="#FFFFFF"
-                  strokeWidth="1.5"
-                  className="transition-all"
-                />
-                <text
-                  x={p.x}
-                  y={p.y - 8}
-                  fill={isCurrent ? "#FB923C" : "#CBD5E1"}
-                  fontSize="9"
-                  fontWeight={isCurrent ? "bold" : "normal"}
-                  textAnchor="middle"
-                  className="pointer-events-none drop-shadow-sm select-none"
-                >
-                  {preset.name.split("/")[0].replace("Malta International Airport (MLA) Terminal", "MLA Airport").replace("Pit Stop Central Garage (Mgarr)", "Mgarr Garage")}
-                </text>
-              </g>
-            )
-          })}
-
-          {/* ACTIVE DROPPED PIN (Radar pulse + Glowing Pin Marker) */}
-          <g
-            id="active-delivery-pin"
-            transform={`translate(${pinSvgPos.x}, ${pinSvgPos.y})`}
-            className="transition-all duration-300 ease-out pointer-events-none"
-          >
-            {/* Radar wave 1 */}
-            <circle
-              r="22"
-              fill="#F97316"
-              opacity="0.25"
-              className="animate-ping"
-            />
-            {/* Radar wave 2 */}
-            <circle
-              r="14"
-              fill="#F97316"
-              opacity="0.35"
-            />
-            {/* Center Anchor Point */}
-            <circle
-              r="3.5"
-              fill="#FFFFFF"
-              stroke="#EA580C"
-              strokeWidth="2"
-            />
-
-            {/* Teardrop Pin Marker */}
-            <g transform="translate(0, -22)">
-              <path
-                d="M 0 0 C -8 -8, -12 -16, -12 -22 C -12 -28.6, -6.6 -34, 0 -34 C 6.6 -34, 12 -28.6, 12 -22 C 12 -16, 8 -8, 0 0 Z"
-                fill="#F97316"
-                stroke="#FFFFFF"
-                strokeWidth="2"
-                filter="drop-shadow(0px 3px 6px rgba(0,0,0,0.6))"
-              />
-              <circle cx="0" cy="-22" r="4.5" fill="#FFFFFF" />
-            </g>
-          </g>
-        </svg>
-
-        {/* Floating coordinates chip at bottom right of map */}
-        <div className="absolute bottom-2.5 right-3 z-10 bg-slate-900/90 text-white border border-slate-700/80 px-2.5 py-1 rounded-lg text-[10px] font-mono shadow-md backdrop-blur-xs flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Pin: {currentCoords.lat.toFixed(4)}° N, {currentCoords.lng.toFixed(4)}° E</span>
+        {/* Floating coordinates badge */}
+        <div className="absolute bottom-2 right-2 z-[400] bg-stone-900/90 text-white border border-stone-700 px-2.5 py-1 rounded-md text-[10px] font-mono shadow-md backdrop-blur-xs flex items-center gap-1.5">
+          <span className="text-orange-400">📍</span>
+          <span>{currentCoords.lat.toFixed(5)}° N, {currentCoords.lng.toFixed(5)}° E</span>
         </div>
       </div>
 
@@ -568,8 +579,8 @@ export default function MaltaLocationMapPicker({
             const isSelected =
               selectedPreset === preset.name ||
               addressText.includes(preset.name) ||
-              (Math.abs(preset.lat - currentCoords.lat) < 0.005 &&
-                Math.abs(preset.lng - currentCoords.lng) < 0.005)
+              (Math.abs(preset.lat - currentCoords.lat) < 0.003 &&
+                Math.abs(preset.lng - currentCoords.lng) < 0.003)
             return (
               <button
                 key={preset.name}
