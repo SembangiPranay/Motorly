@@ -4,7 +4,7 @@
  * with 5-view vehicle schematic, client signature, and official 21 clauses.
  */
 
-import type { BookingRecord, Car } from "../types"
+import type { BookingRecord, Car, ConditionPin } from "../types"
 import jsPDF from "jspdf"
 
 export interface InvoiceSettings {
@@ -15,19 +15,29 @@ export interface InvoiceSettings {
   google_maps_url?: string
 }
 
-function drawCarSchematic(ctx: CanvasRenderingContext2D, baseX: number, baseY: number) {
+function drawCarSchematic(
+  ctx: CanvasRenderingContext2D,
+  baseX: number,
+  baseY: number,
+  pins?: ConditionPin[],
+) {
   ctx.save()
   ctx.strokeStyle = "#27272A"
-  ctx.lineWidth = 1.8
+  ctx.lineWidth = 1.6
   ctx.fillStyle = "#FFFFFF"
 
-  // 1. FRONT VIEW (top left of schematic block)
+  // ------------------------------------------
+  // 1. FRONT VIEW (left column, top)
+  // ------------------------------------------
+  const frontX = baseX
+  const frontY = baseY
+
   // Windshield & Roof
   ctx.beginPath()
-  ctx.moveTo(baseX + 15, baseY + 35)
-  ctx.lineTo(baseX + 28, baseY + 12)
-  ctx.lineTo(baseX + 82, baseY + 12)
-  ctx.lineTo(baseX + 95, baseY + 35)
+  ctx.moveTo(frontX + 18, frontY + 30)
+  ctx.lineTo(frontX + 30, frontY + 10)
+  ctx.lineTo(frontX + 80, frontY + 10)
+  ctx.lineTo(frontX + 92, frontY + 30)
   ctx.closePath()
   ctx.fillStyle = "#F4F4F5"
   ctx.fill()
@@ -36,41 +46,45 @@ function drawCarSchematic(ctx: CanvasRenderingContext2D, baseX: number, baseY: n
   // Body & Grille
   ctx.fillStyle = "#FFFFFF"
   ctx.beginPath()
-  ctx.roundRect(baseX + 5, baseY + 35, 100, 40, 6)
+  ctx.roundRect(frontX + 8, frontY + 30, 94, 34, 4)
   ctx.fill()
   ctx.stroke()
 
   // Headlights
   ctx.fillStyle = "#FEF08A"
   ctx.beginPath()
-  ctx.roundRect(baseX + 10, baseY + 40, 18, 10, 2)
-  ctx.roundRect(baseX + 82, baseY + 40, 18, 10, 2)
+  ctx.roundRect(frontX + 12, frontY + 34, 16, 8, 2)
+  ctx.roundRect(frontX + 82, frontY + 34, 16, 8, 2)
   ctx.fill()
   ctx.stroke()
 
   // Grille
   ctx.fillStyle = "#E4E4E7"
-  ctx.fillRect(baseX + 35, baseY + 42, 40, 14)
-  ctx.strokeRect(baseX + 35, baseY + 42, 40, 14)
+  ctx.fillRect(frontX + 36, frontY + 36, 38, 12)
+  ctx.strokeRect(frontX + 36, frontY + 36, 38, 12)
 
   // Wheels
   ctx.fillStyle = "#27272A"
-  ctx.fillRect(baseX + 8, baseY + 72, 14, 12)
-  ctx.fillRect(baseX + 88, baseY + 72, 14, 12)
+  ctx.fillRect(frontX + 10, frontY + 62, 12, 10)
+  ctx.fillRect(frontX + 88, frontY + 62, 12, 10)
 
   // Front View Label
   ctx.fillStyle = "#71717A"
-  ctx.font = "bold 9px monospace"
+  ctx.font = "bold 8px monospace"
   ctx.textAlign = "center"
-  ctx.fillText("FRONT", baseX + 55, baseY + 94)
+  ctx.fillText("FRONT", frontX + 55, frontY + 80)
 
-  // 2. REAR VIEW (bottom left of schematic block)
-  const rearY = baseY + 105
+  // ------------------------------------------
+  // 2. REAR VIEW (left column, bottom)
+  // ------------------------------------------
+  const rearX = baseX
+  const rearY = baseY + 110
+
   ctx.beginPath()
-  ctx.moveTo(baseX + 16, rearY + 35)
-  ctx.lineTo(baseX + 28, rearY + 12)
-  ctx.lineTo(baseX + 82, rearY + 12)
-  ctx.lineTo(baseX + 94, rearY + 35)
+  ctx.moveTo(rearX + 18, rearY + 30)
+  ctx.lineTo(rearX + 30, rearY + 10)
+  ctx.lineTo(rearX + 80, rearY + 10)
+  ctx.lineTo(rearX + 92, rearY + 30)
   ctx.closePath()
   ctx.fillStyle = "#F4F4F5"
   ctx.fill()
@@ -78,52 +92,57 @@ function drawCarSchematic(ctx: CanvasRenderingContext2D, baseX: number, baseY: n
 
   ctx.fillStyle = "#FFFFFF"
   ctx.beginPath()
-  ctx.roundRect(baseX + 5, rearY + 35, 100, 40, 6)
+  ctx.roundRect(rearX + 8, rearY + 30, 94, 34, 4)
   ctx.fill()
   ctx.stroke()
 
   // Tail lights
   ctx.fillStyle = "#EF4444"
   ctx.beginPath()
-  ctx.roundRect(baseX + 8, rearY + 40, 16, 12, 2)
-  ctx.roundRect(baseX + 86, rearY + 40, 16, 12, 2)
+  ctx.roundRect(rearX + 12, rearY + 34, 14, 10, 2)
+  ctx.roundRect(rearX + 84, rearY + 34, 14, 10, 2)
   ctx.fill()
   ctx.stroke()
 
   // Number Plate
   ctx.fillStyle = "#FFFFFF"
-  ctx.fillRect(baseX + 35, rearY + 48, 40, 12)
-  ctx.strokeRect(baseX + 35, rearY + 48, 40, 12)
+  ctx.fillRect(rearX + 36, rearY + 42, 38, 10)
+  ctx.strokeRect(rearX + 36, rearY + 42, 38, 10)
   ctx.fillStyle = "#18181B"
-  ctx.font = "bold 8px monospace"
-  ctx.fillText("MALTA", baseX + 55, rearY + 57)
+  ctx.font = "bold 7px monospace"
+  ctx.fillText("MALTA", rearX + 55, rearY + 50)
 
   // Wheels
   ctx.fillStyle = "#27272A"
-  ctx.fillRect(baseX + 8, rearY + 72, 14, 12)
-  ctx.fillRect(baseX + 88, rearY + 72, 14, 12)
+  ctx.fillRect(rearX + 10, rearY + 62, 12, 10)
+  ctx.fillRect(rearX + 88, rearY + 62, 12, 10)
 
   // Rear View Label
   ctx.fillStyle = "#71717A"
-  ctx.font = "bold 9px monospace"
-  ctx.fillText("REAR", baseX + 55, rearY + 94)
+  ctx.font = "bold 8px monospace"
+  ctx.fillText("REAR", rearX + 55, rearY + 80)
 
-  // 3. DRIVER SIDE PROFILE (top right of schematic block)
-  const sideX = baseX + 130
+  // ------------------------------------------
+  // 3. PASSENGER PROFILE (right column, top - facing left)
+  // ------------------------------------------
+  const passX = baseX + 130
+  const passY = baseY - 5
+
   ctx.fillStyle = "#FFFFFF"
   ctx.beginPath()
-  ctx.moveTo(sideX + 10, baseY + 60)
-  ctx.lineTo(sideX + 25, baseY + 60)
-  ctx.arc(sideX + 42, baseY + 60, 14, Math.PI, 0, false)
-  ctx.lineTo(sideX + 155, baseY + 60)
-  ctx.arc(sideX + 172, baseY + 60, 14, Math.PI, 0, false)
-  ctx.lineTo(sideX + 205, baseY + 60)
-  ctx.lineTo(sideX + 208, baseY + 45)
-  ctx.lineTo(sideX + 175, baseY + 32)
-  ctx.lineTo(sideX + 140, baseY + 14)
-  ctx.lineTo(sideX + 75, baseY + 14)
-  ctx.lineTo(sideX + 40, baseY + 35)
-  ctx.lineTo(sideX + 10, baseY + 40)
+  // Facing left: nose on left (passX + 5), rear hatch on right (passX + 195)
+  ctx.moveTo(passX + 5, passY + 34)
+  ctx.lineTo(passX + 30, passY + 30)
+  ctx.lineTo(passX + 60, passY + 12)
+  ctx.lineTo(passX + 130, passY + 12)
+  ctx.lineTo(passX + 160, passY + 26)
+  ctx.lineTo(passX + 195, passY + 36)
+  ctx.lineTo(passX + 195, passY + 48)
+  ctx.lineTo(passX + 175, passY + 48)
+  ctx.arc(passX + 155, passY + 48, 12, 0, Math.PI, true)
+  ctx.lineTo(passX + 55, passY + 48)
+  ctx.arc(passX + 35, passY + 48, 12, 0, Math.PI, true)
+  ctx.lineTo(passX + 5, passY + 48)
   ctx.closePath()
   ctx.fill()
   ctx.stroke()
@@ -131,66 +150,161 @@ function drawCarSchematic(ctx: CanvasRenderingContext2D, baseX: number, baseY: n
   // Windows
   ctx.fillStyle = "#F4F4F5"
   ctx.beginPath()
-  ctx.moveTo(sideX + 78, baseY + 18)
-  ctx.lineTo(sideX + 135, baseY + 18)
-  ctx.lineTo(sideX + 165, baseY + 33)
-  ctx.lineTo(sideX + 46, baseY + 33)
+  ctx.moveTo(passX + 62, passY + 15)
+  ctx.lineTo(passX + 128, passY + 15)
+  ctx.lineTo(passX + 155, passY + 28)
+  ctx.lineTo(passX + 38, passY + 28)
   ctx.closePath()
   ctx.fill()
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(sideX + 105, baseY + 18)
-  ctx.lineTo(sideX + 105, baseY + 55)
   ctx.stroke()
 
   // Wheels
   ctx.fillStyle = "#27272A"
   ctx.beginPath()
-  ctx.arc(sideX + 42, baseY + 60, 13, 0, Math.PI * 2)
-  ctx.arc(sideX + 172, baseY + 60, 13, 0, Math.PI * 2)
+  ctx.arc(passX + 35, passY + 48, 11, 0, Math.PI * 2)
+  ctx.arc(passX + 155, passY + 48, 11, 0, Math.PI * 2)
   ctx.fill()
   ctx.stroke()
   ctx.fillStyle = "#E4E4E7"
   ctx.beginPath()
-  ctx.arc(sideX + 42, baseY + 60, 6, 0, Math.PI * 2)
-  ctx.arc(sideX + 172, baseY + 60, 6, 0, Math.PI * 2)
+  ctx.arc(passX + 35, passY + 48, 5, 0, Math.PI * 2)
+  ctx.arc(passX + 155, passY + 48, 5, 0, Math.PI * 2)
   ctx.fill()
 
-  // Side Profile Label
+  // Label
   ctx.fillStyle = "#71717A"
-  ctx.font = "bold 9px monospace"
-  ctx.fillText("DRIVER SIDE PROFILE", sideX + 105, baseY + 86)
+  ctx.font = "bold 8px monospace"
+  ctx.fillText("PASSENGER PROFILE (LEFT)", passX + 100, passY + 68)
 
-  // 4. TOP AERIAL VIEW (bottom right of schematic block)
-  const aerialY = baseY + 105
+  // ------------------------------------------
+  // 4. TOP AERIAL VIEW (right column, middle)
+  // ------------------------------------------
+  const aerialX = baseX + 130
+  const aerialY = baseY + 75
+
   ctx.fillStyle = "#FFFFFF"
   ctx.beginPath()
-  ctx.roundRect(sideX + 10, aerialY + 15, 195, 62, 14)
+  ctx.roundRect(aerialX + 10, aerialY + 8, 185, 48, 10)
   ctx.fill()
   ctx.stroke()
 
   // Windshield & Rear glass
   ctx.fillStyle = "#F4F4F5"
   ctx.beginPath()
-  ctx.roundRect(sideX + 50, aerialY + 20, 20, 52, 4)
-  ctx.roundRect(sideX + 145, aerialY + 20, 18, 52, 4)
+  ctx.roundRect(aerialX + 45, aerialY + 12, 16, 40, 3)
+  ctx.roundRect(aerialX + 135, aerialY + 12, 14, 40, 3)
   ctx.fill()
   ctx.stroke()
 
   // Roof
   ctx.fillStyle = "#FAFAFA"
-  ctx.fillRect(sideX + 75, aerialY + 20, 65, 52)
-  ctx.strokeRect(sideX + 75, aerialY + 20, 65, 52)
+  ctx.fillRect(aerialX + 66, aerialY + 12, 64, 40)
+  ctx.strokeRect(aerialX + 66, aerialY + 12, 64, 40)
 
   // Mirrors
   ctx.fillStyle = "#71717A"
-  ctx.fillRect(sideX + 52, aerialY + 7, 10, 8)
-  ctx.fillRect(sideX + 52, aerialY + 77, 10, 8)
+  ctx.fillRect(aerialX + 48, aerialY + 2, 8, 6)
+  ctx.fillRect(aerialX + 48, aerialY + 56, 8, 6)
 
   // Aerial Label
   ctx.fillStyle = "#71717A"
-  ctx.font = "bold 9px monospace"
-  ctx.fillText("TOP AERIAL VIEW", sideX + 105, aerialY + 98)
+  ctx.font = "bold 8px monospace"
+  ctx.fillText("AERIAL TOP VIEW", aerialX + 100, aerialY + 70)
+
+  // ------------------------------------------
+  // 5. DRIVER PROFILE (right column, bottom - facing right)
+  // ------------------------------------------
+  const driverX = baseX + 130
+  const driverY = baseY + 150
+
+  ctx.fillStyle = "#FFFFFF"
+  ctx.beginPath()
+  // Facing right: rear on left (driverX + 5), front nose on right (driverX + 195)
+  ctx.moveTo(driverX + 195, driverY + 34)
+  ctx.lineTo(driverX + 170, driverY + 30)
+  ctx.lineTo(driverX + 140, driverY + 12)
+  ctx.lineTo(driverX + 70, driverY + 12)
+  ctx.lineTo(driverX + 40, driverY + 26)
+  ctx.lineTo(driverX + 5, driverY + 36)
+  ctx.lineTo(driverX + 5, driverY + 48)
+  ctx.lineTo(driverX + 25, driverY + 48)
+  ctx.arc(driverX + 45, driverY + 48, 12, 0, Math.PI, true)
+  ctx.lineTo(driverX + 145, driverY + 48)
+  ctx.arc(driverX + 165, driverY + 48, 12, 0, Math.PI, true)
+  ctx.lineTo(driverX + 195, driverY + 48)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+
+  // Windows
+  ctx.fillStyle = "#F4F4F5"
+  ctx.beginPath()
+  ctx.moveTo(driverX + 138, driverY + 15)
+  ctx.lineTo(driverX + 72, driverY + 15)
+  ctx.lineTo(driverX + 45, driverY + 28)
+  ctx.lineTo(driverX + 162, driverY + 28)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+
+  // Wheels
+  ctx.fillStyle = "#27272A"
+  ctx.beginPath()
+  ctx.arc(driverX + 45, driverY + 48, 11, 0, Math.PI * 2)
+  ctx.arc(driverX + 165, driverY + 48, 11, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#E4E4E7"
+  ctx.beginPath()
+  ctx.arc(driverX + 45, driverY + 48, 5, 0, Math.PI * 2)
+  ctx.arc(driverX + 165, driverY + 48, 5, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Driver Profile Label
+  ctx.fillStyle = "#71717A"
+  ctx.font = "bold 8px monospace"
+  ctx.fillText("DRIVER PROFILE (RIGHT)", driverX + 100, driverY + 68)
+
+  // ------------------------------------------
+  // RENDER PINS ONTO THE SCHEMATIC
+  // ------------------------------------------
+  if (pins && pins.length > 0) {
+    pins.forEach((pin, idx) => {
+      let box = { x: 0, y: 0, w: 0, h: 0 }
+      if (pin.view === "front") {
+        box = { x: frontX + 8, y: frontY + 8, w: 94, h: 65 }
+      } else if (pin.view === "rear") {
+        box = { x: rearX + 8, y: rearY + 8, w: 94, h: 65 }
+      } else if (pin.view === "passenger") {
+        box = { x: passX + 5, y: passY + 10, w: 190, h: 50 }
+      } else if (pin.view === "aerial" || (pin.view as string) === "top") {
+        box = { x: aerialX + 10, y: aerialY + 8, w: 185, h: 50 }
+      } else if (pin.view === "driver") {
+        box = { x: driverX + 5, y: driverY + 10, w: 190, h: 50 }
+      }
+
+      if (box.w > 0) {
+        const pinX = box.x + (pin.x / 100) * box.w
+        const pinY = box.y + (pin.y / 100) * box.h
+
+        ctx.save()
+        ctx.fillStyle = "#E11D48"
+        ctx.strokeStyle = "#FFFFFF"
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.arc(pinX, pinY, 7, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.fillStyle = "#FFFFFF"
+        ctx.font = "bold 8px Arial, sans-serif"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(String(idx + 1), pinX, pinY)
+        ctx.restore()
+      }
+    })
+  }
 
   ctx.restore()
 }
@@ -505,8 +619,8 @@ export async function generateBookingInvoicePng(
     ctx.fillText(customerName, rightBoxX + 185, financeY - 5)
   }
 
-  // Draw the 5-View Vehicle Schematic Diagram
-  drawCarSchematic(ctx, rightBoxX + 40, financeY + 30)
+  // Draw the 5-View Vehicle Schematic Diagram with pins
+  drawCarSchematic(ctx, rightBoxX + 30, financeY + 25, booking.conditionPins)
 
   // ==========================================
   // BOTTOM 5 CLAUSES (FRONT PAGE REPLICATION)

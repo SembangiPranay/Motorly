@@ -22,6 +22,7 @@ import { getWhatsAppUrls, formatInternationalPhoneDisplay } from "../../utils/wh
 import { downloadBookingInvoicePng, downloadBookingInvoicePdf } from "../../utils/invoiceGenerator"
 import { calculateRentalPrice } from "../../utils/pricing"
 import { api } from "../../services/api"
+import PitStop5ViewSchematic from "../../components/contract/PitStop5ViewSchematic"
 
 export interface AdminBookingDetailViewProps {
   booking: BookingRecord
@@ -1006,6 +1007,140 @@ export default function AdminBookingDetailView({
                   Download Pit Stop Agreement PDF
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Section 4: Authentic Pit Stop 5-View Vehicle Condition & Client Endorsement */}
+          <div className="bg-white rounded-2xl border border-stone-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+                  <ShieldIcon size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-stone-900">
+                    Pit Stop 5-View Condition Inspection & Client Endorsement
+                  </h3>
+                  <p className="text-[11px] text-stone-500">
+                    Official 5-view paper agreement schematic (Clause 2: wear &amp; tear excepted).
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800">
+                  Paper Form Replica
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                  5 Views Audited
+                </span>
+              </div>
+            </div>
+
+            {/* 5-View Schematic Interactive Display */}
+            <div className="bg-stone-50/60 rounded-xl p-3 border border-stone-200/70">
+              <PitStop5ViewSchematic pins={booking.conditionPins || []} readOnly={true} />
+            </div>
+
+            {/* Pinned Flaws Detail Table/Badges if any */}
+            {booking.conditionPins && booking.conditionPins.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                  Noted Bodywork &amp; Cosmetic Markings ({booking.conditionPins.length})
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {booking.conditionPins.map((pin, idx) => (
+                    <div
+                      key={pin.id || idx}
+                      className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200/80 flex items-start gap-2"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0 shadow-2xs">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-bold text-stone-900 block text-[11px]">
+                          {pin.viewLabel}
+                        </span>
+                        <p className="text-[11px] text-stone-700 mt-0.5 break-words">
+                          {pin.note}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pre-rental Attached Condition Photos if any */}
+            {booking.conditionPhotos && booking.conditionPhotos.length > 0 && (
+              <div className="space-y-2 pt-3 border-t border-stone-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                    <CameraIcon size={13} className="text-orange-500" />
+                    Customer Pre-Rental Condition Photos ({booking.conditionPhotos.length})
+                  </span>
+                  <span className="text-[10px] text-stone-400">Click to Zoom</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {booking.conditionPhotos.map((photo, pIdx) => (
+                    <div
+                      key={pIdx}
+                      onClick={() =>
+                        setLightboxImage({
+                          url: photo,
+                          title: `Pre-Rental Condition Photo #${pIdx + 1} (${booking.id})`,
+                        })
+                      }
+                      className="group relative aspect-4/3 rounded-lg overflow-hidden border border-stone-200 bg-stone-900 cursor-pointer shadow-2xs hover:border-orange-500 transition"
+                    >
+                      <img
+                        src={photo}
+                        alt={`Condition ${pIdx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                        🔍 Zoom
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Client Signature Endorsement */}
+            <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-50/60 p-3 rounded-xl border border-stone-200/60">
+              <div className="space-y-0.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                  Client Signature Endorsement
+                </div>
+                <div className="text-xs font-semibold text-stone-800">
+                  {booking.clientSignature ? "Legally Endorsed by Renter" : "Pending Signature at Counter"}
+                </div>
+                <div className="text-[10px] text-stone-500">
+                  Under 21 Pit Stop Car Hire Terms (36 Triq Il-Kbira, Mgarr)
+                </div>
+              </div>
+
+              {booking.clientSignature && (
+                <div className="p-2 bg-white rounded-lg border border-stone-200 shadow-2xs max-w-xs flex items-center justify-center">
+                  {booking.clientSignature.startsWith("data:image") ? (
+                    <img
+                      src={booking.clientSignature}
+                      alt="Client Signature"
+                      className="max-h-12 w-auto object-contain cursor-pointer"
+                      onClick={() =>
+                        setLightboxImage({
+                          url: booking.clientSignature!,
+                          title: `Client Signature (${customerName})`,
+                        })
+                      }
+                    />
+                  ) : (
+                    <span className="font-serif italic font-bold text-stone-900 text-base px-2">
+                      {booking.clientSignature}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

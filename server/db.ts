@@ -707,6 +707,8 @@ async function initSupabaseTables(pool: pg.Pool) {
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS security_deposit REAL DEFAULT 700;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS remarks TEXT;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_signature TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS condition_pins TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS condition_photos TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -859,6 +861,8 @@ function initSqliteTables() {
     { name: "security_deposit", type: "REAL DEFAULT 700" },
     { name: "remarks", type: "TEXT" },
     { name: "client_signature", type: "TEXT" },
+    { name: "condition_pins", type: "TEXT" },
+    { name: "condition_photos", type: "TEXT" },
   ]
   for (const col of requiredBookingCols) {
     if (!bookingColumns.includes(col.name)) {

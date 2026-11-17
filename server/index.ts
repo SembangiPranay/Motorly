@@ -748,6 +748,24 @@ function formatBookingRow(row: any) {
     securityDeposit: Number(row.security_deposit) || 700,
     remarks: row.remarks || undefined,
     clientSignature: row.client_signature || undefined,
+    conditionPins: (() => {
+      if (!row.condition_pins) return []
+      try {
+        const parsed = JSON.parse(row.condition_pins)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    })(),
+    conditionPhotos: (() => {
+      if (!row.condition_photos) return []
+      try {
+        const parsed = JSON.parse(row.condition_photos)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    })(),
   }
 }
 
@@ -2576,7 +2594,8 @@ app.post(
             user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed,
             trip_reason, delivery_type, delivery_location_custom, delivery_fee,
             return_type, return_location_custom, return_fee,
-            optional_services, optional_services_cost, security_deposit, remarks, client_signature
+            optional_services, optional_services_cost, security_deposit, remarks, client_signature,
+            condition_pins, condition_photos
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -2586,7 +2605,8 @@ app.post(
             ?, ?, ?, 0, 'None', 0,
             ?, ?, ?, ?,
             ?, ?, ?,
-            ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?,
+            ?, ?
           )
         `)
             .run(
@@ -2636,6 +2656,8 @@ app.post(
               Number(b.securityDeposit) || 700,
               b.remarks || null,
               b.clientSignature || null,
+              b.conditionPins && b.conditionPins.length > 0 ? JSON.stringify(b.conditionPins) : null,
+              b.conditionPhotos && b.conditionPhotos.length > 0 ? JSON.stringify(b.conditionPhotos) : null,
             )
 
           const created = await tx

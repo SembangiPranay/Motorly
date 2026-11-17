@@ -179,6 +179,15 @@ export interface InspectionChecklistIn {
   timestamp: string
 }
 
+export interface ConditionPin {
+  id: string
+  view: "front" | "rear" | "driver" | "passenger" | "aerial"
+  viewLabel: string
+  x: number // percentage 0 - 100
+  y: number // percentage 0 - 100
+  note: string
+}
+
 export interface BookingRecord {
   id: string
   customer: CustomerInfo
@@ -228,6 +237,8 @@ export interface BookingRecord {
   remarks?: string
   clientSignature?: string
   carPlateNumber?: string
+  conditionPins?: ConditionPin[]
+  conditionPhotos?: string[]
 }
 
 export interface CustomerUser {

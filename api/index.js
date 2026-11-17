@@ -40031,6 +40031,8 @@ async function initSupabaseTables(pool) {
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS security_deposit REAL DEFAULT 700;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS remarks TEXT;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_signature TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS condition_pins TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS condition_photos TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -40287,6 +40289,14 @@ function initSqliteTables() {
 		},
 		{
 			name: "client_signature",
+			type: "TEXT"
+		},
+		{
+			name: "condition_pins",
+			type: "TEXT"
+		},
+		{
+			name: "condition_photos",
 			type: "TEXT"
 		}
 	]) if (!bookingColumns.includes(col.name)) try {
@@ -41509,7 +41519,25 @@ function formatBookingRow(row) {
 		optionalServicesCost: Number(row.optional_services_cost) || 0,
 		securityDeposit: Number(row.security_deposit) || 700,
 		remarks: row.remarks || void 0,
-		clientSignature: row.client_signature || void 0
+		clientSignature: row.client_signature || void 0,
+		conditionPins: (() => {
+			if (!row.condition_pins) return [];
+			try {
+				const parsed = JSON.parse(row.condition_pins);
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+		})(),
+		conditionPhotos: (() => {
+			if (!row.condition_photos) return [];
+			try {
+				const parsed = JSON.parse(row.condition_photos);
+				return Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return [];
+			}
+		})()
 	};
 }
 function formatUserRow(row) {
@@ -42479,7 +42507,8 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             user_id, notes, promo_code, approved_by_admin, extension_status, inspection_passed,
             trip_reason, delivery_type, delivery_location_custom, delivery_fee,
             return_type, return_location_custom, return_fee,
-            optional_services, optional_services_cost, security_deposit, remarks, client_signature
+            optional_services, optional_services_cost, security_deposit, remarks, client_signature,
+            condition_pins, condition_photos
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -42489,9 +42518,10 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             ?, ?, ?, 0, 'None', 0,
             ?, ?, ?, ?,
             ?, ?, ?,
-            ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?,
+            ?, ?
           )
-        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+356 99827192", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure", b.deliveryType || "garage", b.deliveryLocationCustom || null, Number(b.deliveryFee) || 0, b.returnType || "garage", b.returnLocationCustom || null, Number(b.returnFee) || 0, b.optionalServices ? JSON.stringify(b.optionalServices) : null, Number(b.optionalServicesCost) || 0, Number(b.securityDeposit) || 700, b.remarks || null, b.clientSignature || null);
+        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+356 99827192", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure", b.deliveryType || "garage", b.deliveryLocationCustom || null, Number(b.deliveryFee) || 0, b.returnType || "garage", b.returnLocationCustom || null, Number(b.returnFee) || 0, b.optionalServices ? JSON.stringify(b.optionalServices) : null, Number(b.optionalServicesCost) || 0, Number(b.securityDeposit) || 700, b.remarks || null, b.clientSignature || null, b.conditionPins && b.conditionPins.length > 0 ? JSON.stringify(b.conditionPins) : null, b.conditionPhotos && b.conditionPhotos.length > 0 ? JSON.stringify(b.conditionPhotos) : null);
 			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		});
 		return res.status(201).json(formatBookingRow(createdRow));

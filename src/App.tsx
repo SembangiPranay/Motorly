@@ -11,6 +11,7 @@ import type {
   VehicleType,
   ViewMode,
   CustomerUser,
+  ConditionPin,
 } from "./types"
 
 import { api } from "./services/api"
@@ -762,6 +763,8 @@ export default function App() {
     securityDeposit?: number
     remarks?: string
     clientSignature?: string
+    conditionPins?: ConditionPin[]
+    conditionPhotos?: string[]
   }) => {
     if (details.tripReason) {
       setBookingState((prev) => ({ ...prev, tripReason: details.tripReason }))
@@ -828,6 +831,8 @@ export default function App() {
       securityDeposit: details.securityDeposit || 700,
       remarks: details.remarks || "",
       clientSignature: details.clientSignature || "",
+      conditionPins: details.conditionPins || [],
+      conditionPhotos: details.conditionPhotos || [],
     }
 
     // Dynamic backend sync into Supabase PostgreSQL

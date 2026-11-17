@@ -7,6 +7,7 @@ import type {
   PaymentInfo,
   CustomerUser,
   ViewMode,
+  ConditionPin,
 } from "../types"
 import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
@@ -50,6 +51,8 @@ interface CheckoutViewProps {
     securityDeposit?: number
     remarks?: string
     clientSignature?: string
+    conditionPins?: ConditionPin[]
+    conditionPhotos?: string[]
   }) => void
   onNavigateHome: () => void
   onNavigateListing: () => void
@@ -174,6 +177,8 @@ export default function CheckoutView({
   const [remarks, setRemarks] = useState<string>("")
   const [clientSignature, setClientSignature] = useState<string>("")
   const [conditionNotes, setConditionNotes] = useState<string>("")
+  const [conditionPhotos, setConditionPhotos] = useState<string[]>([])
+  const [conditionPins, setConditionPins] = useState<ConditionPin[]>([])
 
   const [availabilityCheck, setAvailabilityCheck] = useState<{
     isAvailable: boolean
@@ -568,6 +573,8 @@ export default function CheckoutView({
         securityDeposit,
         remarks,
         clientSignature: effectiveSignature,
+        conditionPins,
+        conditionPhotos,
       })
       setIsSubmitting(false)
     }, 300)
@@ -711,6 +718,10 @@ export default function CheckoutView({
             setClientSignature={setClientSignature}
             conditionNotes={conditionNotes}
             setConditionNotes={setConditionNotes}
+            conditionPhotos={conditionPhotos}
+            setConditionPhotos={setConditionPhotos}
+            conditionPins={conditionPins}
+            setConditionPins={setConditionPins}
             onOpenLegalModal={(tab) => {
               setLegalModalTab(tab)
               setIsLegalModalOpen(true)
