@@ -63,7 +63,7 @@ export default function CarEntranceAnimation({
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25" />
       <div className="motorly-intro-warm-reflection pointer-events-none absolute inset-0" />
 
-      <p className="motorly-intro-brand pointer-events-none absolute bottom-[7vh] left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.42em] text-white/55 sm:text-[10px]">
+      <p className="motorly-intro-brand pointer-events-none absolute bottom-[6vh] sm:bottom-[7vh] left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.42em] text-white/55 sm:text-[10px]">
         PIT STOP <span className="mx-2 text-white/25">/</span> MALTA
       </p>
 

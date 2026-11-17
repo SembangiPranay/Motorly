@@ -186,12 +186,32 @@ input[type="number"] {
 
 .motorly-intro-video {
   background: #000;
+  transform: scale(1.75);
+  transform-origin: center center;
+}
+
+@media (min-width: 640px) {
+  .motorly-intro-video {
+    transform: scale(1.35);
+  }
+}
+
+@media (min-width: 1024px) {
+  .motorly-intro-video {
+    transform: scale(1);
+  }
 }
 
 .motorly-intro-warm-reflection {
-  background: radial-gradient(ellipse 34% 12% at 50% 88%, rgba(249, 115, 22, 0.2), transparent 76%);
+  background: radial-gradient(ellipse 55% 18% at 50% 68%, rgba(249, 115, 22, 0.22), transparent 72%);
   opacity: 0;
   animation: warmReflection 3.2s ease-in-out both;
+}
+
+@media (min-width: 640px) {
+  .motorly-intro-warm-reflection {
+    background: radial-gradient(ellipse 34% 12% at 50% 88%, rgba(249, 115, 22, 0.2), transparent 76%);
+  }
 }
 
 .motorly-intro-brand {
