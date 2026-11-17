@@ -1,5 +1,7 @@
 import React from "react"
 import { LocationIcon, CheckIcon } from "../../components/Icons"
+import MaltaLocationMapPicker from "../../components/common/MaltaLocationMapPicker"
+import type { DeliveryCoordinates } from "../../types"
 
 interface CheckoutDeliveryOptionsProps {
   deliveryType: "garage" | "custom"
@@ -12,6 +14,10 @@ interface CheckoutDeliveryOptionsProps {
   returnLocationCustom: string
   setReturnLocationCustom: (loc: string) => void
   returnFee: number
+  deliveryCoordinates?: DeliveryCoordinates
+  setDeliveryCoordinates?: (coords: DeliveryCoordinates) => void
+  returnCoordinates?: DeliveryCoordinates
+  setReturnCoordinates?: (coords: DeliveryCoordinates) => void
 }
 
 const COMMON_MALTA_LOCATIONS = [
@@ -33,6 +39,10 @@ export default function CheckoutDeliveryOptions({
   returnLocationCustom,
   setReturnLocationCustom,
   returnFee,
+  deliveryCoordinates,
+  setDeliveryCoordinates,
+  returnCoordinates,
+  setReturnCoordinates,
 }: CheckoutDeliveryOptionsProps) {
   return (
     <div className="bg-white rounded-xl border border-stone-200/90 p-5 sm:p-6 shadow-xs space-y-6">
@@ -119,26 +129,15 @@ export default function CheckoutDeliveryOptions({
         </div>
 
         {deliveryType === "custom" && (
-          <div className="pt-2 space-y-2 animate-fade-in">
-            <input
-              type="text"
+          <div className="pt-2 animate-fade-in">
+            <MaltaLocationMapPicker
+              value={deliveryCoordinates}
+              onChange={(coords) => setDeliveryCoordinates?.(coords)}
+              addressText={deliveryLocationCustom}
+              onAddressChange={setDeliveryLocationCustom}
+              label="Custom Delivery Location &amp; Dispatch Pin"
               placeholder="e.g. Malta International Airport (MLA) Terminal / Sliema Hotel"
-              value={deliveryLocationCustom}
-              onChange={(e) => setDeliveryLocationCustom(e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-stone-50 text-stone-900"
             />
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_MALTA_LOCATIONS.map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => setDeliveryLocationCustom(loc)}
-                  className="px-2 py-1 text-[10px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition cursor-pointer"
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
           </div>
         )}
       </div>
@@ -208,26 +207,15 @@ export default function CheckoutDeliveryOptions({
         </div>
 
         {returnType === "custom" && (
-          <div className="pt-2 space-y-2 animate-fade-in">
-            <input
-              type="text"
+          <div className="pt-2 animate-fade-in">
+            <MaltaLocationMapPicker
+              value={returnCoordinates}
+              onChange={(coords) => setReturnCoordinates?.(coords)}
+              addressText={returnLocationCustom}
+              onAddressChange={setReturnLocationCustom}
+              label="Custom Return Handover Location &amp; Pin"
               placeholder="e.g. Malta International Airport (MLA) Departures / St. Julian's Hotel"
-              value={returnLocationCustom}
-              onChange={(e) => setReturnLocationCustom(e.target.value)}
-              className="w-full px-3.5 py-2.5 border border-stone-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] bg-stone-50 text-stone-900"
             />
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_MALTA_LOCATIONS.map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => setReturnLocationCustom(loc)}
-                  className="px-2 py-1 text-[10px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition cursor-pointer"
-                >
-                  {loc}
-                </button>
-              ))}
-            </div>
           </div>
         )}
       </div>

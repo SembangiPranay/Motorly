@@ -766,6 +766,26 @@ function formatBookingRow(row: any) {
         return []
       }
     })(),
+    deliveryCoordinates: (() => {
+      if (!row.delivery_coordinates) return undefined
+      try {
+        return typeof row.delivery_coordinates === "string"
+          ? JSON.parse(row.delivery_coordinates)
+          : row.delivery_coordinates
+      } catch {
+        return undefined
+      }
+    })(),
+    returnCoordinates: (() => {
+      if (!row.return_coordinates) return undefined
+      try {
+        return typeof row.return_coordinates === "string"
+          ? JSON.parse(row.return_coordinates)
+          : row.return_coordinates
+      } catch {
+        return undefined
+      }
+    })(),
   }
 }
 
@@ -2444,6 +2464,11 @@ app.get("/api/bookings", requireAdmin, async (req, res) => {
         extension_status, extension_request, extension_quote,
         checklist_out, checklist_in, inspection_notes, inspection_passed,
         odometer_out, odometer_in, fuel_level_out, fuel_level_in,
+        delivery_type, delivery_location_custom, delivery_fee,
+        return_type, return_location_custom, return_fee,
+        optional_services, optional_services_cost, security_deposit,
+        remarks, client_signature, condition_pins, condition_photos,
+        delivery_coordinates, return_coordinates,
         CASE WHEN driver_license_file LIKE 'data:%' THEN 'data:base64' ELSE driver_license_file END as driver_license_file,
         CASE WHEN driver_license_back_file LIKE 'data:%' THEN 'data:base64' ELSE driver_license_back_file END as driver_license_back_file,
         CASE WHEN driver_selfie_file LIKE 'data:%' THEN 'data:base64' ELSE driver_selfie_file END as driver_selfie_file
@@ -2579,7 +2604,8 @@ app.post(
             }
           }
 
-          const status = matchedCarId ? "Assigned" : "Pending Assignment"
+          // Enforce rigorous reservation lifecycle: All online customer bookings begin as 'Pending Assignment' awaiting fleet manager clearance
+          const status = "Pending Assignment"
           const createdAtValue =
             b.createdAt && b.createdAt.includes("T") ? b.createdAt : nowIso
 
@@ -2595,7 +2621,8 @@ app.post(
             trip_reason, delivery_type, delivery_location_custom, delivery_fee,
             return_type, return_location_custom, return_fee,
             optional_services, optional_services_cost, security_deposit, remarks, client_signature,
-            condition_pins, condition_photos
+            condition_pins, condition_photos,
+            delivery_coordinates, return_coordinates
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -2606,6 +2633,7 @@ app.post(
             ?, ?, ?, ?,
             ?, ?, ?,
             ?, ?, ?, ?, ?,
+            ?, ?,
             ?, ?
           )
         `)
@@ -2658,6 +2686,8 @@ app.post(
               b.clientSignature || null,
               b.conditionPins && b.conditionPins.length > 0 ? JSON.stringify(b.conditionPins) : null,
               b.conditionPhotos && b.conditionPhotos.length > 0 ? JSON.stringify(b.conditionPhotos) : null,
+              b.deliveryCoordinates ? JSON.stringify(b.deliveryCoordinates) : null,
+              b.returnCoordinates ? JSON.stringify(b.returnCoordinates) : null,
             )
 
           const created = await tx
@@ -3022,6 +3052,13 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
   if (booking.status === "Completed" || booking.status === "Cancelled") {
     return res.status(400).json({
       error: `Illegal transition: Cannot hand over keys for booking ${bookingId} with terminal status "${booking.status}".`,
+    })
+  }
+
+  // Rigorous Fleet Security Shield: Keys can NEVER be handed over unless the fleet manager has formally accepted & approved the booking
+  if (!booking.approved_by_admin) {
+    return res.status(400).json({
+      error: `Illegal dispatch: Reservation ${bookingId} must be accepted and approved by the fleet manager before keys can be handed over.`,
     })
   }
   // Idempotency guard: If already Checked Out, return success
@@ -3711,7 +3748,7 @@ app.post("/api/bookings/:id/unmate", requireAdmin, async (req, res) => {
 // PATCH Update Booking Status (Advance Lifecycle)
 app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
   const bookingId = req.params.id
-  const { status, odometerOut, odometerIn, fuelLevelOut, fuelLevelIn, notes } =
+  const { status, approvedByAdmin, odometerOut, odometerIn, fuelLevelOut, fuelLevelIn, notes } =
     req.body
 
   const booking = (await db
@@ -3737,6 +3774,12 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
 
   const newStatus = status || booking.status
   const carId = booking.matched_car_id
+  const newApprovedByAdmin =
+    approvedByAdmin !== undefined
+      ? approvedByAdmin ? 1 : 0
+      : newStatus === "Pending Assignment"
+        ? 0
+        : booking.approved_by_admin
 
   // Synchronize vehicle status based on reservation lifecycle
   if (carId) {
@@ -3763,6 +3806,7 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
     .prepare(`
     UPDATE bookings SET
       status = ?,
+      approved_by_admin = ?,
       odometer_out = COALESCE(?, odometer_out),
       odometer_in = COALESCE(?, odometer_in),
       fuel_level_out = COALESCE(?, fuel_level_out),
@@ -3772,6 +3816,7 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
   `)
     .run(
       newStatus,
+      newApprovedByAdmin,
       odometerOut ?? null,
       odometerIn ?? null,
       fuelLevelOut ?? null,

@@ -239,6 +239,15 @@ export interface BookingRecord {
   carPlateNumber?: string
   conditionPins?: ConditionPin[]
   conditionPhotos?: string[]
+  deliveryCoordinates?: DeliveryCoordinates
+  returnCoordinates?: DeliveryCoordinates
+}
+
+export interface DeliveryCoordinates {
+  lat: number
+  lng: number
+  address?: string
+  placeName?: string
 }
 
 export interface CustomerUser {

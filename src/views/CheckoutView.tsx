@@ -8,6 +8,7 @@ import type {
   CustomerUser,
   ViewMode,
   ConditionPin,
+  DeliveryCoordinates,
 } from "../types"
 import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
@@ -53,6 +54,8 @@ interface CheckoutViewProps {
     clientSignature?: string
     conditionPins?: ConditionPin[]
     conditionPhotos?: string[]
+    deliveryCoordinates?: DeliveryCoordinates
+    returnCoordinates?: DeliveryCoordinates
   }) => void
   onNavigateHome: () => void
   onNavigateListing: () => void
@@ -171,8 +174,10 @@ export default function CheckoutView({
   // Pit Stop Physical Agreement Fields
   const [deliveryType, setDeliveryType] = useState<"garage" | "custom">("garage")
   const [deliveryLocationCustom, setDeliveryLocationCustom] = useState<string>("")
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<DeliveryCoordinates | undefined>(undefined)
   const [returnType, setReturnType] = useState<"garage" | "custom">("garage")
   const [returnLocationCustom, setReturnLocationCustom] = useState<string>("")
+  const [returnCoordinates, setReturnCoordinates] = useState<DeliveryCoordinates | undefined>(undefined)
   const [selectedServices, setSelectedServices] = useState<string[]>([])
   const [remarks, setRemarks] = useState<string>("")
   const [clientSignature, setClientSignature] = useState<string>("")
@@ -575,6 +580,8 @@ export default function CheckoutView({
         clientSignature: effectiveSignature,
         conditionPins,
         conditionPhotos,
+        deliveryCoordinates: deliveryType === "custom" ? deliveryCoordinates : undefined,
+        returnCoordinates: returnType === "custom" ? returnCoordinates : undefined,
       })
       setIsSubmitting(false)
     }, 300)
@@ -700,6 +707,10 @@ export default function CheckoutView({
             returnLocationCustom={returnLocationCustom}
             setReturnLocationCustom={setReturnLocationCustom}
             returnFee={returnFee}
+            deliveryCoordinates={deliveryCoordinates}
+            setDeliveryCoordinates={setDeliveryCoordinates}
+            returnCoordinates={returnCoordinates}
+            setReturnCoordinates={setReturnCoordinates}
           />
 
           <CheckoutOptionalServices

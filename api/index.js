@@ -40033,6 +40033,8 @@ async function initSupabaseTables(pool) {
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS client_signature TEXT;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS condition_pins TEXT;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS condition_photos TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_coordinates TEXT;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_coordinates TEXT;
     CREATE INDEX IF NOT EXISTS idx_bookings_customer_email ON bookings(LOWER(customer_email));
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_matched_car ON bookings(matched_car_id);
@@ -40297,6 +40299,14 @@ function initSqliteTables() {
 		},
 		{
 			name: "condition_photos",
+			type: "TEXT"
+		},
+		{
+			name: "delivery_coordinates",
+			type: "TEXT"
+		},
+		{
+			name: "return_coordinates",
 			type: "TEXT"
 		}
 	]) if (!bookingColumns.includes(col.name)) try {
@@ -41537,6 +41547,22 @@ function formatBookingRow(row) {
 			} catch {
 				return [];
 			}
+		})(),
+		deliveryCoordinates: (() => {
+			if (!row.delivery_coordinates) return void 0;
+			try {
+				return typeof row.delivery_coordinates === "string" ? JSON.parse(row.delivery_coordinates) : row.delivery_coordinates;
+			} catch {
+				return;
+			}
+		})(),
+		returnCoordinates: (() => {
+			if (!row.return_coordinates) return void 0;
+			try {
+				return typeof row.return_coordinates === "string" ? JSON.parse(row.return_coordinates) : row.return_coordinates;
+			} catch {
+				return;
+			}
 		})()
 	};
 }
@@ -42429,6 +42455,11 @@ app.get("/api/bookings", requireAdmin, async (req, res) => {
         extension_status, extension_request, extension_quote,
         checklist_out, checklist_in, inspection_notes, inspection_passed,
         odometer_out, odometer_in, fuel_level_out, fuel_level_in,
+        delivery_type, delivery_location_custom, delivery_fee,
+        return_type, return_location_custom, return_fee,
+        optional_services, optional_services_cost, security_deposit,
+        remarks, client_signature, condition_pins, condition_photos,
+        delivery_coordinates, return_coordinates,
         CASE WHEN driver_license_file LIKE 'data:%' THEN 'data:base64' ELSE driver_license_file END as driver_license_file,
         CASE WHEN driver_license_back_file LIKE 'data:%' THEN 'data:base64' ELSE driver_license_back_file END as driver_license_back_file,
         CASE WHEN driver_selfie_file LIKE 'data:%' THEN 'data:base64' ELSE driver_selfie_file END as driver_selfie_file
@@ -42495,7 +42526,7 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
 			if (candidateUserId) {
 				if (await tx.prepare("SELECT id FROM users WHERE id = ?").get(candidateUserId)) validUserId = candidateUserId;
 			}
-			const status = matchedCarId ? "Assigned" : "Pending Assignment";
+			const status = "Pending Assignment";
 			const createdAtValue = b.createdAt && b.createdAt.includes("T") ? b.createdAt : nowIso;
 			await tx.prepare(`
           INSERT INTO bookings (
@@ -42508,7 +42539,8 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             trip_reason, delivery_type, delivery_location_custom, delivery_fee,
             return_type, return_location_custom, return_fee,
             optional_services, optional_services_cost, security_deposit, remarks, client_signature,
-            condition_pins, condition_photos
+            condition_pins, condition_photos,
+            delivery_coordinates, return_coordinates
           ) VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -42519,9 +42551,10 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
             ?, ?, ?, ?,
             ?, ?, ?,
             ?, ?, ?, ?, ?,
+            ?, ?,
             ?, ?
           )
-        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+356 99827192", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure", b.deliveryType || "garage", b.deliveryLocationCustom || null, Number(b.deliveryFee) || 0, b.returnType || "garage", b.returnLocationCustom || null, Number(b.returnFee) || 0, b.optionalServices ? JSON.stringify(b.optionalServices) : null, Number(b.optionalServicesCost) || 0, Number(b.securityDeposit) || 700, b.remarks || null, b.clientSignature || null, b.conditionPins && b.conditionPins.length > 0 ? JSON.stringify(b.conditionPins) : null, b.conditionPhotos && b.conditionPhotos.length > 0 ? JSON.stringify(b.conditionPhotos) : null);
+        `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+356 99827192", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure", b.deliveryType || "garage", b.deliveryLocationCustom || null, Number(b.deliveryFee) || 0, b.returnType || "garage", b.returnLocationCustom || null, Number(b.returnFee) || 0, b.optionalServices ? JSON.stringify(b.optionalServices) : null, Number(b.optionalServicesCost) || 0, Number(b.securityDeposit) || 700, b.remarks || null, b.clientSignature || null, b.conditionPins && b.conditionPins.length > 0 ? JSON.stringify(b.conditionPins) : null, b.conditionPhotos && b.conditionPhotos.length > 0 ? JSON.stringify(b.conditionPhotos) : null, b.deliveryCoordinates ? JSON.stringify(b.deliveryCoordinates) : null, b.returnCoordinates ? JSON.stringify(b.returnCoordinates) : null);
 			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		});
 		return res.status(201).json(formatBookingRow(createdRow));
@@ -42686,6 +42719,7 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	if (booking.status === "Completed" || booking.status === "Cancelled") return res.status(400).json({ error: `Illegal transition: Cannot hand over keys for booking ${bookingId} with terminal status "${booking.status}".` });
+	if (!booking.approved_by_admin) return res.status(400).json({ error: `Illegal dispatch: Reservation ${bookingId} must be accepted and approved by the fleet manager before keys can be handed over.` });
 	if (booking.status === "Checked Out") return res.status(200).json({
 		success: true,
 		message: `Keys have already been handed over for booking ${bookingId}.`,
@@ -43009,7 +43043,7 @@ app.post("/api/bookings/:id/unmate", requireAdmin, async (req, res) => {
 });
 app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
 	const bookingId = req.params.id;
-	const { status, odometerOut, odometerIn, fuelLevelOut, fuelLevelIn, notes } = req.body;
+	const { status, approvedByAdmin, odometerOut, odometerIn, fuelLevelOut, fuelLevelIn, notes } = req.body;
 	const booking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	if (!booking) return res.status(404).json({ error: "Booking not found." });
 	const validStatuses = [
@@ -43023,6 +43057,7 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
 	if (status && !validStatuses.includes(status)) return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
 	const newStatus = status || booking.status;
 	const carId = booking.matched_car_id;
+	const newApprovedByAdmin = approvedByAdmin !== void 0 ? approvedByAdmin ? 1 : 0 : newStatus === "Pending Assignment" ? 0 : booking.approved_by_admin;
 	if (carId) {
 		if (newStatus === "Checked Out") await db.prepare("UPDATE vehicles SET status = 'Rented' WHERE id = ?").run(carId);
 		else if (newStatus === "Returned") await db.prepare("UPDATE vehicles SET status = 'Cleaning' WHERE id = ?").run(carId);
@@ -43032,13 +43067,14 @@ app.patch("/api/bookings/:id/status", requireAdmin, async (req, res) => {
 	await db.prepare(`
     UPDATE bookings SET
       status = ?,
+      approved_by_admin = ?,
       odometer_out = COALESCE(?, odometer_out),
       odometer_in = COALESCE(?, odometer_in),
       fuel_level_out = COALESCE(?, fuel_level_out),
       fuel_level_in = COALESCE(?, fuel_level_in),
       notes = COALESCE(?, notes)
     WHERE id = ?
-  `).run(newStatus, odometerOut ?? null, odometerIn ?? null, fuelLevelOut ?? null, fuelLevelIn ?? null, notes ?? null, bookingId);
+  `).run(newStatus, newApprovedByAdmin, odometerOut ?? null, odometerIn ?? null, fuelLevelOut ?? null, fuelLevelIn ?? null, notes ?? null, bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
 	return res.json({
 		success: true,

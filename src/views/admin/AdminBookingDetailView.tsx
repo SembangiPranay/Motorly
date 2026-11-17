@@ -952,21 +952,53 @@ export default function AdminBookingDetailView({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
-                <div>
-                  <span className="text-stone-500 block">Delivery to Location:</span>
-                  <span className="font-bold text-stone-900">
+                <div className="p-2.5 rounded-lg bg-white/80 border border-stone-200">
+                  <span className="text-stone-500 block text-[10px] font-bold uppercase tracking-wider">Delivery to Location:</span>
+                  <span className="font-bold text-stone-900 block mt-0.5">
                     {booking.deliveryType === "custom"
                       ? `${booking.deliveryLocationCustom || "Custom Location"} (+€${booking.deliveryFee || 20})`
                       : "Central Garage Mgarr (€0 Free)"}
                   </span>
+                  {booking.deliveryType === "custom" && booking.deliveryCoordinates && (
+                    <div className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                      <span className="font-mono text-[10px] text-orange-700 bg-orange-100/80 px-1.5 py-0.5 rounded border border-orange-200 font-semibold flex items-center gap-1">
+                        <span>📍 GPS: {booking.deliveryCoordinates.lat.toFixed(4)}° N, {booking.deliveryCoordinates.lng.toFixed(4)}° E</span>
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${booking.deliveryCoordinates.lat},${booking.deliveryCoordinates.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open coordinates in Google Maps"
+                      >
+                        <span>Open in Google Maps ↗</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="text-stone-500 block">Return to Location:</span>
-                  <span className="font-bold text-stone-900">
+                <div className="p-2.5 rounded-lg bg-white/80 border border-stone-200">
+                  <span className="text-stone-500 block text-[10px] font-bold uppercase tracking-wider">Return to Location:</span>
+                  <span className="font-bold text-stone-900 block mt-0.5">
                     {booking.returnType === "custom"
                       ? `${booking.returnLocationCustom || "Custom Location"} (+€${booking.returnFee || 20})`
                       : "Central Garage Mgarr (€0 Free)"}
                   </span>
+                  {booking.returnType === "custom" && booking.returnCoordinates && (
+                    <div className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                      <span className="font-mono text-[10px] text-orange-700 bg-orange-100/80 px-1.5 py-0.5 rounded border border-orange-200 font-semibold flex items-center gap-1">
+                        <span>📍 GPS: {booking.returnCoordinates.lat.toFixed(4)}° N, {booking.returnCoordinates.lng.toFixed(4)}° E</span>
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${booking.returnCoordinates.lat},${booking.returnCoordinates.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open coordinates in Google Maps"
+                      >
+                        <span>Open in Google Maps ↗</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <span className="text-stone-500 block">Optional Services Hired:</span>

@@ -93,18 +93,20 @@ export default function AdminOrdersView({
     return map
   }, [cars])
 
-  // Categorized booking counts
+  // Categorized booking counts with strict lifecycle guard
   const pendingRequests = useMemo(() => {
     return bookings.filter((b) => {
       const s = (b.status || "").toLowerCase()
-      return s.includes("pending") || s.includes("advance")
+      if (s.includes("completed") || s.includes("cancelled") || s.includes("declined")) return false
+      return !b.approvedByAdmin || s.includes("pending") || s.includes("advance")
     })
   }, [bookings])
 
   const readyForPickup = useMemo(() => {
     return bookings.filter((b) => {
       const s = (b.status || "").toLowerCase()
-      return s.includes("assigned") || s.includes("approved") || s.includes("confirmed")
+      if (s.includes("completed") || s.includes("cancelled") || s.includes("declined") || s.includes("checked out") || s.includes("checked_out") || s.includes("active")) return false
+      return b.approvedByAdmin === true && (s.includes("assigned") || s.includes("approved") || s.includes("confirmed"))
     })
   }, [bookings])
 

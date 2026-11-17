@@ -12,6 +12,7 @@ import type {
   ViewMode,
   CustomerUser,
   ConditionPin,
+  DeliveryCoordinates,
 } from "./types"
 
 import { api } from "./services/api"
@@ -765,6 +766,8 @@ export default function App() {
     clientSignature?: string
     conditionPins?: ConditionPin[]
     conditionPhotos?: string[]
+    deliveryCoordinates?: DeliveryCoordinates
+    returnCoordinates?: DeliveryCoordinates
   }) => {
     if (details.tripReason) {
       setBookingState((prev) => ({ ...prev, tripReason: details.tripReason }))
@@ -813,7 +816,8 @@ export default function App() {
         : bookingState.returnDate,
       requestedCategory: activeCar.type,
       matchedCarId: activeCar.id,
-      status: "Assigned" as const,
+      status: "Pending Assignment" as const,
+      approvedByAdmin: false,
       totalAmount: details.totalAmount,
       promoCode: details.promoCode,
       createdAt: new Date().toISOString(),
@@ -833,6 +837,8 @@ export default function App() {
       clientSignature: details.clientSignature || "",
       conditionPins: details.conditionPins || [],
       conditionPhotos: details.conditionPhotos || [],
+      deliveryCoordinates: details.deliveryCoordinates,
+      returnCoordinates: details.returnCoordinates,
     }
 
     // Dynamic backend sync into Supabase PostgreSQL

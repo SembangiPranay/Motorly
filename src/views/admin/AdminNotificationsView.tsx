@@ -9,6 +9,7 @@ import {
   CalendarIcon,
   CarIcon,
   ArrowRightIcon,
+  LocationIcon,
 } from "../../components/Icons"
 import { getWhatsAppUrls } from "../../utils/whatsapp"
 
@@ -45,19 +46,21 @@ export default function AdminNotificationsView({
     return map
   }, [cars])
 
-  // 1. Pending approvals
+  // 1. Pending approvals: Any booking awaiting admin clearance
   const pendingRequests = useMemo(() => {
     return bookings.filter((b) => {
       const s = (b.status || "").toLowerCase()
-      return s.includes("pending") || s.includes("advance")
+      if (s.includes("completed") || s.includes("cancelled") || s.includes("declined")) return false
+      return !b.approvedByAdmin || s.includes("pending") || s.includes("advance")
     })
   }, [bookings])
 
-  // 2. Pickups awaiting key handover
+  // 2. Pickups awaiting key handover: MUST be approved by admin AND in assigned/confirmed state
   const pendingPickups = useMemo(() => {
     return bookings.filter((b) => {
       const s = (b.status || "").toLowerCase()
-      return s.includes("assigned") || s.includes("approved") || s.includes("confirmed")
+      if (s.includes("completed") || s.includes("cancelled") || s.includes("declined") || s.includes("checked out") || s.includes("checked_out") || s.includes("active")) return false
+      return b.approvedByAdmin === true && (s.includes("assigned") || s.includes("approved") || s.includes("confirmed"))
     })
   }, [bookings])
 
@@ -171,6 +174,25 @@ export default function AdminNotificationsView({
                             {car?.plateNumber && (
                               <div className="text-[10px] font-mono text-stone-500">
                                 {car.plateNumber}
+                              </div>
+                            )}
+                            {b.deliveryType === "custom" && (
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  <LocationIcon size={10} className="text-amber-700" />
+                                  <span>{b.deliveryLocationCustom || "Custom Delivery"}</span>
+                                </span>
+                                {b.deliveryCoordinates && (
+                                  <a
+                                    href={`https://www.google.com/maps?q=${b.deliveryCoordinates.lat},${b.deliveryCoordinates.lng}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-800 underline"
+                                    title="Open GPS Location in Google Maps"
+                                  >
+                                    <span>📍 {b.deliveryCoordinates.lat.toFixed(4)}, {b.deliveryCoordinates.lng.toFixed(4)} ↗</span>
+                                  </a>
+                                )}
                               </div>
                             )}
                           </td>
