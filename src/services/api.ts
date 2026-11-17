@@ -767,6 +767,9 @@ class ApiService {
       exteriorClean?: boolean
       tiresInspected?: boolean
       staffSign?: string
+      conditionPhotos?: string[]
+      conditionPins?: any[]
+      conditionNotes?: string
     },
   ): Promise<{
     success: boolean

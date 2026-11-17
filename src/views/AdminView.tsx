@@ -23,7 +23,7 @@ import AdminMaintenanceView from "./admin/AdminMaintenanceView"
 import AdminSettingsView from "./admin/AdminSettingsView"
 import AdminBookingDetailView from "./admin/AdminBookingDetailView"
 
-import AdminKeyHandoverModal from "./admin/AdminKeyHandoverModal"
+import AdminKeyHandoverModal, { KeyHandoverPayload } from "./admin/AdminKeyHandoverModal"
 import AdminReturnModal from "./admin/AdminReturnModal"
 import AdminCarModal from "./admin/AdminCarModal"
 import InvoiceModal from "../components/InvoiceModal"
@@ -333,17 +333,20 @@ export default function AdminView({
   }
 
   // 3. Confirm Key Handover
-  const handleConfirmGiveKeys = async (odometerOut: number) => {
+  const handleConfirmGiveKeys = async (payload: KeyHandoverPayload) => {
     if (!activeGiveKeysBooking) return
     const bookingId = activeGiveKeysBooking.id
     const carId = activeGiveKeysBooking.matchedCarId
 
     await api.handoverKeys(bookingId, {
-      odometerOut,
-      fuelOut: "Full",
+      odometerOut: payload.odometerOut,
+      fuelOut: payload.fuelOut || "100%",
       exteriorClean: true,
       tiresInspected: true,
       staffSign: "Garage Dispatch Officer",
+      conditionPhotos: payload.conditionPhotos,
+      conditionPins: payload.conditionPins,
+      conditionNotes: payload.conditionNotes,
     })
 
     setBookings((prev) =>
@@ -352,7 +355,10 @@ export default function AdminView({
           ? {
               ...b,
               status: "Checked Out" as BookingStatus,
-              odometerOut,
+              odometerOut: payload.odometerOut,
+              fuelLevelOut: payload.fuelOut,
+              conditionPhotos: payload.conditionPhotos,
+              conditionPins: payload.conditionPins,
               keysHandedAt: new Date().toISOString(),
             }
           : b
@@ -363,14 +369,14 @@ export default function AdminView({
       setCars((prev) =>
         prev.map((c) =>
           c.id === carId
-            ? { ...c, status: "Rented" as CarStatus, currentOdometer: odometerOut }
+            ? { ...c, status: "Rented" as CarStatus, currentOdometer: payload.odometerOut }
             : c
         )
       )
     }
 
     setActiveGiveKeysBooking(null)
-    showToast("Keys handed over! Rental has officially started.")
+    showToast("Keys handed over & departure inspection logged! Rental has officially started.")
   }
 
   // 4. Confirm Return Inspection

@@ -20,49 +20,14 @@ export default function CheckoutConditionAndSignature({
   conditionNotes = "",
   setConditionNotes,
   onOpenLegalModal,
-  conditionPhotos = [],
-  setConditionPhotos,
-  conditionPins = [],
-  setConditionPins,
 }: CheckoutConditionAndSignatureProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
   const [typedName, setTypedName] = useState("")
   const [signatureMode, setSignatureMode] = useState<"draw" | "type">("draw")
   const [showPaperModal, setShowPaperModal] = useState(false)
-
-  // Local state fallbacks if parent doesn't provide setters
-  const [localPins, setLocalPins] = useState<ConditionPin[]>(conditionPins)
-  const [localPhotos, setLocalPhotos] = useState<string[]>(conditionPhotos)
-
-  const activePins = setConditionPins ? conditionPins : localPins
-  const activePhotos = setConditionPhotos ? conditionPhotos : localPhotos
-
-  // Keep pins synchronized with conditionNotes
-  const handleAddPin = (pin: ConditionPin) => {
-    const updated = [...activePins, pin]
-    if (setConditionPins) setConditionPins(updated)
-    else setLocalPins(updated)
-
-    // Append to condition notes
-    const pinSummary = updated.map((p, i) => `[${i + 1}] ${p.viewLabel}: ${p.note}`).join("; ")
-    if (setConditionNotes) {
-      setConditionNotes(pinSummary)
-    }
-  }
-
-  const handleRemovePin = (id: string) => {
-    const updated = activePins.filter((p) => p.id !== id)
-    if (setConditionPins) setConditionPins(updated)
-    else setLocalPins(updated)
-
-    const pinSummary = updated.map((p, i) => `[${i + 1}] ${p.viewLabel}: ${p.note}`).join("; ")
-    if (setConditionNotes) {
-      setConditionNotes(pinSummary)
-    }
-  }
+  const [conditionAcknowledged, setConditionAcknowledged] = useState(true)
 
   // Setup canvas drawing context
   useEffect(() => {
@@ -143,54 +108,6 @@ export default function CheckoutConditionAndSignature({
     }
   }
 
-  // Handle Photo Upload with Compression
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const img = new Image()
-        img.onload = () => {
-          const maxDim = 800
-          let width = img.width
-          let height = img.height
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width)
-              width = maxDim
-            } else {
-              width = Math.round((width * maxDim) / height)
-              height = maxDim
-            }
-          }
-          const canvas = document.createElement("canvas")
-          canvas.width = width
-          canvas.height = height
-          const ctx = canvas.getContext("2d")
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height)
-            const compressed = canvas.toDataURL("image/jpeg", 0.75)
-            const updated = [...activePhotos, compressed].slice(0, 4)
-            if (setConditionPhotos) setConditionPhotos(updated)
-            else setLocalPhotos(updated)
-          }
-        }
-        img.src = event.target?.result as string
-      }
-      reader.readAsDataURL(file)
-    })
-
-    if (e.target) e.target.value = ""
-  }
-
-  const handleRemovePhoto = (index: number) => {
-    const updated = activePhotos.filter((_, i) => i !== index)
-    if (setConditionPhotos) setConditionPhotos(updated)
-    else setLocalPhotos(updated)
-  }
-
   return (
     <div className="bg-white rounded-xl border border-stone-200/90 p-5 sm:p-6 shadow-xs space-y-6">
       {/* Header */}
@@ -201,7 +118,7 @@ export default function CheckoutConditionAndSignature({
         <div className="flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-bold text-[#17191C] font-heading flex items-center gap-2">
-              <span>Vehicle Condition Chart &amp; Client Signature</span>
+              <span>Vehicle Condition Specification &amp; Client Endorsement</span>
               <span className="text-[10px] uppercase font-mono font-bold bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full border border-orange-200">
                 Official Paper Form
               </span>
@@ -215,17 +132,32 @@ export default function CheckoutConditionAndSignature({
                 View Physical Contract Form ↗
               </button>
               <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                5-View Pre-Rental Inspection
+                Clause 2: Fair Wear &amp; Tear
               </span>
             </div>
           </div>
           <p className="text-[11px] text-stone-500 mt-0.5">
-            Official 5-view schematic diagram from Pit Stop Car Hire (36 Triq Il-Kbira, Mgarr). Tap on any view to mark existing scratches, or attach pre-rental photos.
+            Pre-rental vehicle bodywork standard from Pit Stop Car Hire (36 Triq Il-Kbira, Mgarr). Physical walkaround inspection &amp; departure photos occur at key handover.
           </p>
         </div>
       </div>
 
-      {/* 5-View Technical Diagram */}
+      {/* Reassuring Handover Inspection Notice */}
+      <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/90 flex items-start gap-3">
+        <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
+          ⓘ
+        </div>
+        <div className="text-xs text-amber-950 space-y-1">
+          <p className="font-bold text-amber-900">
+            Official Pre-Rental Condition Inspection Notice (At Key Handover)
+          </p>
+          <p className="text-[11px] text-amber-800/90 leading-relaxed">
+            Before receiving your keys at our Mgarr garage bay (or delivery location), our station manager conducts a joint walkaround inspection and captures high-resolution vehicle departure photos. Under <strong>Clause 2</strong>, normal fair wear &amp; tear is fully excepted. You do not need to take photos now.
+          </p>
+        </div>
+      </div>
+
+      {/* 5-View Technical Diagram (Read-Only Baseline Reference) */}
       <div className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-3.5 sm:p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -239,84 +171,25 @@ export default function CheckoutConditionAndSignature({
           </span>
         </div>
 
-        {/* 5-View Schematic Interactive Grid */}
+        {/* 5-View Schematic Baseline Grid (Read-only for customer booking) */}
         <PitStop5ViewSchematic
-          pins={activePins}
-          onAddPin={handleAddPin}
-          onRemovePin={handleRemovePin}
-          readOnly={false}
+          pins={[]}
+          readOnly={true}
         />
 
-        {/* Optional Condition Photos Attachment */}
-        <div className="pt-2 border-t border-stone-200/80 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-stone-800 block">
-                Attach Pre-Rental Condition Photos (Optional Evidence)
-              </span>
-              <span className="text-[10px] text-stone-500">
-                Take or upload up to 4 photos of existing scratches, wheels, or mileage before departure.
-              </span>
-            </div>
-            {activePhotos.length < 4 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-black text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <span>+ Attach Photo</span>
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handlePhotoUpload}
-            />
-          </div>
-
-          {/* Photo Previews */}
-          {activePhotos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-              {activePhotos.map((photo, index) => (
-                <div key={index} className="relative group rounded-xl overflow-hidden border border-stone-200 aspect-[4/3] bg-stone-100">
-                  <img src={photo} alt={`Vehicle condition evidence ${index + 1}`} className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(index)}
-                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center text-xs hover:bg-red-600 transition cursor-pointer"
-                    title="Remove Photo"
-                  >
-                    ✕
-                  </button>
-                  <span className="absolute bottom-1.5 left-1.5 bg-black/60 text-white text-[9px] font-mono px-1.5 py-0.5 rounded">
-                    Photo {index + 1}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Condition Check Confirmation & Manual Note */}
+        {/* Condition Check Confirmation */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-200/80 text-xs">
-          <div className="flex items-center gap-1.5 text-stone-700">
-            <CheckIcon size={14} className="text-emerald-600 shrink-0" />
-            <span className="font-semibold text-[11px]">
-              Pre-rental exterior, tyres and glass in good mechanical order (Clause 2).
-            </span>
-          </div>
-          {setConditionNotes && (
+          <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
-              type="text"
-              placeholder="Additional condition notes or ding details (optional)"
-              value={conditionNotes}
-              onChange={(e) => setConditionNotes(e.target.value)}
-              className="text-[11px] px-2.5 py-1.5 border border-stone-200 rounded-lg bg-white w-full sm:w-80 focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+              type="checkbox"
+              checked={conditionAcknowledged}
+              onChange={(e) => setConditionAcknowledged(e.target.checked)}
+              className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 border-stone-300"
             />
-          )}
+            <span className="font-semibold text-[11px] text-stone-800">
+              I acknowledge the vehicle will be received in good mechanical order with exterior, tyres, and glass inspected at handover (Clause 2).
+            </span>
+          </label>
         </div>
       </div>
 
@@ -327,7 +200,7 @@ export default function CheckoutConditionAndSignature({
             <span>Client signature:</span>
             <span className="text-rose-500">*</span>
             <span className="text-[10px] font-normal text-stone-500">
-              (Endorses 5-view condition &amp; 21 Pit Stop rental clauses)
+              (Endorses 5-view condition standard &amp; 21 Pit Stop rental clauses)
             </span>
           </label>
           <div className="flex items-center gap-2">
@@ -374,7 +247,7 @@ export default function CheckoutConditionAndSignature({
             {!hasDrawn && (
               <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-stone-400 text-xs">
                 <span className="font-heading font-medium">Draw client signature with finger or mouse here</span>
-                <span className="text-[10px] mt-0.5">Endorses condition inspection &amp; Pit Stop terms</span>
+                <span className="text-[10px] mt-0.5">Endorses condition inspection &amp; 21 Pit Stop terms</span>
               </div>
             )}
           </div>
@@ -460,11 +333,6 @@ export default function CheckoutConditionAndSignature({
                 <span className="text-[11px] font-bold text-stone-900 block">
                   Page 1: Contract Header, 5-View Schematic &amp; Client Signature
                 </span>
-                <img
-                  src="/images/contract/views/front.png"
-                  alt="Pit Stop official paper contract"
-                  className="hidden"
-                />
                 <img
                   src="/images/contract/pitstop_5view_master_sheet.png"
                   alt="Authentic 5-View Schematic from Pit Stop Contract"

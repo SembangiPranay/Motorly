@@ -3006,6 +3006,9 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
     exteriorClean,
     tiresInspected,
     staffSign,
+    conditionPhotos,
+    conditionPins,
+    conditionNotes,
   } = req.body
 
   const booking = (await db
@@ -3044,6 +3047,18 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
     timestamp: nowIso,
   }
 
+  const photosJson =
+    Array.isArray(conditionPhotos) && conditionPhotos.length > 0
+      ? JSON.stringify(conditionPhotos)
+      : null
+
+  const pinsJson =
+    Array.isArray(conditionPins) && conditionPins.length > 0
+      ? JSON.stringify(conditionPins)
+      : null
+
+  const notesText = conditionNotes ? String(conditionNotes).trim() : null
+
   // Update booking to Checked Out with keys handed timestamp
   await db
     .prepare(`
@@ -3052,7 +3067,10 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       keys_handed_at = ?,
       checklist_out = ?,
       odometer_out = ?,
-      fuel_level_out = ?
+      fuel_level_out = ?,
+      condition_photos = COALESCE(?, condition_photos),
+      condition_pins = COALESCE(?, condition_pins),
+      inspection_notes = COALESCE(?, inspection_notes)
     WHERE id = ?
   `)
     .run(
@@ -3060,6 +3078,9 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       JSON.stringify(checklistObj),
       checklistObj.odometerOut,
       checklistObj.fuelOut,
+      photosJson,
+      pinsJson,
+      notesText,
       bookingId,
     )
 
