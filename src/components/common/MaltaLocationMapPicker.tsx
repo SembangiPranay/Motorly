@@ -58,15 +58,32 @@ export const MALTA_PRESETS: { name: string; lat: number; lng: number; desc: stri
   },
 ]
 
+type MapStyle = "roadmap" | "satellite" | "terrain"
+
+function getGoogleTileUrl(style: MapStyle): string {
+  switch (style) {
+    case "satellite":
+      // Google Hybrid: High-res satellite imagery with roads, cities and label overlays
+      return "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+    case "terrain":
+      // Google Terrain with shaded elevation
+      return "https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+    case "roadmap":
+    default:
+      // Canonical Google Maps Roadmap
+      return "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+  }
+}
+
 // Custom Leaflet DivIcon for crisp, modern Pit Stop orange pin marker
 function createCustomPinIcon() {
   return L.divIcon({
     className: "custom-map-pin",
     html: `
       <div style="position: relative; width: 36px; height: 44px; transform: translate(-18px, -44px);">
-        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: rgba(249, 115, 22, 0.35); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: rgba(249, 115, 22, 0.4); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
         <div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: rgba(0, 0, 0, 0.35); border-radius: 50%; filter: blur(1px);"></div>
-        <svg viewBox="0 0 36 44" width="36" height="44" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); position: relative; z-index: 2;">
+        <svg viewBox="0 0 36 44" width="36" height="44" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35)); position: relative; z-index: 2;">
           <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.94-8.06-18-18-18z" fill="#F97316" stroke="#FFFFFF" stroke-width="2"/>
           <circle cx="18" cy="17" r="6" fill="#FFFFFF"/>
           <circle cx="18" cy="17" r="3" fill="#EA580C"/>
@@ -90,7 +107,9 @@ export default function MaltaLocationMapPicker({
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const markerRef = useRef<L.Marker | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
 
+  const [activeMapStyle, setActiveMapStyle] = useState<MapStyle>("roadmap")
   const [isLocating, setIsLocating] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
@@ -106,7 +125,26 @@ export default function MaltaLocationMapPicker({
     placeName: "Malta Airport",
   }
 
-  // Reverse geocoding helper via OpenStreetMap Nominatim
+  // Switch Google Maps Layer Style smoothly
+  const handleSwitchMapStyle = (newStyle: MapStyle) => {
+    setActiveMapStyle(newStyle)
+    if (!mapInstanceRef.current) return
+
+    if (tileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current)
+    }
+
+    const newLayer = L.tileLayer(getGoogleTileUrl(newStyle), {
+      maxZoom: 20,
+      subdomains: ["0", "1", "2", "3"],
+      attribution: "&copy; Google Maps",
+    })
+
+    newLayer.addTo(mapInstanceRef.current)
+    tileLayerRef.current = newLayer
+  }
+
+  // Reverse geocoding helper via OpenStreetMap Nominatim with Google Maps fallback formatting
   const reverseGeocode = useCallback(
     async (lat: number, lng: number, flyTo = false) => {
       setIsGeocoding(true)
@@ -140,18 +178,19 @@ export default function MaltaLocationMapPicker({
               lat,
               lng,
               address: formatted,
-              placeName: roadOrPlace || "Custom Location Pin",
+              placeName: roadOrPlace || "Google Maps Custom Pin",
             })
 
-            // Update marker popup
+            // Update marker popup with Google Maps styling
             if (markerRef.current) {
               markerRef.current.setLatLng([lat, lng])
               markerRef.current
                 .bindPopup(
-                  `<div style="font-family:system-ui,sans-serif;padding:2px;">
-                    <div style="font-weight:bold;font-size:12px;color:#17191C;">${roadOrPlace}</div>
-                    <div style="font-size:11px;color:#555;margin-top:2px;">${town ? town + ", Malta" : "Malta"}</div>
-                    <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                  `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:160px;">
+                    <div style="font-weight:700;font-size:12px;color:#111827;">${roadOrPlace}</div>
+                    <div style="font-size:11px;color:#4B5563;margin-top:2px;">${town ? town + ", Malta" : "Malta"}</div>
+                    <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                    <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
                   </div>`
                 )
                 .openPopup()
@@ -177,16 +216,17 @@ export default function MaltaLocationMapPicker({
         lat,
         lng,
         address: addressText || fallback,
-        placeName: "Custom Location Pin",
+        placeName: "Google Maps Pin",
       })
 
       if (markerRef.current) {
         markerRef.current.setLatLng([lat, lng])
         markerRef.current
           .bindPopup(
-            `<div style="font-family:system-ui,sans-serif;padding:2px;">
-              <div style="font-weight:bold;font-size:12px;color:#17191C;">Custom Selected Location</div>
-              <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+            `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;">
+              <div style="font-weight:700;font-size:12px;color:#111827;">Custom Selected Location</div>
+              <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+              <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
             </div>`
           )
           .openPopup()
@@ -196,7 +236,7 @@ export default function MaltaLocationMapPicker({
     [addressText, onAddressChange, onChange]
   )
 
-  // Initialize the Leaflet Map
+  // Initialize the Leaflet Map with Google Maps
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return
 
@@ -214,15 +254,16 @@ export default function MaltaLocationMapPicker({
         [36.3, 14.8],
       ],
       minZoom: 10,
-      maxZoom: 18,
+      maxZoom: 20,
     })
 
-    // High quality canonical OpenStreetMap street & road tile layer
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
+    // Official Google Maps Tile Layer
+    const tileLayer = L.tileLayer(getGoogleTileUrl(activeMapStyle), {
+      attribution: '&copy; Google Maps',
+      maxZoom: 20,
+      subdomains: ["0", "1", "2", "3"],
     }).addTo(map)
+    tileLayerRef.current = tileLayer
 
     // Create Draggable Marker
     const icon = createCustomPinIcon()
@@ -233,10 +274,11 @@ export default function MaltaLocationMapPicker({
     }).addTo(map)
 
     marker.bindPopup(
-      `<div style="font-family:system-ui,sans-serif;padding:2px;">
-        <div style="font-weight:bold;font-size:12px;color:#17191C;">${currentCoords.placeName || "Malta Delivery Location"}</div>
-        <div style="font-size:11px;color:#555;margin-top:2px;">${addressText || "Selected Dispatch Point"}</div>
-        <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${initialLat.toFixed(5)}° N, ${initialLng.toFixed(5)}° E</div>
+      `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:160px;">
+        <div style="font-weight:700;font-size:12px;color:#111827;">${currentCoords.placeName || "Malta Delivery Location"}</div>
+        <div style="font-size:11px;color:#4B5563;margin-top:2px;">${addressText || "Selected Dispatch Point"}</div>
+        <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${initialLat.toFixed(5)}° N, ${initialLng.toFixed(5)}° E</div>
+        <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
       </div>`
     )
 
@@ -268,6 +310,7 @@ export default function MaltaLocationMapPicker({
       map.remove()
       mapInstanceRef.current = null
       markerRef.current = null
+      tileLayerRef.current = null
     }
   }, [])
 
@@ -304,10 +347,11 @@ export default function MaltaLocationMapPicker({
       })
       markerRef.current
         .bindPopup(
-          `<div style="font-family:system-ui,sans-serif;padding:2px;">
-            <div style="font-weight:bold;font-size:12px;color:#17191C;">${preset.name}</div>
-            <div style="font-size:11px;color:#555;margin-top:2px;">${preset.desc}</div>
-            <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${preset.lat.toFixed(5)}° N, ${preset.lng.toFixed(5)}° E</div>
+          `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:160px;">
+            <div style="font-weight:700;font-size:12px;color:#111827;">${preset.name}</div>
+            <div style="font-size:11px;color:#4B5563;margin-top:2px;">${preset.desc}</div>
+            <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${preset.lat.toFixed(5)}° N, ${preset.lng.toFixed(5)}° E</div>
+            <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
           </div>`
         )
         .openPopup()
@@ -418,10 +462,11 @@ export default function MaltaLocationMapPicker({
             mapInstanceRef.current.flyTo([lat, lng], 16, { animate: true, duration: 1 })
             markerRef.current
               .bindPopup(
-                `<div style="font-family:system-ui,sans-serif;padding:2px;">
-                  <div style="font-weight:bold;font-size:12px;color:#17191C;">${roadOrPlace}</div>
-                  <div style="font-size:11px;color:#555;margin-top:2px;">${town ? town + ", Malta" : "Malta"}</div>
-                  <div style="font-size:10px;font-family:monospace;color:#F97316;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:160px;">
+                  <div style="font-weight:700;font-size:12px;color:#111827;">${roadOrPlace}</div>
+                  <div style="font-size:11px;color:#4B5563;margin-top:2px;">${town ? town + ", Malta" : "Malta"}</div>
+                  <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</div>
+                  <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
                 </div>`
               )
               .openPopup()
@@ -441,14 +486,17 @@ export default function MaltaLocationMapPicker({
 
   return (
     <div className="space-y-3 pt-2 bg-stone-50/90 p-4 sm:p-5 rounded-xl border border-stone-200 shadow-xs">
-      {/* Header bar with Live GPS trigger */}
+      {/* Header bar with Google Maps badge and Live GPS trigger */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div>
           <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
             <LocationIcon size={14} className="text-[#F97316]" />
             <span>{label}</span>
-            <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">
-              LIVE MALTA MAP
+            <span className="inline-flex items-center gap-1 text-[10px] font-sans font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 shadow-2xs">
+              <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <span>GOOGLE MAPS MALTA</span>
             </span>
           </label>
           <p className="text-[11px] text-stone-500 mt-0.5">
@@ -548,12 +596,52 @@ export default function MaltaLocationMapPicker({
         </div>
       )}
 
-      {/* REAL INTERACTIVE LEAFLET STREET MAP */}
+      {/* OFFICIAL GOOGLE MAPS INTERACTIVE STREET MAP CONTAINER */}
       <div className="relative rounded-xl overflow-hidden border border-stone-300 shadow-md">
-        {/* Map Header Overlay Bar */}
-        <div className="absolute top-2 left-2 z-[400] flex items-center gap-1.5 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-stone-200 shadow-xs text-[11px] font-semibold text-stone-800">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Click anywhere to move pin or drag marker</span>
+        {/* Map Header Overlay Bar: Click hint + Google Map Style Switcher */}
+        <div className="absolute top-2 left-2 right-2 z-[400] flex flex-wrap items-center justify-between gap-1.5 pointer-events-none">
+          {/* Hint badge */}
+          <div className="pointer-events-auto flex items-center gap-1.5 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-stone-200 shadow-xs text-[11px] font-semibold text-stone-800">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Click anywhere or drag pin</span>
+          </div>
+
+          {/* Google Maps Layer Style Switcher */}
+          <div className="pointer-events-auto flex items-center bg-white/95 backdrop-blur-xs p-0.5 rounded-lg border border-stone-200 shadow-xs">
+            <button
+              type="button"
+              onClick={() => handleSwitchMapStyle("roadmap")}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                activeMapStyle === "roadmap"
+                  ? "bg-blue-600 text-white shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+              }`}
+            >
+              🗺️ Roadmap
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchMapStyle("satellite")}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                activeMapStyle === "satellite"
+                  ? "bg-blue-600 text-white shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+              }`}
+            >
+              🛰️ Satellite
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchMapStyle("terrain")}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                activeMapStyle === "terrain"
+                  ? "bg-blue-600 text-white shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+              }`}
+            >
+              ⛰️ Terrain
+            </button>
+          </div>
         </div>
 
         {/* Leaflet DOM container */}

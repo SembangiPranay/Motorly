@@ -963,12 +963,13 @@ export default function AdminBookingDetailView({
                     <div className="mt-2 space-y-2">
                       <div className="rounded-lg overflow-hidden border border-stone-200 h-36 w-full bg-stone-100">
                         <iframe
-                          title="Delivery Dispatch Location Map"
+                          title="Delivery Dispatch Google Map"
                           width="100%"
                           height="100%"
                           frameBorder="0"
-                          scrolling="no"
-                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${booking.deliveryCoordinates.lng - 0.008}%2C${booking.deliveryCoordinates.lat - 0.005}%2C${booking.deliveryCoordinates.lng + 0.008}%2C${booking.deliveryCoordinates.lat + 0.005}&layer=mapnik&marker=${booking.deliveryCoordinates.lat}%2C${booking.deliveryCoordinates.lng}`}
+                          style={{ border: 0 }}
+                          src={`https://maps.google.com/maps?q=${booking.deliveryCoordinates.lat},${booking.deliveryCoordinates.lng}&hl=en&z=15&output=embed`}
+                          allowFullScreen
                         />
                       </div>
                       <div className="pt-1 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">
@@ -999,12 +1000,13 @@ export default function AdminBookingDetailView({
                     <div className="mt-2 space-y-2">
                       <div className="rounded-lg overflow-hidden border border-stone-200 h-36 w-full bg-stone-100">
                         <iframe
-                          title="Return Handover Location Map"
+                          title="Return Handover Google Map"
                           width="100%"
                           height="100%"
                           frameBorder="0"
-                          scrolling="no"
-                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${booking.returnCoordinates.lng - 0.008}%2C${booking.returnCoordinates.lat - 0.005}%2C${booking.returnCoordinates.lng + 0.008}%2C${booking.returnCoordinates.lat + 0.005}&layer=mapnik&marker=${booking.returnCoordinates.lat}%2C${booking.returnCoordinates.lng}`}
+                          style={{ border: 0 }}
+                          src={`https://maps.google.com/maps?q=${booking.returnCoordinates.lat},${booking.returnCoordinates.lng}&hl=en&z=15&output=embed`}
+                          allowFullScreen
                         />
                       </div>
                       <div className="pt-1 border-t border-stone-100 flex items-center justify-between flex-wrap gap-2">

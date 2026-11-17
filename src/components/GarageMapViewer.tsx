@@ -146,9 +146,10 @@ export default function GarageMapViewer({
         keyboard: true,
       })
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap contributors",
+      L.tileLayer("https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        maxZoom: 20,
+        subdomains: ["0", "1", "2", "3"],
+        attribution: "© Google Maps",
       }).addTo(map)
 
       // Listen to zoom changes reactively to update the slider and badge
@@ -495,11 +496,7 @@ export default function GarageMapViewer({
   }
 
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}`
-  const openStreetMapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${
-    pointerLng - 0.008
-  }%2C${pointerLat - 0.006}%2C${pointerLng + 0.008}%2C${
-    pointerLat + 0.006
-  }&layer=mapnik&marker=${pointerLat}%2C${pointerLng}`
+  const googleMapsEmbedUrl = `https://maps.google.com/maps?q=${pointerLat},${pointerLng}&hl=en&z=15&output=embed`
 
   const effectiveHeight = isExpanded ? "480px" : height
 
@@ -804,15 +801,14 @@ export default function GarageMapViewer({
         {/* Fallback iframe container if Leaflet is loading */}
         {!leafletReady && (
           <iframe
-            title="Garage Hub Map Location"
+            title="Garage Hub Google Map Location"
             width="100%"
             height="100%"
             frameBorder="0"
-            scrolling="no"
-            marginHeight={0}
-            marginWidth={0}
-            src={openStreetMapEmbedUrl}
-            className="w-full h-full border-0 filter contrast-[1.02]"
+            style={{ border: 0 }}
+            src={googleMapsEmbedUrl}
+            className="w-full h-full border-0"
+            allowFullScreen
           />
         )}
 
