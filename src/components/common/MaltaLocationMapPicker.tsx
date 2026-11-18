@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react"
-import { LocationIcon, CheckIcon } from "../Icons"
+import { LocationIcon } from "../Icons"
 import type { DeliveryCoordinates } from "../../types"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
@@ -13,80 +13,43 @@ interface MaltaLocationMapPickerProps {
   placeholder?: string
 }
 
-export const WORLD_PRESETS: { name: string; lat: number; lng: number; desc: string }[] = [
-  {
-    name: "London (Heathrow Airport)",
-    desc: "Greater London, United Kingdom",
-    lat: 51.4700,
-    lng: -0.4543,
-  },
-  {
-    name: "New York (Manhattan)",
-    desc: "New York, United States",
-    lat: 40.7128,
-    lng: -74.0060,
-  },
-  {
-    name: "Dubai (Downtown & Airport)",
-    desc: "Dubai, United Arab Emirates",
-    lat: 25.2048,
-    lng: 55.2708,
-  },
-  {
-    name: "Paris (Charles de Gaulle)",
-    desc: "Paris, France",
-    lat: 49.0097,
-    lng: 2.5479,
-  },
-  {
-    name: "Rome (Fiumicino)",
-    desc: "Rome, Italy",
-    lat: 41.8003,
-    lng: 12.2389,
-  },
-  {
-    name: "Malta Central Operations Hub",
-    desc: "36 Triq Il-Kbira, Mgarr",
-    lat: 35.9197,
-    lng: 14.3664,
-  },
+export const QUICK_HUBS: { name: string; lat: number; lng: number }[] = [
+  { name: "Malta Airport (MLA)", lat: 35.8575, lng: 14.4775 },
+  { name: "Sliema / St. Julian's", lat: 35.9122, lng: 14.5042 },
+  { name: "Valletta Waterfront", lat: 35.892, lng: 14.5126 },
+  { name: "Central Garage (Mgarr)", lat: 35.9197, lng: 14.3664 },
+  { name: "London Heathrow", lat: 51.470, lng: -0.4543 },
 ]
 
-type MapStyle = "roadmap" | "satellite" | "terrain"
+type MapStyle = "roadmap" | "satellite"
 
 function getGoogleTileUrl(style: MapStyle): string {
-  switch (style) {
-    case "satellite":
-      // Google Hybrid: Satellite imagery with roads, cities and label overlays
-      return "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-    case "terrain":
-      // Google Terrain with shaded elevation
-      return "https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
-    case "roadmap":
-    default:
-      // Canonical Google Maps Roadmap
-      return "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+  if (style === "satellite") {
+    // Google Hybrid: Satellite imagery with roads, cities and label overlays
+    return "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
   }
+  // Canonical Google Maps Roadmap
+  return "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
 }
 
-// Custom Leaflet DivIcon for crisp, modern orange pin marker
+// Custom Leaflet DivIcon for crisp, modern Pit Stop orange pin marker
 function createCustomPinIcon() {
   return L.divIcon({
     className: "custom-map-pin",
     html: `
-      <div style="position: relative; width: 36px; height: 44px; transform: translate(-18px, -44px);">
-        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: rgba(249, 115, 22, 0.4); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-        <div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: rgba(0, 0, 0, 0.35); border-radius: 50%; filter: blur(1px);"></div>
-        <svg viewBox="0 0 36 44" width="36" height="44" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35)); position: relative; z-index: 2;">
+      <div style="position: relative; width: 32px; height: 38px; transform: translate(-16px, -38px);">
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; background: rgba(249, 115, 22, 0.35); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: rgba(0, 0, 0, 0.3); border-radius: 50%;"></div>
+        <svg viewBox="0 0 36 44" width="32" height="38" style="filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3)); position: relative; z-index: 2;">
           <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.94-8.06-18-18-18z" fill="#F97316" stroke="#FFFFFF" stroke-width="2"/>
           <circle cx="18" cy="17" r="6" fill="#FFFFFF"/>
           <circle cx="18" cy="17" r="3" fill="#EA580C"/>
         </svg>
       </div>
     `,
-    iconSize: [36, 44],
-    iconAnchor: [18, 44],
-    popupAnchor: [0, -42],
+    iconSize: [32, 38],
+    iconAnchor: [16, 38],
+    popupAnchor: [0, -36],
   })
 }
 
@@ -95,8 +58,8 @@ export default function MaltaLocationMapPicker({
   onChange,
   addressText,
   onAddressChange,
-  label = "Custom Delivery Location & Dispatch Pin",
-  placeholder = "Search any city, airport, hotel, or street address worldwide...",
+  label = "Delivery Location & Pinpoint",
+  placeholder = "Search address or click on map...",
 }: MaltaLocationMapPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
@@ -106,17 +69,15 @@ export default function MaltaLocationMapPicker({
   const [activeMapStyle, setActiveMapStyle] = useState<MapStyle>("roadmap")
   const [isLocating, setIsLocating] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
-  const [geoError, setGeoError] = useState<string | null>(null)
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [activePreset, setActivePreset] = useState<string | null>(null)
 
   // Current active coordinates
   const currentCoords = value || {
     lat: 35.8575,
     lng: 14.4775,
-    address: addressText || "Selected Location Pin",
-    placeName: "Selected Location Pin",
+    address: addressText || "",
+    placeName: "Selected Location",
   }
 
   // Switch Google Maps Layer Style smoothly
@@ -140,17 +101,16 @@ export default function MaltaLocationMapPicker({
 
   // Reset to full world view
   const handleResetWorldView = () => {
-    setSelectedPreset(null)
+    setActivePreset(null)
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([20, 0], 2, { animate: true, duration: 1.2 })
+      mapInstanceRef.current.flyTo([20, 0], 2, { animate: true, duration: 1 })
     }
   }
 
-  // Global reverse geocoding helper - works worldwide
+  // Global reverse geocoding helper - clean and concise
   const reverseGeocode = useCallback(
     async (lat: number, lng: number, flyTo = false) => {
       setIsGeocoding(true)
-      setGeoError(null)
 
       try {
         const res = await fetch(
@@ -201,19 +161,17 @@ export default function MaltaLocationMapPicker({
               lat,
               lng,
               address: formatted,
-              placeName: primary || "Custom Location Pin",
+              placeName: primary || "Custom Location",
             })
 
-            // Update marker popup with Google Maps styling
+            // Clean, minimal marker popup
             if (markerRef.current) {
               markerRef.current.setLatLng([lat, lng])
               markerRef.current
                 .bindPopup(
-                  `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:180px;">
-                    <div style="font-weight:700;font-size:12px;color:#111827;">${primary || "Custom Pin"}</div>
-                    <div style="font-size:11px;color:#4B5563;margin-top:2px;">${locality ? locality + (country ? ", " + country : "") : (country || "")}</div>
-                    <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</div>
-                    <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
+                  `<div style="font-family:system-ui,-apple-system,sans-serif;padding:2px 4px;min-width:140px;">
+                    <div style="font-weight:700;font-size:12px;color:#18181b;">${primary || "Pinned Location"}</div>
+                    <div style="font-size:11px;color:#71717a;margin-top:2px;">${locality ? locality + (country ? ", " + country : "") : (country || "")}</div>
                   </div>`
                 )
                 .openPopup()
@@ -226,12 +184,11 @@ export default function MaltaLocationMapPicker({
             return
           }
         }
-      } catch (e) {
-        // Fallback gracefully without breaking
+      } catch {
+        // Silent catch for resilience
       }
 
-      // Fallback coordinate label
-      const fallback = `World Pin (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`
+      const fallback = `Pinned Location (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`
       if (!addressText) {
         onAddressChange(fallback)
       }
@@ -239,17 +196,15 @@ export default function MaltaLocationMapPicker({
         lat,
         lng,
         address: addressText || fallback,
-        placeName: "Google Maps Pin",
+        placeName: "Custom Location",
       })
 
       if (markerRef.current) {
         markerRef.current.setLatLng([lat, lng])
         markerRef.current
           .bindPopup(
-            `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;">
-              <div style="font-weight:700;font-size:12px;color:#111827;">Custom Location</div>
-              <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</div>
-              <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
+            `<div style="font-family:system-ui,-apple-system,sans-serif;padding:2px 4px;">
+              <div style="font-weight:700;font-size:12px;color:#18181b;">Pinned Location</div>
             </div>`
           )
           .openPopup()
@@ -263,11 +218,10 @@ export default function MaltaLocationMapPicker({
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return
 
-    const initialLat = currentCoords.lat ?? 20
-    const initialLng = currentCoords.lng ?? 0
-    const initialZoom = value?.lat ? 13 : 3
+    const initialLat = currentCoords.lat ?? 35.8575
+    const initialLng = currentCoords.lng ?? 14.4775
+    const initialZoom = value?.lat ? 14 : 12
 
-    // Initialize map with NO MAX BOUNDS: full world view enabled
     const map = L.map(mapContainerRef.current, {
       center: [initialLat, initialLng],
       zoom: initialZoom,
@@ -278,7 +232,6 @@ export default function MaltaLocationMapPicker({
       worldCopyJump: true,
     })
 
-    // Official Google Maps Tile Layer
     const tileLayer = L.tileLayer(getGoogleTileUrl(activeMapStyle), {
       attribution: "&copy; Google Maps",
       maxZoom: 20,
@@ -286,7 +239,6 @@ export default function MaltaLocationMapPicker({
     }).addTo(map)
     tileLayerRef.current = tileLayer
 
-    // Create Draggable Marker
     const icon = createCustomPinIcon()
     const marker = L.marker([initialLat, initialLng], {
       icon,
@@ -294,37 +246,33 @@ export default function MaltaLocationMapPicker({
       autoPan: true,
     }).addTo(map)
 
-    marker.bindPopup(
-      `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:160px;">
-        <div style="font-weight:700;font-size:12px;color:#111827;">${currentCoords.placeName || "Delivery Location"}</div>
-        <div style="font-size:11px;color:#4B5563;margin-top:2px;">${addressText || "Selected Dispatch Point"}</div>
-        <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${initialLat.toFixed(5)}°, ${initialLng.toFixed(5)}°</div>
-        <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
-      </div>`
-    )
+    if (addressText) {
+      marker.bindPopup(
+        `<div style="font-family:system-ui,-apple-system,sans-serif;padding:2px 4px;min-width:140px;">
+          <div style="font-weight:700;font-size:12px;color:#18181b;">${addressText}</div>
+        </div>`
+      )
+    }
 
-    // Handle marker dragend
     marker.on("dragend", () => {
       const pos = marker.getLatLng()
-      setSelectedPreset(null)
+      setActivePreset(null)
       reverseGeocode(pos.lat, pos.lng)
     })
 
-    // Handle map click: move marker to clicked spot and geocode
     map.on("click", (e: L.LeafletMouseEvent) => {
       const { lat, lng } = e.latlng
       marker.setLatLng([lat, lng])
-      setSelectedPreset(null)
+      setActivePreset(null)
       reverseGeocode(lat, lng)
     })
 
     mapInstanceRef.current = map
     markerRef.current = marker
 
-    // Invalidate map size shortly after rendering to ensure proper tile coverage
     const timer = setTimeout(() => {
       map.invalidateSize()
-    }, 250)
+    }, 200)
 
     return () => {
       clearTimeout(timer)
@@ -348,81 +296,63 @@ export default function MaltaLocationMapPicker({
     }
   }, [currentCoords.lat, currentCoords.lng])
 
-  // Handle Preset Selection
-  const handleSelectPreset = (preset: (typeof WORLD_PRESETS)[0]) => {
-    setSelectedPreset(preset.name)
-    setGeoError(null)
-    onAddressChange(preset.name)
+  // Handle Preset Quick Selection
+  const handleSelectPreset = (hub: (typeof QUICK_HUBS)[0]) => {
+    setActivePreset(hub.name)
+    onAddressChange(hub.name)
     onChange({
-      lat: preset.lat,
-      lng: preset.lng,
-      address: preset.name,
-      placeName: preset.name,
+      lat: hub.lat,
+      lng: hub.lng,
+      address: hub.name,
+      placeName: hub.name,
     })
 
     if (mapInstanceRef.current && markerRef.current) {
-      markerRef.current.setLatLng([preset.lat, preset.lng])
-      mapInstanceRef.current.flyTo([preset.lat, preset.lng], 14, {
+      markerRef.current.setLatLng([hub.lat, hub.lng])
+      mapInstanceRef.current.flyTo([hub.lat, hub.lng], 14, {
         animate: true,
-        duration: 1.2,
+        duration: 1,
       })
       markerRef.current
         .bindPopup(
-          `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:180px;">
-            <div style="font-weight:700;font-size:12px;color:#111827;">${preset.name}</div>
-            <div style="font-size:11px;color:#4B5563;margin-top:2px;">${preset.desc}</div>
-            <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${preset.lat.toFixed(5)}°, ${preset.lng.toFixed(5)}°</div>
-            <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
+          `<div style="font-family:system-ui,-apple-system,sans-serif;padding:2px 4px;min-width:140px;">
+            <div style="font-weight:700;font-size:12px;color:#18181b;">${hub.name}</div>
           </div>`
         )
         .openPopup()
     }
   }
 
-  // Handle "Use My Live Location" button - works anywhere in the world!
+  // Handle "Use My Live Location" button
   const handleUseLiveLocation = () => {
-    if (!navigator.geolocation) {
-      setGeoError("Geolocation is not supported by your browser.")
-      return
-    }
+    if (!navigator.geolocation) return
 
     setIsLocating(true)
-    setGeoError(null)
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setIsLocating(false)
         const lat = Number(pos.coords.latitude.toFixed(5))
         const lng = Number(pos.coords.longitude.toFixed(5))
-
-        // Center directly on user's real worldwide GPS location
-        setSelectedPreset(null)
+        setActivePreset(null)
         reverseGeocode(lat, lng, true)
       },
-      (err) => {
+      () => {
         setIsLocating(false)
-        if (err.code === err.PERMISSION_DENIED) {
-          setGeoError("Location permission denied. Click or drag anywhere on the map to pin your location.")
-        } else {
-          setGeoError("Unable to retrieve GPS location. Search above or tap anywhere on the map.")
-        }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     )
   }
 
-  // Global Worldwide Search: search ANY address, city, country, or landmark
-  const handleSearchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
+  // Global Worldwide Search (non-form container to prevent React nested-form warnings)
+  const handleSearchSubmit = async () => {
+    const query = addressText.trim()
+    if (!query) return
 
     setIsSearching(true)
-    setGeoError(null)
-
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          searchQuery.trim()
+          query
         )}&format=json&limit=1&addressdetails=1`,
         { headers: { "Accept-Language": "en" } }
       )
@@ -456,11 +386,6 @@ export default function MaltaLocationMapPicker({
             parts.push(locality.trim())
           }
 
-          const stateOrRegion = addr.state || addr.region
-          if (stateOrRegion && !parts.includes(stateOrRegion.trim())) {
-            parts.push(stateOrRegion.trim())
-          }
-
           const country = addr.country
           if (country && !parts.includes(country.trim())) {
             parts.push(country.trim())
@@ -473,249 +398,164 @@ export default function MaltaLocationMapPicker({
             lat,
             lng,
             address: formatted,
-            placeName: primary || searchQuery,
+            placeName: primary || query,
           })
 
           if (mapInstanceRef.current && markerRef.current) {
             markerRef.current.setLatLng([lat, lng])
-            mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 1.2 })
+            mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 1 })
             markerRef.current
               .bindPopup(
-                `<div style="font-family:system-ui,-apple-system,sans-serif;padding:3px;min-width:180px;">
-                  <div style="font-weight:700;font-size:12px;color:#111827;">${primary || "Found Location"}</div>
-                  <div style="font-size:11px;color:#4B5563;margin-top:2px;">${locality ? locality + (country ? ", " + country : "") : (country || "")}</div>
-                  <div style="font-size:10px;font-family:monospace;color:#EA580C;margin-top:4px;">📍 ${lat.toFixed(5)}°, ${lng.toFixed(5)}°</div>
-                  <div style="font-size:9px;color:#2563EB;margin-top:4px;font-weight:600;">Google Maps Precision Pin</div>
+                `<div style="font-family:system-ui,-apple-system,sans-serif;padding:2px 4px;min-width:140px;">
+                  <div style="font-weight:700;font-size:12px;color:#18181b;">${primary || "Found Location"}</div>
+                  <div style="font-size:11px;color:#71717a;margin-top:2px;">${locality || country || ""}</div>
                 </div>`
               )
               .openPopup()
           }
-          setIsSearching(false)
-          setSearchQuery("")
-          return
         }
       }
-      setGeoError(`No locations found for "${searchQuery}". Try a city, street, airport, or hotel name.`)
-    } catch {
-      setGeoError("Search request failed. Please tap directly on the map or zoom in.")
     } finally {
       setIsSearching(false)
     }
   }
 
   return (
-    <div className="space-y-3 pt-2 bg-stone-50/90 p-4 sm:p-5 rounded-xl border border-stone-200 shadow-xs">
-      {/* Header bar with Google Maps Worldwide badge and Live GPS trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div>
-          <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-            <LocationIcon size={14} className="text-[#F97316]" />
-            <span>{label}</span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-sans font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 shadow-2xs">
-              <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-              <span>GOOGLE MAPS WORLDWIDE</span>
-            </span>
-          </label>
-          <p className="text-[11px] text-stone-500 mt-0.5">
-            Drag the pin anywhere on Earth, search any address worldwide, or use your live GPS location.
-          </p>
-        </div>
+    <div className="space-y-2.5 p-3.5 sm:p-4 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
+      {/* Clean Header: Label + Subdued Status */}
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+          <LocationIcon size={14} className="text-[#F97316]" />
+          <span>{label}</span>
+        </label>
+        {isGeocoding && (
+          <span className="text-[11px] font-medium text-orange-600 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping" />
+            Updating address...
+          </span>
+        )}
+      </div>
 
-        {/* Action Controls: Reset World View + Live GPS */}
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-          <button
-            type="button"
-            onClick={handleResetWorldView}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 rounded-lg shadow-2xs transition cursor-pointer"
-            title="Zoom out to entire world map"
-          >
-            <span>🌍 World View</span>
-          </button>
+      {/* Unified Single Input Bar: Search, Type, & Geocode in One Sleek Field */}
+      <div className="relative flex items-center">
+        <span className="absolute left-3 text-stone-400 pointer-events-none flex items-center">
+          <LocationIcon size={14} />
+        </span>
+        <input
+          type="text"
+          value={addressText}
+          onChange={(e) => onAddressChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              handleSearchSubmit()
+            }
+          }}
+          placeholder={placeholder}
+          className="w-full pl-8 pr-20 py-2 bg-stone-50/80 hover:bg-stone-50 focus:bg-white border border-stone-200 focus:border-[#F97316] rounded-xl text-xs sm:text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all placeholder:text-stone-400"
+        />
 
+        <div className="absolute right-1.5 flex items-center gap-1">
+          {/* Live GPS button */}
           <button
             type="button"
             onClick={handleUseLiveLocation}
             disabled={isLocating}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white hover:bg-orange-50 text-[#F97316] hover:text-orange-700 border border-orange-200 hover:border-orange-300 rounded-lg shadow-2xs transition cursor-pointer"
+            title="Use my live location"
+            className="p-1.5 text-stone-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
           >
             {isLocating ? (
-              <>
-                <span className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                <span>Locating GPS...</span>
-              </>
+              <span className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin block" />
             ) : (
-              <>
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-                </span>
-                <span>Use My Live Location</span>
-              </>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v3m0 14v3M2 12h3m14 0h3" />
+              </svg>
             )}
+          </button>
+
+          {/* Search Action Button */}
+          <button
+            type="button"
+            onClick={handleSearchSubmit}
+            disabled={isSearching || !addressText.trim()}
+            className="px-2.5 py-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-30 text-white rounded-lg text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            {isSearching ? "..." : "Search"}
           </button>
         </div>
       </div>
 
-      {/* Global Address Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            placeholder={placeholder}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 bg-white border border-stone-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#F97316] text-stone-900 shadow-2xs"
-          />
-          <span className="absolute left-2.5 top-2.5 text-stone-400">
-            <LocationIcon size={13} />
-          </span>
-        </div>
-        <button
-          type="submit"
-          disabled={isSearching || !searchQuery.trim()}
-          className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold shadow-2xs transition disabled:opacity-50 cursor-pointer shrink-0"
-        >
-          {isSearching ? "Searching..." : "Find on Map"}
-        </button>
-      </form>
-
-      {/* Selected Address Display Field */}
-      <div className="relative">
-        <div className="flex items-center justify-between mb-1 text-[11px] font-semibold text-stone-700">
-          <span>Pinned Delivery Address:</span>
-          {isGeocoding && (
-            <span className="text-orange-600 font-bold flex items-center gap-1">
-              <span className="w-2.5 h-2.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              Detecting street address...
-            </span>
-          )}
-        </div>
-        <input
-          type="text"
-          placeholder={placeholder}
-          value={addressText}
-          onChange={(e) => onAddressChange(e.target.value)}
-          className="w-full px-3.5 py-2.5 bg-white border border-stone-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#F97316] text-stone-900 shadow-2xs"
-        />
-
-        {currentCoords && (
-          <div className="mt-1.5 flex items-center justify-between text-[11px] text-stone-500 px-1">
-            <span className="font-mono text-stone-700 font-semibold flex items-center gap-1">
-              <span className="text-orange-600">📍</span>
-              <span>
-                {currentCoords.lat.toFixed(5)}°, {currentCoords.lng.toFixed(5)}°
-              </span>
-            </span>
-            <a
-              href={`https://www.google.com/maps?q=${currentCoords.lat},${currentCoords.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#F97316] hover:underline font-semibold flex items-center gap-0.5"
+      {/* Clean Quick Location Chips */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar text-xs">
+        <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider shrink-0 mr-0.5">
+          Quick:
+        </span>
+        {QUICK_HUBS.map((hub) => {
+          const isSelected = activePreset === hub.name || addressText.includes(hub.name)
+          return (
+            <button
+              key={hub.name}
+              type="button"
+              onClick={() => handleSelectPreset(hub)}
+              className={`px-2 py-0.5 text-[11px] rounded-lg transition-all shrink-0 cursor-pointer border ${
+                isSelected
+                  ? "bg-orange-500 text-white border-orange-600 font-semibold shadow-2xs"
+                  : "bg-stone-50 hover:bg-stone-100 text-stone-600 hover:text-stone-900 border-stone-200/80"
+              }`}
             >
-              <span>View in Google Maps ↗</span>
-            </a>
-          </div>
-        )}
+              {hub.name}
+            </button>
+          )
+        })}
       </div>
 
-      {geoError && (
-        <div className="text-[11px] bg-amber-50 text-amber-900 border border-amber-200 p-2 rounded-lg font-medium">
-          {geoError}
-        </div>
-      )}
+      {/* Modern Interactive Google Map Container */}
+      <div className="relative rounded-xl overflow-hidden border border-stone-200/90 shadow-xs">
+        {/* Sleek Minimalist Controls in Map Header */}
+        <div className="absolute top-2 right-2 z-[400] flex items-center gap-1.5">
+          {/* Reset World View */}
+          <button
+            type="button"
+            onClick={handleResetWorldView}
+            title="Reset to whole world map"
+            className="px-2 py-1 bg-white/95 backdrop-blur-xs text-[10px] font-bold text-stone-700 hover:text-stone-900 rounded-lg border border-stone-200/90 shadow-2xs transition cursor-pointer"
+          >
+            🌍 World
+          </button>
 
-      {/* OFFICIAL GOOGLE MAPS INTERACTIVE STREET MAP CONTAINER */}
-      <div className="relative rounded-xl overflow-hidden border border-stone-300 shadow-md">
-        {/* Map Header Overlay Bar: Click hint + Google Map Style Switcher */}
-        <div className="absolute top-2 left-2 right-2 z-[400] flex flex-wrap items-center justify-between gap-1.5 pointer-events-none">
-          {/* Hint badge */}
-          <div className="pointer-events-auto flex items-center gap-1.5 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-stone-200 shadow-xs text-[11px] font-semibold text-stone-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Click anywhere on Earth or drag pin</span>
-          </div>
-
-          {/* Google Maps Layer Style Switcher */}
-          <div className="pointer-events-auto flex items-center bg-white/95 backdrop-blur-xs p-0.5 rounded-lg border border-stone-200 shadow-xs">
+          {/* Clean Segmented Map Style Toggle: Map | Satellite */}
+          <div className="flex items-center bg-white/95 backdrop-blur-xs p-0.5 rounded-lg border border-stone-200/90 shadow-2xs">
             <button
               type="button"
               onClick={() => handleSwitchMapStyle("roadmap")}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                 activeMapStyle === "roadmap"
-                  ? "bg-blue-600 text-white shadow-2xs"
-                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "text-stone-500 hover:text-stone-900"
               }`}
             >
-              🗺️ Roadmap
+              Map
             </button>
             <button
               type="button"
               onClick={() => handleSwitchMapStyle("satellite")}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                 activeMapStyle === "satellite"
-                  ? "bg-blue-600 text-white shadow-2xs"
-                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "text-stone-500 hover:text-stone-900"
               }`}
             >
-              🛰️ Satellite
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchMapStyle("terrain")}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                activeMapStyle === "terrain"
-                  ? "bg-blue-600 text-white shadow-2xs"
-                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
-              }`}
-            >
-              ⛰️ Terrain
+              Satellite
             </button>
           </div>
         </div>
 
-        {/* Leaflet DOM container - allows full world navigation and zooming */}
+        {/* Leaflet DOM container */}
         <div
           ref={mapContainerRef}
-          className="w-full h-80 sm:h-96 z-0 bg-[#e5e3df]"
+          className="w-full h-64 sm:h-72 z-0 bg-[#e5e3df]"
         />
-
-        {/* Floating coordinates badge */}
-        <div className="absolute bottom-2 right-2 z-[400] bg-stone-900/90 text-white border border-stone-700 px-2.5 py-1 rounded-md text-[10px] font-mono shadow-md backdrop-blur-xs flex items-center gap-1.5">
-          <span className="text-orange-400">📍</span>
-          <span>{currentCoords.lat.toFixed(5)}°, {currentCoords.lng.toFixed(5)}°</span>
-        </div>
-      </div>
-
-      {/* Quick Global Landmark Presets */}
-      <div className="space-y-1.5 pt-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
-          Worldwide Hubs &amp; Major Cities:
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          {WORLD_PRESETS.map((preset) => {
-            const isSelected =
-              selectedPreset === preset.name ||
-              addressText.includes(preset.name) ||
-              (Math.abs(preset.lat - currentCoords.lat) < 0.01 &&
-                Math.abs(preset.lng - currentCoords.lng) < 0.01)
-            return (
-              <button
-                key={preset.name}
-                type="button"
-                onClick={() => handleSelectPreset(preset)}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-all cursor-pointer border flex items-center gap-1 ${
-                  isSelected
-                    ? "bg-orange-500 text-white border-orange-600 shadow-2xs font-semibold"
-                    : "bg-white hover:bg-stone-100 text-stone-700 border-stone-200"
-                }`}
-              >
-                <span>{preset.name}</span>
-                {isSelected && <CheckIcon size={11} className="text-white" />}
-              </button>
-            )
-          })}
-        </div>
       </div>
     </div>
   )

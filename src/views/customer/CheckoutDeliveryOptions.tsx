@@ -135,8 +135,8 @@ export default function CheckoutDeliveryOptions({
               onChange={(coords) => setDeliveryCoordinates?.(coords)}
               addressText={deliveryLocationCustom}
               onAddressChange={setDeliveryLocationCustom}
-              label="Custom Delivery Location & Dispatch Pin"
-              placeholder="Search any address, airport, hotel, or city in the world..."
+              label="Delivery Location"
+              placeholder="Search address or tap map to place pin..."
             />
           </div>
         )}
@@ -213,8 +213,8 @@ export default function CheckoutDeliveryOptions({
               onChange={(coords) => setReturnCoordinates?.(coords)}
               addressText={returnLocationCustom}
               onAddressChange={setReturnLocationCustom}
-              label="Custom Return Handover Location & Pin"
-              placeholder="Search any address, airport, hotel, or city in the world..."
+              label="Return Handover Location"
+              placeholder="Search return address or tap map to place pin..."
             />
           </div>
         )}
