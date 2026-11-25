@@ -12,7 +12,7 @@ test.describe("Auth Session Invalidation & Stale Token Recovery", () => {
       localStorage.setItem("motorly_current_view", "admin")
     })
 
-    await page.goto("http://localhost:3000")
+    await page.goto("/?view=admin")
     await page.waitForLoadState("domcontentloaded")
     await page.waitForTimeout(1000)
 
@@ -27,12 +27,12 @@ test.describe("Auth Session Invalidation & Stale Token Recovery", () => {
     await expect(passInput).toBeVisible({ timeout: 5000 })
     await passInput.fill(ADMIN_PASSWORD)
 
-    const submitBtn = page.locator("button:has-text('Authorize & Launch Fleet Console')").first()
+    const submitBtn = page.locator("button:has-text('Authorize & Unlock Console')").first()
     await expect(submitBtn).toBeVisible({ timeout: 5000 })
     await submitBtn.click()
 
     // Verify Admin Portal loads showing Sync DB button and Active Bookings
-    await expect(page.locator("button:has-text('Sync DB')").first()).toBeVisible({ timeout: 10000 })
+    await expect(page.locator("button:has-text('Orders & Dispatch')").first()).toBeVisible({ timeout: 10000 })
     const validToken = await page.evaluate(() =>
       localStorage.getItem("motorly_admin_token"),
     )

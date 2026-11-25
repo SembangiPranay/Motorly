@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react"
 import type {
   BookingRecord,
-  BookingStatus,
   Car,
   CarStatus,
   PromoCode,
@@ -291,13 +290,15 @@ export default function AdminView({
   // 1. Approve Booking
   const handleApproveBooking = async (id: string) => {
     try {
-      await api.approveBooking(id)
+      const { booking } = await api.approveBooking(id)
       setBookings((prev) =>
         prev.map((b) =>
-          b.id === id ? { ...b, status: "Assigned" as BookingStatus, approvedByAdmin: true } : b
+          b.id === id ? booking : b
         )
       )
-      showToast("Booking request approved! Customer can now pick up the car.")
+      showToast(booking.matchedCarId
+        ? "Booking approved. The car is ready for pickup."
+        : "Booking approved. Assign a vehicle before pickup.")
     } catch (err: any) {
       alert("Failed to approve booking: " + (err?.message || "Unknown error"))
     }
@@ -306,9 +307,9 @@ export default function AdminView({
   // 2. Decline Booking
   const handleDeclineBooking = async (id: string) => {
     try {
-      await api.declineBooking(id)
+      const { booking } = await api.declineBooking(id)
       setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: "Cancelled" as BookingStatus } : b))
+        prev.map((b) => (b.id === id ? booking : b))
       )
       showToast("Booking has been declined.")
     } catch (err: any) {
@@ -338,7 +339,7 @@ export default function AdminView({
     const bookingId = activeGiveKeysBooking.id
     const carId = activeGiveKeysBooking.matchedCarId
 
-    await api.handoverKeys(bookingId, {
+    const { booking: updatedBooking } = await api.handoverKeys(bookingId, {
       odometerOut: payload.odometerOut,
       fuelOut: payload.fuelOut || "100%",
       exteriorClean: true,
@@ -351,17 +352,7 @@ export default function AdminView({
 
     setBookings((prev) =>
       prev.map((b) =>
-        b.id === bookingId
-          ? {
-              ...b,
-              status: "Checked Out" as BookingStatus,
-              odometerOut: payload.odometerOut,
-              fuelLevelOut: payload.fuelOut,
-              conditionPhotos: payload.conditionPhotos,
-              conditionPins: payload.conditionPins,
-              keysHandedAt: new Date().toISOString(),
-            }
-          : b
+        b.id === bookingId ? updatedBooking : b
       )
     )
 
@@ -384,41 +375,41 @@ export default function AdminView({
     odometerIn: number
     cleanlinessPass: boolean
     damageFound: boolean
+    damageNotes?: string
+    damagePhotos?: string[]
   }) => {
     if (!activeReturnBooking) return
     const bookingId = activeReturnBooking.id
     const carId = activeReturnBooking.matchedCarId
 
-    await api.returnInspection(bookingId, {
+    const { booking: updatedBooking } = await api.returnInspection(bookingId, {
       odometerIn: data.odometerIn,
       fuelIn: "Full",
       cleanlinessPass: data.cleanlinessPass,
       damageFound: data.damageFound,
+      damageNotes: data.damageNotes,
+      damagePhotos: data.damagePhotos,
       staffSign: "Garage Inspection Lead",
     })
 
     setBookings((prev) =>
       prev.map((b) =>
-        b.id === bookingId
-          ? {
-              ...b,
-              status: "Completed" as BookingStatus,
-              odometerIn: data.odometerIn,
-            }
-          : b
+        b.id === bookingId ? updatedBooking : b
       )
     )
 
-    const nextStatus: CarStatus = data.damageFound ? "Maintenance" : "Available"
+    const checklist = updatedBooking.checklistIn
+    const nextStatus: CarStatus = checklist?.damageFound
+      ? "Maintenance"
+      : checklist?.cleanlinessPass === false ? "Cleaning" : "Available"
     if (carId) {
-      await api.updateCarStatus(carId, nextStatus).catch(() => {})
       setCars((prev) =>
         prev.map((c) =>
           c.id === carId
             ? {
                 ...c,
                 status: nextStatus,
-                currentOdometer: data.odometerIn,
+                currentOdometer: updatedBooking.odometerIn,
               }
             : c
         )
@@ -427,9 +418,11 @@ export default function AdminView({
 
     setActiveReturnBooking(null)
     showToast(
-      data.damageFound
+      nextStatus === "Maintenance"
         ? "Vehicle return audited and routed to maintenance for service."
-        : "Vehicle checked in successfully! Ready for the next customer."
+        : nextStatus === "Cleaning"
+          ? "Vehicle checked in and routed to cleaning."
+          : "Vehicle checked in and ready for the next customer."
     )
   }
 

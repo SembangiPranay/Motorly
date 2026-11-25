@@ -140,7 +140,7 @@ export default function CheckoutDriverIdForm({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(e) => onFileChange(e, false)}
             />
@@ -196,7 +196,7 @@ export default function CheckoutDriverIdForm({
             <input
               ref={fileBackInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(e) => onFileChange(e, true)}
             />

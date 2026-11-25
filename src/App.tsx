@@ -670,8 +670,6 @@ export default function App() {
     }
   }
 
-  // Enforce customer login for booking reservations
-
   const handleProceedToCheckout = (carId?: string) => {
     const targetId = carId || selectedCarId || activeCar?.id
 
@@ -691,13 +689,7 @@ export default function App() {
       }
     }
 
-    if (!currentUser) {
-      setAuthReturnView("checkout")
-
-      setCurrentView("auth")
-    } else {
-      setCurrentView("checkout")
-    }
+    setCurrentView("checkout")
   }
 
   // Guard navigation to Admin view with dedicated URL routing
@@ -772,12 +764,6 @@ export default function App() {
     if (details.tripReason) {
       setBookingState((prev) => ({ ...prev, tripReason: details.tripReason }))
     }
-    if (!currentUser) {
-      setAuthReturnView("checkout")
-      setCurrentView("auth")
-      return
-    }
-
     if (!activeCar) {
       alert(
         "No vehicle selected. Please select a vehicle from our fleet catalog.",
@@ -821,7 +807,6 @@ export default function App() {
       totalAmount: details.totalAmount,
       promoCode: details.promoCode,
       createdAt: new Date().toISOString(),
-      userId: currentUser?.id,
       tripReason: details.tripReason || "Travel & Leisure",
       notes: details.notes || (details.tripReason ? `Trip Purpose: ${details.tripReason}` : "Travel & Leisure"),
       deliveryType: details.deliveryType || "garage",
@@ -868,11 +853,11 @@ export default function App() {
       setConfirmedBooking({
         bookingId: created.id,
 
-        car: activeCar,
+        car: { ...activeCar, securityDeposit: created.securityDeposit ?? activeCar.securityDeposit },
 
         customer: details.customer,
 
-        totalAmount: details.totalAmount,
+        totalAmount: created.totalAmount,
       })
     } catch (e: any) {
       console.error("Booking backend persistence error:", e)
@@ -1117,7 +1102,7 @@ export default function App() {
           onNavigateMyBookings={() => {
             setConfirmedBooking(null)
 
-            setCurrentView("my-bookings")
+            handleNavigate("my-bookings")
           }}
         />
       )}

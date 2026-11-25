@@ -85,8 +85,8 @@ export default function CarDetailView({
       try {
         const res = await api.checkCarAvailability(
           car.id,
-          bookingState.pickupDate,
-          bookingState.returnDate,
+          [bookingState.pickupDate, bookingState.pickupTime].filter(Boolean).join(" "),
+          [bookingState.returnDate, bookingState.returnTime].filter(Boolean).join(" "),
         )
         if (!isCancelled) {
           setAvailabilityCheck({
@@ -113,7 +113,7 @@ export default function CarDetailView({
     return () => {
       isCancelled = true
     }
-  }, [car?.id, bookingState.pickupDate, bookingState.returnDate])
+  }, [car?.id, bookingState.pickupDate, bookingState.pickupTime, bookingState.returnDate, bookingState.returnTime])
 
   const galleryImages =
     car?.gallery && car.gallery.length > 0

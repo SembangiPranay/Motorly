@@ -5,7 +5,7 @@ test.describe("Driver Minimum Age Restriction (18+) Verification", () => {
   test("Verifies 18+ restriction labels, max DOB attribute, and rejection of < 18 drivers", async ({ page }) => {
     // 1. Visit checkout directly with a car selected
     await page.goto("http://localhost:3000/?view=checkout&car=morris-gaurage-mg-astor-1325")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
     await page.waitForTimeout(1000)
 
     // Verify UI labels indicate 18+
@@ -69,7 +69,7 @@ test.describe("Driver Minimum Age Restriction (18+) Verification", () => {
 
     // Verify contact FAQ mentions 18 years
     await page.goto("http://localhost:3000/?view=contact")
-    await page.waitForLoadState("networkidle")
+    await page.waitForLoadState("domcontentloaded")
     await page.waitForTimeout(500)
 
     const faqAccordionBtn = page.locator("button:has-text('What documents must I present?')").first()

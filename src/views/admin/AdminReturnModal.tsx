@@ -9,6 +9,8 @@ interface AdminReturnModalProps {
     odometerIn: number
     cleanlinessPass: boolean
     damageFound: boolean
+    damageNotes?: string
+    damagePhotos?: string[]
   }) => Promise<void>
   onClose: () => void
 }
@@ -23,10 +25,43 @@ export default function AdminReturnModal({
   const [odometerIn, setOdometerIn] = useState<string>(String(currentOdo + 120))
   const [cleanlinessPass, setCleanlinessPass] = useState(true)
   const [damageFound, setDamageFound] = useState(false)
+  const [damageNotes, setDamageNotes] = useState("")
+  const [damagePhotos, setDamagePhotos] = useState<string[]>([])
+  const [readingPhotos, setReadingPhotos] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const customerName = `${booking.customer?.firstName || ""} ${booking.customer?.lastName || ""}`.trim() || "Valued Customer"
+
+  const attachPhotos = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || [])
+    event.target.value = ""
+    if (!files.length) return
+    setReadingPhotos(true)
+    setError(null)
+    try {
+      const photos = await Promise.all(files.slice(0, 4 - damagePhotos.length).map(async (file) => {
+        const bitmap = await createImageBitmap(file)
+        try {
+          const scale = Math.min(1, 1000 / Math.max(bitmap.width, bitmap.height))
+          const canvas = document.createElement("canvas")
+          canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+          canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+          const context = canvas.getContext("2d")
+          if (!context) throw new Error("Image processing unavailable.")
+          context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+          return canvas.toDataURL("image/jpeg", 0.75)
+        } finally {
+          bitmap.close()
+        }
+      }))
+      setDamagePhotos((previous) => [...previous, ...photos].slice(0, 4))
+    } catch {
+      setError("One or more photos could not be opened. Use JPEG, PNG or WebP.")
+    } finally {
+      setReadingPhotos(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,6 +77,8 @@ export default function AdminReturnModal({
         odometerIn: num,
         cleanlinessPass,
         damageFound,
+        damageNotes: damageFound ? damageNotes : undefined,
+        damagePhotos: damageFound ? damagePhotos : undefined,
       })
     } catch (err: any) {
       setError(err?.message || "Failed to complete return audit.")
@@ -55,7 +92,7 @@ export default function AdminReturnModal({
       aria-modal="true"
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
     >
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-stone-200 space-y-4">
+      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90dvh] overflow-y-auto p-6 shadow-2xl border border-stone-200 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
           <div className="flex items-center gap-2.5">
@@ -118,6 +155,41 @@ export default function AdminReturnModal({
             />
           </div>
 
+          {damageFound && (
+            <div className="space-y-2 rounded-lg bg-amber-50 p-3 text-xs text-stone-800">
+              <label className="block font-semibold">
+                Damage notes
+                <textarea
+                  value={damageNotes}
+                  onChange={(event) => setDamageNotes(event.target.value)}
+                  maxLength={2000}
+                  className="mt-1 block w-full rounded-lg border border-stone-300 bg-white p-2"
+                />
+              </label>
+              <label className="block font-semibold">
+                Damage photos
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  disabled={readingPhotos || damagePhotos.length >= 4}
+                  onChange={attachPhotos}
+                  className="mt-1 block w-full"
+                />
+              </label>
+              {damagePhotos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {damagePhotos.map((photo, index) => (
+                    <button type="button" title={`Remove photo ${index + 1}`} key={index}
+                      onClick={() => setDamagePhotos((previous) => previous.filter((_, i) => i !== index))}>
+                      <img src={photo} alt={`Damage photo ${index + 1}`} className="h-12 w-16 rounded object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2 pt-1">
             <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-800">
               <input
@@ -152,7 +224,7 @@ export default function AdminReturnModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || readingPhotos}
               className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-2xs disabled:opacity-50"
             >
               {isSubmitting ? "Completing..." : "Complete Return & Close Audit"}

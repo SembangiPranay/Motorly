@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import type { ViewMode } from "../types"
 import {
   LocationIcon,
@@ -28,51 +28,41 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
     message: "",
   })
   const [submitted, setSubmitted] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [inquiryError, setInquiryError] = useState("")
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
 
-  const ownerPhone = "+1 (555) 123-4567"
-  const ownerEmail = "pitstopcarhire@gmail.com"
-  const garageAddress =
-    "Main Garage Facility, Bay 1 Handoff Station, Miami, FL 33101"
+  const [contact, setContact] = useState({
+    ownerPhone: "+356 99827192",
+    ownerEmail: "pitstopcarhire@gmail.com",
+    garageAddress: "36 Triq Il-Kbira, Mgarr, Malta",
+  })
+  const { ownerPhone, ownerEmail, garageAddress } = contact
+
+  useEffect(() => {
+    let active = true
+    api.getSettings().then((settings) => {
+      if (active) setContact((previous) => ({
+        ownerPhone: settings.support_phone || settings.contact_phone || previous.ownerPhone,
+        ownerEmail: settings.contact_email || previous.ownerEmail,
+        garageAddress: settings.hub_address || previous.garageAddress,
+      }))
+    })
+    return () => { active = false }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitted(true)
-
-    api
-      .submitContactInquiry({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        dates: formData.dates,
-        preferredVehicle: formData.preferredVehicle,
-        message: formData.message,
-      })
-      .catch(() => {})
-
-    // Automatically construct formatted WhatsApp inquiry
-    const inquiryText = `PIT STOP CAR HIRE – RENTAL INQUIRY
-----------------------------------------
-From: ${formData.name}
-Phone: ${formData.phone || "Not provided"}
-Email: ${formData.email}
-Preferred Dates: ${formData.dates || "Flexible"}
-Preferred Vehicle: ${formData.preferredVehicle || "Any available"}
-
-Message:
-${formData.message}
-
-Sent via Pit Stop Car Hire Contact Portal`
-
-    // Smart device-adaptive WhatsApp routing:
-    // Opens WhatsApp Web on Laptop/Desktop, and WhatsApp App on Mobile
-    const isMobile = isMobileDevice()
-    const urls = getWhatsAppUrls(ownerPhone, inquiryText)
-    const targetUrl = isMobile ? urls.universalUrl : urls.webUrl
-
+    if (sending) return
+    setSending(true)
+    setInquiryError("")
     try {
-      window.open(targetUrl, "_blank", "noopener,noreferrer")
-    } catch {}
+      const result = await api.submitContactInquiry(formData)
+      if (result.success) setSubmitted(true)
+      else setInquiryError(result.error || "The garage could not receive your message. Please try again.")
+    } finally {
+      setSending(false)
+    }
   }
 
   const faqs = [
@@ -361,9 +351,7 @@ Sent via Pit Stop Car Hire Contact Portal`
                     Inquiry Dispatched Successfully!
                   </h4>
                   <p className="text-xs text-emerald-700 leading-relaxed max-w-md mx-auto">
-                    Your message has been sent to the garage manager via
-                    WhatsApp and priority email. Marcus will contact you shortly
-                    to confirm availability and discuss your request.
+                    Your message was sent to the garage. The team will contact you about your request.
                   </p>
                   <button
                     type="button"
@@ -486,11 +474,13 @@ Sent via Pit Stop Car Hire Contact Portal`
                     />
                   </div>
 
+                  {inquiryError && <p role="alert" className="text-sm text-red-700">{inquiryError}</p>}
                   <button
                     type="submit"
+                    disabled={sending}
                     className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
                   >
-                    <span>Send Message Directly to Manager</span>
+                    <span>{sending ? "Sending?" : "Send Message to the Garage"}</span>
                     <ArrowRightIcon size={16} />
                   </button>
                 </form>

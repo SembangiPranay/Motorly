@@ -12,13 +12,13 @@ import type {
 } from "../types"
 import { api } from "../services/api"
 import DateSchedulingModal from "../components/DateSchedulingModal"
-import { calculateRentalPrice } from "../utils/pricing"
+import { calculateRentalPrice, checkoutCharges } from "../utils/pricing"
 import { ShieldIcon, CheckIcon } from "../components/Icons"
 import CheckoutCustomerForm from "./customer/CheckoutCustomerForm"
 import CheckoutDriverIdForm from "./customer/CheckoutDriverIdForm"
 import CheckoutTripPurpose from "./customer/CheckoutTripPurpose"
 import CheckoutDeliveryOptions from "./customer/CheckoutDeliveryOptions"
-import CheckoutOptionalServices, { AVAILABLE_OPTIONAL_SERVICES } from "./customer/CheckoutOptionalServices"
+import CheckoutOptionalServices from "./customer/CheckoutOptionalServices"
 import CheckoutRemarksAndExtension from "./customer/CheckoutRemarksAndExtension"
 import CheckoutConditionAndSignature from "./customer/CheckoutConditionAndSignature"
 import CheckoutOrderSummary from "./customer/CheckoutOrderSummary"
@@ -56,7 +56,7 @@ interface CheckoutViewProps {
     conditionPhotos?: string[]
     deliveryCoordinates?: DeliveryCoordinates
     returnCoordinates?: DeliveryCoordinates
-  }) => void
+  }) => Promise<void>
   onNavigateHome: () => void
   onNavigateListing: () => void
 }
@@ -238,8 +238,8 @@ export default function CheckoutView({
       try {
         const res = await api.checkCarAvailability(
           car.id,
-          bookingState.pickupDate,
-          bookingState.returnDate,
+          [bookingState.pickupDate, bookingState.pickupTime].filter(Boolean).join(" "),
+          [bookingState.returnDate, bookingState.returnTime].filter(Boolean).join(" "),
         )
         if (!isCancelled) {
           setAvailabilityCheck({
@@ -251,7 +251,7 @@ export default function CheckoutView({
       } catch {
         if (!isCancelled) {
           setAvailabilityCheck({
-            isAvailable: true,
+            isAvailable: false,
             conflict: null,
             loading: false,
           })
@@ -262,7 +262,7 @@ export default function CheckoutView({
     return () => {
       isCancelled = true
     }
-  }, [car?.id, bookingState.pickupDate, bookingState.returnDate])
+  }, [car?.id, bookingState.pickupDate, bookingState.pickupTime, bookingState.returnDate, bookingState.returnTime])
 
   const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -270,6 +270,11 @@ export default function CheckoutView({
   ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        alert("Upload a JPEG, PNG or WebP photo of your driver license.")
+        e.target.value = ""
+        return
+      }
       setIsUploading(true)
       try {
         const compressedDataUrl = await compressImage(file, 1200, 0.8)
@@ -417,41 +422,30 @@ export default function CheckoutView({
     })
   }, [car, isSameDayBooking, sameDayHours, days])
 
-  const deliveryFee = deliveryType === "custom" ? 20 : 0
-  const returnFee = returnType === "custom" ? 20 : 0
-  const effectiveDays = Math.max(1, days)
-  const optionalServicesCost = useMemo(() => {
-    const dailyTotal = AVAILABLE_OPTIONAL_SERVICES.filter((s) =>
-      selectedServices.includes(s.id),
-    ).reduce((acc, curr) => acc + curr.pricePerDay, 0)
-    return dailyTotal * effectiveDays
-  }, [selectedServices, effectiveDays])
-
-  const securityDeposit = car?.securityDeposit != null ? car.securityDeposit : 700
-
+  const securityDeposit = car?.securityDeposit ?? 700
   const rawRentalTotal = pricingResult.basePrice
-  const discountedRentalTotal = rawRentalTotal * (1 - promoDiscount)
-  const promoDiscountAmount = Number(
-    (rawRentalTotal - discountedRentalTotal).toFixed(2),
-  )
-  const vatPercent =
-    car?.vatRate != null && !isNaN(Number(car.vatRate))
-      ? Number(car.vatRate)
-      : 18
+  const vatPercent = car?.vatRate ?? 18
+  const {
+    deliveryFee,
+    returnFee,
+    optionalServicesCost,
+    discountedRentalTotal,
+    subtotalBeforeVat,
+    taxesAndFees,
+    totalAmount,
+  } = checkoutCharges({
+    rentalPrice: rawRentalTotal,
+    discountPercent: promoDiscount * 100,
+    vatPercent,
+    deliveryType,
+    returnType,
+    services: selectedServices,
+    days,
+  })
+  const promoDiscountAmount = Number((rawRentalTotal - discountedRentalTotal).toFixed(2))
 
-  const subtotalBeforeVat =
-    discountedRentalTotal + deliveryFee + returnFee + optionalServicesCost
-  const taxesAndFees = Number(
-    (subtotalBeforeVat * (vatPercent / 100)).toFixed(2),
-  )
-  const totalAmount = Number((subtotalBeforeVat + taxesAndFees).toFixed(2))
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!currentUser) {
-      onNavigateAuth?.("checkout")
-      return
-    }
     if (!car) {
       alert(
         "No vehicle selected. Please choose a vehicle from the fleet catalog.",
@@ -505,9 +499,16 @@ export default function CheckoutView({
       }
     }
 
+    if (availabilityCheck.loading) {
+      alert("Wait for the availability check to finish.")
+      return
+    }
+
     if (!availabilityCheck.isAvailable) {
       alert(
-        `Double Booking Conflict: ${car.name} is reserved from ${availabilityCheck.conflict?.pickupDate} to ${availabilityCheck.conflict?.returnDate}. Please choose different dates or select another vehicle.`,
+        availabilityCheck.conflict?.pickupDate
+          ? `This vehicle is unavailable from ${availabilityCheck.conflict.pickupDate} to ${availabilityCheck.conflict.returnDate}. Choose different dates or a different vehicle.`
+          : "Availability could not be confirmed. Refresh or choose a different vehicle.",
       )
       return
     }
@@ -542,8 +543,8 @@ export default function CheckoutView({
       .filter(Boolean)
       .join(" | ")
 
-    setTimeout(() => {
-      onConfirmBooking({
+    try {
+      await onConfirmBooking({
         customer: finalCustomer,
         driver: {
           ...driver,
@@ -583,8 +584,9 @@ export default function CheckoutView({
         deliveryCoordinates: deliveryType === "custom" ? deliveryCoordinates : undefined,
         returnCoordinates: returnType === "custom" ? returnCoordinates : undefined,
       })
+    } finally {
       setIsSubmitting(false)
-    }, 300)
+    }
   }
 
   if (!car) {
@@ -653,11 +655,11 @@ export default function CheckoutView({
             </div>
             <div>
               <h3 className="text-sm font-bold text-stone-900">
-                Have an existing client profile with Pit Stop Car Hire?
+                Book as a guest
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
-                Sign in to auto-fill your saved credentials, verified driver
-                license, and active privilege tiers.
+                Enter your contact details below to book. Use your booking
+                reference to check the reservation later in My Trips.
               </p>
             </div>
           </div>
@@ -666,7 +668,7 @@ export default function CheckoutView({
             onClick={() => onNavigateAuth?.("checkout")}
             className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white font-bold text-xs shadow-xs transition shrink-0 cursor-pointer"
           >
-            Sign In / Register Now →
+            Sign in to use saved details
           </button>
         </div>
       )}

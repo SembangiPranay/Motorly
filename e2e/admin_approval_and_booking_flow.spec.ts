@@ -33,27 +33,10 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
   })
 
   test("E2E-01: Admin Login authenticates and enters Admin Portal", async ({ page }) => {
-    await page.goto("/")
-    await page.waitForLoadState("domcontentloaded")
-
-    // Click the Fleet Admin button in the navigation header
-    const adminBtn = page.locator("button:has-text('Fleet Admin')").first()
-    await expect(adminBtn).toBeVisible({ timeout: 5000 })
-    await adminBtn.click()
-
-    // It redirects to AuthView (Admin tab). Enter passcode 0709
-    const passInput = page.locator("input[type='password']").first()
-    await expect(passInput).toBeVisible({ timeout: 5000 })
-    await passInput.fill(ADMIN_PASSWORD)
-
-    // Click Authorize button
-    const submitBtn = page.locator("button:has-text('Authorize & Launch Fleet Console')").first()
-    await expect(submitBtn).toBeVisible({ timeout: 5000 })
-    await submitBtn.click()
-
-    // Verify Admin Portal loads showing Sync DB button and Active Bookings tab
-    await expect(page.locator("button:has-text('Sync DB')").first()).toBeVisible({ timeout: 10000 })
-    await expect(page.locator("button:has-text('Active Bookings')").first()).toBeVisible()
+    await page.goto("/?view=admin")
+    await page.getByPlaceholder("Enter administrator passcode").fill(ADMIN_PASSWORD)
+    await page.getByRole("button", { name: "Authorize & Unlock Console" }).click()
+    await expect(page.getByRole("button", { name: /Orders & Dispatch/ })).toBeVisible()
   })
 
   test("E2E-02: Clicking 'Accept Request' updates card to Approved/Ready and NEVER flips to Declined", async ({ page }) => {
@@ -61,6 +44,10 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
     const testId = `E2E-ACC-${Date.now().toString(36)}`
     createdTestIds.push(testId)
 
+    const pickup = Date.now() + 7 * 86400000
+    const fleet = await (await fetch(`${API_BASE}/api/cars`)).json()
+    const car = fleet.find((vehicle: { status: string }) => vehicle.status === "Available")
+    expect(car).toBeTruthy()
     const createRes = await fetch(`${API_BASE}/api/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,9 +65,10 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
           licenseState: "FL",
           licenseExpiry: "2029-12-31",
         },
-        pickupDate: "2026-11-20 10:00 AM",
-        returnDate: "2026-11-20 06:00 PM",
-        requestedCategory: "ExoticRocketShip", // Unmateable category so it stays Pending Assignment
+        pickupDate: new Date(pickup).toISOString(),
+        returnDate: new Date(pickup + 86400000).toISOString(),
+        requestedCategory: car.type,
+        carId: car.id,
         totalAmount: 220,
       }),
     })
@@ -91,43 +79,15 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
       window.localStorage.setItem("motorly_admin_token", token)
     }, adminToken)
 
-    await page.goto("/")
-    await page.waitForLoadState("domcontentloaded")
+    await page.goto("/?view=admin&tab=manifest")
+    await page.getByRole("button", { name: /Orders & Dispatch/ }).click()
 
-    // Navigate to Admin View directly
-    const adminBtn = page.locator("button:has-text('Fleet Admin')").first()
-    await adminBtn.click()
-    await expect(page.locator("button:has-text('Sync DB')").first()).toBeVisible({ timeout: 15000 })
-
-    // Sync database data and wait for completion across WAN
-    const syncBtn = page.locator("button:has-text('Sync DB')").first()
-    await syncBtn.click()
-    await expect(page.locator("button:has-text('Syncing...')")).toBeVisible({ timeout: 5000 }).catch(() => {})
-    await expect(page.locator("button:has-text('Sync DB')").first()).toBeVisible({ timeout: 35000 })
-
-    // 3. Search for the card by ID
-    const searchInput = page.locator("input[placeholder*='Search ID']").first()
-    await searchInput.fill(testId)
-
-    // Find the visible card container for testId (works across mobile and desktop viewports)
-    const card = page.locator("div.group:visible").filter({ hasText: testId }).first()
-    await expect(card).toBeVisible({ timeout: 15000 })
-
-    // Confirm it starts as Pending Review
-    await expect(card.locator("text=Pending Review").first()).toBeVisible()
-
-    // 4. Click 'Accept Request'
-    const acceptBtn = card.locator("button:visible", { hasText: "Accept Request" }).first()
-    await expect(acceptBtn).toBeVisible()
-    await acceptBtn.click()
-
-    // 5. CRITICAL VERIFICATION: Badge must NOT be 'Declined'
-    // It should display 'Approved (Assign Car)'
-    await expect(card.locator("text=Approved (Assign Car)").first()).toBeVisible({ timeout: 15000 })
-    await expect(card.locator("text=Declined")).not.toBeVisible()
-
-    // 6. Action button must be 'Auto-Assign', not hidden or disappeared
-    await expect(card.locator("button:visible", { hasText: "Auto-Assign" }).first()).toBeVisible()
+    const row = page.getByRole("row").filter({ hasText: testId })
+    await expect(row.getByText("Needs Approval")).toBeVisible()
+    await row.getByRole("button", { name: "Accept", exact: true }).click()
+    await expect(row.getByText("Ready For Keys")).toBeVisible()
+    await expect(row.getByRole("button", { name: "Give Keys" })).toBeVisible()
+    await expect(row.getByRole("button", { name: "Decline" })).toHaveCount(0)
   })
 
   test("E2E-03: Date Scheduling Modal enforces Past Date blocking and enables Same-Day rentals", async ({ page }) => {
@@ -135,7 +95,7 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
     await page.waitForLoadState("domcontentloaded")
 
     // Click Pickup Date & Time container in search widget
-    const dateBox = page.locator("div.space-y-1\\.5").filter({ hasText: "Pickup Date" }).locator(".cursor-pointer").first()
+    const dateBox = page.getByText("Pickup Schedule", { exact: true })
     await expect(dateBox).toBeVisible({ timeout: 10000 })
     await dateBox.click()
 

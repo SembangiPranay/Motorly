@@ -1,50 +1,20 @@
 import { test, expect } from "@playwright/test"
 
-test.describe("Cinematic Car Entrance Animation (Keka-style brand intro)", () => {
-  test("Animation mounts with full branding, tachometer HUD, and dismisses cleanly", async ({
-    page,
-  }) => {
-    // Force intro animation via URL param ?intro=1
-    await page.goto("http://localhost:3000?intro=1")
+test.describe("Cinematic welcome", () => {
+  const welcome = "Pit Stop Car Hire cinematic welcome"
 
-    const introBanner = page.locator("[role='banner'][aria-label='Motorly Brand Entrance']")
-    await expect(introBanner).toBeVisible({ timeout: 4000 })
-
-    // Verify SVG car silhouette is rendered
-    const carSvg = introBanner.locator("svg")
-    await expect(carSvg).toBeVisible()
-
-    // Verify Motorly brand title text
-    const brandHeading = introBanner.locator("h1:has-text('MOTORLY')")
-    await expect(brandHeading).toBeAttached()
-
-    // Verify Skip Intro button is functional and smoothly transitions to hero
-    const skipBtn = introBanner.locator("button:has-text('Skip Intro')")
-    await expect(skipBtn).toBeVisible()
-    await skipBtn.click()
-
-    // Verify overlay unmounts / disappears and hero view is visible
-    await expect(introBanner).not.toBeVisible({ timeout: 3000 })
-    await expect(page.locator("h1:has-text('Luxury & Practical')")).toBeVisible()
+  test("shows the welcome video and returns to the storefront when skipped", async ({ page }) => {
+    await page.goto("/?intro=1", { waitUntil: "domcontentloaded" })
+    const intro = page.getByRole("banner", { name: welcome })
+    await expect(intro.locator("video")).toHaveAttribute("src", "/videos/motorly-entrance.mp4")
+    await intro.getByRole("button", { name: "Skip" }).click()
+    await expect(intro).toHaveCount(0)
+    await expect(page.getByRole("heading", { name: /New Luxury Mobility/i })).toBeVisible()
   })
 
-  test("Replay trigger in footer relaunches the intro animation", async ({ page }) => {
-    // Load with intro already dismissed
-    await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_completed", "true")
-    })
-
-    await page.goto("http://localhost:3000")
-    await page.waitForTimeout(500)
-
-    // Trigger replay via window hook
-    await page.evaluate(() => {
-      if ((window as any).__replayMotorlyIntro) {
-        (window as any).__replayMotorlyIntro()
-      }
-    })
-
-    const introBanner = page.locator("[role='banner'][aria-label='Motorly Brand Entrance']")
-    await expect(introBanner).toBeVisible({ timeout: 3000 })
+  test("replays the welcome from the footer", async ({ page }) => {
+    await page.goto("/?intro=0", { waitUntil: "domcontentloaded" })
+    await page.getByRole("button", { name: /Replay Intro/ }).click()
+    await expect(page.getByRole("banner", { name: welcome })).toBeVisible()
   })
 })

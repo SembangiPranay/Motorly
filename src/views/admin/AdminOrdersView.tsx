@@ -381,11 +381,10 @@ export default function AdminOrdersView({
                   const durationDays = getRentalDurationDays(b.pickupDate, b.returnDate)
 
                   const statusStr = (b.status || "").toLowerCase()
-                  const isPending = statusStr.includes("pending") || statusStr.includes("advance")
-                  const isAssigned =
-                    statusStr.includes("assigned") ||
-                    statusStr.includes("approved") ||
-                    statusStr.includes("confirmed")
+                  const isPendingAssignment = statusStr.includes("pending") || statusStr.includes("advance")
+                  const isPending = isPendingAssignment && !b.approvedByAdmin
+                  const isAssigned = Boolean(b.approvedByAdmin && b.matchedCarId &&
+                    ["assigned", "approved", "confirmed"].includes(statusStr))
                   const isActiveRental =
                     statusStr.includes("checked out") ||
                     statusStr.includes("checked_out") ||
@@ -512,6 +511,9 @@ export default function AdminOrdersView({
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             Needs Approval
                           </span>
+                        )}
+                        {isPendingAssignment && b.approvedByAdmin && (
+                          <span className="text-xs font-bold text-amber-800">Vehicle assignment required</span>
                         )}
                         {isAssigned && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 whitespace-nowrap">

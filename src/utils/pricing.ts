@@ -102,3 +102,89 @@ export function calculateRentalPrice(params: {
     durationText: `${days} ${days === 1 ? "Day" : "Days"}`,
   }
 }
+
+export interface OptionalServiceItem {
+  id: string
+  name: string
+  pricePerDay: number
+  description: string
+  icon: string
+  clauseReference: string
+}
+
+export const AVAILABLE_OPTIONAL_SERVICES: OptionalServiceItem[] = [
+  {
+    id: "stroller",
+    name: "Baby Stroller / Buggy",
+    pricePerDay: 5,
+    description: "Lightweight, easy-fold stroller for sightseeing across Malta & Gozo.",
+    icon: "🍼",
+    clauseReference: "Clause 1",
+  },
+  {
+    id: "booster",
+    name: "Child Booster / Safety Seat",
+    pricePerDay: 5,
+    description: "EU-approved safety booster seat suitable for infants and toddlers.",
+    icon: "💺",
+    clauseReference: "Clause 1",
+  },
+  {
+    id: "playpen",
+    name: "Baby Playpen / Travel Cot",
+    pricePerDay: 5,
+    description: "Portable foldable playpen / sleeping cot for holiday villa & hotel stays.",
+    icon: "🛏️",
+    clauseReference: "Clause 1",
+  },
+  {
+    id: "extra_driver",
+    name: "Additional Authorized Driver",
+    pricePerDay: 5,
+    description: "Authorized secondary driver covered under Pit Stop fully comprehensive policy.",
+    icon: "👤",
+    clauseReference: "Clause 20(a)",
+  },
+  {
+    id: "excess_waiver",
+    name: "Collision Excess Reduction Waiver",
+    pricePerDay: 15,
+    description: "Waives the standard €700 insurance excess liability (Clause 4) to €0.",
+    icon: "🛡️",
+    clauseReference: "Clause 4",
+  },
+]
+
+export function checkoutCharges(params: {
+  rentalPrice: number
+  discountPercent: number
+  vatPercent: number
+  deliveryType: string
+  returnType: string
+  services: readonly string[]
+  days: number
+}) {
+  const deliveryFee = params.deliveryType === "custom" ? 20 : 0
+  const returnFee = params.returnType === "custom" ? 20 : 0
+  const optionalServices = AVAILABLE_OPTIONAL_SERVICES.filter((service) =>
+    params.services.includes(service.id),
+  )
+  const optionalServicesCost = optionalServices.reduce(
+    (total, service) => total + service.pricePerDay,
+    0,
+  ) * Math.max(1, params.days)
+  const discountedRentalTotal = params.rentalPrice * (1 - params.discountPercent / 100)
+  const subtotalBeforeVat = discountedRentalTotal + deliveryFee + returnFee + optionalServicesCost
+  const taxesAndFees = Number((subtotalBeforeVat * params.vatPercent / 100).toFixed(2))
+
+  return {
+    deliveryFee,
+    returnFee,
+    optionalServices: optionalServices.map((service) => service.id),
+    optionalServicesCost,
+    discountedRentalTotal,
+    subtotalBeforeVat,
+    taxesAndFees,
+    totalAmount: Number((subtotalBeforeVat + taxesAndFees).toFixed(2)),
+  }
+}

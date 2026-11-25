@@ -36,42 +36,17 @@ test.describe("Professional QA End-to-End Test Suite: Clean Customer Navbar (No 
     expect(classList).not.toContain("lg:pl-16")
   })
 
-  test("2. Admin Gmail Authentication: Proper Google/Gmail login verifies and unlocks console", async ({ page }) => {
-    await page.setViewportSize({ width: 1400, height: 900 })
-    await page.addInitScript(() => {
-      localStorage.removeItem("motorly_admin_token")
-      localStorage.removeItem("motorly_admin_user")
+  test("2. Admin rejects email-only authentication and allows passcode sign-in", async ({ page, request }) => {
+    const response = await request.post("/api/auth/google-admin-login", {
+      data: { email: "qa@example.org" },
     })
+    expect([400, 503]).toContain(response.status())
+    expect((await response.json()).token).toBeUndefined()
 
-    await page.goto("http://localhost:3000/?view=admin")
-    await page.waitForLoadState("domcontentloaded")
-    await page.waitForTimeout(1000)
-
-    // Verify Admin Login Gate is displayed with Google Auth
-    const googleAuthBtn = page.locator("button:has-text('Authorize with Google')")
-    await expect(googleAuthBtn).toBeVisible()
-
-    // Test unauthorized email first
-    const emailInput = page.locator("input[type='email']")
-    await emailInput.fill("intruder.unauthorized@gmail.com")
-    await googleAuthBtn.click()
-
-    // Verify rejection message
-    const errorBanner = page.locator("div.animate-shake")
-    await expect(errorBanner).toBeVisible({ timeout: 5000 })
-    await expect(errorBanner).toContainText("Access denied")
-
-    // Now test authorized admin Gmail
-    await emailInput.fill("nanikoushik96@gmail.com")
-    await googleAuthBtn.click()
-
-    // Verify successful authentication and unlock of Admin Console
-    await expect(page.locator("text=Fleet Operations Admin").or(page.locator("text=Studio Director"))).toBeVisible({
-      timeout: 10000,
-    })
-
-    const token = await page.evaluate(() => localStorage.getItem("motorly_admin_token"))
-    expect(token).toBeTruthy()
+    await page.goto("/?view=admin")
+    await page.getByPlaceholder("Enter administrator passcode").fill(process.env.ADMIN_PASSWORD || "0709")
+    await page.getByRole("button", { name: "Authorize & Unlock Console" }).click()
+    await expect(page.getByRole("button", { name: /Orders & Dispatch/ })).toBeVisible()
 
     // Verify Admin Sidebar: Tapping Motorly logo expands when collapsed
     const adminSidebar = page.locator("aside").first()

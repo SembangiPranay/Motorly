@@ -12,7 +12,7 @@ console.log(
 )
 
 // 1. Start Backend API Server
-const serverProc = spawn("node", ["api/index.js"], {
+const serverProc = spawn("node", ["api/index.ts"], {
   stdio: ["inherit", "pipe", "pipe"],
   shell: true,
   env: { ...process.env, PORT_BACKEND: "3001" },

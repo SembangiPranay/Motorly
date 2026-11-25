@@ -4,7 +4,7 @@ const PORT = 3001
 const BASE_URL = `http://127.0.0.1:${PORT}`
 
 console.log("Starting server for E2E coupon test on port", PORT)
-const serverProc = spawn("node", ["api/index.js"], {
+const serverProc = spawn("node", ["api/index.ts"], {
   env: { ...process.env, PORT: String(PORT) },
   stdio: ["ignore", "pipe", "pipe"],
 })

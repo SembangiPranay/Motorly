@@ -1,57 +1,7 @@
 import React from "react"
 import { CheckIcon, ShieldIcon } from "../../components/Icons"
 
-export interface OptionalServiceItem {
-  id: string
-  name: string
-  pricePerDay: number
-  description: string
-  icon: string
-  clauseReference: string
-}
-
-export const AVAILABLE_OPTIONAL_SERVICES: OptionalServiceItem[] = [
-  {
-    id: "stroller",
-    name: "Baby Stroller / Buggy",
-    pricePerDay: 5,
-    description: "Lightweight, easy-fold stroller for sightseeing across Malta & Gozo.",
-    icon: "🍼",
-    clauseReference: "Clause 1",
-  },
-  {
-    id: "booster",
-    name: "Child Booster / Safety Seat",
-    pricePerDay: 5,
-    description: "EU-approved safety booster seat suitable for infants and toddlers.",
-    icon: "💺",
-    clauseReference: "Clause 1",
-  },
-  {
-    id: "playpen",
-    name: "Baby Playpen / Travel Cot",
-    pricePerDay: 5,
-    description: "Portable foldable playpen / sleeping cot for holiday villa & hotel stays.",
-    icon: "🛏️",
-    clauseReference: "Clause 1",
-  },
-  {
-    id: "extra_driver",
-    name: "Additional Authorized Driver",
-    pricePerDay: 5,
-    description: "Authorized secondary driver covered under Pit Stop fully comprehensive policy.",
-    icon: "👤",
-    clauseReference: "Clause 20(a)",
-  },
-  {
-    id: "excess_waiver",
-    name: "Collision Excess Reduction Waiver",
-    pricePerDay: 15,
-    description: "Waives the standard €700 insurance excess liability (Clause 4) to €0.",
-    icon: "🛡️",
-    clauseReference: "Clause 4",
-  },
-]
+import { AVAILABLE_OPTIONAL_SERVICES } from "../../utils/pricing"
 
 interface CheckoutOptionalServicesProps {
   selectedServices: string[]

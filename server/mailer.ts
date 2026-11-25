@@ -118,6 +118,9 @@ function getTransporter(): Transporter | null {
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 12000,
     auth: {
       user: cfg.user,
       pass: cfg.pass,

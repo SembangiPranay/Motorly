@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { Car, BookingState, CustomerInfo } from "../types"
 import { api } from "../services/api"
@@ -40,15 +40,21 @@ export default function ConfirmationModal({
   onNavigateMyBookings,
 }: ConfirmationModalProps) {
   const [copied, setCopied] = useState(false)
-  const [dispatchStatus, setDispatchStatus] = useState<"dispatching" | "sent">(
-    "dispatching",
-  )
-  const autoDispatchedRef = useRef(false)
+  const [contact, setContact] = useState({ phone: "+356 99827192", email: "pitstopcarhire@gmail.com" })
+  useEffect(() => {
+    let active = true
+    api.getSettings().then((settings) => {
+      if (active) setContact((previous) => ({
+        phone: settings.support_phone || settings.contact_phone || previous.phone,
+        email: settings.contact_email || previous.email,
+      }))
+    })
+    return () => { active = false }
+  }, [])
 
   const studioSettings = {
-    contact_phone: "7780740223",
-    contact_email: "pitstopcarhire@gmail.com",
-    owner_name: "Marcus Vance",
+    contact_phone: contact.phone,
+    contact_email: contact.email,
     garage_location:
       car.garageName ||
       car.garageAddress ||
@@ -85,7 +91,7 @@ export default function ConfirmationModal({
 📞 *Phone:* ${customer.phone || "Not provided"}
 
 💰 *Total:* €${totalAmount.toFixed(2)}
-🔒 *Security Deposit:* €200
+🔒 *Security Deposit:* €${(car.securityDeposit ?? 700).toFixed(2)}
 
 ⚡ *Review & Approve:*
 ${adminApprovalLink}
@@ -105,50 +111,6 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
   // Direct Mail Link
   const mailSubject = `PIT STOP CAR HIRE – NEW BOOKING REQUEST: ${bookingId} (${car.name})`
   const mailtoUrl = `mailto:${studioSettings.contact_email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(minimalTemplate.replace(/\*/g, ""))}`
-
-  // Automatic & simultaneous dispatch on booking confirmation
-  useEffect(() => {
-    if (autoDispatchedRef.current) return
-    autoDispatchedRef.current = true
-
-    // 1. Trigger backend dispatch notification
-    api.getSettings().catch(() => {})
-
-    fetch("/api/dispatch/booking-notification", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bookingId,
-        carName: car.name,
-        customerName: customerFullName,
-        customerEmail: customer.email,
-        customerPhone: customer.phone,
-        totalAmount,
-        templateText: minimalTemplate,
-      }),
-    }).catch(() => {})
-
-    // 2. Open WhatsApp smart link automatically (Web on laptop, App on phone)
-    try {
-      window.open(primaryWhatsAppUrl, "_blank", "noopener,noreferrer")
-    } catch {
-      // Pop-up blockers may intercept automated window.open
-    }
-
-    const timer = setTimeout(() => {
-      setDispatchStatus("sent")
-    }, 800)
-
-    return () => clearTimeout(timer)
-  }, [
-    primaryWhatsAppUrl,
-    bookingId,
-    car.name,
-    customerFullName,
-    customer.phone,
-    totalAmount,
-    minimalTemplate,
-  ])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(minimalTemplate)
@@ -180,15 +142,14 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
             <CheckIcon size={28} />
           </div>
           <span className="inline-block px-3 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono font-bold uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
-            Booking Request Dispatched &bull; Pending Approval
+            Booking Request Received &bull; Pending Approval
           </span>
           <h2 className="text-2xl sm:text-3xl font-black font-heading tracking-tight">
-            Booking Confirmed!
+            Reservation Request Received
           </h2>
           <p className="text-xs text-gray-500 dark:text-stone-400 max-w-md mx-auto">
-            Your reservation details have been automatically dispatched
-            simultaneously to the fleet manager via <strong>WhatsApp</strong>{" "}
-            and <strong>Email</strong>.
+            The garage will review your request. Use the booking reference below
+            if you contact the team.
           </p>
         </div>
 
@@ -204,7 +165,7 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
                   ⚡ FASTEST APPROVAL
                 </span>
                 <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
-                  Marcus Vance • Garage Fleet Admin
+                  Garage Fleet Team
                 </span>
               </div>
               <h3 className="font-heading font-black text-base sm:text-lg text-emerald-950 dark:text-emerald-100 leading-snug">
@@ -223,32 +184,9 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
             className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-sm font-black shadow-md hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-center group"
           >
             <PhoneIcon size={18} />
-            <span>Send WhatsApp to Admin (+1 778-074-0223)</span>
+            <span>Send WhatsApp to Admin ({studioSettings.contact_phone})</span>
             <ArrowRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
           </a>
-        </div>
-
-        {/* Dispatch Telemetry Status Banner */}
-        <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <div>
-              <p className="font-bold text-emerald-900 dark:text-emerald-200 text-xs">
-                {dispatchStatus === "sent"
-                  ? "Dispatched Simultaneously"
-                  : "Dispatching Notifications..."}
-              </p>
-              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono">
-                WhatsApp (+1 778-074-0223) &bull; nanikoushik96@gmail.com
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
-            ~3 Min Response
-          </span>
         </div>
 
         {/* Boarding Pass Style Receipt Card */}
@@ -337,7 +275,7 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
         <div className="p-3 bg-stone-100 dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono font-bold uppercase text-stone-500 tracking-wider">
-              Dispatched Message
+              Booking Message
             </span>
             <button
               type="button"

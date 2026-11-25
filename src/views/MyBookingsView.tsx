@@ -284,7 +284,7 @@ export default function MyBookingsView({
     if (!window.confirm("Are you sure you want to decline this quotation?"))
       return
     try {
-      const res = await api.declineExtension(bookingId, currentUser?.email)
+      const res = await api.declineExtension(bookingId)
       if (res.success) {
         setBookings((prev) => {
           const updated = prev.map((b) =>

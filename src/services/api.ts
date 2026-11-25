@@ -36,9 +36,7 @@ export interface SubmitReviewResponse {
   car?: any
 }
 
-// Base API endpoints - supports relative proxy or direct backend port
 const PRIMARY_BASE = "/api"
-const FALLBACK_BASE = "http://localhost:3001/api"
 
 class ApiService {
   private getHeaders(
@@ -76,13 +74,13 @@ class ApiService {
           endpoint.includes("/cancel-admin") ||
           endpoint.includes("/accept")))
 
-    if (isAdminEndpoint || (isAdminPath && adminToken)) {
-      if (adminToken) {
-        headers["Authorization"] = `Bearer ${adminToken}`
-      }
-    } else if (role === "customer") {
+    if (role === "customer") {
       if (customerToken) {
         headers["Authorization"] = `Bearer ${customerToken}`
+      }
+    } else if (isAdminEndpoint || (isAdminPath && adminToken)) {
+      if (adminToken) {
+        headers["Authorization"] = `Bearer ${adminToken}`
       }
     } else {
       // Default: if admin token exists and no explicit customer request, prefer admin token if in admin mode or no customer token
@@ -173,40 +171,14 @@ class ApiService {
       headers: mergedHeaders,
     }
 
-    const isLocalhost =
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1")
-
-    // Try relative URL first (standard in Vercel and Vite dev proxy)
-    try {
-      const res = await fetch(`${PRIMARY_BASE}${endpoint}`, config)
-      if (res.status === 401) {
-        this.handleUnauthorizedResponse(endpoint, role, mergedHeaders)
-      }
-      if (
-        !isLocalhost ||
-        (res.status !== 404 &&
-          res.status !== 500 &&
-          res.status !== 502 &&
-          res.status !== 503)
-      ) {
-        return res
-      }
-    } catch (e) {
-      if (!isLocalhost) throw e
+    if (typeof config.body === "string" && new Blob([config.body]).size > 4 * 1024 * 1024) {
+      throw new Error("This request exceeds 4 MB. Reduce the number or size of the photos and try again.")
     }
-
-    // In local development only, fallback to direct backend port 3001
-    if (isLocalhost) {
-      const fallbackRes = await fetch(`${FALLBACK_BASE}${endpoint}`, config)
-      if (fallbackRes.status === 401) {
-        this.handleUnauthorizedResponse(endpoint, role, mergedHeaders)
-      }
-      return fallbackRes
+    const response = await fetch(`${PRIMARY_BASE}${endpoint}`, config)
+    if (response.status === 401) {
+      this.handleUnauthorizedResponse(endpoint, role, mergedHeaders)
     }
-
-    throw new Error("Unable to reach backend service.")
+    return response
   }
 
   // --- Customer Authentication & Self-Service Portal ---
@@ -315,11 +287,11 @@ class ApiService {
   }
 
   logoutCustomer() {
-    localStorage.removeItem("motorly_customer_token")
-    localStorage.removeItem("motorly_customer_user")
     this.request("/auth/customer-logout", { method: "POST" }, "customer").catch(
       () => {},
     )
+    localStorage.removeItem("motorly_customer_token")
+    localStorage.removeItem("motorly_customer_user")
   }
 
   async getCustomerBookings(email?: string): Promise<BookingRecord[]> {
@@ -383,7 +355,7 @@ class ApiService {
     }
   }
 
-  async adminGoogleLogin(email: string, credential?: string): Promise<{
+  async adminGoogleLogin(credential: string): Promise<{
     success: boolean
     token?: string
     role?: string
@@ -395,7 +367,7 @@ class ApiService {
         "/auth/google-admin-login",
         {
           method: "POST",
-          body: JSON.stringify({ email, credential }),
+          body: JSON.stringify({ credential }),
         },
         "admin",
       )
@@ -449,6 +421,7 @@ class ApiService {
   }
 
   logoutAdmin() {
+    this.request("/auth/admin-logout", { method: "POST" }, "admin").catch(() => {})
     localStorage.removeItem("motorly_admin_token")
     localStorage.removeItem("motorly_admin_user")
   }
@@ -843,13 +816,12 @@ class ApiService {
     message: string
     booking: BookingRecord
   }> {
-    const role = this.hasAdminToken() ? "admin" : "customer"
     const res = await this.request(
       `/bookings/${bookingId}/approve-extension`,
       {
         method: "POST",
       },
-      role,
+      "customer",
     )
     if (!res.ok) {
       let errMsg = "Failed to approve quotation"
@@ -863,19 +835,17 @@ class ApiService {
     return res.json()
   }
 
-  async declineExtension(bookingId: string, customerEmail?: string): Promise<{
+  async declineExtension(bookingId: string): Promise<{
     success: boolean
     message: string
     booking: BookingRecord
   }> {
-    const role = this.hasAdminToken() ? "admin" : "customer"
     const res = await this.request(
       `/bookings/${bookingId}/decline-extension`,
       {
         method: "POST",
-        body: JSON.stringify({ email: customerEmail }),
       },
-      role,
+      "customer",
     )
     if (!res.ok) {
       let errMsg = "Failed to decline extension"
@@ -920,20 +890,6 @@ class ApiService {
       "admin",
     )
     if (!res.ok) {
-      if (res.status === 409) {
-        try {
-          const body = await res.json()
-          if (body.booking) return body
-        } catch {}
-        const fresh = await this.lookupBooking(bookingId)
-        if (fresh) {
-          return {
-            success: true,
-            message: "Booking already completed",
-            booking: fresh,
-          }
-        }
-      }
       let serverErrorMsg = "Failed to complete return inspection"
       try {
         const errJson = await res.json()
@@ -945,16 +901,21 @@ class ApiService {
     return res.json()
   }
 
-  // Driver License Download URL
-  getLicenseDownloadUrl(
+  async getLicensePhoto(
     bookingId: string,
-    side: "front" | "back" | "certificate" = "front",
-  ): string {
-    const adminToken = localStorage.getItem("motorly_admin_token")
-    const customerToken = localStorage.getItem("motorly_customer_token")
-    const token = adminToken || customerToken
-    const tokenParam = token ? `&token=${encodeURIComponent(token)}` : ""
-    return `/api/bookings/${bookingId}/download-license?side=${side}${tokenParam}`
+    side: "front" | "back",
+    signal: AbortSignal,
+  ): Promise<Blob> {
+    const response = await this.request(
+      `/bookings/${encodeURIComponent(bookingId)}/download-license?side=${side}`,
+      { signal },
+      "admin",
+    )
+    const contentType = response.headers.get("Content-Type")?.split(";")[0]
+    if (!response.ok || !["image/jpeg", "image/png", "image/webp"].includes(contentType || "")) {
+      throw new Error("Driver license photo is unavailable.")
+    }
+    return response.blob()
   }
 
   // Check vehicle availability for specific date range
@@ -980,10 +941,10 @@ class ApiService {
           pickupDate,
         )}&returnDate=${encodeURIComponent(returnDate)}`,
       )
-      if (!res.ok) return { carId, isAvailable: true, carStatus: "Available" }
+      if (!res.ok) return { carId, isAvailable: false, carStatus: "Unavailable" }
       return res.json()
     } catch {
-      return { carId, isAvailable: true, carStatus: "Available" }
+      return { carId, isAvailable: false, carStatus: "Unavailable" }
     }
   }
 
@@ -1444,24 +1405,6 @@ class ApiService {
     return res.json()
   }
 
-  // --- File Upload ---
-  async uploadLicenseFile(fileName: string): Promise<{
-    success: boolean
-    fileName: string
-    url: string
-  }> {
-    try {
-      const res = await this.request("/upload", {
-        method: "POST",
-        body: JSON.stringify({ fileName }),
-      })
-      const data = await this.safeJson(res, null)
-      if (data && data.url) return data
-      return { success: false, fileName, url: "" }
-    } catch {
-      return { success: false, fileName, url: "" }
-    }
-  }
 }
 
 export const api = new ApiService()

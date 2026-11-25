@@ -1,8 +1,10 @@
 import pg from "pg"
+if (!process.env.DATABASE_URL) throw new Error("Set DATABASE_URL explicitly before running this script.")
+
 
 const pool = new pg.Pool({
   connectionString:
-    "postgresql://postgres.mrbymhhcjvebpxcfmnhy:Koushik.git1@aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+    process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 })
 

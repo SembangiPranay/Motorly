@@ -268,8 +268,29 @@ export default function AdminBookingDetailView({
   const driverLicenseNumber = booking.driver?.licenseNumber || "Pending Verification"
   const driverLicenseExpiry = booking.driver?.licenseExpiry || "On Pickup Check"
   const driverDob = booking.driver?.dateOfBirth || "On File"
-  const licensePhotoFront = booking.driver?.licensePhotoFront
-  const licensePhotoBack = booking.driver?.licensePhotoBack
+  const [licensePhotos, setLicensePhotos] = useState<{ front?: string; back?: string }>({})
+  const hasLicenseFront = Boolean(booking.driver?.licensePhotoFront)
+  const hasLicenseBack = Boolean(booking.driver?.licensePhotoBack)
+  const { front: licensePhotoFront, back: licensePhotoBack } = licensePhotos
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const urls: string[] = []
+    setLicensePhotos({})
+    for (const [side, hasPhoto] of [["front", hasLicenseFront], ["back", hasLicenseBack]] as const) {
+      if (!hasPhoto) continue
+      api.getLicensePhoto(booking.id, side, controller.signal).then((photo) => {
+        if (controller.signal.aborted) return
+        const url = URL.createObjectURL(photo)
+        urls.push(url)
+        setLicensePhotos((previous) => ({ ...previous, [side]: url }))
+      }).catch(() => {})
+    }
+    return () => {
+      controller.abort()
+      urls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [booking.id, booking.driver?.licenseFileName, booking.driver?.licenseBackFileName, hasLicenseFront, hasLicenseBack])
 
   return (
     <div className="space-y-6 pb-12 animate-fadeIn font-sans">
@@ -1160,6 +1181,26 @@ export default function AdminBookingDetailView({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {booking.checklistIn?.damageFound && (
+              <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <h3 className="text-xs font-bold text-stone-900">Return inspection damage</h3>
+                {booking.checklistIn.damageNotes && (
+                  <p className="text-xs text-stone-700">{booking.checklistIn.damageNotes}</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {booking.checklistIn.damagePhotos?.map((photo, index) => {
+                    const title = `Return damage photo ${index + 1}`
+                    return (
+                      <button type="button" key={index}
+                        onClick={() => setLightboxImage({ url: photo, title })}>
+                        <img src={photo} alt={title} className="h-16 w-24 rounded-lg object-cover" />
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}

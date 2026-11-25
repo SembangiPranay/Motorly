@@ -2,7 +2,7 @@
 
 ## Architecture
 - **Frontend**: React 19 + TypeScript + Tailwind CSS v4 running on Vite (port 8443). Key views in `src/views/` (`ListingView`, `CarDetailView`, `CheckoutView`, `ConfirmationModal`, `MyBookingsView`, `AdminView`).
-- **Backend API**: Express 5 on Node.js (port 3001) in `server/index.ts` (compiled to `api/index.js`), reverse-proxied by Vite at `/api`.
+- **Backend API**: Express 5 on Node.js 22.18+ (port 3001). Vite proxies `/api` to the local server. Vercel uses `api/index.ts` as the function entry point.
 - **Database**: Supabase PostgreSQL 17.11 (`aws-0-us-east-1.pooler.supabase.com:6543/postgres`) with 7 core tables (`vehicles`, `bookings`, `users`, `promo_codes`, `maintenance_logs`, `admin_sessions`, `customer_sessions`).
 - **Testing Engine**: Playwright browser automation driving interactive flows on system Chrome/Edge, capturing high-resolution screenshots into `./screenshots/`, paired with backend lifecycle test suites (`scripts/qa_full_lifecycle_test.mjs`).
 
@@ -66,8 +66,19 @@
 
 ## Code Layout
 - `src/` — React frontend source (App.tsx, views/, components/)
-- `server/` — Express API source (index.ts, db.ts)
-- `api/` — Bundled production backend artifact (index.js)
+- `server/index.ts` — Express application setup and route registration
+- `server/routes/` — Authentication, fleet, reservations, documents, rental lifecycle, extensions, admin, promos, maintenance, settings, email, and reviews
+- `server/db.ts` — PostgreSQL and local SQLite access and schema setup
+- `api/index.ts` — Vercel and standalone Node entry point
 - `scripts/` — QA test scripts (qa_full_lifecycle_test.mjs, test-supabase.mjs)
 - `screenshots/` — Destination directory for Playwright high-resolution captures
 - `.agents/teamwork/` — Teamwork agent coordination metadata
+
+## Release verification
+
+1. Use Node 22.18 or newer in the Node 22 release line. Run `npm ci`, `npm run build`, `npm run test:api`, and `npm audit --omit=dev`.
+2. Run the API integration suite against a fresh local PostgreSQL database whose name starts with `motorly_test`, using `MOTORLY_TEST_DATABASE_URL`. The suite defaults to an in-memory SQLite database and disables external SMTP. Browser suites that create bookings need an isolated backend.
+3. Configure Vercel Preview with its own Supabase database, a strong `JWT_SECRET`, administrator credentials, and `APP_URL`. Configure SMTP with the intended garage mailbox and use the admin email diagnostics to verify delivery. For Google admin sign-in, set both OAuth client ID variables to the same web client ID, configure the authorized origins in Google Cloud, and set the admin email or Gmail allowlist entry when the account has no admin user record.
+4. Verify the Preview deployment with the customer and admin journeys. In a private browser window, book from the fleet without signing in, save the reference from the confirmation screen, and find the booking in My Trips. Check that the admin console shows the same reference and price. Confirm license viewing, key handover, extension approval, return, and contact email through the deployed `/api` routes. Exercise representative photo upload sizes through Vercel and verify Google sign-in and map location selection in the browser.
+
+Rotate the PostgreSQL credential previously checked into the repository and use a fresh JWT signing secret on rollout. Existing sessions signed with a different secret will need to sign in again.

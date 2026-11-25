@@ -1,118 +1,146 @@
-import { test, expect } from "@playwright/test";
+﻿import { test, expect, type APIRequestContext } from "@playwright/test"
 
-test.describe("Upfront Booking Conflict and Full Euro Localization", () => {
-  test("Verifies upfront conflict notification and 100% Euro currency display", async ({ page }) => {
-    // 1. Visit Homepage
-    await page.goto("http://localhost:3000/");
-    await page.waitForLoadState("networkidle");
+async function createCar(request: APIRequestContext, token: string, name: string, status: string) {
+  const id = "browser-qa-" + crypto.randomUUID()
+  const response = await request.post("/api/cars", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      id,
+      name,
+      status,
+      pricePerDay: 100,
+      pricePerHour: 20,
+      vatRate: 18,
+      securityDeposit: 475,
+    },
+  })
+  expect(response.status()).toBe(201)
+  return id
+}
 
-    // Verify Euro currency on Homepage hero and vehicle cards
-    const euroPrices = page.locator("text=/€\\d+/");
-    await expect(euroPrices.first()).toBeVisible();
+for (const mode of ["guest", "signed-in"] as const) {
+  test(`fleet availability, pricing, and booking documents work at ${mode} checkout`, async ({
+    page,
+    request,
+  }) => {
+    const adminLogin = await request.post("/api/auth/login", {
+      data: { password: process.env.ADMIN_PASSWORD || "0709" },
+    })
+    expect(adminLogin.ok()).toBeTruthy()
+    const { token: adminToken } = await adminLogin.json()
+    const adminHeaders = { Authorization: `Bearer ${adminToken}` }
+    const carIds: string[] = []
+    let bookingId: string | undefined
+    let customerId: string | undefined
+    const email = `browser-qa-${crypto.randomUUID()}@example.org`
 
-    // Verify Morris Gaurage (MG) Astor displays upfront conflict / maintenance notification
-    const astorCard = page.locator("div.group:has-text('Morris Gaurage(MG) Astor')").first();
-    await expect(astorCard).toBeVisible();
+    try {
+      carIds.push(await createCar(request, adminToken, "QA Maintenance Sedan", "Maintenance"))
+      carIds.push(await createCar(request, adminToken, "QA Checkout Sedan", "Available"))
+      await page.addInitScript(() => sessionStorage.setItem("motorly_intro_completed", "true"))
+      if (mode === "signed-in") {
+        const registration = await request.post("/api/auth/register", {
+          data: {
+            email,
+            name: "QA Renter",
+            phone: "+356 99827192",
+            password: "local-customer-qa-password",
+          },
+        })
+        expect(registration.status()).toBe(201)
+        const { token, user } = await registration.json()
+        customerId = user.id
+        await page.addInitScript(
+          ({ token, user }) => {
+            localStorage.setItem("motorly_customer_token", token)
+            localStorage.setItem("motorly_customer_user", JSON.stringify(user))
+          },
+          { token, user },
+        )
+      }
 
-    // Verify Astor card has upfront badge (Maintenance / Reserved for Dates)
-    const astorBadge = astorCard.locator("span:has-text('Maintenance'), span:has-text('Reserved')").first();
-    await expect(astorBadge).toBeVisible();
+      await page.goto("/?view=listing", { waitUntil: "domcontentloaded" })
+      await page.getByPlaceholder("Search make, model, or hub...").fill("QA Maintenance Sedan")
+      const unavailable = page.locator("div.group").filter({ hasText: "QA Maintenance Sedan" })
+      await expect(
+        unavailable.getByRole("button", { name: "Maintenance", exact: true }),
+      ).toBeDisabled()
+      await expect(unavailable.getByText("€100", { exact: true })).toBeVisible()
 
-    // Verify inline conflict notice on card
-    const inlineNotice = astorCard.getByText(/Under garage maintenance|Reserved for/);
-    await expect(inlineNotice).toBeVisible();
+      await page.getByPlaceholder("Search make, model, or hub...").fill("QA Checkout Sedan")
+      const available = page.locator("div.group").filter({ hasText: "QA Checkout Sedan" })
+      await available.getByRole("button", { name: "Instant Book", exact: true }).click()
+      await expect(
+        page.getByRole("heading", { name: "Complete Your Reservation Request" }),
+      ).toBeVisible()
+      if (mode === "guest") {
+        await expect(page.getByRole("heading", { name: "Book as a guest" })).toBeVisible()
+        await page.getByPlaceholder("e.g. John").fill("QA")
+        await page.getByPlaceholder("e.g. Borg").fill("Guest")
+        await page.getByPlaceholder("+356 9982 7192").fill("+356 99827192")
+        await page.getByPlaceholder("customer@example.com").fill(email)
+      }
+      await page.locator("input[type=date]").first().fill("1992-07-15")
+      await page.locator("input[type=date]").nth(1).fill("2099-12-31")
+      await page.getByPlaceholder("e.g. D123-456-789-0").fill("QA-DL-1234")
+      await page.getByPlaceholder("Country", { exact: true }).fill("Malta")
+      const png = await page.evaluate(
+        () => document.createElement("canvas").toDataURL("image/png").split(",")[1],
+      )
+      await page
+        .locator("input[type=file]")
+        .first()
+        .setInputFiles({
+          name: "qa-license.png",
+          mimeType: "image/png",
+          buffer: Buffer.from(png, "base64"),
+        })
+      await expect(page.getByText("Front Captured")).toBeVisible()
 
-    // Verify Book button is disabled and indicates unavailable status
-    const astorBookBtn = astorCard.locator("button:has-text('Maintenance'), button:has-text('Reserved')");
-    await expect(astorBookBtn).toBeDisabled();
+      const saved = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/api/bookings") && response.request().method() === "POST",
+      )
+      await page.getByRole("button", { name: /Confirm Reservation Request/ }).click()
+      const bookingResponse = await saved
+      expect(bookingResponse.status()).toBe(201)
+      const booking = await bookingResponse.json()
+      bookingId = booking.id
+      expect(booking.userId).toBe(customerId)
+      expect(booking.customer.email).toBe(email)
+      expect(booking.totalAmount).toBeCloseTo(354)
+      expect(booking.securityDeposit).toBe(475)
+      await expect(
+        page.getByRole("heading", { name: "Reservation Request Received", exact: true }),
+      ).toBeVisible()
+      await expect(page.getByText(bookingId!, { exact: true })).toBeVisible()
 
-    // Verify price is in Euros (€)
-    await expect(astorCard.locator("text=/€\\d+/")).toBeVisible();
+      if (mode === "guest") {
+        expect(bookingResponse.request().headers().authorization).toBeUndefined()
+        await page.getByRole("button", { name: "View in My Reservations" }).click()
+        await expect(page).toHaveURL(/view=my-bookings/)
+        await page.getByPlaceholder(/Enter Booking ID/).fill(bookingId!)
+        await page.getByRole("button", { name: "Find Trip" }).click()
+        await expect(page.getByText(`Reservation ${bookingId} located successfully!`)).toBeVisible()
+        const publicBooking = await request.get(`/api/bookings/lookup/${bookingId}`)
+        expect(publicBooking.ok()).toBeTruthy()
+        const publicData = await publicBooking.json()
+        expect(publicData.customer.email).toBe("")
+        expect(publicData.driver).toBeUndefined()
+      }
 
-    // Take screenshot of Homepage with upfront conflict
-    await page.screenshot({
-      path: "screenshots/human_e2e/conflict_upfront_homepage.png",
-      fullPage: false,
-    });
-
-    // 2. Navigate to Fleet Listing page
-    await page.click("button:has-text('View All')");
-    await page.waitForLoadState("networkidle");
-
-    // Verify filter displays Euros
-    await expect(page.locator("text=/€\\d+\\/day/").first()).toBeVisible();
-
-    // Verify Astor in Fleet Listing
-    const fleetAstor = page.locator("div.group:has-text('Morris Gaurage(MG) Astor')").first();
-    await expect(fleetAstor).toBeVisible();
-    await expect(fleetAstor.locator("span:has-text('Maintenance'), span:has-text('Reserved')").first()).toBeVisible();
-    await expect(fleetAstor.locator("button:has-text('Maintenance'), button:has-text('Reserved')").first()).toBeDisabled();
-
-    await page.screenshot({
-      path: "screenshots/human_e2e/conflict_upfront_fleet.png",
-      fullPage: false,
-    });
-
-    // 3. Select an available car (e.g., Honda City) to view CarDetail
-    const availableCarCard = page.locator("div.group:has-text('honda city')").first();
-    await expect(availableCarCard).toBeVisible();
-    await availableCarCard.locator("button:has-text('Details')").click();
-    await page.waitForLoadState("networkidle");
-
-    // Verify Detail view prices are in Euros (€)
-    await expect(page.locator("text=/€\\d+(\\.\\d{2})?/").first()).toBeVisible();
-    // Verify no stray $ signs in pricing breakdown
-    const detailPricingBreakdown = page.locator("div:has-text('Estimated Total')").last();
-    await expect(detailPricingBreakdown).toContainText("€");
-    await expect(detailPricingBreakdown).not.toContainText("$");
-
-    await page.screenshot({
-      path: "screenshots/human_e2e/car_detail_euros.png",
-      fullPage: false,
-    });
-
-    // 4. Click Request / Instant Book to navigate to Checkout
-    await page.locator("button:has-text('Request This Car'), button:has-text('Instant Book')").first().click();
-    await page.waitForTimeout(600);
-
-    // If customer auth gate is shown, authenticate with registered demo user
-    if (await page.locator("text=Welcome Back").isVisible().catch(() => false)) {
-      await page.locator("input[type='email']").first().fill("john.doe@email.com");
-      await page.locator("input[type='password']").first().fill("pass123");
-      await page.locator("button[type='submit']").first().click();
-      await page.waitForTimeout(1200);
+      await page.evaluate((value) => localStorage.setItem("motorly_admin_token", value), adminToken)
+      await page.goto(`/?view=admin&tab=manifest&bookingId=${bookingId}`, {
+        waitUntil: "domcontentloaded",
+      })
+      const photo = page.getByRole("img", { name: /Driver License Front/ })
+      await expect(photo).toHaveAttribute("src", /^blob:/)
+      await expect
+        .poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth))
+        .toBeGreaterThan(0)
+    } finally {
+      if (bookingId) await request.delete(`/api/bookings/${bookingId}`, { headers: adminHeaders })
+      for (const id of carIds) await request.delete(`/api/cars/${id}`, { headers: adminHeaders })
     }
-
-    // Verify Checkout has Euros
-    const checkoutSummary = page.locator("div:has-text('Total Due on Pickup')").first();
-    await expect(checkoutSummary).toBeVisible({ timeout: 10000 });
-    await expect(checkoutSummary).toContainText("€");
-    await expect(checkoutSummary).not.toContainText("$");
-
-    // Verify 18+ driver age acceptance
-    const dobInput = page.locator("input[type='date']").first();
-    if (await dobInput.isVisible().catch(() => false)) {
-      // Set a date corresponding to an 18/19 year old driver
-      await dobInput.fill("2007-05-15");
-      // Check that age restriction does not show error for 18+
-      await expect(page.locator("text=Must be 21+")).not.toBeVisible();
-    }
-
-    await page.screenshot({
-      path: "screenshots/human_e2e/checkout_euros_and_18plus.png",
-      fullPage: false,
-    });
-
-    // 5. Navigate to Compare Vehicles
-    const compareBtn = page.locator("button:has-text('Compare')").first();
-    if (await compareBtn.isVisible().catch(() => false)) {
-      await compareBtn.click();
-      await page.waitForTimeout(1000);
-      await expect(page.locator("text=/€\\d+/").first()).toBeVisible();
-      await page.screenshot({
-        path: "screenshots/human_e2e/compare_euros.png",
-        fullPage: false,
-      });
-    }
-  });
-});
+  })
+}

@@ -4,20 +4,12 @@ import os from "node:os"
 import { fileURLToPath } from "node:url"
 import pg from "pg"
 import bcrypt from "bcryptjs"
+import { isProduction } from "./config.ts"
 
 const { Pool } = pg
 
-// Load local .env if available
-try {
-  if (typeof (process as any).loadEnvFile === "function") {
-    ;(process as any).loadEnvFile()
-  }
-} catch {}
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-const isProduction = process.env.NODE_ENV === "production"
 
 // Ensure data directory exists for local SQLite fallback (only in non-production local development)
 let sqliteInstance: any = null
@@ -27,14 +19,12 @@ if (!isProduction) {
     // Dynamic import: Node runtimes without node:sqlite (e.g. Node 18/20 on Vercel) never crash on boot
     const sqliteMod = await import("node:sqlite").catch(() => null)
     if (sqliteMod && sqliteMod.DatabaseSync) {
-      let dataDir = path.join(__dirname, "data")
+      let dataDir = path.join(__dirname, "../api/data")
       if (process.env.VERCEL === "1" || process.env.NOW_REGION) {
         dataDir = path.join(os.tmpdir(), "drive_rent_data")
       }
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true })
-      }
-      dbPath = path.join(dataDir, "drive_rent.db")
+      dbPath = process.env.SQLITE_PATH || path.join(dataDir, "drive_rent.db")
+      if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true })
       sqliteInstance = new sqliteMod.DatabaseSync(dbPath)
     }
   } catch (e: any) {
@@ -49,8 +39,8 @@ export const sqlite = sqliteInstance
 
 // Supabase PostgreSQL Configuration
 // Credentials must come strictly from environment variables
-const SUPABASE_POOLER_URL = process.env.DATABASE_URL || ""
-const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL || ""
+const SUPABASE_POOLER_URL = process.env.DATABASE_URL?.trim() || ""
+const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL?.trim() || ""
 
 if (isProduction && !SUPABASE_POOLER_URL && !SUPABASE_DIRECT_URL) {
   throw new Error(
@@ -61,10 +51,18 @@ if (isProduction && !SUPABASE_POOLER_URL && !SUPABASE_DIRECT_URL) {
 let supabasePool: pg.Pool | null = null
 let isSupabaseActive = false
 let activeConnStr = SUPABASE_POOLER_URL
+let sqliteTransactionQueue = Promise.resolve()
 
 export function createSupabasePool(connectionString: string): pg.Pool {
   const rejectUnauthorized =
-    process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true"
+    isProduction || process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true"
+  const dbUrl = new URL(connectionString)
+  const localDb = ["localhost", "127.0.0.1", "[::1]"].includes(dbUrl.hostname)
+  const useTls = !localDb || dbUrl.searchParams.get("sslmode") !== "disable"
+  // pg connection-string SSL settings replace the verified TLS options when present.
+  for (const key of ["sslmode", "sslcert", "sslkey", "sslrootcert", "ssl"]) {
+    dbUrl.searchParams.delete(key)
+  }
 
   const sslConfig: any = {
     rejectUnauthorized,
@@ -74,15 +72,9 @@ export function createSupabasePool(connectionString: string): pg.Pool {
     sslConfig.ca = process.env.DATABASE_CA_CERT
   }
 
-  if (!rejectUnauthorized && isProduction) {
-    console.warn(
-      "[SECURITY WARNING] Database TLS certificate validation is disabled in production! Set DATABASE_SSL_REJECT_UNAUTHORIZED=true or provide DATABASE_CA_CERT.",
-    )
-  }
-
   const pool = new Pool({
-    connectionString,
-    ssl: sslConfig,
+    connectionString: dbUrl.toString(),
+    ssl: useTls && sslConfig,
     connectionTimeoutMillis: 15000,
     idleTimeoutMillis: 30000,
     max: 25,
@@ -108,7 +100,7 @@ function translateSql(sql: string): string {
   return translated
 }
 
-async function querySupabaseWithRetry<T = any>(
+async function querySupabaseWithRetry<T extends pg.QueryResultRow = pg.QueryResultRow>(
   sql: string,
   params: any[] = [],
 ): Promise<pg.QueryResult<T>> {
@@ -118,7 +110,7 @@ async function querySupabaseWithRetry<T = any>(
 
   const translated = translateSql(sql)
   try {
-    return await supabasePool.query(translated, params)
+    return await supabasePool.query<T>(translated, params)
   } catch (firstErr: any) {
     const isConnErr =
       /terminated|timeout|ECONNRESET|ETIMEDOUT|closed|Connection/i.test(
@@ -134,7 +126,7 @@ async function querySupabaseWithRetry<T = any>(
           supabasePool.end().catch(() => {})
         } catch {}
         supabasePool = createSupabasePool(activeConnStr)
-        return await supabasePool.query(translated, params)
+        return await supabasePool.query<T>(translated, params)
       } catch (retryErr: any) {
         console.error(
           "[DB Auto-Recovery] Retry also failed:",
@@ -286,8 +278,8 @@ export const db = {
           try {
             const res = sqlite.prepare(sql).run(...params) as any
             return {
-              changes: res?.changes || 1,
-              rowCount: res?.changes || 1,
+              changes: Number(res?.changes ?? 0),
+              rowCount: Number(res?.changes ?? 0),
             }
           } catch (sqliteErr: any) {
             console.error("[SQLite Fallback Error]", sqliteErr)
@@ -299,8 +291,8 @@ export const db = {
     if (sqlite) {
       const res = sqlite.prepare(sql).run(...params) as any
       return {
-        changes: res?.changes || 1,
-        rowCount: res?.changes || 1,
+        changes: Number(res?.changes ?? 0),
+        rowCount: Number(res?.changes ?? 0),
       }
     }
     throw new Error(
@@ -374,8 +366,14 @@ export const db = {
     }
 
     if (sqlite) {
-      sqlite.exec("BEGIN IMMEDIATE")
+      const previousTransaction = sqliteTransactionQueue
+      let releaseTransaction!: () => void
+      sqliteTransactionQueue = new Promise<void>((resolve) => {
+        releaseTransaction = resolve
+      })
+      await previousTransaction
       try {
+        sqlite.exec("BEGIN IMMEDIATE")
         const tx: DbExecutor = {
           async all(sql: string, ...params: any[]): Promise<any[]> {
             return sqlite.prepare(sql).all(...params) as any[]
@@ -389,8 +387,8 @@ export const db = {
           }> {
             const res = sqlite.prepare(sql).run(...params) as any
             return {
-              changes: res?.changes || 1,
-              rowCount: res?.changes || 1,
+              changes: Number(res?.changes ?? 0),
+              rowCount: Number(res?.changes ?? 0),
             }
           },
           prepare(sql: string) {
@@ -410,6 +408,8 @@ export const db = {
           sqlite.exec("ROLLBACK")
         } catch {}
         throw err
+      } finally {
+        releaseTransaction()
       }
     }
 
@@ -455,35 +455,44 @@ export async function initDatabase() {
     const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL].filter(
       Boolean,
     )
-    let connected = false
-
     for (const connStr of candidateUrls) {
+      let pool: pg.Pool | undefined
       try {
-        const pool = createSupabasePool(connStr)
+        pool = createSupabasePool(connStr)
 
         const testRes = await pool.query(
           "SELECT NOW() as now, current_database() as db",
         )
         if (testRes.rows && testRes.rows.length > 0) {
+          const client = await pool.connect()
+          try {
+            await client.query("BEGIN")
+            await client.query("SELECT pg_advisory_xact_lock(hashtext('motorly_schema'))")
+            await initSupabaseTables(client)
+            await client.query("COMMIT")
+          } catch (error) {
+            await client.query("ROLLBACK").catch(() => {})
+            throw error
+          } finally {
+            client.release()
+          }
           supabasePool = pool
           activeConnStr = connStr
           isSupabaseActive = true
-          connected = true
           console.log(
             `[DB] Connected directly to Supabase PostgreSQL (db: ${testRes.rows[0].db})`,
           )
           break
         }
       } catch (e: any) {
+        await pool?.end().catch(() => {})
         console.warn(
           `[DB] Supabase candidate connection failed (${e.message}), trying next...`,
         )
       }
     }
 
-    if (connected && supabasePool) {
-      // Ensure Supabase tables exist
-      await initSupabaseTables(supabasePool)
+    if (isSupabaseActive && supabasePool) {
       console.log("[DB] Supabase PostgreSQL tables verified and active!")
     } else {
       if (isProduction) {
@@ -516,7 +525,31 @@ export async function initDatabase() {
   }
 }
 
-async function initSupabaseTables(pool: pg.Pool) {
+const featureTablesSql = `
+  CREATE TABLE IF NOT EXISTS admin_credentials (
+    id TEXT PRIMARY KEY,
+    password_hash TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS reviews (
+    id TEXT PRIMARY KEY,
+    car_id TEXT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    booking_id TEXT REFERENCES bookings(id) ON DELETE SET NULL,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT,
+    rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_reviews_car_id ON reviews(car_id);
+  CREATE INDEX IF NOT EXISTS idx_reviews_booking_id ON reviews(booking_id);
+`
+
+async function initSupabaseTables(pool: pg.PoolClient) {
   // 1. Vehicles
   await pool.query(`
     CREATE TABLE IF NOT EXISTS vehicles (
@@ -690,11 +723,14 @@ async function initSupabaseTables(pool: pg.Pool) {
     END $$;
   `)
 
+  await pool.query(featureTablesSql)
+
   // High-performance secondary indexes for high-frequency search and relational filters
   await pool.query(`
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_month REAL;
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS price_per_week REAL;
     ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vat_rate REAL DEFAULT 18.0;
+    ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS security_deposit NUMERIC DEFAULT 1000;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS trip_reason TEXT;
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_type TEXT DEFAULT 'garage';
     ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_location_custom TEXT;
@@ -816,6 +852,7 @@ function initSqliteTables() {
     { name: "garage_bay", type: "TEXT" },
     { name: "vat_rate", type: "REAL DEFAULT 18.0" },
     { name: "price_per_week", type: "REAL" },
+    { name: "security_deposit", type: "REAL DEFAULT 1000" },
   ]
   for (const col of requiredVehicleCols) {
     if (!vehicleColumns.includes(col.name)) {
@@ -955,6 +992,8 @@ function initSqliteTables() {
     } catch {}
   }
 
+  sqlite.exec(featureTablesSql)
+
   // Ensure local SQLite database mirror has working baseline data when running offline
   if (sqlite) {
     try {
@@ -966,7 +1005,7 @@ function initSqliteTables() {
         seedPromos()
         seedMaintenance()
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[DB] Error verifying baseline records:", e?.message)
     }
   }
@@ -1614,7 +1653,7 @@ function seedVehicles() {
       car.type,
       car.price_per_day,
       car.price_per_hour,
-      car.price_per_week || Math.round(car.price_per_day * 6),
+      ("price_per_week" in car && car.price_per_week) || Math.round(car.price_per_day * 6),
       car.image,
       car.gallery,
       car.rating,
