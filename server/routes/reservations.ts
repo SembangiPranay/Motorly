@@ -87,6 +87,7 @@ router.get(
     return res.json({
       id: row.id,
       status: row.status,
+      approvedByAdmin: Boolean(row.approved_by_admin),
       matchedCarId: row.matched_car_id,
       requestedCategory: row.requested_category,
       pickupDate: row.pickup_date,

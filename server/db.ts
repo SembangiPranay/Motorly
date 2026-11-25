@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import os from "node:os"
+import { setTimeout as delay } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
 import pg from "pg"
 import bcrypt from "bcryptjs"
@@ -448,6 +449,21 @@ export async function ensureDatabase(): Promise<boolean> {
 }
 
 // Initialize Tables
+async function connectSupabaseForStartup(pool: pg.Pool): Promise<pg.PoolClient> {
+  const retryDelays = [250, 750]
+  for (const retryDelay of retryDelays) {
+    try {
+      return await pool.connect()
+    } catch (error) {
+      const { code } = error as NodeJS.ErrnoException
+      if (code !== "EBUSY" && code !== "EAI_AGAIN") throw error
+      console.warn(`[DB] Temporary DNS failure (${code}), retrying Supabase connection.`)
+      await delay(retryDelay)
+    }
+  }
+  return pool.connect()
+}
+
 export async function initDatabase() {
   // First, attempt direct connection to Supabase PostgreSQL (Universal AWS pooler port 6543)
   console.log("[DB] Connecting to Supabase PostgreSQL...")
@@ -460,30 +476,23 @@ export async function initDatabase() {
       try {
         pool = createSupabasePool(connStr)
 
-        const testRes = await pool.query(
-          "SELECT NOW() as now, current_database() as db",
-        )
-        if (testRes.rows && testRes.rows.length > 0) {
-          const client = await pool.connect()
-          try {
-            await client.query("BEGIN")
-            await client.query("SELECT pg_advisory_xact_lock(hashtext('motorly_schema'))")
-            await initSupabaseTables(client)
-            await client.query("COMMIT")
-          } catch (error) {
-            await client.query("ROLLBACK").catch(() => {})
-            throw error
-          } finally {
-            client.release()
-          }
-          supabasePool = pool
-          activeConnStr = connStr
-          isSupabaseActive = true
-          console.log(
-            `[DB] Connected directly to Supabase PostgreSQL (db: ${testRes.rows[0].db})`,
-          )
-          break
+        const client = await connectSupabaseForStartup(pool)
+        try {
+          await client.query("BEGIN")
+          await client.query("SELECT pg_advisory_xact_lock(hashtext('motorly_schema'))")
+          await initSupabaseTables(client)
+          await client.query("COMMIT")
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => {})
+          throw error
+        } finally {
+          client.release()
         }
+        supabasePool = pool
+        activeConnStr = connStr
+        isSupabaseActive = true
+        console.log("[DB] Connected to Supabase PostgreSQL.")
+        break
       } catch (e: any) {
         await pool?.end().catch(() => {})
         console.warn(

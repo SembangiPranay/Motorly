@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import type { BookingRecord, Car, CustomerUser } from "../types"
-import { api } from "../services/api"
+import { api, type BookingLookupResult } from "../services/api"
 import {
   HomeIcon,
   CarIcon,
@@ -34,6 +34,23 @@ interface MyBookingsViewProps {
   onBookingsChange?: (bookings: BookingRecord[]) => void
   onNavigateHome: () => void
   onNavigateListing: () => void
+}
+
+const guestBookingStatus: Record<BookingRecord["status"], string> = {
+  "Pending Assignment": "Awaiting vehicle assignment",
+  Assigned: "Vehicle assigned",
+  "Checked Out": "Rental in progress",
+  Returned: "Vehicle returned",
+  Completed: "Completed",
+  Cancelled: "Cancelled",
+}
+
+function formatLookupDate(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
 }
 
 // Helper to detect if scheduled rental period has concluded (accounts for extensions)
@@ -101,6 +118,7 @@ export default function MyBookingsView({
   const [lookupIdInput, setLookupIdInput] = useState("")
   const [isLookingUp, setIsLookingUp] = useState(false)
   const [lookupFeedback, setLookupFeedback] = useState<string | null>(null)
+  const [guestBooking, setGuestBooking] = useState<BookingLookupResult | null>(null)
 
   const handleLookupBooking = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -108,14 +126,11 @@ export default function MyBookingsView({
     if (!cleanId) return
     setIsLookingUp(true)
     setLookupFeedback(null)
+    setGuestBooking(null)
     try {
       const found = await api.lookupBooking(cleanId)
       if (found) {
-        setBookings((prev) => {
-          const exists = prev.some((b) => b.id === found.id)
-          return exists ? prev : [found, ...prev]
-        })
-        showActionSuccess(`Reservation ${found.id} located successfully!`)
+        setGuestBooking(found)
       } else {
         setLookupFeedback(
           `No reservation found for confirmation ID "${cleanId}".`,
@@ -123,7 +138,7 @@ export default function MyBookingsView({
       }
     } catch {
       setLookupFeedback(
-        "Error locating reservation. Please check confirmation code.",
+        "Reservations are temporarily unavailable. Please try again.",
       )
     } finally {
       setIsLookingUp(false)
@@ -627,9 +642,31 @@ export default function MyBookingsView({
                 </button>
               </form>
               {lookupFeedback && (
-                <p className="text-xs text-rose-600 font-medium mt-2">
+                <p role="alert" className="text-xs text-rose-600 font-medium mt-2">
                   {lookupFeedback}
                 </p>
+              )}
+              {guestBooking && (
+                <div role="status" className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold">Reservation {guestBooking.id}</h3>
+                    <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-800">
+                      {guestBooking.status === "Assigned" && guestBooking.approvedByAdmin
+                        ? "Ready for pickup"
+                        : guestBookingStatus[guestBooking.status] || guestBooking.status}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                    <div>
+                      <dt className="text-stone-500">Pickup</dt>
+                      <dd className="mt-1 font-medium">{formatLookupDate(guestBooking.pickupDate)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-stone-500">Return</dt>
+                      <dd className="mt-1 font-medium">{formatLookupDate(guestBooking.returnDate)}</dd>
+                    </div>
+                  </dl>
+                </div>
               )}
             </div>
 

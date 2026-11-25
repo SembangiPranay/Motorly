@@ -117,16 +117,44 @@ for (const mode of ["guest", "signed-in"] as const) {
 
       if (mode === "guest") {
         expect(bookingResponse.request().headers().authorization).toBeUndefined()
+        const approved = await request.post(`/api/bookings/${bookingId}/approve`, {
+          headers: adminHeaders,
+        })
+        expect(approved.ok()).toBeTruthy()
         await page.getByRole("button", { name: "View in My Reservations" }).click()
         await expect(page).toHaveURL(/view=my-bookings/)
-        await page.getByPlaceholder(/Enter Booking ID/).fill(bookingId!)
-        await page.getByRole("button", { name: "Find Trip" }).click()
-        await expect(page.getByText(`Reservation ${bookingId} located successfully!`)).toBeVisible()
-        const publicBooking = await request.get(`/api/bookings/lookup/${bookingId}`)
+        await page.reload({ waitUntil: "domcontentloaded" })
+        const reference = page.getByPlaceholder(/Enter Booking ID/)
+        const findTrip = page.getByRole("button", { name: "Find Trip" })
+        const lookupPath = `**/api/bookings/lookup/${bookingId}`
+        await page.route(lookupPath, (route) => route.fulfill({
+          status: 503,
+          json: { error: "Database unavailable" },
+        }), { times: 1 })
+        await reference.fill(bookingId!)
+        await findTrip.click()
+        await expect(page.getByRole("alert")).toHaveText(
+          "Reservations are temporarily unavailable. Please try again.",
+        )
+        const lookup = page.waitForResponse((response) =>
+          response.url().endsWith(`/api/bookings/lookup/${bookingId}`),
+        )
+        await findTrip.click()
+        const publicBooking = await lookup
         expect(publicBooking.ok()).toBeTruthy()
+        expect(publicBooking.request().headers().authorization).toBeUndefined()
+        const result = page.getByRole("status").filter({ hasText: `Reservation ${bookingId}` })
+        await expect(result).toBeVisible()
+        await expect(result.getByText("Ready for pickup")).toBeVisible()
+        await expect(result.getByText("Return", { exact: true })).toBeVisible()
         const publicData = await publicBooking.json()
         expect(publicData.customer.email).toBe("")
         expect(publicData.driver).toBeUndefined()
+
+        await reference.fill("QA-missing-" + crypto.randomUUID())
+        await findTrip.click()
+        await expect(page.getByRole("alert")).toContainText("No reservation found")
+        await expect(result).toHaveCount(0)
       }
 
       await page.evaluate((value) => localStorage.setItem("motorly_admin_token", value), adminToken)

@@ -36,6 +36,11 @@ export interface SubmitReviewResponse {
   car?: any
 }
 
+export type BookingLookupResult = Pick<
+  BookingRecord,
+  "id" | "status" | "approvedByAdmin" | "pickupDate" | "returnDate"
+>
+
 const PRIMARY_BASE = "/api"
 
 class ApiService {
@@ -302,13 +307,18 @@ class ApiService {
     return Array.isArray(data) ? data : []
   }
 
-  async lookupBooking(id: string): Promise<BookingRecord | null> {
+  async lookupBooking(id: string): Promise<BookingLookupResult | null> {
     if (!id || !id.trim()) return null
     const res = await this.request(
       `/bookings/lookup/${encodeURIComponent(id.trim())}`,
+      {},
+      "customer",
     )
-    if (!res.ok) return null
-    return this.safeJson(res, null)
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error("Reservation lookup unavailable")
+    const booking = await this.safeJson(res)
+    if (!booking?.id) throw new Error("Invalid reservation lookup response")
+    return booking
   }
 
   // --- Auth & Admin Verification ---
