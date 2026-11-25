@@ -3,7 +3,7 @@
  *
  * Provides direct deep-linking into Gmail web compose and native mailto: protocols,
  * ensuring customer booking requests are pre-filled and sent to the Admin's email
- * (e.g. nanikoushik96@gmail.com) without intermediate redirect errors.
+ * (e.g. pitstopcarhire@gmail.com) without intermediate redirect errors.
  */
 
 export interface EmailUrls {
@@ -24,7 +24,7 @@ export function getEmailUrls(
   subject: string = "",
   body: string = "",
 ): EmailUrls {
-  const recipient = (recipientEmail || "nanikoushik96@gmail.com").trim()
+  const recipient = (recipientEmail || "pitstopcarhire@gmail.com").trim()
   const encodedTo = encodeURIComponent(recipient)
   const encodedSubject = encodeURIComponent(subject)
   const encodedBody = encodeURIComponent(body)

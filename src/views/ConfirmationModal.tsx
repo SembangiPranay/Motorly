@@ -47,7 +47,7 @@ export default function ConfirmationModal({
 
   const studioSettings = {
     contact_phone: "7780740223",
-    contact_email: "nanikoushik96@gmail.com",
+    contact_email: "pitstopcarhire@gmail.com",
     owner_name: "Marcus Vance",
     garage_location:
       car.garageName ||
@@ -121,6 +121,7 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
         bookingId,
         carName: car.name,
         customerName: customerFullName,
+        customerEmail: customer.email,
         customerPhone: customer.phone,
         totalAmount,
         templateText: minimalTemplate,

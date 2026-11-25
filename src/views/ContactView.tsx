@@ -12,6 +12,7 @@ import {
   MailIcon,
 } from "../components/Icons"
 import { getWhatsAppUrls, isMobileDevice } from "../utils/whatsapp"
+import { api } from "../services/api"
 
 interface ContactViewProps {
   onNavigate: (view: ViewMode) => void
@@ -30,13 +31,24 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
 
   const ownerPhone = "+1 (555) 123-4567"
-  const ownerEmail = "nanikoushik96@gmail.com"
+  const ownerEmail = "pitstopcarhire@gmail.com"
   const garageAddress =
     "Main Garage Facility, Bay 1 Handoff Station, Miami, FL 33101"
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitted(true)
+
+    api
+      .submitContactInquiry({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        dates: formData.dates,
+        preferredVehicle: formData.preferredVehicle,
+        message: formData.message,
+      })
+      .catch(() => {})
 
     // Automatically construct formatted WhatsApp inquiry
     const inquiryText = `PIT STOP CAR HIRE – RENTAL INQUIRY

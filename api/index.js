@@ -1,9 +1,20 @@
 import { createRequire } from "node:module";
+import zlib from "node:zlib";
+import EventEmitter$1, { EventEmitter } from "node:events";
 import path from "node:path";
 import fs from "node:fs";
+import http from "node:http";
 import nodeCrypto from "crypto";
-import { fileURLToPath } from "node:url";
+import net from "node:net";
+import urllib, { fileURLToPath } from "node:url";
 import os from "node:os";
+import util from "node:util";
+import https from "node:https";
+import { PassThrough, Stream, Transform, finished, pipeline } from "node:stream";
+import dns from "node:dns";
+import crypto$1 from "node:crypto";
+import tls from "node:tls";
+import { spawn } from "node:child_process";
 //#region \0rolldown/runtime.js
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -1166,11 +1177,40 @@ var require_statuses = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var codes = require_codes();
 	/**
 	* Module exports.
 	* @public
 	*/
+	/**
+	* Create a map of message to status code.
+	* @private
+	*/
+	/**
+	* Create a list of all status codes.
+	* @private
+	*/
+	/**
+	* Get the status code for given message.
+	* @private
+	*/
+	/**
+	* Get the status message for given code.
+	* @private
+	*/
+	/**
+	* Get the status code.
+	*
+	* Given a number, this will throw if it is not a known status
+	* code, otherwise the code will be returned. Given a string,
+	* the string will be parsed for a number and return the code
+	* if valid, otherwise will lookup the code assuming this is
+	* the status message.
+	*
+	* @param {string|number} code
+	* @returns {number}
+	* @public
+	*/
+	var codes = require_codes();
 	module.exports = status;
 	status.message = codes;
 	status.code = createMessageToStatusCodeMap(codes);
@@ -1194,10 +1234,6 @@ var require_statuses = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		503: true,
 		504: true
 	};
-	/**
-	* Create a map of message to status code.
-	* @private
-	*/
 	function createMessageToStatusCodeMap(codes) {
 		var map = {};
 		Object.keys(codes).forEach(function forEachCode(code) {
@@ -1207,45 +1243,20 @@ var require_statuses = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		});
 		return map;
 	}
-	/**
-	* Create a list of all status codes.
-	* @private
-	*/
 	function createStatusCodeList(codes) {
 		return Object.keys(codes).map(function mapCode(code) {
 			return Number(code);
 		});
 	}
-	/**
-	* Get the status code for given message.
-	* @private
-	*/
 	function getStatusCode(message) {
 		var msg = message.toLowerCase();
 		if (!Object.prototype.hasOwnProperty.call(status.code, msg)) throw new Error("invalid status message: \"" + message + "\"");
 		return status.code[msg];
 	}
-	/**
-	* Get the status message for given code.
-	* @private
-	*/
 	function getStatusMessage(code) {
 		if (!Object.prototype.hasOwnProperty.call(status.message, code)) throw new Error("invalid status code: " + code);
 		return status.message[code];
 	}
-	/**
-	* Get the status code.
-	*
-	* Given a number, this will throw if it is not a known status
-	* code, otherwise the code will be returned. Given a string,
-	* the string will be parsed for a number and return the code
-	* if valid, otherwise will lookup the code assuming this is
-	* the status message.
-	*
-	* @param {string|number} code
-	* @returns {number}
-	* @public
-	*/
 	function status(code) {
 		if (typeof code === "number") return getStatusMessage(code);
 		if (typeof code !== "string") throw new TypeError("code must be a number or string");
@@ -1303,7 +1314,6 @@ var require_toidentifier = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = toIdentifier;
 	/**
 	* Trasform the given string into a JavaScript identifier
 	*
@@ -1311,6 +1321,7 @@ var require_toidentifier = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {string}
 	* @public
 	*/
+	module.exports = toIdentifier;
 	function toIdentifier(str) {
 		return str.split(" ").map(function(token) {
 			return token.slice(0, 1).toUpperCase() + token.slice(1);
@@ -1330,32 +1341,63 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var deprecate = require_depd()("http-errors");
-	var setPrototypeOf = require_setprototypeof();
-	var statuses = require_statuses();
-	var inherits = require_inherits();
-	var toIdentifier = require_toidentifier();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = createError;
-	module.exports.HttpError = createHttpErrorConstructor();
-	module.exports.isHttpError = createIsHttpErrorFunction(module.exports.HttpError);
-	populateConstructorExports(module.exports, statuses.codes, module.exports.HttpError);
 	/**
 	* Get the code class of a status code.
 	* @private
 	*/
-	function codeClass(status) {
-		return Number(String(status).charAt(0) + "00");
-	}
 	/**
 	* Create a new HTTP Error.
 	*
 	* @returns {Error}
 	* @public
 	*/
+	/**
+	* Create HTTP error abstract base class.
+	* @private
+	*/
+	/**
+	* Create a constructor for a client error.
+	* @private
+	*/
+	/**
+	* Create function to test is a value is a HttpError.
+	* @private
+	*/
+	/**
+	* Create a constructor for a server error.
+	* @private
+	*/
+	/**
+	* Set the name of a function, if possible.
+	* @private
+	*/
+	/**
+	* Populate the exports object with constructors for every error class.
+	* @private
+	*/
+	/**
+	* Get a class name from a name identifier.
+	*
+	* @param {string} name
+	* @returns {string}
+	* @private
+	*/
+	var deprecate = require_depd()("http-errors");
+	var setPrototypeOf = require_setprototypeof();
+	var statuses = require_statuses();
+	var inherits = require_inherits();
+	var toIdentifier = require_toidentifier();
+	module.exports = createError;
+	module.exports.HttpError = createHttpErrorConstructor();
+	module.exports.isHttpError = createIsHttpErrorFunction(module.exports.HttpError);
+	populateConstructorExports(module.exports, statuses.codes, module.exports.HttpError);
+	function codeClass(status) {
+		return Number(String(status).charAt(0) + "00");
+	}
 	function createError() {
 		var err;
 		var msg;
@@ -1386,10 +1428,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		for (var key in props) if (key !== "status" && key !== "statusCode") err[key] = props[key];
 		return err;
 	}
-	/**
-	* Create HTTP error abstract base class.
-	* @private
-	*/
 	function createHttpErrorConstructor() {
 		function HttpError() {
 			throw new TypeError("cannot construct abstract class");
@@ -1397,10 +1435,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		inherits(HttpError, Error);
 		return HttpError;
 	}
-	/**
-	* Create a constructor for a client error.
-	* @private
-	*/
 	function createClientErrorConstructor(HttpError, name, code) {
 		var className = toClassName(name);
 		function ClientError(message) {
@@ -1429,10 +1463,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		ClientError.prototype.expose = true;
 		return ClientError;
 	}
-	/**
-	* Create function to test is a value is a HttpError.
-	* @private
-	*/
 	function createIsHttpErrorFunction(HttpError) {
 		return function isHttpError(val) {
 			if (!val || typeof val !== "object") return false;
@@ -1440,10 +1470,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return val instanceof Error && typeof val.expose === "boolean" && typeof val.statusCode === "number" && val.status === val.statusCode;
 		};
 	}
-	/**
-	* Create a constructor for a server error.
-	* @private
-	*/
 	function createServerErrorConstructor(HttpError, name, code) {
 		var className = toClassName(name);
 		function ServerError(message) {
@@ -1472,10 +1498,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		ServerError.prototype.expose = false;
 		return ServerError;
 	}
-	/**
-	* Set the name of a function, if possible.
-	* @private
-	*/
 	function nameFunc(func, name) {
 		var desc = Object.getOwnPropertyDescriptor(func, "name");
 		if (desc && desc.configurable) {
@@ -1483,10 +1505,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			Object.defineProperty(func, "name", desc);
 		}
 	}
-	/**
-	* Populate the exports object with constructors for every error class.
-	* @private
-	*/
 	function populateConstructorExports(exports, codes, HttpError) {
 		codes.forEach(function forEachCode(code) {
 			var CodeError;
@@ -1503,13 +1521,6 @@ var require_http_errors = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		});
 	}
-	/**
-	* Get a class name from a name identifier.
-	*
-	* @param {string} name
-	* @returns {string}
-	* @private
-	*/
 	function toClassName(name) {
 		return name.slice(-5) === "Error" ? name : name + "Error";
 	}
@@ -1527,24 +1538,10 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = bytes;
-	module.exports.format = format;
-	module.exports.parse = parse;
 	/**
 	* Module variables.
 	* @private
 	*/
-	var formatThousandsRegExp = /\B(?=(\d{3})+(?!\d))/g;
-	var formatDecimalsRegExp = /(?:\.0*|(\.[^0]+)0+)$/;
-	var map = {
-		b: 1,
-		kb: 1024,
-		mb: 1 << 20,
-		gb: 1 << 30,
-		tb: Math.pow(1024, 4),
-		pb: Math.pow(1024, 5)
-	};
-	var parseRegExp = /^((-|\+)?(\d+(?:\.\d+)?)) *(kb|mb|gb|tb|pb)$/i;
 	/**
 	* Convert the given value in bytes into a string or parse to string to an integer in bytes.
 	*
@@ -1559,11 +1556,6 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*
 	* @returns {string|number|null}
 	*/
-	function bytes(value, options) {
-		if (typeof value === "string") return parse(value);
-		if (typeof value === "number") return format(value, options);
-		return null;
-	}
 	/**
 	* Format the given value in bytes into a string.
 	*
@@ -1581,6 +1573,35 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {string|null}
 	* @public
 	*/
+	/**
+	* Parse the string value into an integer in bytes.
+	*
+	* If no unit is given, it is assumed the value is in bytes.
+	*
+	* @param {number|string} val
+	*
+	* @returns {number|null}
+	* @public
+	*/
+	module.exports = bytes;
+	module.exports.format = format;
+	module.exports.parse = parse;
+	var formatThousandsRegExp = /\B(?=(\d{3})+(?!\d))/g;
+	var formatDecimalsRegExp = /(?:\.0*|(\.[^0]+)0+)$/;
+	var map = {
+		b: 1,
+		kb: 1024,
+		mb: 1 << 20,
+		gb: 1 << 30,
+		tb: Math.pow(1024, 4),
+		pb: Math.pow(1024, 5)
+	};
+	var parseRegExp = /^((-|\+)?(\d+(?:\.\d+)?)) *(kb|mb|gb|tb|pb)$/i;
+	function bytes(value, options) {
+		if (typeof value === "string") return parse(value);
+		if (typeof value === "number") return format(value, options);
+		return null;
+	}
 	function format(value, options) {
 		if (!Number.isFinite(value)) return null;
 		var mag = Math.abs(value);
@@ -1604,16 +1625,6 @@ var require_bytes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}).join(".");
 		return str + unitSeparator + unit;
 	}
-	/**
-	* Parse the string value into an integer in bytes.
-	*
-	* If no unit is given, it is assumed the value is in bytes.
-	*
-	* @param {number|string} val
-	*
-	* @returns {number|null}
-	* @public
-	*/
 	function parse(val) {
 		if (typeof val === "number" && !isNaN(val)) return val;
 		if (typeof val !== "string") return null;
@@ -2594,451 +2605,451 @@ var require_sbcs_data = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = {
-		"437": "cp437",
-		"737": "cp737",
-		"775": "cp775",
-		"850": "cp850",
-		"852": "cp852",
-		"855": "cp855",
-		"856": "cp856",
-		"857": "cp857",
-		"858": "cp858",
-		"860": "cp860",
-		"861": "cp861",
-		"862": "cp862",
-		"863": "cp863",
-		"864": "cp864",
-		"865": "cp865",
-		"866": "cp866",
-		"869": "cp869",
-		"874": "windows874",
-		"922": "cp922",
-		"1046": "cp1046",
-		"1124": "cp1124",
-		"1125": "cp1125",
-		"1129": "cp1129",
-		"1133": "cp1133",
-		"1161": "cp1161",
-		"1162": "cp1162",
-		"1163": "cp1163",
-		"1250": "windows1250",
-		"1251": "windows1251",
-		"1252": "windows1252",
-		"1253": "windows1253",
-		"1254": "windows1254",
-		"1255": "windows1255",
-		"1256": "windows1256",
-		"1257": "windows1257",
-		"1258": "windows1258",
-		"28591": "iso88591",
-		"28592": "iso88592",
-		"28593": "iso88593",
-		"28594": "iso88594",
-		"28595": "iso88595",
-		"28596": "iso88596",
-		"28597": "iso88597",
-		"28598": "iso88598",
-		"28599": "iso88599",
-		"28600": "iso885910",
-		"28601": "iso885911",
-		"28603": "iso885913",
-		"28604": "iso885914",
-		"28605": "iso885915",
-		"28606": "iso885916",
-		"windows874": {
-			"type": "_sbcs",
-			"chars": "€����…�����������‘’“”•–—��������\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
-		},
-		"win874": "windows874",
-		"cp874": "windows874",
-		"windows1250": {
-			"type": "_sbcs",
-			"chars": "€�‚�„…†‡�‰Š‹ŚŤŽŹ�‘’“”•–—�™š›śťžź\xA0ˇ˘Ł¤Ą¦§¨©Ş«¬­®Ż°±˛ł´µ¶·¸ąş»Ľ˝ľżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
-		},
-		"win1250": "windows1250",
-		"cp1250": "windows1250",
-		"windows1251": {
-			"type": "_sbcs",
-			"chars": "ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–—�™љ›њќћџ\xA0ЎўЈ¤Ґ¦§Ё©Є«¬­®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
-		},
-		"win1251": "windows1251",
-		"cp1251": "windows1251",
-		"windows1252": {
-			"type": "_sbcs",
-			"chars": "€�‚ƒ„…†‡ˆ‰Š‹Œ�Ž��‘’“”•–—˜™š›œ�žŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		"win1252": "windows1252",
-		"cp1252": "windows1252",
-		"windows1253": {
-			"type": "_sbcs",
-			"chars": "€�‚ƒ„…†‡�‰�‹�����‘’“”•–—�™�›����\xA0΅Ά£¤¥¦§¨©�«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
-		},
-		"win1253": "windows1253",
-		"cp1253": "windows1253",
-		"windows1254": {
-			"type": "_sbcs",
-			"chars": "€�‚ƒ„…†‡ˆ‰Š‹Œ����‘’“”•–—˜™š›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
-		},
-		"win1254": "windows1254",
-		"cp1254": "windows1254",
-		"windows1255": {
-			"type": "_sbcs",
-			"chars": "€�‚ƒ„…†‡ˆ‰�‹�����‘’“”•–—˜™�›����\xA0¡¢£₪¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾¿ְֱֲֳִֵֶַָֹֺֻּֽ־ֿ׀ׁׂ׃װױײ׳״�������אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
-		},
-		"win1255": "windows1255",
-		"cp1255": "windows1255",
-		"windows1256": {
-			"type": "_sbcs",
-			"chars": "€پ‚ƒ„…†‡ˆ‰ٹ‹Œچژڈگ‘’“”•–—ک™ڑ›œ‌‍ں\xA0،¢£¤¥¦§¨©ھ«¬­®¯°±²³´µ¶·¸¹؛»¼½¾؟ہءآأؤإئابةتثجحخدذرزسشصض×طظعغـفقكàلâمنهوçèéêëىيîïًٌٍَôُِ÷ّùْûü‎‏ے"
-		},
-		"win1256": "windows1256",
-		"cp1256": "windows1256",
-		"windows1257": {
-			"type": "_sbcs",
-			"chars": "€�‚�„…†‡�‰�‹�¨ˇ¸�‘’“”•–—�™�›�¯˛�\xA0�¢£¤�¦§Ø©Ŗ«¬­®Æ°±²³´µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž˙"
-		},
-		"win1257": "windows1257",
-		"cp1257": "windows1257",
-		"windows1258": {
-			"type": "_sbcs",
-			"chars": "€�‚ƒ„…†‡ˆ‰�‹Œ����‘’“”•–—˜™�›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
-		},
-		"win1258": "windows1258",
-		"cp1258": "windows1258",
-		"iso88591": {
-			"type": "_sbcs",
-			"chars": "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		"cp28591": "iso88591",
-		"iso88592": {
-			"type": "_sbcs",
-			"chars": "\xA0Ą˘Ł¤ĽŚ§¨ŠŞŤŹ­ŽŻ°ą˛ł´ľśˇ¸šşťź˝žżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
-		},
-		"cp28592": "iso88592",
-		"iso88593": {
-			"type": "_sbcs",
-			"chars": "\xA0Ħ˘£¤�Ĥ§¨İŞĞĴ­�Ż°ħ²³´µĥ·¸ışğĵ½�żÀÁÂ�ÄĊĈÇÈÉÊËÌÍÎÏ�ÑÒÓÔĠÖ×ĜÙÚÛÜŬŜßàáâ�äċĉçèéêëìíîï�ñòóôġö÷ĝùúûüŭŝ˙"
-		},
-		"cp28593": "iso88593",
-		"iso88594": {
-			"type": "_sbcs",
-			"chars": "\xA0ĄĸŖ¤ĨĻ§¨ŠĒĢŦ­Ž¯°ą˛ŗ´ĩļˇ¸šēģŧŊžŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎĪĐŅŌĶÔÕÖ×ØŲÚÛÜŨŪßāáâãäåæįčéęëėíîīđņōķôõö÷øųúûüũū˙"
-		},
-		"cp28594": "iso88594",
-		"iso88595": {
-			"type": "_sbcs",
-			"chars": "\xA0ЁЂЃЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђѓєѕіїјљњћќ§ўџ"
-		},
-		"cp28595": "iso88595",
-		"iso88596": {
-			"type": "_sbcs",
-			"chars": "\xA0���¤�������،­�������������؛���؟�ءآأؤإئابةتثجحخدذرزسشصضطظعغ�����ـفقكلمنهوىيًٌٍَُِّْ�������������"
-		},
-		"cp28596": "iso88596",
-		"iso88597": {
-			"type": "_sbcs",
-			"chars": "\xA0‘’£€₯¦§¨©ͺ«¬­�―°±²³΄΅Ά·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
-		},
-		"cp28597": "iso88597",
-		"iso88598": {
-			"type": "_sbcs",
-			"chars": "\xA0�¢£¤¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾��������������������������������‗אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
-		},
-		"cp28598": "iso88598",
-		"iso88599": {
-			"type": "_sbcs",
-			"chars": "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
-		},
-		"cp28599": "iso88599",
-		"iso885910": {
-			"type": "_sbcs",
-			"chars": "\xA0ĄĒĢĪĨĶ§ĻĐŠŦŽ­ŪŊ°ąēģīĩķ·ļđšŧž―ūŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎÏÐŅŌÓÔÕÖŨØŲÚÛÜÝÞßāáâãäåæįčéęëėíîïðņōóôõöũøųúûüýþĸ"
-		},
-		"cp28600": "iso885910",
-		"iso885911": {
-			"type": "_sbcs",
-			"chars": "\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
-		},
-		"cp28601": "iso885911",
-		"iso885913": {
-			"type": "_sbcs",
-			"chars": "\xA0”¢£¤„¦§Ø©Ŗ«¬­®Æ°±²³“µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž’"
-		},
-		"cp28603": "iso885913",
-		"iso885914": {
-			"type": "_sbcs",
-			"chars": "\xA0Ḃḃ£ĊċḊ§Ẁ©ẂḋỲ­®ŸḞḟĠġṀṁ¶ṖẁṗẃṠỳẄẅṡÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŴÑÒÓÔÕÖṪØÙÚÛÜÝŶßàáâãäåæçèéêëìíîïŵñòóôõöṫøùúûüýŷÿ"
-		},
-		"cp28604": "iso885914",
-		"iso885915": {
-			"type": "_sbcs",
-			"chars": "\xA0¡¢£€¥Š§š©ª«¬­®¯°±²³Žµ¶·ž¹º»ŒœŸ¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		"cp28605": "iso885915",
-		"iso885916": {
-			"type": "_sbcs",
-			"chars": "\xA0ĄąŁ€„Š§š©Ș«Ź­źŻ°±ČłŽ”¶·žčș»ŒœŸżÀÁÂĂÄĆÆÇÈÉÊËÌÍÎÏĐŃÒÓÔŐÖŚŰÙÚÛÜĘȚßàáâăäćæçèéêëìíîïđńòóôőöśűùúûüęțÿ"
-		},
-		"cp28606": "iso885916",
-		"cp437": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm437": "cp437",
-		"csibm437": "cp437",
-		"cp737": {
-			"type": "_sbcs",
-			"chars": "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρσςτυφχψ░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀ωάέήϊίόύϋώΆΈΉΊΌΎΏ±≥≤ΪΫ÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm737": "cp737",
-		"csibm737": "cp737",
-		"cp775": {
-			"type": "_sbcs",
-			"chars": "ĆüéāäģåćłēŖŗīŹÄÅÉæÆōöĢ¢ŚśÖÜø£Ø×¤ĀĪóŻżź”¦©®¬½¼Ł«»░▒▓│┤ĄČĘĖ╣║╗╝ĮŠ┐└┴┬├─┼ŲŪ╚╔╩╦╠═╬Žąčęėįšųūž┘┌█▄▌▐▀ÓßŌŃõÕµńĶķĻļņĒŅ’­±“¾¶§÷„°∙·¹³²■\xA0"
-		},
-		"ibm775": "cp775",
-		"csibm775": "cp775",
-		"cp850": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		"ibm850": "cp850",
-		"csibm850": "cp850",
-		"cp852": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäůćçłëŐőîŹÄĆÉĹĺôöĽľŚśÖÜŤťŁ×čáíóúĄąŽžĘę¬źČş«»░▒▓│┤ÁÂĚŞ╣║╗╝Żż┐└┴┬├─┼Ăă╚╔╩╦╠═╬¤đĐĎËďŇÍÎě┘┌█▄ŢŮ▀ÓßÔŃńňŠšŔÚŕŰýÝţ´­˝˛ˇ˘§÷¸°¨˙űŘř■\xA0"
-		},
-		"ibm852": "cp852",
-		"csibm852": "cp852",
-		"cp855": {
-			"type": "_sbcs",
-			"chars": "ђЂѓЃёЁєЄѕЅіІїЇјЈљЉњЊћЋќЌўЎџЏюЮъЪаАбБцЦдДеЕфФгГ«»░▒▓│┤хХиИ╣║╗╝йЙ┐└┴┬├─┼кК╚╔╩╦╠═╬¤лЛмМнНоОп┘┌█▄Пя▀ЯрРсСтТуУжЖвВьЬ№­ыЫзЗшШэЭщЩчЧ§■\xA0"
-		},
-		"ibm855": "cp855",
-		"csibm855": "cp855",
-		"cp856": {
-			"type": "_sbcs",
-			"chars": "אבגדהוזחטיךכלםמןנסעףפץצקרשת�£�×����������®¬½¼�«»░▒▓│┤���©╣║╗╝¢¥┐└┴┬├─┼��╚╔╩╦╠═╬¤���������┘┌█▄¦�▀������µ�������¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		"ibm856": "cp856",
-		"csibm856": "cp856",
-		"cp857": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäàåçêëèïîıÄÅÉæÆôöòûùİÖÜø£ØŞşáíóúñÑĞğ¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ºªÊËÈ�ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµ�×ÚÛÙìÿ¯´­±�¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		"ibm857": "cp857",
-		"csibm857": "cp857",
-		"cp858": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈ€ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
-		},
-		"ibm858": "cp858",
-		"csibm858": "cp858",
-		"cp860": {
-			"type": "_sbcs",
-			"chars": "ÇüéâãàÁçêÊèÍÔìÃÂÉÀÈôõòÚùÌÕÜ¢£Ù₧ÓáíóúñÑªº¿Ò¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm860": "cp860",
-		"csibm860": "cp860",
-		"cp861": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäàåçêëèÐðÞÄÅÉæÆôöþûÝýÖÜø£Ø₧ƒáíóúÁÍÓÚ¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm861": "cp861",
-		"csibm861": "cp861",
-		"cp862": {
-			"type": "_sbcs",
-			"chars": "אבגדהוזחטיךכלםמןנסעףפץצקרשת¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm862": "cp862",
-		"csibm862": "cp862",
-		"cp863": {
-			"type": "_sbcs",
-			"chars": "ÇüéâÂà¶çêëèïî‗À§ÉÈÊôËÏûù¤ÔÜ¢£ÙÛƒ¦´óú¨¸³¯Î⌐¬½¼¾«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm863": "cp863",
-		"csibm863": "cp863",
-		"cp864": {
-			"type": "_sbcs",
-			"chars": "\0\x07\b	\n\v\f\r\x1B !\"#$٪&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°·∙√▒─│┼┤┬├┴┐┌└┘β∞φ±½¼≈«»ﻷﻸ��ﻻﻼ�\xA0­ﺂ£¤ﺄ��ﺎﺏﺕﺙ،ﺝﺡﺥ٠١٢٣٤٥٦٧٨٩ﻑ؛ﺱﺵﺹ؟¢ﺀﺁﺃﺅﻊﺋﺍﺑﺓﺗﺛﺟﺣﺧﺩﺫﺭﺯﺳﺷﺻﺿﻁﻅﻋﻏ¦¬÷×ﻉـﻓﻗﻛﻟﻣﻧﻫﻭﻯﻳﺽﻌﻎﻍﻡﹽّﻥﻩﻬﻰﻲﻐﻕﻵﻶﻝﻙﻱ■�"
-		},
-		"ibm864": "cp864",
-		"csibm864": "cp864",
-		"cp865": {
-			"type": "_sbcs",
-			"chars": "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø₧ƒáíóúñÑªº¿⌐¬½¼¡«¤░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
-		},
-		"ibm865": "cp865",
-		"csibm865": "cp865",
-		"cp866": {
-			"type": "_sbcs",
-			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёЄєЇїЎў°∙·√№¤■\xA0"
-		},
-		"ibm866": "cp866",
-		"csibm866": "cp866",
-		"cp869": {
-			"type": "_sbcs",
-			"chars": "������Ά�·¬¦‘’Έ―ΉΊΪΌ��ΎΫ©Ώ²³ά£έήίϊΐόύΑΒΓΔΕΖΗ½ΘΙ«»░▒▓│┤ΚΛΜΝ╣║╗╝ΞΟ┐└┴┬├─┼ΠΡ╚╔╩╦╠═╬ΣΤΥΦΧΨΩαβγ┘┌█▄δε▀ζηθικλμνξοπρσςτ΄­±υφχ§ψ΅°¨ωϋΰώ■\xA0"
-		},
-		"ibm869": "cp869",
-		"csibm869": "cp869",
-		"cp922": {
-			"type": "_sbcs",
-			"chars": "\xA0¡¢£¤¥¦§¨©ª«¬­®‾°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŠÑÒÓÔÕÖ×ØÙÚÛÜÝŽßàáâãäåæçèéêëìíîïšñòóôõö÷øùúûüýžÿ"
-		},
-		"ibm922": "cp922",
-		"csibm922": "cp922",
-		"cp1046": {
-			"type": "_sbcs",
-			"chars": "ﺈ×÷ﹱ■│─┐┌└┘ﹹﹻﹽﹿﹷﺊﻰﻳﻲﻎﻏﻐﻶﻸﻺﻼ\xA0¤ﺋﺑﺗﺛﺟﺣ،­ﺧﺳ٠١٢٣٤٥٦٧٨٩ﺷ؛ﺻﺿﻊ؟ﻋءآأؤإئابةتثجحخدذرزسشصضطﻇعغﻌﺂﺄﺎﻓـفقكلمنهوىيًٌٍَُِّْﻗﻛﻟﻵﻷﻹﻻﻣﻧﻬﻩ�"
-		},
-		"ibm1046": "cp1046",
-		"csibm1046": "cp1046",
-		"cp1124": {
-			"type": "_sbcs",
-			"chars": "\xA0ЁЂҐЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђґєѕіїјљњћќ§ўџ"
-		},
-		"ibm1124": "cp1124",
-		"csibm1124": "cp1124",
-		"cp1125": {
-			"type": "_sbcs",
-			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёҐґЄєІіЇї·√№¤■\xA0"
-		},
-		"ibm1125": "cp1125",
-		"csibm1125": "cp1125",
-		"cp1129": {
-			"type": "_sbcs",
-			"chars": "\xA0¡¢£¤¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
-		},
-		"ibm1129": "cp1129",
-		"csibm1129": "cp1129",
-		"cp1133": {
-			"type": "_sbcs",
-			"chars": "\xA0ກຂຄງຈສຊຍດຕຖທນບປຜຝພຟມຢຣລວຫອຮ���ຯະາຳິີຶືຸູຼັົຽ���ເແໂໃໄ່້໊໋໌ໍໆ�ໜໝ₭����������������໐໑໒໓໔໕໖໗໘໙��¢¬¦�"
-		},
-		"ibm1133": "cp1133",
-		"csibm1133": "cp1133",
-		"cp1161": {
-			"type": "_sbcs",
-			"chars": "��������������������������������่กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู้๊๋€฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛¢¬¦\xA0"
-		},
-		"ibm1161": "cp1161",
-		"csibm1161": "cp1161",
-		"cp1162": {
-			"type": "_sbcs",
-			"chars": "€…‘’“”•–—\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
-		},
-		"ibm1162": "cp1162",
-		"csibm1162": "cp1162",
-		"cp1163": {
-			"type": "_sbcs",
-			"chars": "\xA0¡¢£€¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
-		},
-		"ibm1163": "cp1163",
-		"csibm1163": "cp1163",
-		"maccroatian": {
-			"type": "_sbcs",
-			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®Š™´¨≠ŽØ∞±≤≥∆µ∂∑∏š∫ªºΩžø¿¡¬√ƒ≈Ć«Č…\xA0ÀÃÕŒœĐ—“”‘’÷◊�©⁄¤‹›Æ»–·‚„‰ÂćÁčÈÍÎÏÌÓÔđÒÚÛÙıˆ˜¯πË˚¸Êæˇ"
-		},
-		"maccyrillic": {
-			"type": "_sbcs",
-			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°¢£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµ∂ЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
-		},
-		"macgreek": {
-			"type": "_sbcs",
-			"chars": "Ä¹²É³ÖÜ΅àâä΄¨çéèêë£™îï•½‰ôö¦­ùûü†ΓΔΘΛΞΠß®©ΣΪ§≠°·Α±≤≥¥ΒΕΖΗΙΚΜΦΫΨΩάΝ¬ΟΡ≈Τ«»…\xA0ΥΧΆΈœ–―“”‘’÷ΉΊΌΎέήίόΏύαβψδεφγηιξκλμνοπώρστθωςχυζϊϋΐΰ�"
-		},
-		"maciceland": {
-			"type": "_sbcs",
-			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûüÝ°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤ÐðÞþý·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		"macroman": {
-			"type": "_sbcs",
-			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		"macromania": {
-			"type": "_sbcs",
-			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ĂŞ∞±≤≥¥µ∂∑∏π∫ªºΩăş¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›Ţţ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		"macthai": {
-			"type": "_sbcs",
-			"chars": "«»…“”�•‘’�\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู﻿​–—฿เแโใไๅๆ็่้๊๋์ํ™๏๐๑๒๓๔๕๖๗๘๙®©����"
-		},
-		"macturkish": {
-			"type": "_sbcs",
-			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸĞğİıŞş‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙ�ˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		"macukraine": {
-			"type": "_sbcs",
-			"chars": "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°Ґ£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµґЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
-		},
-		"koi8r": {
-			"type": "_sbcs",
-			"chars": "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ё╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡Ё╢╣╤╥╦╧╨╩╪╫╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		"koi8u": {
-			"type": "_sbcs",
-			"chars": "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґ╝╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪Ґ╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		"koi8ru": {
-			"type": "_sbcs",
-			"chars": "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґў╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪ҐЎ©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		"koi8t": {
-			"type": "_sbcs",
-			"chars": "қғ‚Ғ„…†‡�‰ҳ‹ҲҷҶ�Қ‘’“”•–—�™�›�����ӯӮё¤ӣ¦§���«¬­®�°±²Ё�Ӣ¶·�№�»���©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
-		},
-		"armscii8": {
-			"type": "_sbcs",
-			"chars": "\xA0�և։)(»«—.՝,-֊…՜՛՞ԱաԲբԳգԴդԵեԶզԷէԸըԹթԺժԻիԼլԽխԾծԿկՀհՁձՂղՃճՄմՅյՆնՇշՈոՉչՊպՋջՌռՍսՎվՏտՐրՑցՒւՓփՔքՕօՖֆ՚�"
-		},
-		"rk1048": {
-			"type": "_sbcs",
-			"chars": "ЂЃ‚ѓ„…†‡€‰Љ‹ЊҚҺЏђ‘’“”•–—�™љ›њқһџ\xA0ҰұӘ¤Ө¦§Ё©Ғ«¬­®Ү°±Ііөµ¶·ё№ғ»әҢңүАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
-		},
-		"tcvn": {
-			"type": "_sbcs",
-			"chars": "\0ÚỤỪỬỮ\x07\b	\n\v\f\rỨỰỲỶỸÝỴ\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÀẢÃÁẠẶẬÈẺẼÉẸỆÌỈĨÍỊÒỎÕÓỌỘỜỞỠỚỢÙỦŨ\xA0ĂÂÊÔƠƯĐăâêôơưđẶ̀̀̉̃́àảãáạẲằẳẵắẴẮẦẨẪẤỀặầẩẫấậèỂẻẽéẹềểễếệìỉỄẾỒĩíịòỔỏõóọồổỗốộờởỡớợùỖủũúụừửữứựỳỷỹýỵỐ"
-		},
-		"georgianacademy": {
-			"type": "_sbcs",
-			"chars": "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰჱჲჳჴჵჶçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		"georgianps": {
-			"type": "_sbcs",
-			"chars": "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზჱთიკლმნჲოპჟრსტჳუფქღყშჩცძწჭხჴჯჰჵæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
-		},
-		"pt154": {
-			"type": "_sbcs",
-			"chars": "ҖҒӮғ„…ҶҮҲүҠӢҢҚҺҸҗ‘’“”•–—ҳҷҡӣңқһҹ\xA0ЎўЈӨҘҰ§Ё©Ә«¬ӯ®Ҝ°ұІіҙө¶·ё№ә»јҪҫҝАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
-		},
-		"viscii": {
-			"type": "_sbcs",
-			"chars": "\0ẲẴẪ\x07\b	\n\v\f\rỶỸ\x1BỴ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ẠẮẰẶẤẦẨẬẼẸẾỀỂỄỆỐỒỔỖỘỢỚỜỞỊỎỌỈỦŨỤỲÕắằặấầẩậẽẹếềểễệốồổỗỠƠộờởịỰỨỪỬơớƯÀÁÂÃẢĂẳẵÈÉÊẺÌÍĨỳĐứÒÓÔạỷừửÙÚỹỵÝỡưàáâãảăữẫèéêẻìíĩỉđựòóôõỏọụùúũủýợỮ"
-		},
-		"iso646cn": {
-			"type": "_sbcs",
-			"chars": "\0\x07\b	\n\v\f\r\x1B !\"#¥%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
-		},
-		"iso646jp": {
-			"type": "_sbcs",
-			"chars": "\0\x07\b	\n\v\f\r\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
-		},
-		"hproman8": {
-			"type": "_sbcs",
-			"chars": "\xA0ÀÂÈÊËÎÏ´ˋˆ¨˜ÙÛ₤¯Ýý°ÇçÑñ¡¿¤£¥§ƒ¢âêôûáéóúàèòùäëöüÅîØÆåíøæÄìÖÜÉïßÔÁÃãÐðÍÌÓÒÕõŠšÚŸÿÞþ·µ¶¾—¼½ªº«■»±�"
-		},
-		"macintosh": {
-			"type": "_sbcs",
-			"chars": "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
-		},
-		"ascii": {
-			"type": "_sbcs",
-			"chars": "��������������������������������������������������������������������������������������������������������������������������������"
-		},
-		"tis620": {
-			"type": "_sbcs",
-			"chars": "���������������������������������กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		437: "cp437",
+		737: "cp737",
+		775: "cp775",
+		850: "cp850",
+		852: "cp852",
+		855: "cp855",
+		856: "cp856",
+		857: "cp857",
+		858: "cp858",
+		860: "cp860",
+		861: "cp861",
+		862: "cp862",
+		863: "cp863",
+		864: "cp864",
+		865: "cp865",
+		866: "cp866",
+		869: "cp869",
+		874: "windows874",
+		922: "cp922",
+		1046: "cp1046",
+		1124: "cp1124",
+		1125: "cp1125",
+		1129: "cp1129",
+		1133: "cp1133",
+		1161: "cp1161",
+		1162: "cp1162",
+		1163: "cp1163",
+		1250: "windows1250",
+		1251: "windows1251",
+		1252: "windows1252",
+		1253: "windows1253",
+		1254: "windows1254",
+		1255: "windows1255",
+		1256: "windows1256",
+		1257: "windows1257",
+		1258: "windows1258",
+		28591: "iso88591",
+		28592: "iso88592",
+		28593: "iso88593",
+		28594: "iso88594",
+		28595: "iso88595",
+		28596: "iso88596",
+		28597: "iso88597",
+		28598: "iso88598",
+		28599: "iso88599",
+		28600: "iso885910",
+		28601: "iso885911",
+		28603: "iso885913",
+		28604: "iso885914",
+		28605: "iso885915",
+		28606: "iso885916",
+		windows874: {
+			type: "_sbcs",
+			chars: "€����…�����������‘’“”•–—��������\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		},
+		win874: "windows874",
+		cp874: "windows874",
+		windows1250: {
+			type: "_sbcs",
+			chars: "€�‚�„…†‡�‰Š‹ŚŤŽŹ�‘’“”•–—�™š›śťžź\xA0ˇ˘Ł¤Ą¦§¨©Ş«¬­®Ż°±˛ł´µ¶·¸ąş»Ľ˝ľżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
+		},
+		win1250: "windows1250",
+		cp1250: "windows1250",
+		windows1251: {
+			type: "_sbcs",
+			chars: "ЂЃ‚ѓ„…†‡€‰Љ‹ЊЌЋЏђ‘’“”•–—�™љ›њќћџ\xA0ЎўЈ¤Ґ¦§Ё©Є«¬­®Ї°±Ііґµ¶·ё№є»јЅѕїАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
+		},
+		win1251: "windows1251",
+		cp1251: "windows1251",
+		windows1252: {
+			type: "_sbcs",
+			chars: "€�‚ƒ„…†‡ˆ‰Š‹Œ�Ž��‘’“”•–—˜™š›œ�žŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		win1252: "windows1252",
+		cp1252: "windows1252",
+		windows1253: {
+			type: "_sbcs",
+			chars: "€�‚ƒ„…†‡�‰�‹�����‘’“”•–—�™�›����\xA0΅Ά£¤¥¦§¨©�«¬­®―°±²³΄µ¶·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
+		},
+		win1253: "windows1253",
+		cp1253: "windows1253",
+		windows1254: {
+			type: "_sbcs",
+			chars: "€�‚ƒ„…†‡ˆ‰Š‹Œ����‘’“”•–—˜™š›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
+		},
+		win1254: "windows1254",
+		cp1254: "windows1254",
+		windows1255: {
+			type: "_sbcs",
+			chars: "€�‚ƒ„…†‡ˆ‰�‹�����‘’“”•–—˜™�›����\xA0¡¢£₪¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾¿ְֱֲֳִֵֶַָֹֺֻּֽ־ֿ׀ׁׂ׃װױײ׳״�������אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
+		},
+		win1255: "windows1255",
+		cp1255: "windows1255",
+		windows1256: {
+			type: "_sbcs",
+			chars: "€پ‚ƒ„…†‡ˆ‰ٹ‹Œچژڈگ‘’“”•–—ک™ڑ›œ‌‍ں\xA0،¢£¤¥¦§¨©ھ«¬­®¯°±²³´µ¶·¸¹؛»¼½¾؟ہءآأؤإئابةتثجحخدذرزسشصض×طظعغـفقكàلâمنهوçèéêëىيîïًٌٍَôُِ÷ّùْûü‎‏ے"
+		},
+		win1256: "windows1256",
+		cp1256: "windows1256",
+		windows1257: {
+			type: "_sbcs",
+			chars: "€�‚�„…†‡�‰�‹�¨ˇ¸�‘’“”•–—�™�›�¯˛�\xA0�¢£¤�¦§Ø©Ŗ«¬­®Æ°±²³´µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž˙"
+		},
+		win1257: "windows1257",
+		cp1257: "windows1257",
+		windows1258: {
+			type: "_sbcs",
+			chars: "€�‚ƒ„…†‡ˆ‰�‹Œ����‘’“”•–—˜™�›œ��Ÿ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
+		},
+		win1258: "windows1258",
+		cp1258: "windows1258",
+		iso88591: {
+			type: "_sbcs",
+			chars: "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		cp28591: "iso88591",
+		iso88592: {
+			type: "_sbcs",
+			chars: "\xA0Ą˘Ł¤ĽŚ§¨ŠŞŤŹ­ŽŻ°ą˛ł´ľśˇ¸šşťź˝žżŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢßŕáâăäĺćçčéęëěíîďđńňóôőö÷řůúűüýţ˙"
+		},
+		cp28592: "iso88592",
+		iso88593: {
+			type: "_sbcs",
+			chars: "\xA0Ħ˘£¤�Ĥ§¨İŞĞĴ­�Ż°ħ²³´µĥ·¸ışğĵ½�żÀÁÂ�ÄĊĈÇÈÉÊËÌÍÎÏ�ÑÒÓÔĠÖ×ĜÙÚÛÜŬŜßàáâ�äċĉçèéêëìíîï�ñòóôġö÷ĝùúûüŭŝ˙"
+		},
+		cp28593: "iso88593",
+		iso88594: {
+			type: "_sbcs",
+			chars: "\xA0ĄĸŖ¤ĨĻ§¨ŠĒĢŦ­Ž¯°ą˛ŗ´ĩļˇ¸šēģŧŊžŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎĪĐŅŌĶÔÕÖ×ØŲÚÛÜŨŪßāáâãäåæįčéęëėíîīđņōķôõö÷øųúûüũū˙"
+		},
+		cp28594: "iso88594",
+		iso88595: {
+			type: "_sbcs",
+			chars: "\xA0ЁЂЃЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђѓєѕіїјљњћќ§ўџ"
+		},
+		cp28595: "iso88595",
+		iso88596: {
+			type: "_sbcs",
+			chars: "\xA0���¤�������،­�������������؛���؟�ءآأؤإئابةتثجحخدذرزسشصضطظعغ�����ـفقكلمنهوىيًٌٍَُِّْ�������������"
+		},
+		cp28596: "iso88596",
+		iso88597: {
+			type: "_sbcs",
+			chars: "\xA0‘’£€₯¦§¨©ͺ«¬­�―°±²³΄΅Ά·ΈΉΊ»Ό½ΎΏΐΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡ�ΣΤΥΦΧΨΩΪΫάέήίΰαβγδεζηθικλμνξοπρςστυφχψωϊϋόύώ�"
+		},
+		cp28597: "iso88597",
+		iso88598: {
+			type: "_sbcs",
+			chars: "\xA0�¢£¤¥¦§¨©×«¬­®¯°±²³´µ¶·¸¹÷»¼½¾��������������������������������‗אבגדהוזחטיךכלםמןנסעףפץצקרשת��‎‏�"
+		},
+		cp28598: "iso88598",
+		iso88599: {
+			type: "_sbcs",
+			chars: "\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ"
+		},
+		cp28599: "iso88599",
+		iso885910: {
+			type: "_sbcs",
+			chars: "\xA0ĄĒĢĪĨĶ§ĻĐŠŦŽ­ŪŊ°ąēģīĩķ·ļđšŧž―ūŋĀÁÂÃÄÅÆĮČÉĘËĖÍÎÏÐŅŌÓÔÕÖŨØŲÚÛÜÝÞßāáâãäåæįčéęëėíîïðņōóôõöũøųúûüýþĸ"
+		},
+		cp28600: "iso885910",
+		iso885911: {
+			type: "_sbcs",
+			chars: "\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		},
+		cp28601: "iso885911",
+		iso885913: {
+			type: "_sbcs",
+			chars: "\xA0”¢£¤„¦§Ø©Ŗ«¬­®Æ°±²³“µ¶·ø¹ŗ»¼½¾æĄĮĀĆÄÅĘĒČÉŹĖĢĶĪĻŠŃŅÓŌÕÖ×ŲŁŚŪÜŻŽßąįāćäåęēčéźėģķīļšńņóōõö÷ųłśūüżž’"
+		},
+		cp28603: "iso885913",
+		iso885914: {
+			type: "_sbcs",
+			chars: "\xA0Ḃḃ£ĊċḊ§Ẁ©ẂḋỲ­®ŸḞḟĠġṀṁ¶ṖẁṗẃṠỳẄẅṡÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŴÑÒÓÔÕÖṪØÙÚÛÜÝŶßàáâãäåæçèéêëìíîïŵñòóôõöṫøùúûüýŷÿ"
+		},
+		cp28604: "iso885914",
+		iso885915: {
+			type: "_sbcs",
+			chars: "\xA0¡¢£€¥Š§š©ª«¬­®¯°±²³Žµ¶·ž¹º»ŒœŸ¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		cp28605: "iso885915",
+		iso885916: {
+			type: "_sbcs",
+			chars: "\xA0ĄąŁ€„Š§š©Ș«Ź­źŻ°±ČłŽ”¶·žčș»ŒœŸżÀÁÂĂÄĆÆÇÈÉÊËÌÍÎÏĐŃÒÓÔŐÖŚŰÙÚÛÜĘȚßàáâăäćæçèéêëìíîïđńòóôőöśűùúûüęțÿ"
+		},
+		cp28606: "iso885916",
+		cp437: {
+			type: "_sbcs",
+			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm437: "cp437",
+		csibm437: "cp437",
+		cp737: {
+			type: "_sbcs",
+			chars: "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρσςτυφχψ░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀ωάέήϊίόύϋώΆΈΉΊΌΎΏ±≥≤ΪΫ÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm737: "cp737",
+		csibm737: "cp737",
+		cp775: {
+			type: "_sbcs",
+			chars: "ĆüéāäģåćłēŖŗīŹÄÅÉæÆōöĢ¢ŚśÖÜø£Ø×¤ĀĪóŻżź”¦©®¬½¼Ł«»░▒▓│┤ĄČĘĖ╣║╗╝ĮŠ┐└┴┬├─┼ŲŪ╚╔╩╦╠═╬Žąčęėįšųūž┘┌█▄▌▐▀ÓßŌŃõÕµńĶķĻļņĒŅ’­±“¾¶§÷„°∙·¹³²■\xA0"
+		},
+		ibm775: "cp775",
+		csibm775: "cp775",
+		cp850: {
+			type: "_sbcs",
+			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		ibm850: "cp850",
+		csibm850: "cp850",
+		cp852: {
+			type: "_sbcs",
+			chars: "ÇüéâäůćçłëŐőîŹÄĆÉĹĺôöĽľŚśÖÜŤťŁ×čáíóúĄąŽžĘę¬źČş«»░▒▓│┤ÁÂĚŞ╣║╗╝Żż┐└┴┬├─┼Ăă╚╔╩╦╠═╬¤đĐĎËďŇÍÎě┘┌█▄ŢŮ▀ÓßÔŃńňŠšŔÚŕŰýÝţ´­˝˛ˇ˘§÷¸°¨˙űŘř■\xA0"
+		},
+		ibm852: "cp852",
+		csibm852: "cp852",
+		cp855: {
+			type: "_sbcs",
+			chars: "ђЂѓЃёЁєЄѕЅіІїЇјЈљЉњЊћЋќЌўЎџЏюЮъЪаАбБцЦдДеЕфФгГ«»░▒▓│┤хХиИ╣║╗╝йЙ┐└┴┬├─┼кК╚╔╩╦╠═╬¤лЛмМнНоОп┘┌█▄Пя▀ЯрРсСтТуУжЖвВьЬ№­ыЫзЗшШэЭщЩчЧ§■\xA0"
+		},
+		ibm855: "cp855",
+		csibm855: "cp855",
+		cp856: {
+			type: "_sbcs",
+			chars: "אבגדהוזחטיךכלםמןנסעףפץצקרשת�£�×����������®¬½¼�«»░▒▓│┤���©╣║╗╝¢¥┐└┴┬├─┼��╚╔╩╦╠═╬¤���������┘┌█▄¦�▀������µ�������¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		ibm856: "cp856",
+		csibm856: "cp856",
+		cp857: {
+			type: "_sbcs",
+			chars: "ÇüéâäàåçêëèïîıÄÅÉæÆôöòûùİÖÜø£ØŞşáíóúñÑĞğ¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ºªÊËÈ�ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµ�×ÚÛÙìÿ¯´­±�¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		ibm857: "cp857",
+		csibm857: "cp857",
+		cp858: {
+			type: "_sbcs",
+			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈ€ÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■\xA0"
+		},
+		ibm858: "cp858",
+		csibm858: "cp858",
+		cp860: {
+			type: "_sbcs",
+			chars: "ÇüéâãàÁçêÊèÍÔìÃÂÉÀÈôõòÚùÌÕÜ¢£Ù₧ÓáíóúñÑªº¿Ò¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm860: "cp860",
+		csibm860: "cp860",
+		cp861: {
+			type: "_sbcs",
+			chars: "ÇüéâäàåçêëèÐðÞÄÅÉæÆôöþûÝýÖÜø£Ø₧ƒáíóúÁÍÓÚ¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm861: "cp861",
+		csibm861: "cp861",
+		cp862: {
+			type: "_sbcs",
+			chars: "אבגדהוזחטיךכלםמןנסעףפץצקרשת¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm862: "cp862",
+		csibm862: "cp862",
+		cp863: {
+			type: "_sbcs",
+			chars: "ÇüéâÂà¶çêëèïî‗À§ÉÈÊôËÏûù¤ÔÜ¢£ÙÛƒ¦´óú¨¸³¯Î⌐¬½¼¾«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm863: "cp863",
+		csibm863: "cp863",
+		cp864: {
+			type: "_sbcs",
+			chars: "\0\x07\b	\n\v\f\r\x1B !\"#$٪&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~°·∙√▒─│┼┤┬├┴┐┌└┘β∞φ±½¼≈«»ﻷﻸ��ﻻﻼ�\xA0­ﺂ£¤ﺄ��ﺎﺏﺕﺙ،ﺝﺡﺥ٠١٢٣٤٥٦٧٨٩ﻑ؛ﺱﺵﺹ؟¢ﺀﺁﺃﺅﻊﺋﺍﺑﺓﺗﺛﺟﺣﺧﺩﺫﺭﺯﺳﺷﺻﺿﻁﻅﻋﻏ¦¬÷×ﻉـﻓﻗﻛﻟﻣﻧﻫﻭﻯﻳﺽﻌﻎﻍﻡﹽّﻥﻩﻬﻰﻲﻐﻕﻵﻶﻝﻙﻱ■�"
+		},
+		ibm864: "cp864",
+		csibm864: "cp864",
+		cp865: {
+			type: "_sbcs",
+			chars: "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø₧ƒáíóúñÑªº¿⌐¬½¼¡«¤░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xA0"
+		},
+		ibm865: "cp865",
+		csibm865: "cp865",
+		cp866: {
+			type: "_sbcs",
+			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёЄєЇїЎў°∙·√№¤■\xA0"
+		},
+		ibm866: "cp866",
+		csibm866: "cp866",
+		cp869: {
+			type: "_sbcs",
+			chars: "������Ά�·¬¦‘’Έ―ΉΊΪΌ��ΎΫ©Ώ²³ά£έήίϊΐόύΑΒΓΔΕΖΗ½ΘΙ«»░▒▓│┤ΚΛΜΝ╣║╗╝ΞΟ┐└┴┬├─┼ΠΡ╚╔╩╦╠═╬ΣΤΥΦΧΨΩαβγ┘┌█▄δε▀ζηθικλμνξοπρσςτ΄­±υφχ§ψ΅°¨ωϋΰώ■\xA0"
+		},
+		ibm869: "cp869",
+		csibm869: "cp869",
+		cp922: {
+			type: "_sbcs",
+			chars: "\xA0¡¢£¤¥¦§¨©ª«¬­®‾°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏŠÑÒÓÔÕÖ×ØÙÚÛÜÝŽßàáâãäåæçèéêëìíîïšñòóôõö÷øùúûüýžÿ"
+		},
+		ibm922: "cp922",
+		csibm922: "cp922",
+		cp1046: {
+			type: "_sbcs",
+			chars: "ﺈ×÷ﹱ■│─┐┌└┘ﹹﹻﹽﹿﹷﺊﻰﻳﻲﻎﻏﻐﻶﻸﻺﻼ\xA0¤ﺋﺑﺗﺛﺟﺣ،­ﺧﺳ٠١٢٣٤٥٦٧٨٩ﺷ؛ﺻﺿﻊ؟ﻋءآأؤإئابةتثجحخدذرزسشصضطﻇعغﻌﺂﺄﺎﻓـفقكلمنهوىيًٌٍَُِّْﻗﻛﻟﻵﻷﻹﻻﻣﻧﻬﻩ�"
+		},
+		ibm1046: "cp1046",
+		csibm1046: "cp1046",
+		cp1124: {
+			type: "_sbcs",
+			chars: "\xA0ЁЂҐЄЅІЇЈЉЊЋЌ­ЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя№ёђґєѕіїјљњћќ§ўџ"
+		},
+		ibm1124: "cp1124",
+		csibm1124: "cp1124",
+		cp1125: {
+			type: "_sbcs",
+			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмноп░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀рстуфхцчшщъыьэюяЁёҐґЄєІіЇї·√№¤■\xA0"
+		},
+		ibm1125: "cp1125",
+		csibm1125: "cp1125",
+		cp1129: {
+			type: "_sbcs",
+			chars: "\xA0¡¢£¤¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
+		},
+		ibm1129: "cp1129",
+		csibm1129: "cp1129",
+		cp1133: {
+			type: "_sbcs",
+			chars: "\xA0ກຂຄງຈສຊຍດຕຖທນບປຜຝພຟມຢຣລວຫອຮ���ຯະາຳິີຶືຸູຼັົຽ���ເແໂໃໄ່້໊໋໌ໍໆ�ໜໝ₭����������������໐໑໒໓໔໕໖໗໘໙��¢¬¦�"
+		},
+		ibm1133: "cp1133",
+		csibm1133: "cp1133",
+		cp1161: {
+			type: "_sbcs",
+			chars: "��������������������������������่กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู้๊๋€฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛¢¬¦\xA0"
+		},
+		ibm1161: "cp1161",
+		csibm1161: "cp1161",
+		cp1162: {
+			type: "_sbcs",
+			chars: "€…‘’“”•–—\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
+		},
+		ibm1162: "cp1162",
+		csibm1162: "cp1162",
+		cp1163: {
+			type: "_sbcs",
+			chars: "\xA0¡¢£€¥¦§œ©ª«¬­®¯°±²³Ÿµ¶·Œ¹º»¼½¾¿ÀÁÂĂÄÅÆÇÈÉÊË̀ÍÎÏĐÑ̉ÓÔƠÖ×ØÙÚÛÜỮßàáâăäåæçèéêë́íîïđṇ̃óôơö÷øùúûüư₫ÿ"
+		},
+		ibm1163: "cp1163",
+		csibm1163: "cp1163",
+		maccroatian: {
+			type: "_sbcs",
+			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®Š™´¨≠ŽØ∞±≤≥∆µ∂∑∏š∫ªºΩžø¿¡¬√ƒ≈Ć«Č…\xA0ÀÃÕŒœĐ—“”‘’÷◊�©⁄¤‹›Æ»–·‚„‰ÂćÁčÈÍÎÏÌÓÔđÒÚÛÙıˆ˜¯πË˚¸Êæˇ"
+		},
+		maccyrillic: {
+			type: "_sbcs",
+			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°¢£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµ∂ЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
+		},
+		macgreek: {
+			type: "_sbcs",
+			chars: "Ä¹²É³ÖÜ΅àâä΄¨çéèêë£™îï•½‰ôö¦­ùûü†ΓΔΘΛΞΠß®©ΣΪ§≠°·Α±≤≥¥ΒΕΖΗΙΚΜΦΫΨΩάΝ¬ΟΡ≈Τ«»…\xA0ΥΧΆΈœ–―“”‘’÷ΉΊΌΎέήίόΏύαβψδεφγηιξκλμνοπώρστθωςχυζϊϋΐΰ�"
+		},
+		maciceland: {
+			type: "_sbcs",
+			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûüÝ°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤ÐðÞþý·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		macroman: {
+			type: "_sbcs",
+			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		macromania: {
+			type: "_sbcs",
+			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ĂŞ∞±≤≥¥µ∂∑∏π∫ªºΩăş¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›Ţţ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		macthai: {
+			type: "_sbcs",
+			chars: "«»…“”�•‘’�\xA0กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู﻿​–—฿เแโใไๅๆ็่้๊๋์ํ™๏๐๑๒๓๔๕๖๗๘๙®©����"
+		},
+		macturkish: {
+			type: "_sbcs",
+			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸĞğİıŞş‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙ�ˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		macukraine: {
+			type: "_sbcs",
+			chars: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ†°Ґ£§•¶І®©™Ђђ≠Ѓѓ∞±≤≥іµґЈЄєЇїЉљЊњјЅ¬√ƒ≈∆«»…\xA0ЋћЌќѕ–—“”‘’÷„ЎўЏџ№Ёёяабвгдежзийклмнопрстуфхцчшщъыьэю¤"
+		},
+		koi8r: {
+			type: "_sbcs",
+			chars: "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ё╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡Ё╢╣╤╥╦╧╨╩╪╫╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		koi8u: {
+			type: "_sbcs",
+			chars: "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґ╝╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪Ґ╬©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		koi8ru: {
+			type: "_sbcs",
+			chars: "─│┌┐└┘├┤┬┴┼▀▄█▌▐░▒▓⌠■∙√≈≤≥\xA0⌡°²·÷═║╒ёє╔ії╗╘╙╚╛ґў╞╟╠╡ЁЄ╣ІЇ╦╧╨╩╪ҐЎ©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		koi8t: {
+			type: "_sbcs",
+			chars: "қғ‚Ғ„…†‡�‰ҳ‹ҲҷҶ�Қ‘’“”•–—�™�›�����ӯӮё¤ӣ¦§���«¬­®�°±²Ё�Ӣ¶·�№�»���©юабцдефгхийклмнопярстужвьызшэщчъЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩЧЪ"
+		},
+		armscii8: {
+			type: "_sbcs",
+			chars: "\xA0�և։)(»«—.՝,-֊…՜՛՞ԱաԲբԳգԴդԵեԶզԷէԸըԹթԺժԻիԼլԽխԾծԿկՀհՁձՂղՃճՄմՅյՆնՇշՈոՉչՊպՋջՌռՍսՎվՏտՐրՑցՒւՓփՔքՕօՖֆ՚�"
+		},
+		rk1048: {
+			type: "_sbcs",
+			chars: "ЂЃ‚ѓ„…†‡€‰Љ‹ЊҚҺЏђ‘’“”•–—�™љ›њқһџ\xA0ҰұӘ¤Ө¦§Ё©Ғ«¬­®Ү°±Ііөµ¶·ё№ғ»әҢңүАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
+		},
+		tcvn: {
+			type: "_sbcs",
+			chars: "\0ÚỤỪỬỮ\x07\b	\n\v\f\rỨỰỲỶỸÝỴ\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÀẢÃÁẠẶẬÈẺẼÉẸỆÌỈĨÍỊÒỎÕÓỌỘỜỞỠỚỢÙỦŨ\xA0ĂÂÊÔƠƯĐăâêôơưđẶ̀̀̉̃́àảãáạẲằẳẵắẴẮẦẨẪẤỀặầẩẫấậèỂẻẽéẹềểễếệìỉỄẾỒĩíịòỔỏõóọồổỗốộờởỡớợùỖủũúụừửữứựỳỷỹýỵỐ"
+		},
+		georgianacademy: {
+			type: "_sbcs",
+			chars: "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზთიკლმნოპჟრსტუფქღყშჩცძწჭხჯჰჱჲჳჴჵჶçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		georgianps: {
+			type: "_sbcs",
+			chars: "‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ\xA0¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿აბგდევზჱთიკლმნჲოპჟრსტჳუფქღყშჩცძწჭხჴჯჰჵæçèéêëìíîïðñòóôõö÷øùúûüýþÿ"
+		},
+		pt154: {
+			type: "_sbcs",
+			chars: "ҖҒӮғ„…ҶҮҲүҠӢҢҚҺҸҗ‘’“”•–—ҳҷҡӣңқһҹ\xA0ЎўЈӨҘҰ§Ё©Ә«¬ӯ®Ҝ°ұІіҙө¶·ё№ә»јҪҫҝАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
+		},
+		viscii: {
+			type: "_sbcs",
+			chars: "\0ẲẴẪ\x07\b	\n\v\f\rỶỸ\x1BỴ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ẠẮẰẶẤẦẨẬẼẸẾỀỂỄỆỐỒỔỖỘỢỚỜỞỊỎỌỈỦŨỤỲÕắằặấầẩậẽẹếềểễệốồổỗỠƠộờởịỰỨỪỬơớƯÀÁÂÃẢĂẳẵÈÉÊẺÌÍĨỳĐứÒÓÔạỷừửÙÚỹỵÝỡưàáâãảăữẫèéêẻìíĩỉđựòóôõỏọụùúũủýợỮ"
+		},
+		iso646cn: {
+			type: "_sbcs",
+			chars: "\0\x07\b	\n\v\f\r\x1B !\"#¥%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
+		},
+		iso646jp: {
+			type: "_sbcs",
+			chars: "\0\x07\b	\n\v\f\r\x1B !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]^_`abcdefghijklmnopqrstuvwxyz{|}‾��������������������������������������������������������������������������������������������������������������������������������"
+		},
+		hproman8: {
+			type: "_sbcs",
+			chars: "\xA0ÀÂÈÊËÎÏ´ˋˆ¨˜ÙÛ₤¯Ýý°ÇçÑñ¡¿¤£¥§ƒ¢âêôûáéóúàèòùäëöüÅîØÆåíøæÄìÖÜÉïßÔÁÃãÐðÍÌÓÒÕõŠšÚŸÿÞþ·µ¶¾—¼½ªº«■»±�"
+		},
+		macintosh: {
+			type: "_sbcs",
+			chars: "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»…\xA0ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄¤‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔ�ÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ"
+		},
+		ascii: {
+			type: "_sbcs",
+			chars: "��������������������������������������������������������������������������������������������������������������������������������"
+		},
+		tis620: {
+			type: "_sbcs",
+			chars: "���������������������������������กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรฤลฦวศษสหฬอฮฯะัาำิีึืฺุู����฿เแโใไๅๆ็่้๊๋์ํ๎๏๐๑๒๓๔๕๖๗๘๙๚๛����"
 		}
 	};
 }));
@@ -10360,22 +10371,22 @@ var require_unpipe = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = unpipe;
 	/**
 	* Determine if there are Node.js pipe-like data listeners.
 	* @private
 	*/
-	function hasPipeDataListeners(stream) {
-		var listeners = stream.listeners("data");
-		for (var i = 0; i < listeners.length; i++) if (listeners[i].name === "ondata") return true;
-		return false;
-	}
 	/**
 	* Unpipe a stream from all destinations.
 	*
 	* @param {object} stream
 	* @public
 	*/
+	module.exports = unpipe;
+	function hasPipeDataListeners(stream) {
+		var listeners = stream.listeners("data");
+		for (var i = 0; i < listeners.length; i++) if (listeners[i].name === "ondata") return true;
+		return false;
+	}
 	function unpipe(stream) {
 		if (!stream) throw new TypeError("argument stream is required");
 		if (typeof stream.unpipe === "function") {
@@ -10405,27 +10416,60 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var asyncHooks = tryRequireAsyncHooks();
-	var bytes = require_bytes();
-	var createError = require_http_errors();
-	var iconv = require_lib$4();
-	var unpipe = require_unpipe();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = getRawBody;
 	/**
 	* Module variables.
 	* @private
 	*/
-	var ICONV_ENCODING_MESSAGE_REGEXP = /^Encoding not recognized: /;
 	/**
 	* Get the decoder for a given encoding.
 	*
 	* @param {string} encoding
 	* @private
 	*/
+	/**
+	* Get the raw body of a stream (typically HTTP).
+	*
+	* @param {object} stream
+	* @param {object|string|function} [options]
+	* @param {function} [callback]
+	* @public
+	*/
+	/**
+	* Halt a stream.
+	*
+	* @param {Object} stream
+	* @private
+	*/
+	/**
+	* Read the data from the stream.
+	*
+	* @param {object} stream
+	* @param {string} encoding
+	* @param {number} length
+	* @param {number} limit
+	* @param {function} callback
+	* @public
+	*/
+	/**
+	* Try to require async_hooks
+	* @private
+	*/
+	/**
+	* Wrap function with async resource, if possible.
+	* AsyncResource.bind static method backported.
+	* @private
+	*/
+	var asyncHooks = tryRequireAsyncHooks();
+	var bytes = require_bytes();
+	var createError = require_http_errors();
+	var iconv = require_lib$4();
+	var unpipe = require_unpipe();
+	module.exports = getRawBody;
+	var ICONV_ENCODING_MESSAGE_REGEXP = /^Encoding not recognized: /;
 	function getDecoder(encoding) {
 		if (!encoding) return null;
 		try {
@@ -10438,14 +10482,6 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	}
-	/**
-	* Get the raw body of a stream (typically HTTP).
-	*
-	* @param {object} stream
-	* @param {object|string|function} [options]
-	* @param {function} [callback]
-	* @public
-	*/
 	function getRawBody(stream, options, callback) {
 		var done = callback;
 		var opts = options || {};
@@ -10469,26 +10505,10 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		});
 	}
-	/**
-	* Halt a stream.
-	*
-	* @param {Object} stream
-	* @private
-	*/
 	function halt(stream) {
 		unpipe(stream);
 		if (typeof stream.pause === "function") stream.pause();
 	}
-	/**
-	* Read the data from the stream.
-	*
-	* @param {object} stream
-	* @param {string} encoding
-	* @param {number} length
-	* @param {number} limit
-	* @param {function} callback
-	* @public
-	*/
 	function readStream(stream, encoding, length, limit, callback) {
 		var complete = false;
 		var sync = true;
@@ -10568,10 +10588,6 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			stream.removeListener("close", cleanup);
 		}
 	}
-	/**
-	* Try to require async_hooks
-	* @private
-	*/
 	function tryRequireAsyncHooks() {
 		try {
 			return __require("async_hooks");
@@ -10579,11 +10595,6 @@ var require_raw_body = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return {};
 		}
 	}
-	/**
-	* Wrap function with async resource, if possible.
-	* AsyncResource.bind static method backported.
-	* @private
-	*/
 	function wrap(fn) {
 		var res;
 		if (asyncHooks.AsyncResource) res = new asyncHooks.AsyncResource(fn.name || "bound-anonymous-fn");
@@ -10603,7 +10614,6 @@ var require_ee_first = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = first;
 	/**
 	* Get the first event in a set of event emitters and event pairs.
 	*
@@ -10611,6 +10621,11 @@ var require_ee_first = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {function} done
 	* @public
 	*/
+	/**
+	* Create the event listener.
+	* @private
+	*/
+	module.exports = first;
 	function first(stuff, done) {
 		if (!Array.isArray(stuff)) throw new TypeError("arg must be an array of [ee, events...] arrays");
 		var cleanups = [];
@@ -10646,10 +10661,6 @@ var require_ee_first = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		thunk.cancel = cleanup;
 		return thunk;
 	}
-	/**
-	* Create the event listener.
-	* @private
-	*/
 	function listener(event, done) {
 		return function onevent(arg1) {
 			var args = new Array(arguments.length);
@@ -10673,22 +10684,15 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = onFinished;
-	module.exports.isFinished = isFinished;
 	/**
 	* Module dependencies.
 	* @private
 	*/
-	var asyncHooks = tryRequireAsyncHooks();
-	var first = require_ee_first();
 	/**
 	* Variables.
 	* @private
 	*/
 	/* istanbul ignore next */
-	var defer = typeof setImmediate === "function" ? setImmediate : function(fn) {
-		process.nextTick(fn.bind.apply(fn, arguments));
-	};
 	/**
 	* Invoke callback when the response has finished, useful for
 	* cleaning up resources afterwards.
@@ -10698,6 +10702,59 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {object}
 	* @public
 	*/
+	/**
+	* Determine if message is already finished.
+	*
+	* @param {object} msg
+	* @return {boolean}
+	* @public
+	*/
+	/**
+	* Attach a finished listener to the message.
+	*
+	* @param {object} msg
+	* @param {function} callback
+	* @private
+	*/
+	// istanbul ignore next: node.js 0.8 patch
+	/**
+	* Attach the listener to the message.
+	*
+	* @param {object} msg
+	* @return {function}
+	* @private
+	*/
+	/**
+	* Create listener on message.
+	*
+	* @param {object} msg
+	* @return {function}
+	* @private
+	*/
+	/**
+	* Patch ServerResponse.prototype.assignSocket for node.js 0.8.
+	*
+	* @param {ServerResponse} res
+	* @param {function} callback
+	* @private
+	*/
+	// istanbul ignore next: node.js 0.8 patch
+	/**
+	* Try to require async_hooks
+	* @private
+	*/
+	/**
+	* Wrap function with async resource, if possible.
+	* AsyncResource.bind static method backported.
+	* @private
+	*/
+	module.exports = onFinished;
+	module.exports.isFinished = isFinished;
+	var asyncHooks = tryRequireAsyncHooks();
+	var first = require_ee_first();
+	var defer = typeof setImmediate === "function" ? setImmediate : function(fn) {
+		process.nextTick(fn.bind.apply(fn, arguments));
+	};
 	function onFinished(msg, listener) {
 		if (isFinished(msg) !== false) {
 			defer(listener, null, msg);
@@ -10706,25 +10763,11 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		attachListener(msg, wrap(listener));
 		return msg;
 	}
-	/**
-	* Determine if message is already finished.
-	*
-	* @param {object} msg
-	* @return {boolean}
-	* @public
-	*/
 	function isFinished(msg) {
 		var socket = msg.socket;
 		if (typeof msg.finished === "boolean") return Boolean(msg.finished || socket && !socket.writable);
 		if (typeof msg.complete === "boolean") return Boolean(msg.upgrade || !socket || !socket.readable || msg.complete && !msg.readable);
 	}
-	/**
-	* Attach a finished listener to the message.
-	*
-	* @param {object} msg
-	* @param {function} callback
-	* @private
-	*/
 	function attachFinishedListener(msg, callback) {
 		var eeMsg;
 		var eeSocket;
@@ -10755,17 +10798,8 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return;
 		}
 		msg.on("socket", onSocket);
-		if (msg.socket === void 0)
- // istanbul ignore next: node.js 0.8 patch
-		patchAssignSocket(msg, onSocket);
+		if (msg.socket === void 0) patchAssignSocket(msg, onSocket);
 	}
-	/**
-	* Attach the listener to the message.
-	*
-	* @param {object} msg
-	* @return {function}
-	* @private
-	*/
 	function attachListener(msg, listener) {
 		var attached = msg.__onFinished;
 		if (!attached || !attached.queue) {
@@ -10774,13 +10808,6 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		attached.queue.push(listener);
 	}
-	/**
-	* Create listener on message.
-	*
-	* @param {object} msg
-	* @return {function}
-	* @private
-	*/
 	function createListener(msg) {
 		function listener(err) {
 			if (msg.__onFinished === listener) msg.__onFinished = null;
@@ -10792,14 +10819,6 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		listener.queue = [];
 		return listener;
 	}
-	/**
-	* Patch ServerResponse.prototype.assignSocket for node.js 0.8.
-	*
-	* @param {ServerResponse} res
-	* @param {function} callback
-	* @private
-	*/
-	// istanbul ignore next: node.js 0.8 patch
 	function patchAssignSocket(res, callback) {
 		var assignSocket = res.assignSocket;
 		if (typeof assignSocket !== "function") return;
@@ -10808,10 +10827,6 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			callback(socket);
 		};
 	}
-	/**
-	* Try to require async_hooks
-	* @private
-	*/
 	function tryRequireAsyncHooks() {
 		try {
 			return __require("async_hooks");
@@ -10819,11 +10834,6 @@ var require_on_finished = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return {};
 		}
 	}
-	/**
-	* Wrap function with async resource, if possible.
-	* AsyncResource.bind static method backported.
-	* @private
-	*/
 	function wrap(fn) {
 		var res;
 		if (asyncHooks.AsyncResource) res = new asyncHooks.AsyncResource(fn.name || "bound-anonymous-fn");
@@ -10839,34 +10849,17 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Copyright(c) 2015 Douglas Christopher Wilson
 	* MIT Licensed
 	*/
-	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.format = format;
 	exports.parse = parse;
 	const TEXT_REGEXP = /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/;
 	const TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-	/**
-	* RegExp to match chars that must be quoted-pair in RFC 9110 sec 5.6.4
-	*/
 	const QUOTE_REGEXP = /[\\"]/g;
-	/**
-	* RegExp to match type in RFC 9110 sec 8.3.1
-	*
-	* media-type = type "/" subtype
-	* type       = token
-	* subtype    = token
-	*/
 	const TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-	/**
-	* Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
-	*/
-	const NullObject = /* @__PURE__ */ (() => {
+	const NullObject = (() => {
 		const C = function() {};
 		C.prototype = Object.create(null);
 		return C;
 	})();
-	/**
-	* Format an object into a `Content-Type` header.
-	*/
 	function format(obj) {
 		const { type, parameters } = obj;
 		if (!type || !TYPE_REGEXP.test(type)) throw new TypeError(`Invalid type: ${type}`);
@@ -10877,9 +10870,6 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return result;
 	}
-	/**
-	* Parse a `Content-Type` header.
-	*/
 	function parse(header, options) {
 		const stopChar = options?.comma === true ? COMMA : 65536;
 		const len = header.length;
@@ -10902,9 +10892,6 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const DQUOTE = 34;
 	const BSLASH = 92;
 	const COMMA = 44;
-	/**
-	* Parses the parameters of a `Content-Type` header starting at the given index.
-	*/
 	function parseParameters(header, type, index, len, stopChar) {
 		const parameters = new NullObject();
 		parameter: while (index < len) {
@@ -10954,9 +10941,6 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			parameters
 		};
 	}
-	/**
-	* Skip over characters until a semicolon or other exit character.
-	*/
 	function skipValue(str, index, len, stopChar) {
 		while (index < len) {
 			const code = str.charCodeAt(index);
@@ -10965,11 +10949,6 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
-	/**
-	* Skip optional whitespace (OWS) in an HTTP header value.
-	*
-	* OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
-	*/
 	function skipOWS(header, index, len) {
 		while (index < len) {
 			const char = header.charCodeAt(index);
@@ -10978,11 +10957,6 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
-	/**
-	* Trim optional whitespace (OWS) from the end of a substring.
-	*
-	* OWS is defined in RFC 9110 sec 5.6.3 as SP (" ") or HTAB ("\t").
-	*/
 	function trailingOWS(header, start, end) {
 		while (end > start) {
 			const char = header.charCodeAt(end - 1);
@@ -10991,9 +10965,6 @@ var require_dist$3 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return end;
 	}
-	/**
-	* Serialize a parameter value.
-	*/
 	function qstring(str) {
 		if (TOKEN_REGEXP.test(str)) return str;
 		if (TEXT_REGEXP.test(str)) return `"${str.replace(QUOTE_REGEXP, "\\$&")}"`;
@@ -18687,19 +18658,47 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Module dependencies.
 	* @private
 	*/
-	var db = require_mime_db();
-	var extname = __require("path").extname;
-	var mimeScore = require_mimeScore();
 	/**
 	* Module variables.
 	* @private
 	*/
-	var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
-	var TEXT_TYPE_REGEXP = /^text\//i;
 	/**
 	* Module exports.
 	* @public
 	*/
+	/**
+	* Get the default charset for a MIME type.
+	*
+	* @param {string} type
+	* @return {false|string}
+	*/
+	/**
+	* Create a full Content-Type header given a MIME type or extension.
+	*
+	* @param {string} str
+	* @return {false|string}
+	*/
+	/**
+	* Get the default extension for a MIME type.
+	*
+	* @param {string} type
+	* @return {false|string}
+	*/
+	/**
+	* Lookup the MIME type for a file path/extension.
+	*
+	* @param {string} path
+	* @return {false|string}
+	*/
+	/**
+	* Populate the extensions and types maps.
+	* @private
+	*/
+	var db = require_mime_db();
+	var extname = __require("path").extname;
+	var mimeScore = require_mimeScore();
+	var EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/;
+	var TEXT_TYPE_REGEXP = /^text\//i;
 	exports.charset = charset;
 	exports.charsets = { lookup: charset };
 	exports.contentType = contentType;
@@ -18709,12 +18708,6 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.types = Object.create(null);
 	exports._extensionConflicts = [];
 	populateMaps(exports.extensions, exports.types);
-	/**
-	* Get the default charset for a MIME type.
-	*
-	* @param {string} type
-	* @return {false|string}
-	*/
 	function charset(type) {
 		if (!type || typeof type !== "string") return false;
 		var match = EXTRACT_TYPE_REGEXP.exec(type);
@@ -18723,12 +18716,6 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 		if (match && TEXT_TYPE_REGEXP.test(match[1])) return "UTF-8";
 		return false;
 	}
-	/**
-	* Create a full Content-Type header given a MIME type or extension.
-	*
-	* @param {string} str
-	* @return {false|string}
-	*/
 	function contentType(str) {
 		if (!str || typeof str !== "string") return false;
 		var mime = str.indexOf("/") === -1 ? exports.lookup(str) : str;
@@ -18739,12 +18726,6 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return mime;
 	}
-	/**
-	* Get the default extension for a MIME type.
-	*
-	* @param {string} type
-	* @return {false|string}
-	*/
 	function extension(type) {
 		if (!type || typeof type !== "string") return false;
 		var match = EXTRACT_TYPE_REGEXP.exec(type);
@@ -18752,22 +18733,12 @@ var require_mime_types = /* @__PURE__ */ __commonJSMin(((exports) => {
 		if (!exts || !exts.length) return false;
 		return exts[0];
 	}
-	/**
-	* Lookup the MIME type for a file path/extension.
-	*
-	* @param {string} path
-	* @return {false|string}
-	*/
 	function lookup(path) {
 		if (!path || typeof path !== "string") return false;
 		var extension = extname("x." + path).toLowerCase().slice(1);
 		if (!extension) return false;
 		return exports.types[extension] || false;
 	}
-	/**
-	* Populate the extensions and types maps.
-	* @private
-	*/
 	function populateMaps(extensions, types) {
 		Object.keys(db).forEach(function forEachMimeType(type) {
 			var exts = db[type].extensions;
@@ -18825,15 +18796,9 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* ALPHA =  %x41-5A / %x61-7A   ; A-Z / a-z
 	* DIGIT =  %x30-39             ; 0-9
 	*/
-	var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
-	var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
-	var TYPE_REGEXP = /^ *([A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126})\/([A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}) *$/;
 	/**
 	* Module exports.
 	*/
-	exports.format = format;
-	exports.parse = parse;
-	exports.test = test;
 	/**
 	* Format object to media type.
 	*
@@ -18841,6 +18806,30 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* @return {string}
 	* @public
 	*/
+	/**
+	* Test media type.
+	*
+	* @param {string} string
+	* @return {object}
+	* @public
+	*/
+	/**
+	* Parse media type to object.
+	*
+	* @param {string} string
+	* @return {object}
+	* @public
+	*/
+	/**
+	* Class for MediaType object.
+	* @public
+	*/
+	var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
+	var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
+	var TYPE_REGEXP = /^ *([A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126})\/([A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}) *$/;
+	exports.format = format;
+	exports.parse = parse;
+	exports.test = test;
 	function format(obj) {
 		if (!obj || typeof obj !== "object") throw new TypeError("argument obj is required");
 		var subtype = obj.subtype;
@@ -18855,24 +18844,10 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return string;
 	}
-	/**
-	* Test media type.
-	*
-	* @param {string} string
-	* @return {object}
-	* @public
-	*/
 	function test(string) {
 		if (typeof string !== "string") throw new TypeError("argument string is required to be a string");
 		return TYPE_REGEXP.test(string.toLowerCase());
 	}
-	/**
-	* Parse media type to object.
-	*
-	* @param {string} string
-	* @return {object}
-	* @public
-	*/
 	function parse(string) {
 		if (typeof string !== "string") throw new TypeError("argument string is required to be a string");
 		var match = TYPE_REGEXP.exec(string.toLowerCase());
@@ -18887,10 +18862,6 @@ var require_media_typer = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return new MediaType(type, subtype, suffix);
 	}
-	/**
-	* Class for MediaType object.
-	* @public
-	*/
 	function MediaType(type, subtype, suffix) {
 		this.type = type;
 		this.subtype = subtype;
@@ -18910,18 +18881,10 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var contentType = require_dist$3();
-	var mime = require_mime_types();
-	var typer = require_media_typer();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = typeofrequest;
-	module.exports.is = typeis;
-	module.exports.hasBody = hasbody;
-	module.exports.normalize = normalize;
-	module.exports.match = mimeMatch;
 	/**
 	* Compare a `value` content-type with `types`.
 	* Each `type` can be an extension like `html`,
@@ -18935,21 +18898,6 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {Array} types
 	* @public
 	*/
-	function typeis(value, types_) {
-		if (value && typeof value === "object") value = value.headers["content-type"];
-		var i;
-		var types = types_;
-		var val = normalizeType(value);
-		if (!val) return false;
-		if (types && !Array.isArray(types)) {
-			types = new Array(arguments.length - 1);
-			for (i = 0; i < types.length; i++) types[i] = arguments[i + 1];
-		}
-		if (!types || !types.length) return val;
-		var type;
-		for (i = 0; i < types.length; i++) if (mimeMatch(normalize(type = types[i]), val)) return type[0] === "+" || type.indexOf("*") !== -1 ? val : type;
-		return false;
-	}
 	/**
 	* Check if a request has a request body.
 	* A request with a body __must__ either have `transfer-encoding`
@@ -18960,9 +18908,6 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @public
 	*/
-	function hasbody(req) {
-		return req.headers["transfer-encoding"] !== void 0 || !isNaN(req.headers["content-length"]);
-	}
 	/**
 	* Check if the incoming request contains the "Content-Type"
 	* header field, and it contains any of the give mime `type`s.
@@ -18989,12 +18934,6 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {(String|false|null)}
 	* @public
 	*/
-	function typeofrequest(req, types_) {
-		if (!hasbody(req)) return null;
-		var types = arguments.length > 2 ? Array.prototype.slice.call(arguments, 1) : types_;
-		var value = req.headers["content-type"];
-		return typeis(value, types);
-	}
 	/**
 	* Normalize a mime type.
 	* If it's a shorthand, expand it to a valid mime type.
@@ -19011,15 +18950,6 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String|false|null}
 	* @public
 	*/
-	function normalize(type) {
-		if (typeof type !== "string") return false;
-		switch (type) {
-			case "urlencoded": return "application/x-www-form-urlencoded";
-			case "multipart": return "multipart/*";
-		}
-		if (type[0] === "+") return "*/*" + type;
-		return type.indexOf("/") === -1 ? mime.lookup(type) : type;
-	}
 	/**
 	* Check if `expected` mime type
 	* matches `actual` mime type with
@@ -19030,6 +18960,54 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @public
 	*/
+	/**
+	* Normalize a type and remove parameters.
+	*
+	* @param {string} value
+	* @return {(string|null)}
+	* @private
+	*/
+	var contentType = require_dist$3();
+	var mime = require_mime_types();
+	var typer = require_media_typer();
+	module.exports = typeofrequest;
+	module.exports.is = typeis;
+	module.exports.hasBody = hasbody;
+	module.exports.normalize = normalize;
+	module.exports.match = mimeMatch;
+	function typeis(value, types_) {
+		if (value && typeof value === "object") value = value.headers["content-type"];
+		var i;
+		var types = types_;
+		var val = normalizeType(value);
+		if (!val) return false;
+		if (types && !Array.isArray(types)) {
+			types = new Array(arguments.length - 1);
+			for (i = 0; i < types.length; i++) types[i] = arguments[i + 1];
+		}
+		if (!types || !types.length) return val;
+		var type;
+		for (i = 0; i < types.length; i++) if (mimeMatch(normalize(type = types[i]), val)) return type[0] === "+" || type.indexOf("*") !== -1 ? val : type;
+		return false;
+	}
+	function hasbody(req) {
+		return req.headers["transfer-encoding"] !== void 0 || !isNaN(req.headers["content-length"]);
+	}
+	function typeofrequest(req, types_) {
+		if (!hasbody(req)) return null;
+		var types = arguments.length > 2 ? Array.prototype.slice.call(arguments, 1) : types_;
+		var value = req.headers["content-type"];
+		return typeis(value, types);
+	}
+	function normalize(type) {
+		if (typeof type !== "string") return false;
+		switch (type) {
+			case "urlencoded": return "application/x-www-form-urlencoded";
+			case "multipart": return "multipart/*";
+		}
+		if (type[0] === "+") return "*/*" + type;
+		return type.indexOf("/") === -1 ? mime.lookup(type) : type;
+	}
 	function mimeMatch(expected, actual) {
 		if (expected === false) return false;
 		var actualParts = actual.split("/");
@@ -19040,13 +19018,6 @@ var require_type_is = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (expectedParts[1] !== "*" && expectedParts[1] !== actualParts[1]) return false;
 		return true;
 	}
-	/**
-	* Normalize a type and remove parameters.
-	*
-	* @param {string} value
-	* @return {(string|null)}
-	* @private
-	*/
 	function normalizeType(value) {
 		if (!value) return null;
 		var type = contentType.parse(value, { parameters: false }).type;
@@ -19059,17 +19030,9 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module dependencies.
 	*/
-	const bytes = require_bytes();
-	const contentType = require_dist$3();
-	const typeis = require_type_is();
 	/**
 	* Module exports.
 	*/
-	module.exports = {
-		getCharset,
-		normalizeOptions,
-		passthrough
-	};
 	/**
 	* Get the charset of a request.
 	*
@@ -19077,11 +19040,6 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {string | undefined}
 	* @private
 	*/
-	function getCharset(req) {
-		const header = req.headers["content-type"];
-		if (!header) return void 0;
-		return contentType.parse(header).parameters.charset?.toLowerCase();
-	}
 	/**
 	* Get the simple type checker.
 	*
@@ -19089,11 +19047,6 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @private
 	*/
-	function typeChecker(type) {
-		return function checkType(req) {
-			return Boolean(typeis(req, type));
-		};
-	}
 	/**
 	* Normalizes the common options for all parsers.
 	*
@@ -19102,6 +19055,32 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Object}
 	* @private
 	*/
+	/**
+	* Passthrough function that returns input unchanged.
+	* Used by parsers that don't need to transform the data.
+	*
+	* @param {*} value
+	* @returns {*}
+	* @private
+	*/
+	const bytes = require_bytes();
+	const contentType = require_dist$3();
+	const typeis = require_type_is();
+	module.exports = {
+		getCharset,
+		normalizeOptions,
+		passthrough
+	};
+	function getCharset(req) {
+		const header = req.headers["content-type"];
+		if (!header) return void 0;
+		return contentType.parse(header).parameters.charset?.toLowerCase();
+	}
+	function typeChecker(type) {
+		return function checkType(req) {
+			return Boolean(typeis(req, type));
+		};
+	}
 	function normalizeOptions(options, defaultType) {
 		if (!defaultType) throw new TypeError("defaultType must be provided");
 		const inflate = options?.inflate !== false;
@@ -19119,14 +19098,6 @@ var require_utils$4 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			shouldParse: typeof type !== "function" ? typeChecker(type) : type
 		};
 	}
-	/**
-	* Passthrough function that returns input unchanged.
-	* Used by parsers that don't need to transform the data.
-	*
-	* @param {*} value
-	* @returns {*}
-	* @private
-	*/
 	function passthrough(value) {
 		return value;
 	}
@@ -19143,17 +19114,9 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	const createError = require_http_errors();
-	const getBody = require_raw_body();
-	const iconv = require_lib$4();
-	const onFinished = require_on_finished();
-	const zlib = __require("node:zlib");
-	const hasBody = require_type_is().hasBody;
-	const { getCharset } = require_utils$4();
 	/**
 	* Module exports.
 	*/
-	module.exports = read;
 	/**
 	* Read a request into a buffer and parse.
 	*
@@ -19165,6 +19128,37 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {Object} options
 	* @private
 	*/
+	/**
+	* Get the content stream of the request.
+	*
+	* @param {Object} req
+	* @param {Function} debug
+	* @param {boolean} inflate
+	* @returns {Object}
+	* @private
+	*/
+	/**
+	* Create a decompression stream for the given encoding.
+	* @param {string} encoding
+	* @param {Function} debug
+	* @returns {Object}
+	* @private
+	*/
+	/**
+	* Dump the contents of a request.
+	*
+	* @param {Object} req
+	* @param {Function} callback
+	* @private
+	*/
+	const createError = require_http_errors();
+	const getBody = require_raw_body();
+	const iconv = require_lib$4();
+	const onFinished = require_on_finished();
+	const zlib = __require("node:zlib");
+	const hasBody = require_type_is().hasBody;
+	const { getCharset } = require_utils$4();
+	module.exports = read;
 	function read(req, res, next, parse, debug, options) {
 		if (onFinished.isFinished(req)) {
 			debug("body already parsed");
@@ -19255,15 +19249,6 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next();
 		});
 	}
-	/**
-	* Get the content stream of the request.
-	*
-	* @param {Object} req
-	* @param {Function} debug
-	* @param {boolean} inflate
-	* @returns {Object}
-	* @private
-	*/
 	function contentstream(req, debug, inflate) {
 		const encoding = (req.headers["content-encoding"] || "identity").toLowerCase();
 		const length = req.headers["content-length"];
@@ -19280,13 +19265,6 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		req.pipe(stream);
 		return stream;
 	}
-	/**
-	* Create a decompression stream for the given encoding.
-	* @param {string} encoding
-	* @param {Function} debug
-	* @returns {Object}
-	* @private
-	*/
 	function createDecompressionStream(encoding, debug) {
 		switch (encoding) {
 			case "deflate":
@@ -19304,13 +19282,6 @@ var require_read = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	}
-	/**
-	* Dump the contents of a request.
-	*
-	* @param {Object} req
-	* @param {Function} callback
-	* @private
-	*/
 	function dump(req, callback) {
 		if (onFinished.isFinished(req)) callback(null);
 		else {
@@ -19332,13 +19303,9 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	const debug = require_src()("body-parser:json");
-	const read = require_read();
-	const { normalizeOptions } = require_utils$4();
 	/**
 	* Module exports.
 	*/
-	module.exports = json;
 	/**
 	* RegExp to match the first non-space in a string.
 	*
@@ -19350,9 +19317,6 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*            %x0A /              ; Line feed or New line
 	*            %x0D )              ; Carriage return
 	*/
-	const FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/;
-	const JSON_SYNTAX_CHAR = "#";
-	const JSON_SYNTAX_REGEXP = /#+/g;
 	/**
 	* Create a middleware to parse JSON bodies.
 	*
@@ -19360,6 +19324,43 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
+	/**
+	* Create a JSON parse function
+	*
+	* @param {object} [options]
+	* @return {function}
+	* @private
+	*/
+	/**
+	* Create strict violation syntax error matching native error.
+	*
+	* @param {string} str
+	* @param {string} char
+	* @returns {Error}
+	* @private
+	*/ /* istanbul ignore next */
+	/**
+	* Get the first non-whitespace character in a string.
+	*
+	* @param {string} str
+	* @returns {string|undefined}
+	* @private
+	*/
+	/**
+	* Normalize a SyntaxError for JSON.parse.
+	*
+	* @param {SyntaxError} error
+	* @param {Object} obj
+	* @returns {SyntaxError}
+	* @private
+	*/
+	const debug = require_src()("body-parser:json");
+	const read = require_read();
+	const { normalizeOptions } = require_utils$4();
+	module.exports = json;
+	const FIRST_CHAR_REGEXP = /^[\x20\x09\x0a\x0d]*([^\x20\x09\x0a\x0d])/;
+	const JSON_SYNTAX_CHAR = "#";
+	const JSON_SYNTAX_REGEXP = /#+/g;
 	function json(options) {
 		const normalizedOptions = normalizeOptions(options, "application/json");
 		const parse = createJsonParser(options);
@@ -19371,13 +19372,6 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			read(req, res, next, parse, debug, readOptions);
 		};
 	}
-	/**
-	* Create a JSON parse function
-	*
-	* @param {object} [options]
-	* @return {function}
-	* @private
-	*/
 	function createJsonParser(options) {
 		const reviver = options?.reviver;
 		if (options?.strict !== false) return function parse(body) {
@@ -19410,21 +19404,13 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		};
 	}
-	/**
-	* Create strict violation syntax error matching native error.
-	*
-	* @param {string} str
-	* @param {string} char
-	* @returns {Error}
-	* @private
-	*/
 	function createStrictSyntaxError(str, char) {
 		const index = str.indexOf(char);
 		let partial = "";
 		if (index !== -1) partial = str.substring(0, index) + JSON_SYNTAX_CHAR.repeat(str.length - index);
 		try {
 			JSON.parse(partial);
-			/* istanbul ignore next */ throw new SyntaxError("strict violation");
+			throw new SyntaxError("strict violation");
 		} catch (e) {
 			return normalizeJsonSyntaxError(e, {
 				message: e.message.replace(JSON_SYNTAX_REGEXP, function(placeholder) {
@@ -19434,25 +19420,10 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	}
-	/**
-	* Get the first non-whitespace character in a string.
-	*
-	* @param {string} str
-	* @returns {string|undefined}
-	* @private
-	*/
 	function firstchar(str) {
 		const match = FIRST_CHAR_REGEXP.exec(str);
 		return match ? match[1] : void 0;
 	}
-	/**
-	* Normalize a SyntaxError for JSON.parse.
-	*
-	* @param {SyntaxError} error
-	* @param {Object} obj
-	* @returns {SyntaxError}
-	* @private
-	*/
 	function normalizeJsonSyntaxError(error, obj) {
 		const keys = Object.getOwnPropertyNames(error);
 		for (let i = 0; i < keys.length; i++) {
@@ -19475,13 +19446,9 @@ var require_raw = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module dependencies.
 	*/
-	const debug = require_src()("body-parser:raw");
-	const read = require_read();
-	const { normalizeOptions, passthrough } = require_utils$4();
 	/**
 	* Module exports.
 	*/
-	module.exports = raw;
 	/**
 	* Create a middleware to parse raw bodies.
 	*
@@ -19489,6 +19456,10 @@ var require_raw = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
+	const debug = require_src()("body-parser:raw");
+	const read = require_read();
+	const { normalizeOptions, passthrough } = require_utils$4();
+	module.exports = raw;
 	function raw(options) {
 		const readOptions = {
 			...normalizeOptions(options, "application/octet-stream"),
@@ -19510,13 +19481,9 @@ var require_text = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module dependencies.
 	*/
-	const debug = require_src()("body-parser:text");
-	const read = require_read();
-	const { normalizeOptions, passthrough } = require_utils$4();
 	/**
 	* Module exports.
 	*/
-	module.exports = text;
 	/**
 	* Create a middleware to parse text bodies.
 	*
@@ -19524,6 +19491,10 @@ var require_text = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
+	const debug = require_src()("body-parser:text");
+	const read = require_read();
+	const { normalizeOptions, passthrough } = require_utils$4();
+	module.exports = text;
 	function text(options) {
 		const normalizedOptions = normalizeOptions(options, "text/plain");
 		return function textParser(req, res, next) {
@@ -19596,12 +19567,12 @@ var require_object_inspect = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	var inspectSymbol = isSymbol(inspectCustom) ? inspectCustom : null;
 	var quotes = {
 		__proto__: null,
-		"double": "\"",
+		double: "\"",
 		single: "'"
 	};
 	var quoteREs = {
 		__proto__: null,
-		"double": /(["\\])/g,
+		double: /(["\\])/g,
 		single: /(['\\])/g
 	};
 	module.exports = function inspect_(obj, options, depth, seen) {
@@ -19927,13 +19898,26 @@ var require_object_inspect = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 //#endregion
 //#region node_modules/side-channel-list/index.js
 var require_side_channel_list = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('./list.d.ts').listGetNode} */
+	/** @type {typeof list | NonNullable<(typeof list)['next']>} */
+	/** @type {(typeof list)['next']} */
+	/** @type {NonNullable<typeof list.next>} */
+	/** @type {import('./list.d.ts').listGet} */
+	/** @type {import('./list.d.ts').listSet} */
+	/** @type {import('./list.d.ts').ListNode<typeof value, typeof key>} */
+	/** @type {import('./list.d.ts').listHas} */
+	/** @type {import('./list.d.ts').listDelete} */
+	/** @type {import('.')} */
+	/** @typedef {ReturnType<typeof getSideChannelList>} Channel */
+	/** @typedef {Parameters<Channel['get']>[0]} K */
+	/** @typedef {Parameters<Channel['set']>[1]} V */
+	/** @type {import('./list.d.ts').RootNode<V, K> | undefined} */
+	/** @type {Channel} */
+	/** @type {NonNullable<typeof $o>} */
 	var inspect = require_object_inspect();
 	var $TypeError = require_type();
-	/** @type {import('./list.d.ts').listGetNode} */
 	var listGetNode = function(list, key, isDelete) {
-		/** @type {typeof list | NonNullable<(typeof list)['next']>} */
 		var prev = list;
-		/** @type {(typeof list)['next']} */
 		var curr;
 		for (; (curr = prev.next) != null; prev = curr) if (curr.key === key) {
 			prev.next = curr.next;
@@ -19944,13 +19928,11 @@ var require_side_channel_list = /* @__PURE__ */ __commonJSMin(((exports, module)
 			return curr;
 		}
 	};
-	/** @type {import('./list.d.ts').listGet} */
 	var listGet = function(objects, key) {
 		if (!objects) return;
 		var node = listGetNode(objects, key);
 		return node && node.value;
 	};
-	/** @type {import('./list.d.ts').listSet} */
 	var listSet = function(objects, key, value) {
 		var node = listGetNode(objects, key);
 		if (node) node.value = value;
@@ -19960,27 +19942,20 @@ var require_side_channel_list = /* @__PURE__ */ __commonJSMin(((exports, module)
 			value
 		};
 	};
-	/** @type {import('./list.d.ts').listHas} */
 	var listHas = function(objects, key) {
 		if (!objects) return false;
 		return !!listGetNode(objects, key);
 	};
-	/** @type {import('./list.d.ts').listDelete} */
 	var listDelete = function(objects, key) {
 		if (objects) return listGetNode(objects, key, true);
 	};
-	/** @type {import('.')} */
 	module.exports = function getSideChannelList() {
-		/** @typedef {ReturnType<typeof getSideChannelList>} Channel */
-		/** @typedef {Parameters<Channel['get']>[0]} K */
-		/** @typedef {Parameters<Channel['set']>[1]} V */
-		/** @type {import('./list.d.ts').RootNode<V, K> | undefined} */ var $o;
-		/** @type {Channel} */
+		var $o;
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + inspect(key));
 			},
-			"delete": function(key) {
+			delete: function(key) {
 				var deletedNode = listDelete($o, key);
 				if (deletedNode && $o && !$o.next) $o = void 0;
 				return !!deletedNode;
@@ -20088,8 +20063,8 @@ var require_isNaN = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/math-intrinsics/sign.js
 var require_sign$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var $isNaN = require_isNaN();
 	/** @type {import('./sign')} */
+	var $isNaN = require_isNaN();
 	module.exports = function sign(number) {
 		if ($isNaN(number) || number === 0) return number;
 		return number < 0 ? -1 : 1;
@@ -20129,10 +20104,11 @@ var require_es_define_property = /* @__PURE__ */ __commonJSMin(((exports, module
 //#region node_modules/has-symbols/shams.js
 var require_shams = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/** @type {import('./shams')} */
+	/** @type {{ [k in symbol]?: unknown }} */
+	/** @type {PropertyDescriptor} */
 	module.exports = function hasSymbols() {
 		if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") return false;
 		if (typeof Symbol.iterator === "symbol") return true;
-		/** @type {{ [k in symbol]?: unknown }} */
 		var obj = {};
 		var sym = Symbol("test");
 		var symObj = Object(sym);
@@ -20157,9 +20133,9 @@ var require_shams = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/has-symbols/index.js
 var require_has_symbols = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('.')} */
 	var origSymbol = typeof Symbol !== "undefined" && Symbol;
 	var hasSymbolSham = require_shams();
-	/** @type {import('.')} */
 	module.exports = function hasNativeSymbols() {
 		if (typeof origSymbol !== "function") return false;
 		if (typeof Symbol !== "function") return false;
@@ -20177,7 +20153,6 @@ var require_Reflect_getPrototypeOf = /* @__PURE__ */ __commonJSMin(((exports, mo
 //#endregion
 //#region node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	/** @type {import('./Object.getPrototypeOf')} */
 	module.exports = require_es_object_atoms().getPrototypeOf || null;
 }));
 //#endregion
@@ -20259,20 +20234,20 @@ var require_reflectApply = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('./actualApply')} */
 	var bind = require_function_bind();
 	var $apply = require_functionApply();
 	var $call = require_functionCall();
-	/** @type {import('./actualApply')} */
 	module.exports = require_reflectApply() || bind.call($call, $apply);
 }));
 //#endregion
 //#region node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {(args: [Function, thisArg?: unknown, ...args: unknown[]]) => Function} TODO FIXME, find a way to use import('.') */
 	var bind = require_function_bind();
 	var $TypeError = require_type();
 	var $call = require_functionCall();
 	var $actualApply = require_actualApply();
-	/** @type {(args: [Function, thisArg?: unknown, ...args: unknown[]]) => Function} TODO FIXME, find a way to use import('.') */
 	module.exports = function callBindBasic(args) {
 		if (args.length < 1 || typeof args[0] !== "function") throw new $TypeError("a function is required");
 		return $actualApply(bind, $call, args);
@@ -20281,6 +20256,9 @@ var require_call_bind_apply_helpers = /* @__PURE__ */ __commonJSMin(((exports, m
 //#endregion
 //#region node_modules/dunder-proto/get.js
 var require_get = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {{ __proto__?: typeof Array.prototype }} */
+	/** @type {keyof typeof Object.prototype} */
+	/** @type {import('./get')} */ /** @type {import('./get')} */
 	var callBind = require_call_bind_apply_helpers();
 	var gOPD = require_gopd();
 	var hasProtoAccessor;
@@ -20292,7 +20270,6 @@ var require_get = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var desc = !!hasProtoAccessor && gOPD && gOPD(Object.prototype, "__proto__");
 	var $Object = Object;
 	var $getPrototypeOf = $Object.getPrototypeOf;
-	/** @type {import('./get')} */
 	module.exports = desc && typeof desc.get === "function" ? callBind([desc.get]) : typeof $getPrototypeOf === "function" ? function getDunder(value) {
 		return $getPrototypeOf(value == null ? value : $Object(value));
 	} : false;
@@ -20300,10 +20277,10 @@ var require_get = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/get-proto/index.js
 var require_get_proto = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('.')} */
 	var reflectGetProto = require_Reflect_getPrototypeOf();
 	var originalGetProto = require_Object_getPrototypeOf();
 	var getDunderProto = require_get();
-	/** @type {import('.')} */
 	module.exports = reflectGetProto ? function getProto(O) {
 		return reflectGetProto(O);
 	} : originalGetProto ? function getProto(O) {
@@ -20316,14 +20293,15 @@ var require_get_proto = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/hasown/index.js
 var require_hasown = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('.')} */
 	var call = Function.prototype.call;
 	var $hasOwn = Object.prototype.hasOwnProperty;
-	/** @type {import('.')} */
 	module.exports = require_function_bind().call(call, $hasOwn);
 }));
 //#endregion
 //#region node_modules/get-intrinsic/index.js
 var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** Used to match backslashes in property paths. */
 	var undefined;
 	var $Object = require_es_object_atoms();
 	var $Error = require_es_errors();
@@ -20351,7 +20329,7 @@ var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 	var throwTypeError = function() {
 		throw new $TypeError();
 	};
-	var ThrowTypeError = $gOPD ? function() {
+	var ThrowTypeError = $gOPD ? (function() {
 		try {
 			arguments.callee;
 			return throwTypeError;
@@ -20362,7 +20340,7 @@ var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 				return throwTypeError;
 			}
 		}
-	}() : throwTypeError;
+	})() : throwTypeError;
 	var hasSymbols = require_has_symbols()();
 	var getProto = require_get_proto();
 	var $ObjectGPO = require_Object_getPrototypeOf();
@@ -20650,11 +20628,11 @@ var require_get_intrinsic = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 //#endregion
 //#region node_modules/call-bound/index.js
 var require_call_bound = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {(thisArg: string, searchString: string, position?: number) => number} */
+	/** @type {import('.')} */ /** @type {(this: unknown, ...args: unknown[]) => unknown} */ /** @type {const} */
 	var GetIntrinsic = require_get_intrinsic();
 	var callBindBasic = require_call_bind_apply_helpers();
-	/** @type {(thisArg: string, searchString: string, position?: number) => number} */
 	var $indexOf = callBindBasic([GetIntrinsic("%String.prototype.indexOf%")]);
-	/** @type {import('.')} */
 	module.exports = function callBoundIntrinsic(name, allowMissing) {
 		var intrinsic = GetIntrinsic(name, !!allowMissing);
 		if (typeof intrinsic === "function" && $indexOf(name, ".prototype.") > -1) return callBindBasic([intrinsic]);
@@ -20664,33 +20642,33 @@ var require_call_bound = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/side-channel-map/index.js
 var require_side_channel_map = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var GetIntrinsic = require_get_intrinsic();
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => V} */
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K, value: V) => void} */
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
+	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
+	/** @type {<K, V>(thisArg: Map<K, V>) => number} */
+	/** @type {import('.')} */ /** @type {Exclude<import('.'), false>} */
+	/** @typedef {ReturnType<typeof getSideChannelMap>} Channel */
+	/** @typedef {Parameters<Channel['get']>[0]} K */
+	/** @typedef {Parameters<Channel['set']>[1]} V */
+	/** @type {Map<K, V> | undefined} */
+	/** @type {Channel} */ var GetIntrinsic = require_get_intrinsic();
 	var callBound = require_call_bound();
 	var inspect = require_object_inspect();
 	var $TypeError = require_type();
 	var $Map = GetIntrinsic("%Map%", true);
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => V} */
 	var $mapGet = callBound("Map.prototype.get", true);
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K, value: V) => void} */
 	var $mapSet = callBound("Map.prototype.set", true);
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
 	var $mapHas = callBound("Map.prototype.has", true);
-	/** @type {<K, V>(thisArg: Map<K, V>, key: K) => boolean} */
 	var $mapDelete = callBound("Map.prototype.delete", true);
-	/** @type {<K, V>(thisArg: Map<K, V>) => number} */
 	var $mapSize = callBound("Map.prototype.size", true);
-	/** @type {import('.')} */
 	module.exports = !!$Map && function getSideChannelMap() {
-		/** @typedef {ReturnType<typeof getSideChannelMap>} Channel */
-		/** @typedef {Parameters<Channel['get']>[0]} K */
-		/** @typedef {Parameters<Channel['set']>[1]} V */
-		/** @type {Map<K, V> | undefined} */ var $m;
-		/** @type {Channel} */
+		var $m;
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + inspect(key));
 			},
-			"delete": function(key) {
+			delete: function(key) {
 				if ($m) {
 					var result = $mapDelete($m, key);
 					if ($mapSize($m) === 0) $m = void 0;
@@ -20716,33 +20694,36 @@ var require_side_channel_map = /* @__PURE__ */ __commonJSMin(((exports, module) 
 //#endregion
 //#region node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => V} */
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K, value: V) => void} */
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
+	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
+	/** @type {import('.')} */ /** @type {Exclude<import('.'), false>} */
+	/** @typedef {ReturnType<typeof getSideChannelWeakMap>} Channel */
+	/** @typedef {Parameters<Channel['get']>[0]} K */
+	/** @typedef {Parameters<Channel['set']>[1]} V */
+	/** @type {WeakMap<K & object, V> | undefined} */
+	/** @type {Channel | undefined} */
+	/** @type {Channel} */
+	/** @type {NonNullable<typeof $m>} */
 	var GetIntrinsic = require_get_intrinsic();
 	var callBound = require_call_bound();
 	var inspect = require_object_inspect();
 	var getSideChannelMap = require_side_channel_map();
 	var $TypeError = require_type();
 	var $WeakMap = GetIntrinsic("%WeakMap%", true);
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => V} */
 	var $weakMapGet = callBound("WeakMap.prototype.get", true);
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K, value: V) => void} */
 	var $weakMapSet = callBound("WeakMap.prototype.set", true);
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
 	var $weakMapHas = callBound("WeakMap.prototype.has", true);
-	/** @type {<K extends object, V>(thisArg: WeakMap<K, V>, key: K) => boolean} */
 	var $weakMapDelete = callBound("WeakMap.prototype.delete", true);
-	/** @type {import('.')} */
 	module.exports = $WeakMap ? function getSideChannelWeakMap() {
-		/** @typedef {ReturnType<typeof getSideChannelWeakMap>} Channel */
-		/** @typedef {Parameters<Channel['get']>[0]} K */
-		/** @typedef {Parameters<Channel['set']>[1]} V */
-		/** @type {WeakMap<K & object, V> | undefined} */ var $wm;
-		/** @type {Channel | undefined} */ var $m;
-		/** @type {Channel} */
+		var $wm;
+		var $m;
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + inspect(key));
 			},
-			"delete": function(key) {
+			delete: function(key) {
 				if ($WeakMap && key && (typeof key === "object" || typeof key === "function")) {
 					if ($wm) return $weakMapDelete($wm, key);
 				} else if (getSideChannelMap) {
@@ -20768,7 +20749,7 @@ var require_side_channel_weakmap = /* @__PURE__ */ __commonJSMin(((exports, modu
 					$weakMapSet($wm, key, value);
 				} else if (getSideChannelMap) {
 					if (!$m) $m = getSideChannelMap();
-					/** @type {NonNullable<typeof $m>} */ $m.set(key, value);
+					$m.set(key, value);
 				}
 			}
 		};
@@ -20778,21 +20759,22 @@ var require_side_channel_weakmap = /* @__PURE__ */ __commonJSMin(((exports, modu
 //#endregion
 //#region node_modules/side-channel/index.js
 var require_side_channel = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	/** @type {import('.')} */
+	/** @typedef {ReturnType<typeof getSideChannel>} Channel */
+	/** @type {Channel | undefined} */
+	/** @type {Channel} */
 	var $TypeError = require_type();
 	var inspect = require_object_inspect();
 	var getSideChannelList = require_side_channel_list();
 	var getSideChannelMap = require_side_channel_map();
 	var makeChannel = require_side_channel_weakmap() || getSideChannelMap || getSideChannelList;
-	/** @type {import('.')} */
 	module.exports = function getSideChannel() {
-		/** @typedef {ReturnType<typeof getSideChannel>} Channel */
-		/** @type {Channel | undefined} */ var $channelData;
-		/** @type {Channel} */
+		var $channelData;
 		var channel = {
 			assert: function(key) {
 				if (!channel.has(key)) throw new $TypeError("Side channel does not contain " + (key && Object(key) === key ? "the given object key" : inspect(key)));
 			},
-			"delete": function(key) {
+			delete: function(key) {
 				return !!$channelData && $channelData["delete"](key);
 			},
 			get: function(key) {
@@ -20819,7 +20801,7 @@ var require_formats = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		RFC3986: "RFC3986"
 	};
 	module.exports = {
-		"default": Format.RFC3986,
+		default: Format.RFC3986,
 		formatters: {
 			RFC1738: function(value) {
 				return replace.call(value, percentTwenties, "+");
@@ -20865,11 +20847,11 @@ var require_utils$3 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var getConflictIndex = function getConflictIndex(obj) {
 		return conflictChannel.get(obj);
 	};
-	var hexTable = function() {
+	var hexTable = (function() {
 		var array = [];
 		for (var i = 0; i < 256; ++i) array[array.length] = "%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase();
 		return array;
-	}();
+	})();
 	var compactQueue = function compactQueue(queue) {
 		while (queue.length > 1) {
 			var item = queue.pop();
@@ -21675,15 +21657,9 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	const createError = require_http_errors();
-	const debug = require_src()("body-parser:urlencoded");
-	const read = require_read();
-	const qs = require_lib$3();
-	const { normalizeOptions } = require_utils$4();
 	/**
 	* Module exports.
 	*/
-	module.exports = urlencoded;
 	/**
 	* Create a middleware to parse urlencoded bodies.
 	*
@@ -21691,6 +21667,26 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @returns {Function}
 	* @public
 	*/
+	/**
+	* Get the extended query parser.
+	*
+	* @param {Object} options
+	* @returns {Function}
+	* @private
+	*/
+	/**
+	* Count the number of parameters, stopping once limit reached
+	*
+	* @param {string} body
+	* @param {number} limit
+	* @returns {number|undefined} Returns undefined if limit exceeded
+	* @private
+	*/ const createError = require_http_errors();
+	const debug = require_src()("body-parser:urlencoded");
+	const read = require_read();
+	const qs = require_lib$3();
+	const { normalizeOptions } = require_utils$4();
+	module.exports = urlencoded;
 	function urlencoded(options) {
 		const normalizedOptions = normalizeOptions(options, "application/x-www-form-urlencoded");
 		if (normalizedOptions.defaultCharset !== "utf-8" && normalizedOptions.defaultCharset !== "iso-8859-1") throw new TypeError("option defaultCharset must be either utf-8 or iso-8859-1");
@@ -21703,13 +21699,6 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			read(req, res, next, parse, debug, readOptions);
 		};
 	}
-	/**
-	* Get the extended query parser.
-	*
-	* @param {Object} options
-	* @returns {Function}
-	* @private
-	*/
 	function createQueryParser(options) {
 		const extended = Boolean(options?.extended);
 		let parameterLimit = options?.parameterLimit !== void 0 ? options?.parameterLimit : 1e3;
@@ -21745,14 +21734,6 @@ var require_urlencoded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		};
 	}
-	/**
-	* Count the number of parameters, stopping once limit reached
-	*
-	* @param {string} body
-	* @param {number} limit
-	* @returns {number|undefined} Returns undefined if limit exceeded
-	* @private
-	*/
 	function parameterCount(body, limit) {
 		let count = 0;
 		let index = -1;
@@ -21783,33 +21764,33 @@ var require_body_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @type {Function & Parsers}
 	*/
-	exports = module.exports = bodyParser;
 	/**
 	* JSON parser.
 	* @public
 	*/
-	exports.json = require_json();
 	/**
 	* Raw parser.
 	* @public
 	*/
-	exports.raw = require_raw();
 	/**
 	* Text parser.
 	* @public
 	*/
-	exports.text = require_text();
 	/**
 	* URL-encoded parser.
 	* @public
 	*/
-	exports.urlencoded = require_urlencoded();
 	/**
 	* Create a middleware to parse json and urlencoded bodies.
 	*
 	* @deprecated
 	* @public
 	*/
+	exports = module.exports = bodyParser;
+	exports.json = require_json();
+	exports.raw = require_raw();
+	exports.text = require_text();
+	exports.urlencoded = require_urlencoded();
 	function bodyParser() {
 		throw new Error("The bodyParser() generic has been split into individual middleware to use instead.");
 	}
@@ -21841,23 +21822,19 @@ var require_encodeurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = encodeUrl;
 	/**
 	* RegExp to match non-URL code points, *after* encoding (i.e. not including "%")
 	* and including invalid escape sequences.
 	* @private
 	*/
-	var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
 	/**
 	* RegExp to match unmatched surrogate pair.
 	* @private
 	*/
-	var UNMATCHED_SURROGATE_PAIR_REGEXP = /(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF]([^\uDC00-\uDFFF]|$)/g;
 	/**
 	* String to replace unmatched surrogate pair with.
 	* @private
 	*/
-	var UNMATCHED_SURROGATE_PAIR_REPLACE = "$1�$2";
 	/**
 	* Encode a URL to a percent-encoded form, excluding already-encoded sequences.
 	*
@@ -21875,6 +21852,10 @@ var require_encodeurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {string}
 	* @public
 	*/
+	module.exports = encodeUrl;
+	var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
+	var UNMATCHED_SURROGATE_PAIR_REGEXP = /(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF]([^\uDC00-\uDFFF]|$)/g;
+	var UNMATCHED_SURROGATE_PAIR_REPLACE = "$1�$2";
 	function encodeUrl(url) {
 		return String(url).replace(UNMATCHED_SURROGATE_PAIR_REGEXP, UNMATCHED_SURROGATE_PAIR_REPLACE).replace(ENCODE_CHARS_REGEXP, encodeURI);
 	}
@@ -21893,19 +21874,18 @@ var require_escape_html = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module variables.
 	* @private
 	*/
-	var matchHtmlRegExp = /["'&<>]/;
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = escapeHtml;
 	/**
 	* Escape special characters in the given string of html.
 	*
 	* @param  {string} string The string to escape for inserting into HTML
 	* @return {string}
 	* @public
-	*/
+	*/ var matchHtmlRegExp = /["'&<>]/;
+	module.exports = escapeHtml;
 	function escapeHtml(string) {
 		var str = "" + string;
 		var match = matchHtmlRegExp.exec(str);
@@ -21953,15 +21933,10 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var url = __require("url");
-	var parse = url.parse;
-	var Url = url.Url;
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = parseurl;
-	module.exports.original = originalurl;
 	/**
 	* Parse the `req` url with memoization.
 	*
@@ -21969,6 +21944,33 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Object}
 	* @public
 	*/
+	/**
+	* Parse the `req` original url with fallback and memoization.
+	*
+	* @param {ServerRequest} req
+	* @return {Object}
+	* @public
+	*/
+	/**
+	* Parse the `str` url with fast-path short-cut.
+	*
+	* @param {string} str
+	* @return {Object}
+	* @private
+	*/
+	/**
+	* Determine if parsed is still fresh for url.
+	*
+	* @param {string} url
+	* @param {object} parsedUrl
+	* @return {boolean}
+	* @private
+	*/
+	var url = __require("url");
+	var parse = url.parse;
+	var Url = url.Url;
+	module.exports = parseurl;
+	module.exports.original = originalurl;
 	function parseurl(req) {
 		var url = req.url;
 		if (url === void 0) return;
@@ -21978,13 +21980,6 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		parsed._raw = url;
 		return req._parsedUrl = parsed;
 	}
-	/**
-	* Parse the `req` original url with fallback and memoization.
-	*
-	* @param {ServerRequest} req
-	* @return {Object}
-	* @public
-	*/
 	function originalurl(req) {
 		var url = req.originalUrl;
 		if (typeof url !== "string") return parseurl(req);
@@ -21994,13 +21989,6 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		parsed._raw = url;
 		return req._parsedOriginalUrl = parsed;
 	}
-	/**
-	* Parse the `str` url with fast-path short-cut.
-	*
-	* @param {string} str
-	* @return {Object}
-	* @private
-	*/
 	function fastparse(str) {
 		if (typeof str !== "string" || str.charCodeAt(0) !== 47) return parse(str);
 		var pathname = str;
@@ -22033,14 +22021,6 @@ var require_parseurl = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return url;
 	}
-	/**
-	* Determine if parsed is still fresh for url.
-	*
-	* @param {string} url
-	* @param {object} parsedUrl
-	* @return {boolean}
-	* @private
-	*/
 	function fresh(url, parsedUrl) {
 		return typeof parsedUrl === "object" && parsedUrl !== null && (Url === void 0 || parsedUrl instanceof Url) && parsedUrl._raw === url;
 	}
@@ -22057,31 +22037,20 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var debug = require_src()("finalhandler");
-	var encodeUrl = require_encodeurl();
-	var escapeHtml = require_escape_html();
-	var onFinished = require_on_finished();
-	var parseUrl = require_parseurl();
-	var statuses = require_statuses();
 	/**
 	* Module variables.
 	* @private
 	*/
-	var isFinished = onFinished.isFinished;
 	/**
 	* Create a minimal HTML document.
 	*
 	* @param {string} message
 	* @private
 	*/
-	function createHtmlDocument(message) {
-		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + escapeHtml(message).replaceAll("\n", "<br>").replaceAll("  ", " &nbsp;") + "</pre>\n</body>\n</html>\n";
-	}
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = finalhandler;
 	/**
 	* Create a function to handle the final response.
 	*
@@ -22091,6 +22060,67 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Function}
 	* @public
 	*/
+	/**
+	* Get headers from Error object.
+	*
+	* @param {Error} err
+	* @return {object}
+	* @private
+	*/
+	/**
+	* Get message from Error object, fallback to status message.
+	*
+	* @param {Error} err
+	* @param {number} status
+	* @param {string} env
+	* @return {string}
+	* @private
+	*/
+	/**
+	* Get status code from Error object.
+	*
+	* @param {Error} err
+	* @return {number}
+	* @private
+	*/
+	/**
+	* Get resource name for the request.
+	*
+	* This is typically just the original pathname of the request
+	* but will fallback to "resource" is that cannot be determined.
+	*
+	* @param {IncomingMessage} req
+	* @return {string}
+	* @private
+	*/
+	/**
+	* Get status code from response.
+	*
+	* @param {OutgoingMessage} res
+	* @return {number}
+	* @private
+	*/
+	/**
+	* Send response.
+	*
+	* @param {IncomingMessage} req
+	* @param {OutgoingMessage} res
+	* @param {number} status
+	* @param {object} headers
+	* @param {string} message
+	* @private
+	*/
+	var debug = require_src()("finalhandler");
+	var encodeUrl = require_encodeurl();
+	var escapeHtml = require_escape_html();
+	var onFinished = require_on_finished();
+	var parseUrl = require_parseurl();
+	var statuses = require_statuses();
+	var isFinished = onFinished.isFinished;
+	function createHtmlDocument(message) {
+		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>" + escapeHtml(message).replaceAll("\n", "<br>").replaceAll("  ", " &nbsp;") + "</pre>\n</body>\n</html>\n";
+	}
+	module.exports = finalhandler;
 	function finalhandler(req, res, options) {
 		var opts = options || {};
 		var env = opts.env || process.env.NODE_ENV || "development";
@@ -22122,26 +22152,10 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			send(req, res, status, headers, msg);
 		};
 	}
-	/**
-	* Get headers from Error object.
-	*
-	* @param {Error} err
-	* @return {object}
-	* @private
-	*/
 	function getErrorHeaders(err) {
 		if (!err.headers || typeof err.headers !== "object") return;
 		return { ...err.headers };
 	}
-	/**
-	* Get message from Error object, fallback to status message.
-	*
-	* @param {Error} err
-	* @param {number} status
-	* @param {string} env
-	* @return {string}
-	* @private
-	*/
 	function getErrorMessage(err, status, env) {
 		var msg;
 		if (env !== "production") {
@@ -22150,27 +22164,10 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return msg || statuses.message[status];
 	}
-	/**
-	* Get status code from Error object.
-	*
-	* @param {Error} err
-	* @return {number}
-	* @private
-	*/
 	function getErrorStatusCode(err) {
 		if (typeof err.status === "number" && err.status >= 400 && err.status < 600) return err.status;
 		if (typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
 	}
-	/**
-	* Get resource name for the request.
-	*
-	* This is typically just the original pathname of the request
-	* but will fallback to "resource" is that cannot be determined.
-	*
-	* @param {IncomingMessage} req
-	* @return {string}
-	* @private
-	*/
 	function getResourceName(req) {
 		try {
 			return parseUrl.original(req).pathname;
@@ -22178,28 +22175,11 @@ var require_finalhandler = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return "resource";
 		}
 	}
-	/**
-	* Get status code from response.
-	*
-	* @param {OutgoingMessage} res
-	* @return {number}
-	* @private
-	*/
 	function getResponseStatusCode(res) {
 		var status = res.statusCode;
 		if (typeof status !== "number" || status < 400 || status > 599) status = 500;
 		return status;
 	}
-	/**
-	* Send response.
-	*
-	* @param {IncomingMessage} req
-	* @param {OutgoingMessage} res
-	* @param {number} status
-	* @param {object} headers
-	* @param {string} message
-	* @private
-	*/
 	function send(req, res, status, headers, message) {
 		function write() {
 			var body = createHtmlDocument(message);
@@ -22378,18 +22358,14 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = etag;
 	/**
 	* Module dependencies.
 	* @private
 	*/
-	var crypto = __require("crypto");
-	var Stats = __require("fs").Stats;
 	/**
 	* Module variables.
 	* @private
 	*/
-	var toString = Object.prototype.toString;
 	/**
 	* Generate an entity tag.
 	*
@@ -22397,11 +22373,6 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {string}
 	* @private
 	*/
-	function entitytag(entity) {
-		if (entity.length === 0) return "\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"";
-		var hash = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
-		return "\"" + (typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length).toString(16) + "-" + hash + "\"";
-	}
 	/**
 	* Create a simple ETag.
 	*
@@ -22411,6 +22382,29 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String}
 	* @public
 	*/
+	/**
+	* Determine if object is a Stats object.
+	*
+	* @param {object} obj
+	* @return {boolean}
+	* @api private
+	*/
+	/**
+	* Generate a tag for a stat.
+	*
+	* @param {object} stat
+	* @return {string}
+	* @private
+	*/
+	module.exports = etag;
+	var crypto = __require("crypto");
+	var Stats = __require("fs").Stats;
+	var toString = Object.prototype.toString;
+	function entitytag(entity) {
+		if (entity.length === 0) return "\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"";
+		var hash = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+		return "\"" + (typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length).toString(16) + "-" + hash + "\"";
+	}
 	function etag(entity, options) {
 		if (entity == null) throw new TypeError("argument entity is required");
 		var isStats = isstats(entity);
@@ -22419,24 +22413,10 @@ var require_etag = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		var tag = isStats ? stattag(entity) : entitytag(entity);
 		return weak ? "W/" + tag : tag;
 	}
-	/**
-	* Determine if object is a Stats object.
-	*
-	* @param {object} obj
-	* @return {boolean}
-	* @api private
-	*/
 	function isstats(obj) {
 		if (typeof Stats === "function" && obj instanceof Stats) return true;
 		return obj && typeof obj === "object" && "ctime" in obj && toString.call(obj.ctime) === "[object Date]" && "mtime" in obj && toString.call(obj.mtime) === "[object Date]" && "ino" in obj && typeof obj.ino === "number" && "size" in obj && typeof obj.size === "number";
 	}
-	/**
-	* Generate a tag for a stat.
-	*
-	* @param {object} stat
-	* @return {string}
-	* @private
-	*/
 	function stattag(stat) {
 		var mtime = stat.mtime.getTime().toString(16);
 		return "\"" + stat.size.toString(16) + "-" + mtime + "\"";
@@ -22454,7 +22434,6 @@ var require_forwarded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = forwarded;
 	/**
 	* Get all addresses in the request, using the `X-Forwarded-For` header.
 	*
@@ -22462,11 +22441,6 @@ var require_forwarded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {array}
 	* @public
 	*/
-	function forwarded(req) {
-		if (!req) throw new TypeError("argument req is required");
-		var proxyAddrs = parse(req.headers["x-forwarded-for"] || "");
-		return [getSocketAddr(req)].concat(proxyAddrs);
-	}
 	/**
 	* Get the socket address for a request.
 	*
@@ -22474,15 +22448,21 @@ var require_forwarded = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {string}
 	* @private
 	*/
-	function getSocketAddr(req) {
-		return req.socket ? req.socket.remoteAddress : req.connection.remoteAddress;
-	}
 	/**
 	* Parse the X-Forwarded-For header.
 	*
 	* @param {string} header
 	* @private
 	*/
+	module.exports = forwarded;
+	function forwarded(req) {
+		if (!req) throw new TypeError("argument req is required");
+		var proxyAddrs = parse(req.headers["x-forwarded-for"] || "");
+		return [getSocketAddr(req)].concat(proxyAddrs);
+	}
+	function getSocketAddr(req) {
+		return req.socket ? req.socket.remoteAddress : req.connection.remoteAddress;
+	}
 	function parse(header) {
 		var end = header.length;
 		var list = [];
@@ -22601,7 +22581,7 @@ var require_ipaddr = /* @__PURE__ */ __commonJSMin(((exports, module, this$1) =>
 					0,
 					0
 				]), 10]],
-				"private": [
+				private: [
 					[new IPv4([
 						10,
 						0,
@@ -22763,26 +22743,26 @@ var require_ipaddr = /* @__PURE__ */ __commonJSMin(((exports, module, this$1) =>
 				return bytes;
 			};
 			IPv6.prototype.toNormalizedString = function() {
-				var addr = (function() {
+				var addr = function() {
 					var k, len, ref = this.parts, results = [];
 					for (k = 0, len = ref.length; k < len; k++) {
 						part = ref[k];
 						results.push(part.toString(16));
 					}
 					return results;
-				}).call(this).join(":"), part, suffix = "";
+				}.call(this).join(":"), part, suffix = "";
 				if (this.zoneId) suffix = "%" + this.zoneId;
 				return addr + suffix;
 			};
 			IPv6.prototype.toFixedLengthString = function() {
-				var addr = (function() {
+				var addr = function() {
 					var k, len, ref = this.parts, results = [];
 					for (k = 0, len = ref.length; k < len; k++) {
 						part = ref[k];
 						results.push(part.toString(16).padStart(4, "0"));
 					}
 					return results;
-				}).call(this).join(":"), part, suffix = "";
+				}.call(this).join(":"), part, suffix = "";
 				if (this.zoneId) suffix = "%" + this.zoneId;
 				return addr + suffix;
 			};
@@ -22960,7 +22940,7 @@ var require_ipaddr = /* @__PURE__ */ __commonJSMin(((exports, module, this$1) =>
 		zoneIndex = "%[0-9a-z]{1,}";
 		ipv6Regexes = {
 			zoneIndex: new RegExp(zoneIndex, "i"),
-			"native": new RegExp("^(::)?(" + ipv6Part + ")?([0-9a-f]+)?(::)?(" + zoneIndex + ")?$", "i"),
+			native: new RegExp("^(::)?(" + ipv6Part + ")?([0-9a-f]+)?(::)?(" + zoneIndex + ")?$", "i"),
 			transitional: new RegExp("^((?:" + ipv6Part + ")|(?:::)(?:" + ipv6Part + ")?)" + (ipv4Part + "\\." + ipv4Part + "\\." + ipv4Part + "\\." + ipv4Part) + ("(" + zoneIndex + ")?$"), "i")
 		};
 		expandIPv6 = function(string, parts) {
@@ -23184,26 +23164,88 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = proxyaddr;
-	module.exports.all = alladdrs;
-	module.exports.compile = compile;
 	/**
 	* Module dependencies.
 	* @private
 	*/
-	var forwarded = require_forwarded();
-	var ipaddr = require_ipaddr();
 	/**
 	* Variables.
 	* @private
 	*/
-	var DIGIT_REGEXP = /^[0-9]+$/;
-	var isip = ipaddr.isValid;
-	var parseip = ipaddr.parse;
 	/**
 	* Pre-defined IP ranges.
 	* @private
 	*/
+	/**
+	* Get all addresses in the request, optionally stopping
+	* at the first untrusted.
+	*
+	* @param {Object} request
+	* @param {Function|Array|String} [trust]
+	* @public
+	*/
+	/**
+	* Compile argument into trust function.
+	*
+	* @param {Array|String} val
+	* @private
+	*/
+	/**
+	* Compile `arr` elements into range subnets.
+	*
+	* @param {Array} arr
+	* @private
+	*/
+	/**
+	* Compile range subnet array into trust function.
+	*
+	* @param {Array} rangeSubnets
+	* @private
+	*/
+	/**
+	* Parse IP notation string into range subnet.
+	*
+	* @param {String} note
+	* @private
+	*/
+	/**
+	* Parse netmask string into CIDR range.
+	*
+	* @param {String} netmask
+	* @private
+	*/
+	/**
+	* Determine address of proxied request.
+	*
+	* @param {Object} request
+	* @param {Function|Array|String} trust
+	* @public
+	*/
+	/**
+	* Static trust function to trust nothing.
+	*
+	* @private
+	*/
+	/**
+	* Compile trust function for multiple subnets.
+	*
+	* @param {Array} subnets
+	* @private
+	*/
+	/**
+	* Compile trust function for single subnet.
+	*
+	* @param {Object} subnet
+	* @private
+	*/
+	module.exports = proxyaddr;
+	module.exports.all = alladdrs;
+	module.exports.compile = compile;
+	var forwarded = require_forwarded();
+	var ipaddr = require_ipaddr();
+	var DIGIT_REGEXP = /^[0-9]+$/;
+	var isip = ipaddr.isValid;
+	var parseip = ipaddr.parse;
 	var IP_RANGES = {
 		linklocal: ["169.254.0.0/16", "fe80::/10"],
 		loopback: ["127.0.0.1/8", "::1/128"],
@@ -23214,14 +23256,6 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			"fc00::/7"
 		]
 	};
-	/**
-	* Get all addresses in the request, optionally stopping
-	* at the first untrusted.
-	*
-	* @param {Object} request
-	* @param {Function|Array|String} [trust]
-	* @public
-	*/
 	function alladdrs(req, trust) {
 		var addrs = forwarded(req);
 		if (!trust) return addrs;
@@ -23232,12 +23266,6 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return addrs;
 	}
-	/**
-	* Compile argument into trust function.
-	*
-	* @param {Array|String} val
-	* @private
-	*/
 	function compile(val) {
 		if (!val) throw new TypeError("argument is required");
 		var trust;
@@ -23253,33 +23281,15 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return compileTrust(compileRangeSubnets(trust));
 	}
-	/**
-	* Compile `arr` elements into range subnets.
-	*
-	* @param {Array} arr
-	* @private
-	*/
 	function compileRangeSubnets(arr) {
 		var rangeSubnets = new Array(arr.length);
 		for (var i = 0; i < arr.length; i++) rangeSubnets[i] = parseipNotation(arr[i]);
 		return rangeSubnets;
 	}
-	/**
-	* Compile range subnet array into trust function.
-	*
-	* @param {Array} rangeSubnets
-	* @private
-	*/
 	function compileTrust(rangeSubnets) {
 		var len = rangeSubnets.length;
 		return len === 0 ? trustNone : len === 1 ? trustSingle(rangeSubnets[0]) : trustMulti(rangeSubnets);
 	}
-	/**
-	* Parse IP notation string into range subnet.
-	*
-	* @param {String} note
-	* @private
-	*/
 	function parseipNotation(note) {
 		var pos = note.lastIndexOf("/");
 		var str = pos !== -1 ? note.substring(0, pos) : note;
@@ -23295,43 +23305,19 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (range <= 0 || range > max) throw new TypeError("invalid range on address: " + note);
 		return [ip, range];
 	}
-	/**
-	* Parse netmask string into CIDR range.
-	*
-	* @param {String} netmask
-	* @private
-	*/
 	function parseNetmask(netmask) {
 		var ip = parseip(netmask);
 		return ip.kind() === "ipv4" ? ip.prefixLengthFromSubnetMask() : null;
 	}
-	/**
-	* Determine address of proxied request.
-	*
-	* @param {Object} request
-	* @param {Function|Array|String} trust
-	* @public
-	*/
 	function proxyaddr(req, trust) {
 		if (!req) throw new TypeError("req argument is required");
 		if (!trust) throw new TypeError("trust argument is required");
 		var addrs = alladdrs(req, trust);
 		return addrs[addrs.length - 1];
 	}
-	/**
-	* Static trust function to trust nothing.
-	*
-	* @private
-	*/
 	function trustNone() {
 		return false;
 	}
-	/**
-	* Compile trust function for multiple subnets.
-	*
-	* @param {Array} subnets
-	* @private
-	*/
 	function trustMulti(subnets) {
 		return function trust(addr) {
 			if (!isip(addr)) return false;
@@ -23356,12 +23342,6 @@ var require_proxy_addr = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return false;
 		};
 	}
-	/**
-	* Compile trust function for single subnet.
-	*
-	* @param {Object} subnet
-	* @private
-	*/
 	function trustSingle(subnet) {
 		var subnetip = subnet[0];
 		var subnetkind = subnetip.kind();
@@ -23661,6 +23641,51 @@ var require_is_promise = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/path-to-regexp/dist/index.js
 var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
+	/**
+	* Escape text for stringify to path.
+	*/
+	/**
+	* Escape a regular expression string.
+	*/
+	/**
+	* Tokenized path instance.
+	*/
+	/**
+	* ParseError is thrown when there is an error processing the path.
+	*/
+	/**
+	* Parse a string for the raw tokens.
+	*/
+	/**
+	* Compile a string to a template function for the path.
+	*/
+	/**
+	* Convert a single token into a path building function.
+	*/
+	/**
+	* Transform a path into a match function.
+	*/
+	/**
+	* Transform a path into a regular expression and capture keys.
+	*/
+	/**
+	* Generate a flat list of sequence tokens from the given tokens.
+	*/
+	/**
+	* Transform a flat sequence of tokens into a regular expression.
+	*/
+	/**
+	* Block backtracking on previous text/delimiter.
+	*/
+	/**
+	* Stringify an array of tokens into a path string.
+	*/
+	/**
+	* Stringify token data into a path string.
+	*/
+	/**
+	* Stringify a parameter name, escaping when it cannot be emitted directly.
+	*/
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.PathError = exports.TokenData = void 0;
 	exports.parse = parse;
@@ -23673,21 +23698,12 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const ID_START = /^[$_\p{ID_Start}]$/u;
 	const ID_CONTINUE = /^[$\u200c\u200d\p{ID_Continue}]$/u;
 	const ID = /^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u;
-	/**
-	* Escape text for stringify to path.
-	*/
 	function escapeText(str) {
 		return str.replace(/[{}()\[\]+?!:*\\]/g, "\\$&");
 	}
-	/**
-	* Escape a regular expression string.
-	*/
 	function escape(str) {
 		return str.replace(/[.+*?^${}()[\]|/\\]/g, "\\$&");
 	}
-	/**
-	* Tokenized path instance.
-	*/
 	var TokenData = class {
 		constructor(tokens, originalPath) {
 			this.tokens = tokens;
@@ -23695,9 +23711,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 	};
 	exports.TokenData = TokenData;
-	/**
-	* ParseError is thrown when there is an error processing the path.
-	*/
 	var PathError = class extends TypeError {
 		constructor(message, originalPath) {
 			let text = message;
@@ -23708,9 +23721,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 	};
 	exports.PathError = PathError;
-	/**
-	* Parse a string for the raw tokens.
-	*/
 	function parse(str, options = {}) {
 		const { encodePath = NOOP_VALUE } = options;
 		const chars = [...str];
@@ -23781,9 +23791,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return new TokenData(consumeUntil(""), str);
 	}
-	/**
-	* Compile a string to a template function for the path.
-	*/
 	function compile(path, options = {}) {
 		const { encode = encodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
 		const fn = tokensToFunction((typeof path === "object" ? path : parse(path, options)).tokens, delimiter, encode);
@@ -23802,9 +23809,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			return result;
 		};
 	}
-	/**
-	* Convert a single token into a path building function.
-	*/
 	function tokenToFunction(token, delimiter, encode) {
 		if (token.type === "text") return () => token.value;
 		if (token.type === "group") {
@@ -23843,9 +23847,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			return encodeValue(value);
 		};
 	}
-	/**
-	* Transform a path into a match function.
-	*/
 	function match(path, options = {}) {
 		const { decode = decodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
 		const { regexp, keys } = pathToRegexp(path, options);
@@ -23871,9 +23872,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			};
 		};
 	}
-	/**
-	* Transform a path into a regular expression and capture keys.
-	*/
 	function pathToRegexp(path, options = {}) {
 		const { delimiter = DEFAULT_DELIMITER, end = true, sensitive = false, trailing = true } = options;
 		const keys = [];
@@ -23901,9 +23899,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			keys
 		};
 	}
-	/**
-	* Generate a flat list of sequence tokens from the given tokens.
-	*/
 	function flatten(tokens, index, result, callback) {
 		while (index < tokens.length) {
 			const token = tokens[index++];
@@ -23917,9 +23912,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		callback(result);
 	}
-	/**
-	* Transform a flat sequence of tokens into a regular expression.
-	*/
 	function toRegExpSource(tokens, delimiter, keys, originalPath) {
 		let result = "";
 		let backtrack = "";
@@ -23973,9 +23965,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return result;
 	}
-	/**
-	* Block backtracking on previous text/delimiter.
-	*/
 	function negate(a, b) {
 		if (b.length > a.length) return negate(b, a);
 		if (a === b) b = "";
@@ -23983,9 +23972,6 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		if (a.length > 1) return `(?:(?!${escape(a)})[^${escape(b)}])`;
 		return `[^${escape(a + b)}]`;
 	}
-	/**
-	* Stringify an array of tokens into a path string.
-	*/
 	function stringifyTokens(tokens, index) {
 		let value = "";
 		while (index < tokens.length) {
@@ -24010,15 +23996,9 @@ var require_dist$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return value;
 	}
-	/**
-	* Stringify token data into a path string.
-	*/
 	function stringify(data) {
 		return stringifyTokens(data.tokens, 0);
 	}
-	/**
-	* Stringify a parameter name, escaping when it cannot be emitted directly.
-	*/
 	function stringifyName(name, next) {
 		if (!ID.test(name)) return JSON.stringify(name);
 		if ((next === null || next === void 0 ? void 0 : next.type) === "text" && ID_CONTINUE.test(next.value[0])) return JSON.stringify(name);
@@ -24038,19 +24018,54 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	const isPromise = require_is_promise();
-	const pathRegexp = require_dist$2();
-	const debug = require_src()("router:layer");
-	const deprecate = require_depd()("router");
 	/**
 	* Module variables.
 	* @private
 	*/
-	const TRAILING_SLASH_REGEXP = /\/+$/;
-	const MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g;
 	/**
 	* Expose `Layer`.
 	*/
+	/**
+	* Handle the error for the layer.
+	*
+	* @param {Error} error
+	* @param {Request} req
+	* @param {Response} res
+	* @param {function} next
+	* @api private
+	*/
+	/**
+	* Handle the request for the layer.
+	*
+	* @param {Request} req
+	* @param {Response} res
+	* @param {function} next
+	* @api private
+	*/
+	/**
+	* Check if this route matches `path`, if so
+	* populate `.params`.
+	*
+	* @param {String} path
+	* @return {Boolean}
+	* @api private
+	*/
+	/**
+	* Decode param value.
+	*
+	* @param {string} val
+	* @return {string}
+	* @private
+	*/
+	/**
+	* Loosens the given path for path-to-regexp matching.
+	*/
+	const isPromise = require_is_promise();
+	const pathRegexp = require_dist$2();
+	const debug = require_src()("router:layer");
+	const deprecate = require_depd()("router");
+	const TRAILING_SLASH_REGEXP = /\/+$/;
+	const MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g;
 	module.exports = Layer;
 	function Layer(path, options, fn) {
 		if (!(this instanceof Layer)) return new Layer(path, options, fn);
@@ -24095,15 +24110,6 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		this.matchers = Array.isArray(path) ? path.map(matcher) : [matcher(path)];
 	}
-	/**
-	* Handle the error for the layer.
-	*
-	* @param {Error} error
-	* @param {Request} req
-	* @param {Response} res
-	* @param {function} next
-	* @api private
-	*/
 	Layer.prototype.handleError = function handleError(error, req, res, next) {
 		const fn = this.handle;
 		if (fn.length !== 4) return next(error);
@@ -24119,14 +24125,6 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next(err);
 		}
 	};
-	/**
-	* Handle the request for the layer.
-	*
-	* @param {Request} req
-	* @param {Response} res
-	* @param {function} next
-	* @api private
-	*/
 	Layer.prototype.handleRequest = function handleRequest(req, res, next) {
 		const fn = this.handle;
 		if (fn.length > 3) return next();
@@ -24142,14 +24140,6 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next(err);
 		}
 	};
-	/**
-	* Check if this route matches `path`, if so
-	* populate `.params`.
-	*
-	* @param {String} path
-	* @return {Boolean}
-	* @api private
-	*/
 	Layer.prototype.match = function match(path) {
 		let match;
 		if (path != null) {
@@ -24174,13 +24164,6 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		this.keys = Object.keys(match.params);
 		return true;
 	};
-	/**
-	* Decode param value.
-	*
-	* @param {string} val
-	* @return {string}
-	* @private
-	*/
 	function decodeParam(val) {
 		if (typeof val !== "string" || val.length === 0) return val;
 		try {
@@ -24193,9 +24176,6 @@ var require_layer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			throw err;
 		}
 	}
-	/**
-	* Loosens the given path for path-to-regexp matching.
-	*/
 	function loosen(path) {
 		if (path instanceof RegExp || path === "/") return path;
 		return Array.isArray(path) ? path.map(function(p) {
@@ -24216,82 +24196,31 @@ var require_route = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	const debug = require_src()("router:route");
-	const Layer = require_layer();
-	const { METHODS } = __require("node:http");
 	/**
 	* Module variables.
 	* @private
 	*/
-	const slice = Array.prototype.slice;
-	const flatten = Array.prototype.flat;
-	const methods = METHODS.map((method) => method.toLowerCase());
 	/**
 	* Expose `Route`.
 	*/
-	module.exports = Route;
 	/**
 	* Initialize `Route` with the given `path`,
 	*
 	* @param {String} path
 	* @api private
 	*/
-	function Route(path) {
-		debug("new %o", path);
-		this.path = path;
-		this.stack = [];
-		this.methods = Object.create(null);
-	}
 	/**
 	* @private
 	*/
-	Route.prototype._handlesMethod = function _handlesMethod(method) {
-		if (this.methods._all) return true;
-		let name = typeof method === "string" ? method.toLowerCase() : method;
-		if (name === "head" && !this.methods.head) name = "get";
-		return Boolean(this.methods[name]);
-	};
 	/**
 	* @return {array} supported HTTP methods
 	* @private
 	*/
-	Route.prototype._methods = function _methods() {
-		const methods = Object.keys(this.methods);
-		if (this.methods.get && !this.methods.head) methods.push("head");
-		for (let i = 0; i < methods.length; i++) methods[i] = methods[i].toUpperCase();
-		return methods;
-	};
 	/**
 	* dispatch req, res into this route
 	*
 	* @private
 	*/
-	Route.prototype.dispatch = function dispatch(req, res, done) {
-		let idx = 0;
-		const stack = this.stack;
-		let sync = 0;
-		if (stack.length === 0) return done();
-		let method = typeof req.method === "string" ? req.method.toLowerCase() : req.method;
-		if (method === "head" && !this.methods.head) method = "get";
-		req.route = this;
-		next();
-		function next(err) {
-			if (err && err === "route") return done();
-			if (err && err === "router") return done(err);
-			if (idx >= stack.length) return done(err);
-			if (++sync > 100) return setImmediate(next, err);
-			let layer;
-			let match;
-			while (match !== true && idx < stack.length) {
-				layer = stack[idx++];
-				match = !layer.method || layer.method === method;
-			}
-			if (match !== true) return done(err);
-			if (err) layer.handleError(err, req, res, next);
-			else layer.handleRequest(req, res, next);
-			sync = 0;
-		}
-	};
 	/**
 	* Add a handler for all HTTP verbs to this route.
 	*
@@ -24319,6 +24248,57 @@ var require_route = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Route} for chaining
 	* @api public
 	*/
+	const debug = require_src()("router:route");
+	const Layer = require_layer();
+	const { METHODS } = __require("node:http");
+	const slice = Array.prototype.slice;
+	const flatten = Array.prototype.flat;
+	const methods = METHODS.map((method) => method.toLowerCase());
+	module.exports = Route;
+	function Route(path) {
+		debug("new %o", path);
+		this.path = path;
+		this.stack = [];
+		this.methods = Object.create(null);
+	}
+	Route.prototype._handlesMethod = function _handlesMethod(method) {
+		if (this.methods._all) return true;
+		let name = typeof method === "string" ? method.toLowerCase() : method;
+		if (name === "head" && !this.methods.head) name = "get";
+		return Boolean(this.methods[name]);
+	};
+	Route.prototype._methods = function _methods() {
+		const methods = Object.keys(this.methods);
+		if (this.methods.get && !this.methods.head) methods.push("head");
+		for (let i = 0; i < methods.length; i++) methods[i] = methods[i].toUpperCase();
+		return methods;
+	};
+	Route.prototype.dispatch = function dispatch(req, res, done) {
+		let idx = 0;
+		const stack = this.stack;
+		let sync = 0;
+		if (stack.length === 0) return done();
+		let method = typeof req.method === "string" ? req.method.toLowerCase() : req.method;
+		if (method === "head" && !this.methods.head) method = "get";
+		req.route = this;
+		next();
+		function next(err) {
+			if (err && err === "route") return done();
+			if (err && err === "router") return done(err);
+			if (idx >= stack.length) return done(err);
+			if (++sync > 100) return setImmediate(next, err);
+			let layer;
+			let match;
+			while (match !== true && idx < stack.length) {
+				layer = stack[idx++];
+				match = !layer.method || layer.method === method;
+			}
+			if (match !== true) return done(err);
+			if (err) layer.handleError(err, req, res, next);
+			else layer.handleRequest(req, res, next);
+			sync = 0;
+		}
+	};
 	Route.prototype.all = function all(handler) {
 		const callbacks = flatten.call(slice.call(arguments), Infinity);
 		if (callbacks.length === 0) throw new TypeError("argument handler is required");
@@ -24362,28 +24342,16 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	const isPromise = require_is_promise();
-	const Layer = require_layer();
-	const { METHODS } = __require("node:http");
-	const parseUrl = require_parseurl();
-	const Route = require_route();
-	const debug = require_src()("router");
-	const deprecate = require_depd()("router");
 	/**
 	* Module variables.
 	* @private
 	*/
-	const slice = Array.prototype.slice;
-	const flatten = Array.prototype.flat;
-	const methods = METHODS.map((method) => method.toLowerCase());
 	/**
 	* Expose `Router`.
 	*/
-	module.exports = Router;
 	/**
 	* Expose `Route`.
 	*/
-	module.exports.Route = Route;
 	/**
 	* Initialize a new `Router` with the given `options`.
 	*
@@ -24391,25 +24359,10 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Router} which is a callable function
 	* @public
 	*/
-	function Router(options) {
-		if (!(this instanceof Router)) return new Router(options);
-		const opts = options || {};
-		function router(req, res, next) {
-			router.handle(req, res, next);
-		}
-		Object.setPrototypeOf(router, this);
-		router.caseSensitive = opts.caseSensitive;
-		router.mergeParams = opts.mergeParams;
-		router.params = {};
-		router.strict = opts.strict;
-		router.stack = [];
-		return router;
-	}
 	/**
 	* Router prototype inherits from a Function.
 	*/
 	/* istanbul ignore next */
-	Router.prototype = function() {};
 	/**
 	* Map the given param placeholder `name`(s) to the given callback.
 	*
@@ -24442,6 +24395,120 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @param {function} fn
 	* @public
 	*/
+	/**
+	* Dispatch a req, res into the router.
+	*
+	* @private
+	*/
+	/**
+	* Use the given middleware function, with optional path, defaulting to "/".
+	*
+	* Use (like `.all`) will run for any http METHOD, but it will not add
+	* handlers for those methods so OPTIONS requests will not consider `.use`
+	* functions even if they could respond.
+	*
+	* The other difference is that _route_ path is stripped and not visible
+	* to the handler function. The main effect of this feature is that mounted
+	* handlers can operate without any code changes regardless of the "prefix"
+	* pathname.
+	*
+	* @public
+	*/
+	/**
+	* Create a new Route for the given path.
+	*
+	* Each route contains a separate middleware stack and VERB handlers.
+	*
+	* See the Route api documentation for details on adding handlers
+	* and middleware to routes.
+	*
+	* @param {string} path
+	* @return {Route}
+	* @public
+	*/
+	/**
+	* Generate a callback that will make an OPTIONS response.
+	*
+	* @param {OutgoingMessage} res
+	* @param {array} methods
+	* @private
+	*/
+	/**
+	* Get pathname of request.
+	*
+	* @param {IncomingMessage} req
+	* @private
+	*/
+	/**
+	* Get get protocol + host for a URL.
+	*
+	* @param {string} url
+	* @private
+	*/
+	/**
+	* Match path to a layer.
+	*
+	* @param {Layer} layer
+	* @param {string} path
+	* @private
+	*/
+	/**
+	* Merge params with parent params
+	*
+	* @private
+	*/
+	/**
+	* Process any parameters for the layer.
+	*
+	* @private
+	*/
+	/**
+	* Restore obj props after function
+	*
+	* @private
+	*/
+	/**
+	* Send an OPTIONS response.
+	*
+	* @private
+	*/
+	/**
+	* Try to send an OPTIONS response.
+	*
+	* @private
+	*/
+	/**
+	* Wrap a function
+	*
+	* @private
+	*/
+	const isPromise = require_is_promise();
+	const Layer = require_layer();
+	const { METHODS } = __require("node:http");
+	const parseUrl = require_parseurl();
+	const Route = require_route();
+	const debug = require_src()("router");
+	const deprecate = require_depd()("router");
+	const slice = Array.prototype.slice;
+	const flatten = Array.prototype.flat;
+	const methods = METHODS.map((method) => method.toLowerCase());
+	module.exports = Router;
+	module.exports.Route = Route;
+	function Router(options) {
+		if (!(this instanceof Router)) return new Router(options);
+		const opts = options || {};
+		function router(req, res, next) {
+			router.handle(req, res, next);
+		}
+		Object.setPrototypeOf(router, this);
+		router.caseSensitive = opts.caseSensitive;
+		router.mergeParams = opts.mergeParams;
+		router.params = {};
+		router.strict = opts.strict;
+		router.stack = [];
+		return router;
+	}
+	Router.prototype = function() {};
 	Router.prototype.param = function param(name, fn) {
 		if (!name) throw new TypeError("argument name is required");
 		if (typeof name !== "string") throw new TypeError("argument name must be a string");
@@ -24452,11 +24519,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		params.push(fn);
 		return this;
 	};
-	/**
-	* Dispatch a req, res into the router.
-	*
-	* @private
-	*/
 	Router.prototype.handle = function handle(req, res, callback) {
 		if (!callback) throw new TypeError("argument callback is required");
 		debug("dispatching %s %s", req.method, req.url);
@@ -24557,20 +24619,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			else layer.handleRequest(req, res, next);
 		}
 	};
-	/**
-	* Use the given middleware function, with optional path, defaulting to "/".
-	*
-	* Use (like `.all`) will run for any http METHOD, but it will not add
-	* handlers for those methods so OPTIONS requests will not consider `.use`
-	* functions even if they could respond.
-	*
-	* The other difference is that _route_ path is stripped and not visible
-	* to the handler function. The main effect of this feature is that mounted
-	* handlers can operate without any code changes regardless of the "prefix"
-	* pathname.
-	*
-	* @public
-	*/
 	Router.prototype.use = function use(handler) {
 		let offset = 0;
 		let path = "/";
@@ -24598,18 +24646,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return this;
 	};
-	/**
-	* Create a new Route for the given path.
-	*
-	* Each route contains a separate middleware stack and VERB handlers.
-	*
-	* See the Route api documentation for details on adding handlers
-	* and middleware to routes.
-	*
-	* @param {string} path
-	* @return {Route}
-	* @public
-	*/
 	Router.prototype.route = function route(path) {
 		const route = new Route(path);
 		const layer = new Layer(path, {
@@ -24631,25 +24667,12 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return this;
 		};
 	});
-	/**
-	* Generate a callback that will make an OPTIONS response.
-	*
-	* @param {OutgoingMessage} res
-	* @param {array} methods
-	* @private
-	*/
 	function generateOptionsResponder(res, methods) {
 		return function onDone(fn, err) {
 			if (err || methods.length === 0) return fn(err);
 			trySendOptionsResponse(res, methods, fn);
 		};
 	}
-	/**
-	* Get pathname of request.
-	*
-	* @param {IncomingMessage} req
-	* @private
-	*/
 	function getPathname(req) {
 		try {
 			return parseUrl(req).pathname;
@@ -24657,12 +24680,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return;
 		}
 	}
-	/**
-	* Get get protocol + host for a URL.
-	*
-	* @param {string} url
-	* @private
-	*/
 	function getProtohost(url) {
 		if (typeof url !== "string" || url.length === 0 || url[0] === "/") return;
 		const searchIndex = url.indexOf("?");
@@ -24670,13 +24687,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		const fqdnIndex = url.substring(0, pathLength).indexOf("://");
 		return fqdnIndex !== -1 ? url.substring(0, url.indexOf("/", 3 + fqdnIndex)) : void 0;
 	}
-	/**
-	* Match path to a layer.
-	*
-	* @param {Layer} layer
-	* @param {string} path
-	* @private
-	*/
 	function matchLayer(layer, path) {
 		try {
 			return layer.match(path);
@@ -24684,11 +24694,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return err;
 		}
 	}
-	/**
-	* Merge params with parent params
-	*
-	* @private
-	*/
 	function mergeParams(params, parent) {
 		if (typeof parent !== "object" || !parent) return params;
 		const obj = Object.assign({}, parent);
@@ -24703,11 +24708,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return Object.assign(obj, params);
 	}
-	/**
-	* Process any parameters for the layer.
-	*
-	* @private
-	*/
 	function processParams(params, layer, called, req, res, done) {
 		const keys = layer.keys;
 		if (!keys || keys.length === 0) return done();
@@ -24760,11 +24760,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		param();
 	}
-	/**
-	* Restore obj props after function
-	*
-	* @private
-	*/
 	function restore(fn, obj) {
 		const props = new Array(arguments.length - 2);
 		const vals = new Array(arguments.length - 2);
@@ -24777,11 +24772,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return fn.apply(this, arguments);
 		};
 	}
-	/**
-	* Send an OPTIONS response.
-	*
-	* @private
-	*/
 	function sendOptionsResponse(res, methods) {
 		const options = Object.create(null);
 		for (let i = 0; i < methods.length; i++) options[methods[i]] = true;
@@ -24792,11 +24782,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.setHeader("X-Content-Type-Options", "nosniff");
 		res.end(allow);
 	}
-	/**
-	* Try to send an OPTIONS response.
-	*
-	* @private
-	*/
 	function trySendOptionsResponse(res, methods, next) {
 		try {
 			sendOptionsResponse(res, methods);
@@ -24804,11 +24789,6 @@ var require_router = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			next(err);
 		}
 	}
-	/**
-	* Wrap a function
-	*
-	* @private
-	*/
 	function wrap(old, fn) {
 		return function proxy() {
 			const args = new Array(arguments.length + 1);
@@ -25289,16 +25269,20 @@ var require_application = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_accept = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var contentType = require_dist$3();
 	/**
 	* Module exports.
 	* @private
 	*/
-	module.exports = parseAccept;
 	/**
 	* Parse an Accept-style header.
 	* @private
 	*/
+	/**
+	* Skip optional whitespace.
+	* @private
+	*/
+	var contentType = require_dist$3();
+	module.exports = parseAccept;
 	function parseAccept(header) {
 		var values = [];
 		var index = 0;
@@ -25314,10 +25298,6 @@ var require_accept = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return values;
 	}
-	/**
-	* Skip optional whitespace.
-	* @private
-	*/
 	function skipOptionalWhitespace(header, index) {
 		var cursor = index;
 		while (header.charCodeAt(cursor) === 32 || header.charCodeAt(cursor) === 9) cursor++;
@@ -25334,17 +25314,45 @@ var require_accept = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var parseAccept = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = preferredCharsets;
-	module.exports.preferredCharsets = preferredCharsets;
 	/**
 	* Module variables.
 	* @private
 	*/
+	/**
+	* Format a parsed charset for negotiation.
+	* @private
+	*/
+	/**
+	* Get the priority of a charset.
+	* @private
+	*/
+	/**
+	* Get the specificity of the charset.
+	* @private
+	*/
+	/**
+	* Get the preferred charsets from an Accept-Charset header.
+	* @public
+	*/
+	/**
+	* Compare two specs.
+	* @private
+	*/
+	/**
+	* Get full charset string.
+	* @private
+	*/
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
+	var parseAccept = require_accept();
+	module.exports = preferredCharsets;
+	module.exports.preferredCharsets = preferredCharsets;
 	function parseAcceptCharset(accept) {
 		var accepts = parseAccept(accept);
 		for (var i = 0, j = 0; i < accepts.length; i++) {
@@ -25354,10 +25362,6 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
-	/**
-	* Format a parsed charset for negotiation.
-	* @private
-	*/
 	function formatCharset(parsed, i) {
 		if (!parsed.type) return null;
 		return {
@@ -25366,10 +25370,6 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			i
 		};
 	}
-	/**
-	* Get the priority of a charset.
-	* @private
-	*/
 	function getCharsetPriority(charset, accepted, index) {
 		var priority = {
 			o: -1,
@@ -25382,10 +25382,6 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
-	/**
-	* Get the specificity of the charset.
-	* @private
-	*/
 	function specify(charset, spec, index) {
 		var s = 0;
 		if (spec.charset.toLowerCase() === charset.toLowerCase()) s |= 1;
@@ -25397,10 +25393,6 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
-	/**
-	* Get the preferred charsets from an Accept-Charset header.
-	* @public
-	*/
 	function preferredCharsets(accept, provided) {
 		var accepts = parseAcceptCharset(accept === void 0 ? "*" : accept || "");
 		if (!provided) return accepts.filter(isQuality).sort(compareSpecs).map(getFullCharset);
@@ -25411,24 +25403,12 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
-	/**
-	* Compare two specs.
-	* @private
-	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
 	}
-	/**
-	* Get full charset string.
-	* @private
-	*/
 	function getFullCharset(spec) {
 		return spec.charset;
 	}
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25443,17 +25423,45 @@ var require_charset = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var parseAccept = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = preferredEncodings;
-	module.exports.preferredEncodings = preferredEncodings;
 	/**
 	* Module variables.
 	* @private
 	*/
+	/**
+	* Format a parsed encoding for negotiation.
+	* @private
+	*/
+	/**
+	* Get the priority of an encoding.
+	* @private
+	*/
+	/**
+	* Get the specificity of the encoding.
+	* @private
+	*/
+	/**
+	* Get the preferred encodings from an Accept-Encoding header.
+	* @public
+	*/
+	/**
+	* Compare two specs.
+	* @private
+	*/
+	/**
+	* Get full encoding string.
+	* @private
+	*/
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
+	var parseAccept = require_accept();
+	module.exports = preferredEncodings;
+	module.exports.preferredEncodings = preferredEncodings;
 	function parseAcceptEncoding(accept) {
 		var accepts = parseAccept(accept);
 		var hasIdentity = false;
@@ -25474,10 +25482,6 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
-	/**
-	* Format a parsed encoding for negotiation.
-	* @private
-	*/
 	function formatEncoding(parsed, i) {
 		if (!parsed.type) return null;
 		return {
@@ -25486,10 +25490,6 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			i
 		};
 	}
-	/**
-	* Get the priority of an encoding.
-	* @private
-	*/
 	function getEncodingPriority(encoding, accepted, index) {
 		var priority = {
 			encoding,
@@ -25503,10 +25503,6 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
-	/**
-	* Get the specificity of the encoding.
-	* @private
-	*/
 	function specify(encoding, spec, index) {
 		var s = 0;
 		if (spec.encoding.toLowerCase() === encoding.toLowerCase()) s |= 1;
@@ -25519,10 +25515,6 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
-	/**
-	* Get the preferred encodings from an Accept-Encoding header.
-	* @public
-	*/
 	function preferredEncodings(accept, provided, preferred) {
 		var accepts = parseAcceptEncoding(accept || "");
 		var comparator = preferred ? function comparator(a, b) {
@@ -25541,24 +25533,12 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
-	/**
-	* Compare two specs.
-	* @private
-	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i;
 	}
-	/**
-	* Get full encoding string.
-	* @private
-	*/
 	function getFullEncoding(spec) {
 		return spec.encoding;
 	}
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25573,18 +25553,46 @@ var require_encoding = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var contentType = require_dist$3();
-	var parseAccept = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = preferredLanguages;
-	module.exports.preferredLanguages = preferredLanguages;
 	/**
 	* Module variables.
 	* @private
 	*/
+	/**
+	* Format a parsed language for negotiation.
+	* @private
+	*/
+	/**
+	* Get the priority of a language.
+	* @private
+	*/
+	/**
+	* Get the specificity of the language.
+	* @private
+	*/
+	/**
+	* Get the preferred languages from an Accept-Language header.
+	* @public
+	*/
+	/**
+	* Compare two specs.
+	* @private
+	*/
+	/**
+	* Get full language string.
+	* @private
+	*/
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
+	var contentType = require_dist$3();
+	var parseAccept = require_accept();
+	module.exports = preferredLanguages;
+	module.exports.preferredLanguages = preferredLanguages;
 	function parseAcceptLanguage(accept) {
 		var accepts = parseAccept(accept);
 		for (var i = 0, j = 0; i < accepts.length; i++) {
@@ -25594,10 +25602,6 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
-	/**
-	* Format a parsed language for negotiation.
-	* @private
-	*/
 	function formatLanguage(parsed, i) {
 		if (!parsed.type) return null;
 		var hyphen = parsed.type.indexOf("-");
@@ -25609,10 +25613,6 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			full: parsed.type
 		};
 	}
-	/**
-	* Get the priority of a language.
-	* @private
-	*/
 	function getLanguagePriority(language, accepted, index) {
 		var priority = {
 			o: -1,
@@ -25625,10 +25625,6 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
-	/**
-	* Get the specificity of the language.
-	* @private
-	*/
 	function specify(language, spec, index) {
 		var p = formatLanguage(contentType.parse(language), 0);
 		if (!p) return null;
@@ -25644,10 +25640,6 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
-	/**
-	* Get the preferred languages from an Accept-Language header.
-	* @public
-	*/
 	function preferredLanguages(accept, provided) {
 		var accepts = parseAcceptLanguage(accept === void 0 ? "*" : accept || "");
 		if (!provided) return accepts.filter(isQuality).sort(compareSpecs).map(getFullLanguage);
@@ -25658,24 +25650,12 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
-	/**
-	* Compare two specs.
-	* @private
-	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
 	}
-	/**
-	* Get full language string.
-	* @private
-	*/
 	function getFullLanguage(spec) {
 		return spec.full;
 	}
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25690,18 +25670,46 @@ var require_language = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var contentType = require_dist$3();
-	var parseAcceptHeader = require_accept();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = preferredMediaTypes;
-	module.exports.preferredMediaTypes = preferredMediaTypes;
 	/**
 	* Module variables.
 	* @private
 	*/
+	/**
+	* Format a parsed content type for negotiation.
+	* @private
+	*/
+	/**
+	* Get the priority of a media type.
+	* @private
+	*/
+	/**
+	* Get the specificity of the media type.
+	* @private
+	*/
+	/**
+	* Get the preferred media types from an Accept header.
+	* @public
+	*/
+	/**
+	* Compare two specs.
+	* @private
+	*/
+	/**
+	* Get full type string.
+	* @private
+	*/
+	/**
+	* Check if a spec has any quality.
+	* @private
+	*/
+	var contentType = require_dist$3();
+	var parseAcceptHeader = require_accept();
+	module.exports = preferredMediaTypes;
+	module.exports.preferredMediaTypes = preferredMediaTypes;
 	function parseAccept(accept) {
 		var accepts = parseAcceptHeader(accept);
 		for (var i = 0, j = 0; i < accepts.length; i++) {
@@ -25711,10 +25719,6 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		accepts.length = j;
 		return accepts;
 	}
-	/**
-	* Format a parsed content type for negotiation.
-	* @private
-	*/
 	function formatMediaType(parsed, i) {
 		var slash = parsed.type.indexOf("/");
 		if (slash === -1) return null;
@@ -25728,10 +25732,6 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			i
 		};
 	}
-	/**
-	* Get the priority of a media type.
-	* @private
-	*/
 	function getMediaTypePriority(type, accepted, index) {
 		var priority = {
 			o: -1,
@@ -25744,10 +25744,6 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return priority;
 	}
-	/**
-	* Get the specificity of the media type.
-	* @private
-	*/
 	function specify(type, spec, index) {
 		var p = formatMediaType(contentType.parse(type), 0);
 		var s = 0;
@@ -25770,10 +25766,6 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			s
 		};
 	}
-	/**
-	* Get the preferred media types from an Accept header.
-	* @public
-	*/
 	function preferredMediaTypes(accept, provided) {
 		var accepts = parseAccept(accept === void 0 ? "*/*" : accept || "");
 		if (!provided) return accepts.filter(isQuality).sort(compareSpecs).map(getFullType);
@@ -25784,24 +25776,12 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return provided[priorities.indexOf(priority)];
 		});
 	}
-	/**
-	* Compare two specs.
-	* @private
-	*/
 	function compareSpecs(a, b) {
 		return b.q - a.q || b.s - a.s || a.o - b.o || a.i - b.i || 0;
 	}
-	/**
-	* Get full type string.
-	* @private
-	*/
 	function getFullType(spec) {
 		return spec.type + "/" + spec.subtype;
 	}
-	/**
-	* Check if a spec has any quality.
-	* @private
-	*/
 	function isQuality(spec) {
 		return spec.q > 0;
 	}
@@ -25816,21 +25796,21 @@ var require_mediaType = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * MIT Licensed
 */
 var require_negotiator = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var preferredCharsets = require_charset();
-	var preferredEncodings = require_encoding();
-	var preferredLanguages = require_language();
-	var preferredMediaTypes = require_mediaType();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = Negotiator;
-	module.exports.Negotiator = Negotiator;
 	/**
 	* Create a Negotiator instance from a request.
 	* @param {object} request
 	* @public
 	*/
+	var preferredCharsets = require_charset();
+	var preferredEncodings = require_encoding();
+	var preferredLanguages = require_language();
+	var preferredMediaTypes = require_mediaType();
+	module.exports = Negotiator;
+	module.exports.Negotiator = Negotiator;
 	function Negotiator(request) {
 		if (!(this instanceof Negotiator)) return new Negotiator(request);
 		this.request = request;
@@ -25886,24 +25866,16 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var Negotiator = require_negotiator();
-	var mime = require_mime_types();
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = Accepts;
 	/**
 	* Create a new Accepts object for the given req.
 	*
 	* @param {object} req
 	* @public
 	*/
-	function Accepts(req) {
-		if (!(this instanceof Accepts)) return new Accepts(req);
-		this.headers = req.headers;
-		this.negotiator = new Negotiator(req);
-	}
 	/**
 	* Check if the given `type(s)` is acceptable, returning
 	* the best match when true, otherwise `undefined`, in which
@@ -25944,18 +25916,6 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String|Array|Boolean}
 	* @public
 	*/
-	Accepts.prototype.type = Accepts.prototype.types = function(types_) {
-		var types = types_;
-		if (types && !Array.isArray(types)) {
-			types = new Array(arguments.length);
-			for (var i = 0; i < types.length; i++) types[i] = arguments[i];
-		}
-		if (!types || types.length === 0) return this.negotiator.mediaTypes();
-		if (!this.headers.accept) return types[0];
-		var mimes = types.map(extToMime);
-		var first = this.negotiator.mediaTypes(mimes.filter(validMime))[0];
-		return first ? types[mimes.indexOf(first)] : false;
-	};
 	/**
 	* Return accepted encodings or best fit based on `encodings`.
 	*
@@ -25968,15 +25928,6 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String|Array}
 	* @public
 	*/
-	Accepts.prototype.encoding = Accepts.prototype.encodings = function(encodings_) {
-		var encodings = encodings_;
-		if (encodings && !Array.isArray(encodings)) {
-			encodings = new Array(arguments.length);
-			for (var i = 0; i < encodings.length; i++) encodings[i] = arguments[i];
-		}
-		if (!encodings || encodings.length === 0) return this.negotiator.encodings();
-		return this.negotiator.encodings(encodings)[0] || false;
-	};
 	/**
 	* Return accepted charsets or best fit based on `charsets`.
 	*
@@ -25989,15 +25940,6 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String|Array}
 	* @public
 	*/
-	Accepts.prototype.charset = Accepts.prototype.charsets = function(charsets_) {
-		var charsets = charsets_;
-		if (charsets && !Array.isArray(charsets)) {
-			charsets = new Array(arguments.length);
-			for (var i = 0; i < charsets.length; i++) charsets[i] = arguments[i];
-		}
-		if (!charsets || charsets.length === 0) return this.negotiator.charsets();
-		return this.negotiator.charsets(charsets)[0] || false;
-	};
 	/**
 	* Return accepted languages or best fit based on `langs`.
 	*
@@ -26010,6 +25952,58 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Array|String}
 	* @public
 	*/
+	/**
+	* Convert extnames to mime.
+	*
+	* @param {String} type
+	* @return {String}
+	* @private
+	*/
+	/**
+	* Check if mime is valid.
+	*
+	* @param {String} type
+	* @return {Boolean}
+	* @private
+	*/
+	var Negotiator = require_negotiator();
+	var mime = require_mime_types();
+	module.exports = Accepts;
+	function Accepts(req) {
+		if (!(this instanceof Accepts)) return new Accepts(req);
+		this.headers = req.headers;
+		this.negotiator = new Negotiator(req);
+	}
+	Accepts.prototype.type = Accepts.prototype.types = function(types_) {
+		var types = types_;
+		if (types && !Array.isArray(types)) {
+			types = new Array(arguments.length);
+			for (var i = 0; i < types.length; i++) types[i] = arguments[i];
+		}
+		if (!types || types.length === 0) return this.negotiator.mediaTypes();
+		if (!this.headers.accept) return types[0];
+		var mimes = types.map(extToMime);
+		var first = this.negotiator.mediaTypes(mimes.filter(validMime))[0];
+		return first ? types[mimes.indexOf(first)] : false;
+	};
+	Accepts.prototype.encoding = Accepts.prototype.encodings = function(encodings_) {
+		var encodings = encodings_;
+		if (encodings && !Array.isArray(encodings)) {
+			encodings = new Array(arguments.length);
+			for (var i = 0; i < encodings.length; i++) encodings[i] = arguments[i];
+		}
+		if (!encodings || encodings.length === 0) return this.negotiator.encodings();
+		return this.negotiator.encodings(encodings)[0] || false;
+	};
+	Accepts.prototype.charset = Accepts.prototype.charsets = function(charsets_) {
+		var charsets = charsets_;
+		if (charsets && !Array.isArray(charsets)) {
+			charsets = new Array(arguments.length);
+			for (var i = 0; i < charsets.length; i++) charsets[i] = arguments[i];
+		}
+		if (!charsets || charsets.length === 0) return this.negotiator.charsets();
+		return this.negotiator.charsets(charsets)[0] || false;
+	};
 	Accepts.prototype.lang = Accepts.prototype.langs = Accepts.prototype.language = Accepts.prototype.languages = function(languages_) {
 		var languages = languages_;
 		if (languages && !Array.isArray(languages)) {
@@ -26019,23 +26013,9 @@ var require_accepts = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!languages || languages.length === 0) return this.negotiator.languages();
 		return this.negotiator.languages(languages)[0] || false;
 	};
-	/**
-	* Convert extnames to mime.
-	*
-	* @param {String} type
-	* @return {String}
-	* @private
-	*/
 	function extToMime(type) {
 		return type.indexOf("/") === -1 ? mime.lookup(type) : type;
 	}
-	/**
-	* Check if mime is valid.
-	*
-	* @param {String} type
-	* @return {Boolean}
-	* @private
-	*/
 	function validMime(type) {
 		return typeof type === "string";
 	}
@@ -26053,12 +26033,10 @@ var require_fresh = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* RegExp to check for no-cache token in Cache-Control.
 	* @private
 	*/
-	var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = fresh;
 	/**
 	* Check freshness of the response using request and response headers.
 	*
@@ -26067,6 +26045,21 @@ var require_fresh = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @public
 	*/
+	/**
+	* Parse an HTTP Date into a number.
+	*
+	* @param {string} date
+	* @private
+	*/
+	// istanbul ignore next: guard against date.js Date.parse patching
+	/**
+	* Parse a HTTP token list.
+	*
+	* @param {string} str
+	* @private
+	*/
+	var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
+	module.exports = fresh;
 	function fresh(reqHeaders, resHeaders) {
 		var modifiedSince = reqHeaders["if-modified-since"];
 		var noneMatch = reqHeaders["if-none-match"];
@@ -26090,23 +26083,10 @@ var require_fresh = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return true;
 	}
-	/**
-	* Parse an HTTP Date into a number.
-	*
-	* @param {string} date
-	* @private
-	*/
 	function parseHttpDate(date) {
 		var timestamp = date && Date.parse(date);
-		// istanbul ignore next: guard against date.js Date.parse patching
 		return typeof timestamp === "number" ? timestamp : NaN;
 	}
-	/**
-	* Parse a HTTP token list.
-	*
-	* @param {string} str
-	* @private
-	*/
 	function parseTokenList(str) {
 		var end = 0;
 		var list = [];
@@ -26138,7 +26118,6 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module exports.
 	* @public
 	*/
-	module.exports = rangeParser;
 	/**
 	* Parse "Range" header `str` relative to the given file `size`.
 	*
@@ -26148,6 +26127,31 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Array}
 	* @public
 	*/
+	/**
+	* Parse string to integer.
+	* @private
+	*/
+	/**
+	* Combine overlapping & adjacent ranges.
+	* @private
+	*/
+	/**
+	* Map function to add index value to ranges.
+	* @private
+	*/
+	/**
+	* Map function to remove index value from ranges.
+	* @private
+	*/
+	/**
+	* Sort function to sort ranges by index.
+	* @private
+	*/
+	/**
+	* Sort function to sort ranges by start position.
+	* @private
+	*/
+	module.exports = rangeParser;
 	function rangeParser(size, str, options) {
 		if (typeof str !== "string") throw new TypeError("argument str must be a string");
 		var index = str.indexOf("=");
@@ -26177,18 +26181,10 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (ranges.length < 1) return -1;
 		return options && options.combine ? combineRanges(ranges) : ranges;
 	}
-	/**
-	* Parse string to integer.
-	* @private
-	*/
 	function parsePos(str) {
 		if (/^\d+$/.test(str)) return Number(str);
 		return NaN;
 	}
-	/**
-	* Combine overlapping & adjacent ranges.
-	* @private
-	*/
 	function combineRanges(ranges) {
 		var ordered = ranges.map(mapWithIndex).sort(sortByRangeStart);
 		for (var j = 0, i = 1; i < ordered.length; i++) {
@@ -26205,10 +26201,6 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		combined.type = ranges.type;
 		return combined;
 	}
-	/**
-	* Map function to add index value to ranges.
-	* @private
-	*/
 	function mapWithIndex(range, index) {
 		return {
 			start: range.start,
@@ -26216,27 +26208,15 @@ var require_range_parser = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			index
 		};
 	}
-	/**
-	* Map function to remove index value from ranges.
-	* @private
-	*/
 	function mapWithoutIndex(range) {
 		return {
 			start: range.start,
 			end: range.end
 		};
 	}
-	/**
-	* Sort function to sort ranges by index.
-	* @private
-	*/
 	function sortByRangeIndex(a, b) {
 		return a.index - b.index;
 	}
-	/**
-	* Sort function to sort ranges by start position.
-	* @private
-	*/
 	function sortByRangeStart(a, b) {
 		return a.start - b.start;
 	}
@@ -26665,23 +26645,16 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Copyright(c) 2014-2017 Douglas Christopher Wilson
 	* MIT Licensed
 	*/
-	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.create = create;
 	exports.parse = parse;
 	exports.decodeExtended = decodeExtended;
 	exports.format = format;
 	exports.encodeExtended = encodeExtended;
-	/**
-	* Null object perf optimization. Faster than `Object.create(null)` and `{ __proto__: null }`.
-	*/
-	const NullObject = /* @__PURE__ */ (() => {
+	const NullObject = (() => {
 		const C = function() {};
 		C.prototype = Object.create(null);
 		return C;
 	})();
-	/**
-	* Create an attachment Content-Disposition header.
-	*/
 	function create(filename, options) {
 		return format({
 			type: options?.type || "attachment",
@@ -26695,9 +26668,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const DQUOTE = 34;
 	const BSLASH = 92;
 	const ASTERISK = 42;
-	/**
-	* Parse Content-Disposition header string.
-	*/
 	function parse(header, options) {
 		const len = header.length;
 		const multipart = options?.multipart === true;
@@ -26788,51 +26758,13 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			parameters
 		};
 	}
-	/**
-	* RegExp to match non attr-char, *after* encodeURIComponent (i.e. not including "%")
-	*/
 	const ENCODE_URL_ATTR_CHAR_REGEXP = /[\x00-\x20"'()*,/:;<=>?@[\\\]{}\x7f]/g;
-	/**
-	* RegExp to match non-US-ASCII characters.
-	*/
 	const NON_ASCII_REGEXP = /[^\x20-\x7e]/g;
-	/**
-	* RegExp to match chars that must be quoted-pair in RFC 2616
-	*/
 	const QUOTE_REGEXP = /[\\"]/g;
-	/**
-	* Match chars that can't be used in the filename for compatibility.
-	*/
 	const INVALID_FILENAME_REGEXP = /%[0-9A-Fa-f]{2}/;
-	/**
-	* RegExp for various RFC 2616 grammar
-	*
-	* parameter     = token "=" ( token | quoted-string )
-	* token         = 1*<any CHAR except CTLs or separators>
-	* separators    = "(" | ")" | "<" | ">" | "@"
-	*               | "," | ";" | ":" | "\" | <">
-	*               | "/" | "[" | "]" | "?" | "="
-	*               | "{" | "}" | SP | HT
-	* quoted-string = ( <"> *(qdtext | quoted-pair ) <"> )
-	* qdtext        = <any TEXT except <">>
-	* quoted-pair   = "\" CHAR
-	* CHAR          = <any US-ASCII character (octets 0 - 127)>
-	* TEXT          = <any OCTET except CTLs, but including LWS>
-	* LWS           = [CRLF] 1*( SP | HT )
-	* CRLF          = CR LF
-	* CR            = <US-ASCII CR, carriage return (13)>
-	* LF            = <US-ASCII LF, linefeed (10)>
-	* SP            = <US-ASCII SP, space (32)>
-	* HT            = <US-ASCII HT, horizontal-tab (9)>
-	* CTL           = <any US-ASCII control character (octets 0 - 31) and DEL (127)>
-	* OCTET         = <any 8-bit sequence of data>
-	*/
 	const TEXT_REGEXP = /^[\x20-\x7e\x80-\xff]*$/;
 	const ASCII_TEXT_REGEXP = /^[\x20-\x7e]*$/;
 	const TOKEN_REGEXP = /^[!#$%&'*+.0-9A-Z^_`a-z|~-]+$/;
-	/**
-	* Create parameters object from filename and fallback.
-	*/
 	function createParameters(filename, fallback = true) {
 		if (filename === void 0) return;
 		if (typeof fallback === "string") {
@@ -26850,9 +26782,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			"filename*": encodeExtended(filename)
 		};
 	}
-	/**
-	* Decode a RFC 8187 field value (gracefully).
-	*/
 	function decodeExtended(str) {
 		const charsetEnd = str.indexOf("'");
 		if (charsetEnd <= 0) return;
@@ -26866,9 +26795,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			case "utf8": return tryDecodeURIComponent(encoded);
 		}
 	}
-	/**
-	* Decode URI component but return `undefined` on error.
-	*/
 	function tryDecodeURIComponent(str) {
 		try {
 			return decodeURIComponent(str);
@@ -26876,9 +26802,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 			return;
 		}
 	}
-	/**
-	* Parse a token starting at the provided index.
-	*/
 	function parseToken(str, index, len) {
 		while (index < len) {
 			if (str.charCodeAt(index) === SEMI) break;
@@ -26886,9 +26809,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
-	/**
-	* Skip RFC 2616 linear whitespace (space / tab).
-	*/
 	function skipOWS(str, index, len) {
 		while (index < len) {
 			const char = str.charCodeAt(index);
@@ -26897,9 +26817,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return index;
 	}
-	/**
-	* Skip RFC 2616 linear whitespace (space / tab) from the end of a string.
-	*/
 	function trailingOWS(str, start, end) {
 		while (end > start) {
 			const char = str.charCodeAt(end - 1);
@@ -26908,9 +26825,6 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return end;
 	}
-	/**
-	* Format object to Content-Disposition header.
-	*/
 	function format(obj, options) {
 		const { type, parameters } = obj;
 		const multipart = options?.multipart === true;
@@ -26937,56 +26851,30 @@ var require_dist$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return result;
 	}
-	/**
-	* Get US-ASCII version of string.
-	*/
 	function getAscii(val) {
 		return val.replace(NON_ASCII_REGEXP, "?");
 	}
-	/**
-	* Percent encode a single character.
-	*/
 	function pencode(char) {
 		return "%" + char.charCodeAt(0).toString(16).toUpperCase();
 	}
-	/**
-	* Quote a string for HTTP.
-	*/
 	function qstring(str) {
 		return "\"" + str.replace(QUOTE_REGEXP, "\\$&") + "\"";
 	}
-	/**
-	* Quote a string for multipart/form-data.
-	*
-	* @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart-form-data
-	*/
 	function qmultipart(str) {
 		return "\"" + str.replace(/[\n\r"]/g, multipartEscape) + "\"";
 	}
-	/**
-	* Escape a multipart/form-data string character.
-	*/
 	function multipartEscape(char) {
 		if (char === "\n") return "%0A";
 		if (char === "\r") return "%0D";
 		return "%22";
 	}
-	/**
-	* Encode a Unicode string for HTTP (RFC 8187).
-	*/
 	function encodeExtended(str) {
 		return "UTF-8''" + encodeURIComponent(str).replace(ENCODE_URL_ATTR_CHAR_REGEXP, pencode);
 	}
-	/**
-	* Check if a character is a hex digit [0-9A-Fa-f]
-	*/
 	function isHexDigit(char) {
 		const code = char.charCodeAt(0);
 		return code >= 48 && code <= 57 || code >= 65 && code <= 70 || code >= 97 && code <= 102;
 	}
-	/**
-	* Decode hex escapes in a string (e.g., %20 -> space)
-	*/
 	function decodeHexEscapes(str) {
 		const firstEscape = str.indexOf("%");
 		if (firstEscape === -1) return str;
@@ -27047,14 +26935,10 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* Module exports.
 	* @public
 	*/
-	exports.parse = parse;
-	exports.serialize = serialize;
 	/**
 	* Module variables.
 	* @private
 	*/
-	var __toString = Object.prototype.toString;
-	var __hasOwnProperty = Object.prototype.hasOwnProperty;
 	/**
 	* RegExp to match cookie-name in RFC 6265 sec 4.1.1
 	* This refers out to the obsoleted definition of token in RFC 2616 sec 2.2
@@ -27066,7 +26950,6 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	*                     "*" / "+" / "-" / "." / "^" / "_" /
 	*                     "`" / "|" / "~" / DIGIT / ALPHA
 	*/
-	var cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 	/**
 	* RegExp to match cookie-value in RFC 6265 sec 4.1.1
 	*
@@ -27076,7 +26959,6 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	*                     ; whitespace DQUOTE, comma, semicolon,
 	*                     ; and backslash
 	*/
-	var cookieValueRegExp = /^("?)[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]*\1$/;
 	/**
 	* RegExp to match domain-value in RFC 6265 sec 4.1.1
 	*
@@ -27100,7 +26982,6 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* character is not permitted, but a trailing %x2E ("."), if present, will
 	* cause the user agent to ignore the attribute.)
 	*/
-	var domainValueRegExp = /^([.]?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 	/**
 	* RegExp to match path-value in RFC 6265 sec 4.1.1
 	*
@@ -27108,7 +26989,6 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* CHAR              = %x01-7F
 	*                     ; defined in RFC 5234 appendix B.1
 	*/
-	var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
 	/**
 	* Parse a cookie header.
 	*
@@ -27120,6 +27000,48 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 	* @return {object}
 	* @public
 	*/
+	/**
+	* Serialize data into a cookie header.
+	*
+	* Serialize a name value pair into a cookie string suitable for
+	* http headers. An optional options object specifies cookie parameters.
+	*
+	* serialize('foo', 'bar', { httpOnly: true })
+	*   => "foo=bar; httpOnly"
+	*
+	* @param {string} name
+	* @param {string} val
+	* @param {object} [opt]
+	* @return {string}
+	* @public
+	*/
+	/**
+	* URL-decode string value. Optimized to skip native call when no %.
+	*
+	* @param {string} str
+	* @returns {string}
+	*/
+	/**
+	* Determine if value is a Date.
+	*
+	* @param {*} val
+	* @private
+	*/
+	/**
+	* Try decoding a string using a decoding function.
+	*
+	* @param {string} str
+	* @param {function} decode
+	* @private
+	*/
+	exports.parse = parse;
+	exports.serialize = serialize;
+	var __toString = Object.prototype.toString;
+	var __hasOwnProperty = Object.prototype.hasOwnProperty;
+	var cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+	var cookieValueRegExp = /^("?)[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]*\1$/;
+	var domainValueRegExp = /^([.]?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+	var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
 	function parse(str, opt) {
 		if (typeof str !== "string") throw new TypeError("argument str must be a string");
 		var obj = {};
@@ -27168,21 +27090,6 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return min;
 	}
-	/**
-	* Serialize data into a cookie header.
-	*
-	* Serialize a name value pair into a cookie string suitable for
-	* http headers. An optional options object specifies cookie parameters.
-	*
-	* serialize('foo', 'bar', { httpOnly: true })
-	*   => "foo=bar; httpOnly"
-	*
-	* @param {string} name
-	* @param {string} val
-	* @param {object} [opt]
-	* @return {string}
-	* @public
-	*/
 	function serialize(name, val, opt) {
 		var enc = opt && opt.encode || encodeURIComponent;
 		if (typeof enc !== "function") throw new TypeError("option encode is invalid");
@@ -27241,31 +27148,12 @@ var require_cookie = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		return str;
 	}
-	/**
-	* URL-decode string value. Optimized to skip native call when no %.
-	*
-	* @param {string} str
-	* @returns {string}
-	*/
 	function decode(str) {
 		return str.indexOf("%") !== -1 ? decodeURIComponent(str) : str;
 	}
-	/**
-	* Determine if value is a Date.
-	*
-	* @param {*} val
-	* @private
-	*/
 	function isDate(val) {
 		return __toString.call(val) === "[object Date]";
 	}
-	/**
-	* Try decoding a string using a decoding function.
-	*
-	* @param {string} str
-	* @param {function} decode
-	* @private
-	*/
 	function tryDecode(str, decode) {
 		try {
 			return decode(str);
@@ -27287,6 +27175,248 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
+	/**
+	* Path function references.
+	* @private
+	*/
+	/**
+	* Regular expression for identifying a bytes Range header.
+	* @private
+	*/
+	/**
+	* Maximum value allowed for the max age.
+	* @private
+	*/
+	/**
+	* Regular expression to match a path with a directory up component.
+	* @private
+	*/
+	/**
+	* Module exports.
+	* @public
+	*/
+	/**
+	* Return a `SendStream` for `req` and `path`.
+	*
+	* @param {object} req
+	* @param {string} path
+	* @param {object} [options]
+	* @return {SendStream}
+	* @public
+	*/
+	/**
+	* Initialize a `SendStream` with the given `path`.
+	*
+	* @param {Request} req
+	* @param {String} path
+	* @param {object} [options]
+	* @private
+	*/
+	/**
+	* Inherits from `Stream`.
+	*/
+	/**
+	* Emit error with `status`.
+	*
+	* @param {number} status
+	* @param {Error} [err]
+	* @private
+	*/
+	/**
+	* Check if the pathname ends with "/".
+	*
+	* @return {boolean}
+	* @private
+	*/
+	/**
+	* Check if this is a conditional GET request.
+	*
+	* @return {Boolean}
+	* @api private
+	*/
+	/**
+	* Check if the request preconditions failed.
+	*
+	* @return {boolean}
+	* @private
+	*/
+	/**
+	* Strip various content header fields for a change in entity.
+	*
+	* @private
+	*/
+	/**
+	* Respond with 304 not modified.
+	*
+	* @api private
+	*/
+	/**
+	* Raise error that headers already sent.
+	*
+	* @api private
+	*/
+	/**
+	* Check if the request is cacheable, aka
+	* responded with 2xx or 304 (see RFC 2616 section 14.2{5,6}).
+	*
+	* @return {Boolean}
+	* @api private
+	*/
+	/**
+	* Handle stat() error.
+	*
+	* @param {Error} error
+	* @private
+	*/
+	/**
+	* Check if the cache is fresh.
+	*
+	* @return {Boolean}
+	* @api private
+	*/
+	/**
+	* Check if the range is fresh.
+	*
+	* @return {Boolean}
+	* @api private
+	*/
+	/**
+	* Redirect to path.
+	*
+	* @param {string} path
+	* @private
+	*/
+	/**
+	* Pipe to `res.
+	*
+	* @param {Stream} res
+	* @return {Stream} res
+	* @api public
+	*/
+	/**
+	* Transfer `path`.
+	*
+	* @param {String} path
+	* @api public
+	*/
+	/**
+	* Transfer file for `path`.
+	*
+	* @param {String} path
+	* @api private
+	*/
+	/**
+	* Transfer index for `path`.
+	*
+	* @param {String} path
+	* @api private
+	*/
+	/**
+	* Stream `path` to the response.
+	*
+	* @param {String} path
+	* @param {Object} options
+	* @api private
+	*/
+	/**
+	* Set content-type based on `path`
+	* if it hasn't been explicitly set.
+	*
+	* @param {String} path
+	* @api private
+	*/
+	/**
+	* Set response header fields, most
+	* fields may be pre-defined.
+	*
+	* @param {String} path
+	* @param {Object} stat
+	* @api private
+	*/
+	/**
+	* Clear all headers from a response.
+	*
+	* @param {object} res
+	* @private
+	*/
+	/**
+	* Collapse all leading slashes into a single slash
+	*
+	* @param {string} str
+	* @private
+	*/
+	/**
+	* Determine if path parts contain a dotfile.
+	*
+	* @api private
+	*/
+	/**
+	* Create a Content-Range header.
+	*
+	* @param {string} type
+	* @param {number} size
+	* @param {array} [range]
+	*/
+	/**
+	* Create a minimal HTML document.
+	*
+	* @param {string} title
+	* @param {string} body
+	* @private
+	*/
+	/**
+	* Create a HttpError object from simple arguments.
+	*
+	* @param {number} status
+	* @param {Error|object} err
+	* @private
+	*/
+	/**
+	* decodeURIComponent.
+	*
+	* Allows V8 to only deoptimize this fn instead of all
+	* of send().
+	*
+	* @param {String} path
+	* @api private
+	*/
+	/**
+	* Determine if emitter has listeners of a given type.
+	*
+	* The way to do this check is done three different ways in Node.js >= 0.10
+	* so this consolidates them into a minimal set using instance methods.
+	*
+	* @param {EventEmitter} emitter
+	* @param {string} type
+	* @returns {boolean}
+	* @private
+	*/
+	/**
+	* Normalize the index option into an array.
+	*
+	* @param {boolean|string|array} val
+	* @param {string} name
+	* @private
+	*/
+	/**
+	* Parse an HTTP Date into a number.
+	*
+	* @param {string} date
+	* @private
+	*/
+	/**
+	* Parse a HTTP token list.
+	*
+	* @param {string} str
+	* @private
+	*/
+	/**
+	* Set an object of headers on a response.
+	*
+	* @param {object} res
+	* @param {object} headers
+	* @private
+	*/
 	var createError = require_http_errors();
 	var debug = require_src()("send");
 	var encodeUrl = require_encodeurl();
@@ -27302,55 +27432,18 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var statuses = require_statuses();
 	var Stream = __require("stream");
 	var util = __require("util");
-	/**
-	* Path function references.
-	* @private
-	*/
 	var extname = path.extname;
 	var join = path.join;
 	var normalize = path.normalize;
 	var resolve = path.resolve;
 	var sep = path.sep;
-	/**
-	* Regular expression for identifying a bytes Range header.
-	* @private
-	*/
 	var BYTES_RANGE_REGEXP = /^ *bytes=/;
-	/**
-	* Maximum value allowed for the max age.
-	* @private
-	*/
 	var MAX_MAXAGE = 31536e6;
-	/**
-	* Regular expression to match a path with a directory up component.
-	* @private
-	*/
 	var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
-	/**
-	* Module exports.
-	* @public
-	*/
 	module.exports = send;
-	/**
-	* Return a `SendStream` for `req` and `path`.
-	*
-	* @param {object} req
-	* @param {string} path
-	* @param {object} [options]
-	* @return {SendStream}
-	* @public
-	*/
 	function send(req, path, options) {
 		return new SendStream(req, path, options);
 	}
-	/**
-	* Initialize a `SendStream` with the given `path`.
-	*
-	* @param {Request} req
-	* @param {String} path
-	* @param {object} [options]
-	* @private
-	*/
 	function SendStream(req, path, options) {
 		Stream.call(this);
 		var opts = options || {};
@@ -27371,17 +27464,7 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
 		this._root = opts.root ? resolve(opts.root) : null;
 	}
-	/**
-	* Inherits from `Stream`.
-	*/
 	util.inherits(SendStream, Stream);
-	/**
-	* Emit error with `status`.
-	*
-	* @param {number} status
-	* @param {Error} [err]
-	* @private
-	*/
 	SendStream.prototype.error = function error(status, err) {
 		if (hasListeners(this, "error")) return this.emit("error", createHttpError(status, err));
 		var res = this.res;
@@ -27395,30 +27478,12 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.setHeader("X-Content-Type-Options", "nosniff");
 		res.end(doc);
 	};
-	/**
-	* Check if the pathname ends with "/".
-	*
-	* @return {boolean}
-	* @private
-	*/
 	SendStream.prototype.hasTrailingSlash = function hasTrailingSlash() {
 		return this.path[this.path.length - 1] === "/";
 	};
-	/**
-	* Check if this is a conditional GET request.
-	*
-	* @return {Boolean}
-	* @api private
-	*/
 	SendStream.prototype.isConditionalGET = function isConditionalGET() {
 		return this.req.headers["if-match"] || this.req.headers["if-unmodified-since"] || this.req.headers["if-none-match"] || this.req.headers["if-modified-since"];
 	};
-	/**
-	* Check if the request preconditions failed.
-	*
-	* @return {boolean}
-	* @private
-	*/
 	SendStream.prototype.isPreconditionFailure = function isPreconditionFailure() {
 		var req = this.req;
 		var res = this.res;
@@ -27436,11 +27501,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return false;
 	};
-	/**
-	* Strip various content header fields for a change in entity.
-	*
-	* @private
-	*/
 	SendStream.prototype.removeContentHeaderFields = function removeContentHeaderFields() {
 		var res = this.res;
 		res.removeHeader("Content-Encoding");
@@ -27449,11 +27509,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.removeHeader("Content-Range");
 		res.removeHeader("Content-Type");
 	};
-	/**
-	* Respond with 304 not modified.
-	*
-	* @api private
-	*/
 	SendStream.prototype.notModified = function notModified() {
 		var res = this.res;
 		debug("not modified");
@@ -27461,33 +27516,15 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.statusCode = 304;
 		res.end();
 	};
-	/**
-	* Raise error that headers already sent.
-	*
-	* @api private
-	*/
 	SendStream.prototype.headersAlreadySent = function headersAlreadySent() {
 		var err = /* @__PURE__ */ new Error("Can't set headers after they are sent.");
 		debug("headers already sent");
 		this.error(500, err);
 	};
-	/**
-	* Check if the request is cacheable, aka
-	* responded with 2xx or 304 (see RFC 2616 section 14.2{5,6}).
-	*
-	* @return {Boolean}
-	* @api private
-	*/
 	SendStream.prototype.isCachable = function isCachable() {
 		var statusCode = this.res.statusCode;
 		return statusCode >= 200 && statusCode < 300 || statusCode === 304;
 	};
-	/**
-	* Handle stat() error.
-	*
-	* @param {Error} error
-	* @private
-	*/
 	SendStream.prototype.onStatError = function onStatError(error) {
 		switch (error.code) {
 			case "ENAMETOOLONG":
@@ -27498,24 +27535,12 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			default: this.error(500, error);
 		}
 	};
-	/**
-	* Check if the cache is fresh.
-	*
-	* @return {Boolean}
-	* @api private
-	*/
 	SendStream.prototype.isFresh = function isFresh() {
 		return fresh(this.req.headers, {
 			etag: this.res.getHeader("ETag"),
 			"last-modified": this.res.getHeader("Last-Modified")
 		});
 	};
-	/**
-	* Check if the range is fresh.
-	*
-	* @return {Boolean}
-	* @api private
-	*/
 	SendStream.prototype.isRangeFresh = function isRangeFresh() {
 		var ifRange = this.req.headers["if-range"];
 		if (!ifRange) return true;
@@ -27525,12 +27550,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return parseHttpDate(this.res.getHeader("Last-Modified")) <= parseHttpDate(ifRange);
 	};
-	/**
-	* Redirect to path.
-	*
-	* @param {string} path
-	* @private
-	*/
 	SendStream.prototype.redirect = function redirect(path) {
 		var res = this.res;
 		if (hasListeners(this, "directory")) {
@@ -27551,13 +27570,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		res.setHeader("Location", loc);
 		res.end(doc);
 	};
-	/**
-	* Pipe to `res.
-	*
-	* @param {Stream} res
-	* @return {Stream} res
-	* @api public
-	*/
 	SendStream.prototype.pipe = function pipe(res) {
 		var root = this._root;
 		this.res = res;
@@ -27608,12 +27620,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		this.sendFile(path);
 		return res;
 	};
-	/**
-	* Transfer `path`.
-	*
-	* @param {String} path
-	* @api public
-	*/
 	SendStream.prototype.send = function send(path, stat) {
 		var len = stat.size;
 		var options = this.options;
@@ -27673,12 +27679,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		this.stream(path, opts);
 	};
-	/**
-	* Transfer file for `path`.
-	*
-	* @param {String} path
-	* @api private
-	*/
 	SendStream.prototype.sendFile = function sendFile(path) {
 		var i = 0;
 		var self = this;
@@ -27704,12 +27704,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			});
 		}
 	};
-	/**
-	* Transfer index for `path`.
-	*
-	* @param {String} path
-	* @api private
-	*/
 	SendStream.prototype.sendIndex = function sendIndex(path) {
 		var i = -1;
 		var self = this;
@@ -27729,13 +27723,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		next();
 	};
-	/**
-	* Stream `path` to the response.
-	*
-	* @param {String} path
-	* @param {Object} options
-	* @api private
-	*/
 	SendStream.prototype.stream = function stream(path, options) {
 		var self = this;
 		var res = this.res;
@@ -27754,13 +27741,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			self.emit("end");
 		});
 	};
-	/**
-	* Set content-type based on `path`
-	* if it hasn't been explicitly set.
-	*
-	* @param {String} path
-	* @api private
-	*/
 	SendStream.prototype.type = function type(path) {
 		var res = this.res;
 		if (res.getHeader("Content-Type")) return;
@@ -27769,14 +27749,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		debug("content-type %s", type);
 		res.setHeader("Content-Type", type);
 	};
-	/**
-	* Set response header fields, most
-	* fields may be pre-defined.
-	*
-	* @param {String} path
-	* @param {Object} stat
-	* @api private
-	*/
 	SendStream.prototype.setHeader = function setHeader(path, stat) {
 		var res = this.res;
 		this.emit("headers", res, path, stat);
@@ -27801,30 +27773,13 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			res.setHeader("ETag", val);
 		}
 	};
-	/**
-	* Clear all headers from a response.
-	*
-	* @param {object} res
-	* @private
-	*/
 	function clearHeaders(res) {
 		for (const header of res.getHeaderNames()) res.removeHeader(header);
 	}
-	/**
-	* Collapse all leading slashes into a single slash
-	*
-	* @param {string} str
-	* @private
-	*/
 	function collapseLeadingSlashes(str) {
 		for (var i = 0; i < str.length; i++) if (str[i] !== "/") break;
 		return i > 1 ? "/" + str.substr(i) : str;
 	}
-	/**
-	* Determine if path parts contain a dotfile.
-	*
-	* @api private
-	*/
 	function containsDotFile(parts) {
 		for (var i = 0; i < parts.length; i++) {
 			var part = parts[i];
@@ -27832,46 +27787,16 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return false;
 	}
-	/**
-	* Create a Content-Range header.
-	*
-	* @param {string} type
-	* @param {number} size
-	* @param {array} [range]
-	*/
 	function contentRange(type, size, range) {
 		return type + " " + (range ? range.start + "-" + range.end : "*") + "/" + size;
 	}
-	/**
-	* Create a minimal HTML document.
-	*
-	* @param {string} title
-	* @param {string} body
-	* @private
-	*/
 	function createHtmlDocument(title, body) {
 		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>" + title + "</title>\n</head>\n<body>\n<pre>" + body + "</pre>\n</body>\n</html>\n";
 	}
-	/**
-	* Create a HttpError object from simple arguments.
-	*
-	* @param {number} status
-	* @param {Error|object} err
-	* @private
-	*/
 	function createHttpError(status, err) {
 		if (!err) return createError(status);
 		return err instanceof Error ? createError(status, err, { expose: false }) : createError(status, err);
 	}
-	/**
-	* decodeURIComponent.
-	*
-	* Allows V8 to only deoptimize this fn instead of all
-	* of send().
-	*
-	* @param {String} path
-	* @api private
-	*/
 	function decode(path) {
 		try {
 			return decodeURIComponent(path);
@@ -27879,48 +27804,18 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return -1;
 		}
 	}
-	/**
-	* Determine if emitter has listeners of a given type.
-	*
-	* The way to do this check is done three different ways in Node.js >= 0.10
-	* so this consolidates them into a minimal set using instance methods.
-	*
-	* @param {EventEmitter} emitter
-	* @param {string} type
-	* @returns {boolean}
-	* @private
-	*/
 	function hasListeners(emitter, type) {
 		return (typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type)) > 0;
 	}
-	/**
-	* Normalize the index option into an array.
-	*
-	* @param {boolean|string|array} val
-	* @param {string} name
-	* @private
-	*/
 	function normalizeList(val, name) {
 		var list = [].concat(val || []);
 		for (var i = 0; i < list.length; i++) if (typeof list[i] !== "string") throw new TypeError(name + " must be array of strings or false");
 		return list;
 	}
-	/**
-	* Parse an HTTP Date into a number.
-	*
-	* @param {string} date
-	* @private
-	*/
 	function parseHttpDate(date) {
 		var timestamp = date && Date.parse(date);
 		return typeof timestamp === "number" ? timestamp : NaN;
 	}
-	/**
-	* Parse a HTTP token list.
-	*
-	* @param {string} str
-	* @private
-	*/
 	function parseTokenList(str) {
 		var end = 0;
 		var list = [];
@@ -27938,13 +27833,6 @@ var require_send = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (start !== end) list.push(str.substring(start, end));
 		return list;
 	}
-	/**
-	* Set an object of headers on a response.
-	*
-	* @param {object} res
-	* @param {object} headers
-	* @private
-	*/
 	function setHeaders(res, headers) {
 		var keys = Object.keys(headers);
 		for (var i = 0; i < keys.length; i++) {
@@ -27964,8 +27852,6 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* Module exports.
 	*/
-	module.exports = vary;
-	module.exports.append = append;
 	/**
 	* RegExp to match field-name in RFC 7230 sec 3.2
 	*
@@ -27976,7 +27862,6 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	*               / DIGIT / ALPHA
 	*               ; any VCHAR, except delimiters
 	*/
-	var FIELD_NAME_REGEXP = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 	/**
 	* Append a field to a vary header.
 	*
@@ -27985,6 +27870,23 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {String}
 	* @public
 	*/
+	/**
+	* Parse a vary header into an array.
+	*
+	* @param {String} header
+	* @return {Array}
+	* @private
+	*/
+	/**
+	* Mark that a request is varied on a header field.
+	*
+	* @param {Object} res
+	* @param {String|Array} field
+	* @public
+	*/
+	module.exports = vary;
+	module.exports.append = append;
+	var FIELD_NAME_REGEXP = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 	function append(header, field) {
 		if (typeof header !== "string") throw new TypeError("header argument is required");
 		if (!field) throw new TypeError("field argument is required");
@@ -28003,13 +27905,6 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return val;
 	}
-	/**
-	* Parse a vary header into an array.
-	*
-	* @param {String} header
-	* @return {Array}
-	* @private
-	*/
 	function parse(header) {
 		var end = 0;
 		var list = [];
@@ -28027,13 +27922,6 @@ var require_vary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		list.push(header.substring(start, end));
 		return list;
 	}
-	/**
-	* Mark that a request is varied on a header field.
-	*
-	* @param {Object} res
-	* @param {String|Array} field
-	* @public
-	*/
 	function vary(res, field) {
 		if (!res || !res.getHeader || !res.setHeader) throw new TypeError("res argument is required");
 		var val = res.getHeader("Vary") || "";
@@ -28800,23 +28688,42 @@ var require_serve_static = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Module dependencies.
 	* @private
 	*/
-	var encodeUrl = require_encodeurl();
-	var escapeHtml = require_escape_html();
-	var parseUrl = require_parseurl();
-	var resolve = __require("path").resolve;
-	var send = require_send();
-	var url = __require("url");
 	/**
 	* Module exports.
 	* @public
 	*/
-	module.exports = serveStatic;
 	/**
 	* @param {string} root
 	* @param {object} [options]
 	* @return {function}
 	* @public
 	*/
+	/**
+	* Collapse all leading slashes into a single slash
+	* @private
+	*/
+	/**
+	* Create a minimal HTML document.
+	*
+	* @param {string} title
+	* @param {string} body
+	* @private
+	*/
+	/**
+	* Create a directory listener that just 404s.
+	* @private
+	*/
+	/**
+	* Create a directory listener that performs a redirect.
+	* @private
+	*/
+	var encodeUrl = require_encodeurl();
+	var escapeHtml = require_escape_html();
+	var parseUrl = require_parseurl();
+	var resolve = __require("path").resolve;
+	var send = require_send();
+	var url = __require("url");
+	module.exports = serveStatic;
 	function serveStatic(root, options) {
 		if (!root) throw new TypeError("root path required");
 		if (typeof root !== "string") throw new TypeError("root path must be a string");
@@ -28857,37 +28764,18 @@ var require_serve_static = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			stream.pipe(res);
 		};
 	}
-	/**
-	* Collapse all leading slashes into a single slash
-	* @private
-	*/
 	function collapseLeadingSlashes(str) {
 		for (var i = 0; i < str.length; i++) if (str.charCodeAt(i) !== 47) break;
 		return i > 1 ? "/" + str.substr(i) : str;
 	}
-	/**
-	* Create a minimal HTML document.
-	*
-	* @param {string} title
-	* @param {string} body
-	* @private
-	*/
 	function createHtmlDocument(title, body) {
 		return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>" + title + "</title>\n</head>\n<body>\n<pre>" + body + "</pre>\n</body>\n</html>\n";
 	}
-	/**
-	* Create a directory listener that just 404s.
-	* @private
-	*/
 	function createNotFoundDirectoryListener() {
 		return function notFound() {
 			this.error(404);
 		};
 	}
-	/**
-	* Create a directory listener that performs a redirect.
-	* @private
-	*/
 	function createRedirectDirectoryListener() {
 		return function redirect(res) {
 			if (this.hasTrailingSlash()) {
@@ -41048,6 +40936,13921 @@ function seedMaintenance() {
 	console.log(`[DB] Seeded ${initialLogs.length} maintenance logs into database.`);
 }
 //#endregion
+//#region node_modules/nodemailer/dist/esm/punycode/index.js
+/** Highest positive signed 32-bit float value */
+const maxInt = 2147483647;
+/** Bootstring parameters */
+const base = 36;
+const tMin = 1;
+const tMax = 26;
+const skew = 38;
+const damp = 700;
+const initialBias = 72;
+const initialN = 128;
+const delimiter = "-";
+/** Regular expressions */
+const regexPunycode = /^xn--/;
+const regexNonASCII = /[^\0-\x7F]/;
+const regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g;
+/** Error messages */
+const errors = {
+	overflow: "Overflow: input needs wider integers to process",
+	"not-basic": "Illegal input >= 0x80 (not a basic code point)",
+	"invalid-input": "Invalid input"
+};
+/** Convenience shortcuts */
+const baseMinusTMin = 35;
+const floor = Math.floor;
+const stringFromCharCode = String.fromCharCode;
+/**
+* A generic error utility function.
+* @private
+* @param type The error type.
+* @returns Throws a `RangeError` with the applicable error message.
+*/
+function error(type) {
+	throw new RangeError(errors[type]);
+}
+/**
+* A generic `Array#map` utility function.
+* @private
+* @param array The array to iterate over.
+* @param callback The function that gets called for every array
+* item.
+* @returns A new array of values returned by the callback function.
+*/
+function map(array, callback) {
+	const result = [];
+	let length = array.length;
+	while (length--) result[length] = callback(array[length]);
+	return result;
+}
+/**
+* A simple `Array#map`-like wrapper to work with domain name strings or email
+* addresses.
+* @private
+* @param domain The domain name or email address.
+* @param callback The function that gets called for every
+* character.
+* @returns A new string of characters returned by the callback
+* function.
+*/
+function mapDomain(domain, callback) {
+	const parts = domain.split("@");
+	let result = "";
+	if (parts.length > 1) {
+		result = parts[0] + "@";
+		domain = parts[1];
+	}
+	domain = domain.replace(regexSeparators, ".");
+	const encoded = map(domain.split("."), callback).join(".");
+	return result + encoded;
+}
+/**
+* Creates an array containing the numeric code points of each Unicode
+* character in the string. While JavaScript uses UCS-2 internally,
+* this function will convert a pair of surrogate halves (each of which
+* UCS-2 exposes as separate characters) into a single code point,
+* matching UTF-16.
+* @see `punycode.ucs2.encode`
+* @see <https://mathiasbynens.be/notes/javascript-encoding>
+* @memberOf punycode.ucs2
+* @name decode
+* @param string The Unicode input string (UCS-2).
+* @returns The new array of code points.
+*/
+function ucs2decode(string) {
+	const output = [];
+	let counter = 0;
+	const length = string.length;
+	while (counter < length) {
+		const value = string.charCodeAt(counter++);
+		if (value >= 55296 && value <= 56319 && counter < length) {
+			const extra = string.charCodeAt(counter++);
+			if ((extra & 64512) == 56320) output.push(((value & 1023) << 10) + (extra & 1023) + 65536);
+			else {
+				output.push(value);
+				counter--;
+			}
+		} else output.push(value);
+	}
+	return output;
+}
+/**
+* Converts a basic code point into a digit/integer.
+* @see `digitToBasic()`
+* @private
+* @param codePoint The basic numeric code point value.
+* @returns The numeric value of a basic code point (for use in
+* representing integers) in the range `0` to `base - 1`, or `base` if
+* the code point does not represent a value.
+*/
+const basicToDigit = function(codePoint) {
+	if (codePoint >= 48 && codePoint < 58) return 26 + (codePoint - 48);
+	if (codePoint >= 65 && codePoint < 91) return codePoint - 65;
+	if (codePoint >= 97 && codePoint < 123) return codePoint - 97;
+	return base;
+};
+/**
+* Converts a digit/integer into a basic code point.
+* @see `basicToDigit()`
+* @private
+* @param digit The numeric value of a basic code point.
+* @param flag Non-zero to use the uppercase form of the code point.
+* @returns The basic code point whose value (when used for
+* representing integers) is `digit`, which needs to be in the range
+* `0` to `base - 1`. If `flag` is non-zero, the uppercase form is
+* used; else, the lowercase form is used. The behavior is undefined
+* if `flag` is non-zero and `digit` has no uppercase form.
+*/
+const digitToBasic = function(digit, flag) {
+	return digit + 22 + 75 * Number(digit < 26) - (Number(flag != 0) << 5);
+};
+/**
+* Bias adaptation function as per section 3.4 of RFC 3492.
+* https://tools.ietf.org/html/rfc3492#section-3.4
+* @private
+*/
+const adapt = function(delta, numPoints, firstTime) {
+	let k = 0;
+	delta = firstTime ? floor(delta / damp) : delta >> 1;
+	delta += floor(delta / numPoints);
+	for (; delta > 455; k += base) delta = floor(delta / baseMinusTMin);
+	return floor(k + 36 * delta / (delta + skew));
+};
+/**
+* Converts a Punycode string of ASCII-only symbols to a string of Unicode
+* symbols.
+* @memberOf punycode
+* @param input The Punycode string of ASCII-only symbols.
+* @returns The resulting string of Unicode symbols.
+*/
+const decode = function(input) {
+	const output = [];
+	const inputLength = input.length;
+	let i = 0;
+	let n = initialN;
+	let bias = initialBias;
+	let basic = input.lastIndexOf(delimiter);
+	if (basic < 0) basic = 0;
+	for (let j = 0; j < basic; ++j) {
+		if (input.charCodeAt(j) >= 128) error("not-basic");
+		output.push(input.charCodeAt(j));
+	}
+	for (let index = basic > 0 ? basic + 1 : 0; index < inputLength;) {
+		const oldi = i;
+		for (let w = 1, k = base;; k += base) {
+			if (index >= inputLength) error("invalid-input");
+			const digit = basicToDigit(input.charCodeAt(index++));
+			if (digit >= base) error("invalid-input");
+			if (digit > floor((maxInt - i) / w)) error("overflow");
+			i += digit * w;
+			const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
+			if (digit < t) break;
+			const baseMinusT = base - t;
+			if (w > floor(maxInt / baseMinusT)) error("overflow");
+			w *= baseMinusT;
+		}
+		const out = output.length + 1;
+		bias = adapt(i - oldi, out, oldi == 0);
+		if (floor(i / out) > maxInt - n) error("overflow");
+		n += floor(i / out);
+		i %= out;
+		output.splice(i++, 0, n);
+	}
+	return String.fromCodePoint(...output);
+};
+/**
+* Converts a string of Unicode symbols (e.g. a domain name label) to a
+* Punycode string of ASCII-only symbols.
+* @memberOf punycode
+* @param input The string of Unicode symbols.
+* @returns The resulting Punycode string of ASCII-only symbols.
+*/
+const encode$2 = function(input) {
+	const output = [];
+	const codePoints = ucs2decode(input);
+	const inputLength = codePoints.length;
+	let n = initialN;
+	let delta = 0;
+	let bias = initialBias;
+	for (const currentValue of codePoints) if (currentValue < 128) output.push(stringFromCharCode(currentValue));
+	const basicLength = output.length;
+	let handledCPCount = basicLength;
+	if (basicLength) output.push(delimiter);
+	while (handledCPCount < inputLength) {
+		let m = maxInt;
+		for (const currentValue of codePoints) if (currentValue >= n && currentValue < m) m = currentValue;
+		const handledCPCountPlusOne = handledCPCount + 1;
+		if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) error("overflow");
+		delta += (m - n) * handledCPCountPlusOne;
+		n = m;
+		for (const currentValue of codePoints) {
+			if (currentValue < n && ++delta > maxInt) error("overflow");
+			if (currentValue === n) {
+				let q = delta;
+				for (let k = base;; k += base) {
+					const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
+					if (q < t) break;
+					const qMinusT = q - t;
+					const baseMinusT = base - t;
+					output.push(stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0)));
+					q = floor(qMinusT / baseMinusT);
+				}
+				output.push(stringFromCharCode(digitToBasic(q, 0)));
+				bias = adapt(delta, handledCPCountPlusOne, handledCPCount === basicLength);
+				delta = 0;
+				++handledCPCount;
+			}
+		}
+		++delta;
+		++n;
+	}
+	return output.join("");
+};
+/**
+* Converts a Punycode string representing a domain name or an email address
+* to Unicode. Only the Punycoded parts of the input will be converted, i.e.
+* it doesn't matter if you call it on a string that has already been
+* converted to Unicode.
+* @memberOf punycode
+* @param input The Punycoded domain name or email address to
+* convert to Unicode.
+* @returns The Unicode representation of the given Punycode
+* string.
+*/
+const toUnicode = function(input) {
+	return mapDomain(input, function(string) {
+		return regexPunycode.test(string) ? decode(string.slice(4).toLowerCase()) : string;
+	});
+};
+/**
+* Converts a Unicode string representing a domain name or an email address to
+* Punycode. Only the non-ASCII parts of the domain name will be converted,
+* i.e. it doesn't matter if you call it with a domain that's already in
+* ASCII.
+* @memberOf punycode
+* @param input The domain name or email address to convert, as a
+* Unicode string.
+* @returns The Punycode representation of the given domain name or
+* email address.
+*/
+const toASCII = function(input) {
+	return mapDomain(input, function(string) {
+		return regexNonASCII.test(string) ? "xn--" + encode$2(string) : string;
+	});
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/shared/url.js
+const SLASHLESS_AUTHORITY = /^([a-zA-Z][a-zA-Z0-9+.-]*:)(?!\/\/)([\s\S]+)$/;
+/**
+* Drops the leading and trailing C0 controls and spaces, which the WHATWG parser strips
+* before it looks at the input. Stripped up front so that the slash-less form is recognized
+* in a value read from a file with a trailing newline as well. An index scan, the regex
+* /^[\x00-\x20]+|[\x00-\x20]+$/g retried a run of spaces inside the value from every
+* position in it
+*
+* @param input URL string
+* @returns The string without the surrounding controls and spaces
+*/
+function stripSurroundingWhitespace(input) {
+	let start = 0;
+	let end = input.length;
+	while (start < end && input.charCodeAt(start) <= 32) start++;
+	while (end > start && input.charCodeAt(end - 1) <= 32) end--;
+	return input.slice(start, end);
+}
+const LEGACY_TRIM = /^[\x00-\x20\u00a0\ufeff]+/;
+const AUTHORITY = /^([a-zA-Z0-9+.-]+:)?[\\/]{2}([^\\/?#]*)/;
+const FORBIDDEN_HOST_CHARS = /[\x00-\x20#/:<>?@[\\\]^|\x7f]/;
+const CONTROL_CHARS = /[\x00-\x1f\x7f]/;
+function invalidUrl(input) {
+	const err = /* @__PURE__ */ new TypeError("Invalid URL");
+	err.code = "ERR_INVALID_URL";
+	err.input = input;
+	return err;
+}
+function legacyParse(input, parseQueryString, whatwgError, slashesDenoteHost) {
+	const parsed = urllib.parse(input, parseQueryString, slashesDenoteHost);
+	const authority = AUTHORITY.exec(input.replace(LEGACY_TRIM, ""));
+	if (authority && (authority[1] || parsed.hostname !== null)) {
+		const written = authority[2].slice(authority[2].lastIndexOf("@") + 1);
+		if (!written || CONTROL_CHARS.test(written) || (parsed.host || "").toLowerCase() !== toASCII(written.toLowerCase())) throw whatwgError;
+		if (written.charAt(0) === "[" && !net.isIPv6(written.slice(1, written.indexOf("]")))) throw whatwgError;
+	} else if (parsed.hostname !== null) throw whatwgError;
+	const legacyAuth = parsed.auth === null || parsed.auth === void 0 ? null : parsed.auth.split(":");
+	const result = parsed;
+	result.username = legacyAuth ? legacyAuth.shift() : null;
+	result.password = legacyAuth && legacyAuth.length ? legacyAuth.join(":") : null;
+	return result;
+}
+function safeDecode(str) {
+	try {
+		return decodeURIComponent(str);
+	} catch (_err) {
+		return str;
+	}
+}
+function normalizeHostname(raw, href) {
+	const hostname = raw || "";
+	if (!hostname) return "";
+	if (hostname.charAt(0) === "[" && hostname.charAt(hostname.length - 1) === "]") return hostname.slice(1, -1);
+	const decoded = safeDecode(hostname);
+	const mapped = FORBIDDEN_HOST_CHARS.test(decoded) ? "" : urllib.domainToASCII(decoded);
+	if (!mapped) throw invalidUrl(href);
+	return mapped;
+}
+const parse = (input, parseQueryString) => {
+	input = stripSurroundingWhitespace(input || "");
+	const slashless = SLASHLESS_AUTHORITY.exec(input);
+	const normalized = slashless ? slashless[1] + "//" + slashless[2] : input;
+	let u;
+	try {
+		u = new URL(normalized);
+	} catch (err) {
+		return legacyParse(normalized, parseQueryString, err);
+	}
+	const hostname = normalizeHostname(u.hostname, u.href);
+	const port = u.port || null;
+	const pathname = u.pathname || null;
+	const search = u.search || null;
+	let auth = null;
+	let username = null;
+	let password = null;
+	if (u.username || u.password) {
+		username = safeDecode(u.username);
+		password = u.password ? safeDecode(u.password) : null;
+		auth = username + (password !== null ? ":" + password : "");
+	}
+	let query;
+	if (parseQueryString) {
+		const parsed = Object.create(null);
+		u.searchParams.forEach((value, key) => {
+			if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+				const existing = parsed[key];
+				if (Array.isArray(existing)) existing.push(value);
+				else parsed[key] = [existing, value];
+			} else parsed[key] = value;
+		});
+		query = parsed;
+	} else query = search ? search.slice(1) : null;
+	return {
+		protocol: u.protocol || null,
+		host: u.host || null,
+		hostname,
+		port,
+		pathname,
+		search,
+		path: (pathname || "") + (search || "") || null,
+		href: u.href,
+		auth,
+		username,
+		password,
+		query
+	};
+};
+const resolve$1 = (from, to) => {
+	try {
+		return new URL(to, from).href;
+	} catch (err) {
+		legacyParse(from, false, err, true);
+		legacyParse(to, false, err, true);
+		return urllib.resolve(from, to);
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/fetch/cookies.js
+const SESSION_TIMEOUT = 1800;
+/**
+* Creates a biskviit cookie jar for managing cookie values in memory
+*
+* @constructor
+* @param [options] Optional options object
+*/
+var Cookies = class {
+	constructor(options) {
+		this.options = options || {};
+		this.cookies = [];
+	}
+	/**
+	* Stores a cookie string to the cookie storage
+	*
+	* @param cookieStr Value from the 'Set-Cookie:' header
+	* @param url Current URL
+	*/
+	set(cookieStr, url) {
+		const urlparts = parse(url || "");
+		const cookie = this.parse(cookieStr);
+		let domain;
+		if (cookie.domain) {
+			domain = cookie.domain.replace(/^\./, "");
+			if (urlparts.hostname.length < domain.length || domain.indexOf(".") < 0 || domain.endsWith(".") || net.isIP(urlparts.hostname) || !("." + urlparts.hostname).endsWith("." + domain)) cookie.domain = urlparts.hostname;
+		} else cookie.domain = urlparts.hostname;
+		if (!cookie.path) cookie.path = this.getPath(urlparts.pathname);
+		if (!cookie.expires) cookie.expires = new Date(Date.now() + (Number(this.options.sessionTimeout || SESSION_TIMEOUT) || SESSION_TIMEOUT) * 1e3);
+		if (urlparts.protocol !== "https:" && (cookie.secure || this.cookies.some((stored) => stored.secure && this.compare(stored, cookie)))) return false;
+		return this.add(cookie);
+	}
+	/**
+	* Returns cookie string for the 'Cookie:' header.
+	*
+	* @param url URL to check for
+	* @returns Cookie header or empty string if no matches were found
+	*/
+	get(url) {
+		return this.list(url).map((cookie) => cookie.name + "=" + cookie.value).join("; ");
+	}
+	/**
+	* Lists all valied cookie objects for the specified URL
+	*
+	* @param url URL to check for
+	* @returns An array of cookie objects
+	*/
+	list(url) {
+		const result = [];
+		for (let i = this.cookies.length - 1; i >= 0; i--) {
+			const cookie = this.cookies[i];
+			if (this.isExpired(cookie)) {
+				this.cookies.splice(i, 1);
+				continue;
+			}
+			if (this.match(cookie, url)) result.unshift(cookie);
+		}
+		return result;
+	}
+	/**
+	* Parses cookie string from the 'Set-Cookie:' header
+	*
+	* @param cookieStr String from the 'Set-Cookie:' header
+	* @returns Cookie object
+	*/
+	parse(cookieStr) {
+		const cookie = {};
+		let hasNameValue = false;
+		let hasMaxAge = false;
+		(cookieStr || "").toString().split(";").forEach((cookiePart) => {
+			if (!cookiePart.trim()) return;
+			const valueParts = cookiePart.split("=");
+			const name = valueParts.shift().trim();
+			let value = valueParts.join("=").trim();
+			let domain;
+			if (!hasNameValue) {
+				hasNameValue = true;
+				if (name) {
+					cookie.name = name;
+					cookie.value = value;
+				}
+				return;
+			}
+			switch (name.toLowerCase()) {
+				case "expires": {
+					const expires = new Date(value);
+					if (expires.toString() !== "Invalid Date" && !hasMaxAge) cookie.expires = expires;
+					break;
+				}
+				case "path":
+					cookie.path = value;
+					break;
+				case "domain":
+					domain = value.toLowerCase();
+					if (domain.length && domain.charAt(0) !== ".") domain = "." + domain;
+					cookie.domain = domain;
+					break;
+				case "max-age":
+					cookie.expires = new Date(Date.now() + (Number(value) || 0) * 1e3);
+					hasMaxAge = true;
+					break;
+				case "secure":
+					cookie.secure = true;
+					break;
+				case "httponly": cookie.httponly = true;
+			}
+		});
+		return cookie;
+	}
+	/**
+	* Checks if a cookie object is valid for a specified URL
+	*
+	* @param cookie Cookie object
+	* @param url URL to check for
+	* @returns true if cookie is valid for specifiec URL
+	*/
+	match(cookie, url) {
+		const urlparts = parse(url || "");
+		if (urlparts.hostname !== cookie.domain && (cookie.domain.charAt(0) !== "." || ("." + urlparts.hostname).substr(-cookie.domain.length) !== cookie.domain)) return false;
+		const pathname = urlparts.pathname || "/";
+		const cookiePath = cookie.path;
+		if (!(pathname === cookiePath || pathname.startsWith(cookiePath) && (cookiePath.endsWith("/") || pathname.charAt(cookiePath.length) === "/"))) return false;
+		if (cookie.secure && urlparts.protocol !== "https:") return false;
+		return true;
+	}
+	/**
+	* Adds (or updates/removes if needed) a cookie object to the cookie storage
+	*
+	* @param cookie Cookie value to be stored
+	*/
+	add(cookie) {
+		if (!cookie || !cookie.name) return false;
+		for (let i = 0, len = this.cookies.length; i < len; i++) if (this.compare(this.cookies[i], cookie)) {
+			if (this.isExpired(cookie)) {
+				this.cookies.splice(i, 1);
+				return false;
+			}
+			this.cookies[i] = cookie;
+			return true;
+		}
+		if (!this.isExpired(cookie)) this.cookies.push(cookie);
+		return true;
+	}
+	/**
+	* Checks if two cookie objects are the same cookie. A cookie is identified by its
+	* name, domain and path (RFC 6265 section 5.3), the Secure and HttpOnly flags are
+	* attributes of the stored cookie that an update replaces
+	*
+	* @param a Cookie to check against
+	* @param b Cookie to check against
+	* @returns True, if the cookies are the same
+	*/
+	compare(a, b) {
+		return a.name === b.name && a.path === b.path && a.domain === b.domain;
+	}
+	/**
+	* Checks if a cookie is expired
+	*
+	* @param cookie Cookie object to check against
+	* @returns True, if the cookie is expired
+	*/
+	isExpired(cookie) {
+		return cookie.expires && cookie.expires < /* @__PURE__ */ new Date() || !cookie.value;
+	}
+	/**
+	* Returns the default path for an URL path argument, the default-path of
+	* RFC 6265 section 5.1.4. A cookie that carries no Path attribute is scoped
+	* to the directory of the URL it was set from
+	*
+	* @param pathname
+	* @returns Default path
+	*/
+	getPath(pathname) {
+		const pathParts = (pathname || "/").split("/");
+		pathParts.pop();
+		const path = pathParts.join("/").trim();
+		if (path.charAt(0) !== "/") return "/";
+		return path;
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/package-info.js
+const name = "nodemailer";
+const version = "10.6.1";
+const homepage = "https://nodemailer.com/";
+//#endregion
+//#region node_modules/nodemailer/dist/esm/errors.js
+const ECONNECTION = "ECONNECTION";
+const ETIMEDOUT = "ETIMEDOUT";
+const EOTP = "EOTP";
+const ESTREAM = "ESTREAM";
+const EABORT = "EABORT";
+const ENOAUTH = "ENOAUTH";
+const EOAUTH2 = "EOAUTH2";
+const EMAXLIMIT = "EMAXLIMIT";
+const EMAXRECIPIENTS = "EMAXRECIPIENTS";
+const ESENDMAIL = "ESENDMAIL";
+const ESES = "ESES";
+const ECONFIG = "ECONFIG";
+const EPROXY = "EPROXY";
+const EFILEACCESS = "EFILEACCESS";
+const EURLACCESS = "EURLACCESS";
+const EFETCH = "EFETCH";
+/** Creates the error reported when a caller cancels an individual send. @internal */
+const createAbortError = (signal) => {
+	const err = new Error("Message sending aborted", { cause: signal.reason });
+	err.name = "AbortError";
+	err.code = EABORT;
+	return err;
+};
+/**
+* Tells whether the error ended the connection rather than rejected what was sent over it
+*/
+const isTransientError = (err) => err.responseCode === 421 || err.code === "ECONNECTION" || err.code === "ESOCKET" || err.code === "ETIMEDOUT";
+/**
+* Tells whether an SMTP reply code is a permanent rejection, one that retrying the same
+* message would get again. RFC 5321 makes every 5yz reply a permanent negative completion
+* and every 4yz reply a transient one. 503 (bad sequence of commands) is the exception: it
+* says the session was in the wrong state for the command rather than that the message was
+* refused, so the same message can go through on a new connection. 2yz and 3yz replies are
+* only an error when the client expected something else, and are not permanent either.
+*
+* @param responseCode SMTP reply code
+* @returns true for a permanent rejection
+*/
+const isPermanentResponseCode = (responseCode) => responseCode >= 500 && responseCode < 600 && responseCode !== 503;
+//#endregion
+//#region node_modules/nodemailer/dist/esm/shared/objects.js
+/**
+* Detects a key that can not be copied onto a plain object with `target[key] = value`.
+*
+* "__proto__" is the only one: assigning it runs the inherited setter and replaces the
+* prototype of the target instead of adding a property to it, so a caller can smuggle
+* values past validation that only inspects own keys. JSON.parse produces such a key
+* where an object literal can not. "constructor" and "prototype" have no such setter and
+* become ordinary own properties, so dropping them would only discard legitimate values.
+*
+* @param key Key to check
+* @returns true if the key must not be copied
+*/
+const isProtoKey = (key) => key === "__proto__";
+/**
+* Copies own enumerable keys from a source object to a target object. Every copy that
+* walks the keys of user supplied data goes through here, see isProtoKey.
+*
+* @param target Object to copy the keys to
+* @param source Object to copy the keys from
+* @param [skip] Optional predicate, return true to leave a key out
+* @returns The target object
+*/
+const copyOwnKeys = (target, source, skip) => {
+	Object.keys(source || {}).forEach((key) => {
+		if (isProtoKey(key) || skip && skip(key)) return;
+		target[key] = source[key];
+	});
+	return target;
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/fetch/index.js
+const MAX_REDIRECTS = 5;
+const DEFAULT_TIMEOUT = 6e4;
+const DEFAULT_MAX_TIME = 12e4;
+const DEFAULT_MAX_BYTES = 67108864;
+const TLS_OPTION_KEYS = [
+	"ALPNProtocols",
+	"ca",
+	"cert",
+	"checkServerIdentity",
+	"ciphers",
+	"crl",
+	"dhparam",
+	"ecdhCurve",
+	"honorCipherOrder",
+	"key",
+	"maxVersion",
+	"minVersion",
+	"passphrase",
+	"pfx",
+	"rejectUnauthorized",
+	"secureContext",
+	"secureOptions",
+	"secureProtocol",
+	"servername",
+	"sessionIdContext",
+	"sigalgs"
+];
+/**
+* Marks an error of the request as a fetch error, unless it is a permission model
+* denial, which keeps its own code (see ERR_ACCESS_DENIED)
+*
+* @param err Error to mark
+*/
+function setFetchCode(err) {
+	if (err.code !== "ERR_ACCESS_DENIED") err.code = EFETCH;
+}
+/**
+* Resolves a URL only if it is one this module is willing to request.
+*
+* urllib.parse throws for a host that contains forbidden bytes, and it is called for
+* every URL that reaches nmfetch, including ones that arrive from a message attachment
+* or from a redirect Location header. An uncaught throw here takes the process down,
+* so a URL that does not parse is reported the same way as one with a scheme we refuse.
+*
+* @param url URL to parse
+* @returns Parsed URL, or false if it is not a usable http(s) URL
+*/
+function parseFetchUrl(url) {
+	let parsed;
+	try {
+		parsed = parse(url);
+	} catch (_err) {
+		return false;
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+	return parsed;
+}
+function fetchPort(parsed) {
+	return parsed.port ? Number(parsed.port) : parsed.protocol === "https:" ? 443 : 80;
+}
+function nmfetch(url, options) {
+	options = options || {};
+	options.fetchRes = options.fetchRes || new PassThrough();
+	options.cookies = options.cookies || new Cookies();
+	options.redirects = options.redirects || 0;
+	options.maxRedirects = isNaN(options.maxRedirects) ? MAX_REDIRECTS : options.maxRedirects;
+	if (!options.deadline) {
+		options.maxTime = typeof options.maxTime === "number" && options.maxTime >= 0 ? options.maxTime : DEFAULT_MAX_TIME;
+		options.deadline = options.maxTime ? Date.now() + options.maxTime : 0;
+	}
+	const fetchRes = options.fetchRes;
+	const parsed = parseFetchUrl(url);
+	if (!parsed) {
+		if (options.body && typeof options.body.destroy === "function") {
+			options.body.on("error", () => false);
+			options.body.destroy();
+		}
+		setImmediate(() => {
+			const err = /* @__PURE__ */ new Error("Unsupported protocol for URL " + url);
+			err.code = EFETCH;
+			err.sourceUrl = url;
+			fetchRes.emit("error", err);
+		});
+		return fetchRes;
+	}
+	if (options.cookie) {
+		[].concat(options.cookie || []).forEach((cookie) => {
+			options.cookies.set(cookie, url);
+		});
+		options.cookie = false;
+	}
+	let method = (options.method || "").toString().trim().toUpperCase() || "GET";
+	let finished = false;
+	let cookies;
+	let body;
+	const handler = parsed.protocol === "https:" ? https : http;
+	const headers = {
+		"accept-encoding": "gzip,deflate",
+		"user-agent": "nodemailer/10.6.1"
+	};
+	Object.keys(options.headers || {}).forEach((key) => {
+		if (isProtoKey(key.toLowerCase().trim())) return;
+		headers[key.toLowerCase().trim()] = options.headers[key];
+	});
+	if (options.userAgent) headers["user-agent"] = options.userAgent;
+	if (parsed.auth) headers.Authorization = "Basic " + Buffer.from(parsed.auth).toString("base64");
+	if (cookies = options.cookies.get(url)) headers.cookie = cookies;
+	if (options.body) {
+		if (options.contentType !== false) headers["Content-Type"] = options.contentType || "application/x-www-form-urlencoded";
+		if (typeof options.body.pipe === "function") {
+			headers["Transfer-Encoding"] = "chunked";
+			body = options.body;
+			body.on("error", (err) => {
+				if (finished) return;
+				finished = true;
+				setFetchCode(err);
+				err.sourceUrl = url;
+				fetchRes.emit("error", err);
+			});
+		} else {
+			if (options.body instanceof Buffer) body = options.body;
+			else if (typeof options.body === "object") try {
+				body = Buffer.from(Object.keys(options.body).map((key) => {
+					const value = options.body[key].toString().trim();
+					return encodeURIComponent(key) + "=" + encodeURIComponent(value);
+				}).join("&"));
+			} catch (E) {
+				finished = true;
+				E.code = EFETCH;
+				E.sourceUrl = url;
+				setImmediate(() => fetchRes.emit("error", E));
+				return fetchRes;
+			}
+			else body = Buffer.from(options.body.toString().trim());
+			headers["Content-Type"] = options.contentType || "application/x-www-form-urlencoded";
+			headers["Content-Length"] = body.length;
+		}
+		method = (options.method || "").toString().trim().toUpperCase() || "POST";
+	}
+	let req;
+	const reqOptions = {
+		method,
+		host: parsed.hostname,
+		path: parsed.path,
+		port: fetchPort(parsed),
+		headers,
+		rejectUnauthorized: true,
+		agent: false
+	};
+	if (options.tls) Object.keys(options.tls).forEach((key) => {
+		if (TLS_OPTION_KEYS.includes(key)) reqOptions[key] = options.tls[key];
+	});
+	if (parsed.protocol === "https:" && parsed.hostname && parsed.hostname !== reqOptions.host && !net.isIP(parsed.hostname) && !reqOptions.servername) reqOptions.servername = parsed.hostname;
+	try {
+		req = handler.request(reqOptions);
+	} catch (E) {
+		finished = true;
+		setImmediate(() => {
+			setFetchCode(E);
+			E.sourceUrl = url;
+			fetchRes.emit("error", E);
+		});
+		return fetchRes;
+	}
+	let deadlineTimer;
+	const clearDeadline = () => {
+		if (deadlineTimer) {
+			clearTimeout(deadlineTimer);
+			deadlineTimer = void 0;
+		}
+	};
+	const fail = (err, sourceUrl = url) => {
+		if (finished) return;
+		finished = true;
+		clearDeadline();
+		setFetchCode(err);
+		err.sourceUrl = sourceUrl;
+		fetchRes.emit("error", err);
+		req.abort();
+	};
+	const timeout = typeof options.timeout === "number" && options.timeout >= 0 ? options.timeout : DEFAULT_TIMEOUT;
+	if (timeout) req.setTimeout(timeout, () => fail(/* @__PURE__ */ new Error("Request Timeout")));
+	if (options.deadline) {
+		deadlineTimer = setTimeout(() => fail(/* @__PURE__ */ new Error("Request exceeded the allowed " + options.maxTime + " ms")), Math.max(options.deadline - Date.now(), 1));
+		deadlineTimer.unref();
+	}
+	req.on("error", (err) => fail(err));
+	fetchRes.once("close", () => {
+		clearDeadline();
+		if (finished || fetchRes.readableEnded) return;
+		finished = true;
+		req.destroy();
+	});
+	req.on("response", (res) => {
+		let inflate;
+		if (finished) return;
+		switch (res.headers["content-encoding"]) {
+			case "gzip":
+			case "deflate": inflate = zlib.createUnzip();
+		}
+		if (res.headers["set-cookie"]) [].concat(res.headers["set-cookie"] || []).forEach((cookie) => {
+			options.cookies.set(cookie, url);
+		});
+		if ([
+			301,
+			302,
+			303,
+			307,
+			308
+		].includes(res.statusCode) && res.headers.location) {
+			options.redirects++;
+			if (options.redirects > options.maxRedirects) return fail(/* @__PURE__ */ new Error("Maximum redirect count exceeded"));
+			options.method = "GET";
+			options.body = false;
+			let redirectUrl;
+			try {
+				redirectUrl = resolve$1(url, res.headers.location);
+			} catch (_err) {
+				redirectUrl = res.headers.location;
+			}
+			const redirectParsed = parseFetchUrl(redirectUrl);
+			if (!redirectParsed) return fail(/* @__PURE__ */ new Error("Unsupported protocol for URL " + redirectUrl), redirectUrl);
+			const crossOrigin = redirectParsed.protocol !== parsed.protocol || redirectParsed.hostname !== parsed.hostname || fetchPort(redirectParsed) !== fetchPort(parsed);
+			if (options.headers && crossOrigin) {
+				const sensitive = [
+					"authorization",
+					"cookie",
+					"proxy-authorization"
+				];
+				Object.keys(options.headers).forEach((key) => {
+					if (sensitive.includes(key.toLowerCase().trim())) delete options.headers[key];
+				});
+			}
+			finished = true;
+			clearDeadline();
+			res.resume();
+			req.abort();
+			return nmfetch(redirectUrl, options);
+		}
+		fetchRes.statusCode = res.statusCode;
+		fetchRes.headers = res.headers;
+		if (res.statusCode >= 300 && !options.allowErrorResponse) return fail(/* @__PURE__ */ new Error("Invalid status code " + res.statusCode));
+		res.on("error", (err) => fail(err));
+		res.once("end", () => clearDeadline());
+		const maxBytes = typeof options.maxBytes === "number" && options.maxBytes > 0 ? options.maxBytes : DEFAULT_MAX_BYTES;
+		const source = inflate || res;
+		let received = 0;
+		source.on("data", (chunk) => {
+			received += chunk.length;
+			if (received <= maxBytes || finished) return;
+			source.unpipe(fetchRes);
+			fail(/* @__PURE__ */ new Error("Response size exceeds the allowed " + maxBytes + " bytes"));
+		});
+		if (inflate) {
+			res.pipe(inflate).pipe(fetchRes);
+			inflate.on("error", (err) => fail(err));
+		} else res.pipe(fetchRes);
+	});
+	setImmediate(() => {
+		if (body) try {
+			if (typeof body.pipe === "function") return body.pipe(req);
+			req.write(body);
+		} catch (err) {
+			return fail(err);
+		}
+		req.end();
+	});
+	return fetchRes;
+}
+nmfetch.Cookies = Cookies;
+nmfetch.DEFAULT_TIMEOUT = DEFAULT_TIMEOUT;
+nmfetch.DEFAULT_MAX_TIME = DEFAULT_MAX_TIME;
+//#endregion
+//#region node_modules/nodemailer/dist/esm/shared/index.js
+const DNS_TTL = 3e5;
+const CACHE_CLEANUP_INTERVAL = 3e4;
+const MAX_CACHE_SIZE = 1e3;
+let lastCacheCleanup = 0;
+let networkInterfaces;
+let networkInterfacesRead = false;
+/** @internal */
+const _readNetworkInterfaces = () => {
+	if (!networkInterfacesRead) {
+		networkInterfacesRead = true;
+		try {
+			networkInterfaces = os.networkInterfaces();
+		} catch (_err) {}
+	}
+	return networkInterfaces;
+};
+const isFamilySupported = (family, allowInternal) => {
+	const addresses = Object.values(_readNetworkInterfaces() || {}).flat();
+	if (!addresses.length) return true;
+	return addresses.filter((i) => !i.internal || allowInternal).some((i) => i.family === "IPv" + family || i.family === family);
+};
+const resolve = (family, hostname, options, callback) => {
+	options = options || {};
+	if (!isFamilySupported(family, options.allowInternalNetworkInterfaces)) {
+		callback(null, []);
+		return null;
+	}
+	const dnsResolver = dns.Resolver ? new dns.Resolver(options) : dns;
+	dnsResolver["resolve" + family](hostname, (err, addresses) => {
+		if (err) {
+			switch (err.code) {
+				case dns.NODATA:
+				case dns.NOTFOUND:
+				case dns.NOTIMP:
+				case dns.SERVFAIL:
+				case dns.CONNREFUSED:
+				case dns.REFUSED:
+				case "EAI_AGAIN": return callback(null, []);
+			}
+			return callback(err);
+		}
+		return callback(null, Array.isArray(addresses) ? addresses : [].concat(addresses || []));
+	});
+	return dns.Resolver ? dnsResolver : null;
+};
+const dnsCache = /* @__PURE__ */ new Map();
+const formatDNSValue = (value, extra) => {
+	if (!value) return Object.assign({}, extra || {});
+	const addresses = value.addresses || [];
+	const host = addresses.length > 0 ? addresses[Math.floor(Math.random() * addresses.length)] : null;
+	return Object.assign({
+		host,
+		_addresses: addresses
+	}, extra || {});
+};
+const resolveHostname = (options, callback) => {
+	options = options || {};
+	if (!options.host && options.servername) options.host = options.servername;
+	if (!options.host || net.isIP(options.host)) {
+		const value = { addresses: [options.host] };
+		return callback(null, formatDNSValue(value, {
+			servername: options.servername || false,
+			cached: false
+		}));
+	}
+	const host = options.host;
+	const servername = options.servername || host;
+	let cached;
+	if (dnsCache.has(options.host)) {
+		cached = dnsCache.get(options.host);
+		const now = Date.now();
+		if (now - lastCacheCleanup > CACHE_CLEANUP_INTERVAL) {
+			lastCacheCleanup = now;
+			for (const [host, entry] of dnsCache.entries()) if (entry.expires && entry.expires < now) dnsCache.delete(host);
+			if (dnsCache.size > MAX_CACHE_SIZE) {
+				const toDelete = Math.floor(MAX_CACHE_SIZE * .1);
+				Array.from(dnsCache.keys()).slice(0, toDelete).forEach((key) => dnsCache.delete(key));
+			}
+		}
+		if (!cached.expires || cached.expires >= now) return callback(null, formatDNSValue(cached.value, {
+			servername,
+			cached: true
+		}));
+	}
+	let responded = false;
+	let deadline;
+	const respond = (err, result) => {
+		if (responded) return;
+		responded = true;
+		clearTimeout(deadline);
+		callback(err, result);
+	};
+	const respondCached = (error) => {
+		if (!cached) return false;
+		dnsCache.set(host, {
+			value: cached.value,
+			expires: Date.now() + (options.dnsTtl || DNS_TTL)
+		});
+		respond(null, formatDNSValue(cached.value, {
+			servername,
+			cached: true,
+			error
+		}));
+		return true;
+	};
+	const resolvers = [];
+	const timeout = Number(options.timeout) || 0;
+	if (timeout > 0) deadline = setTimeout(() => {
+		for (const resolver of resolvers) if (typeof resolver.cancel === "function") resolver.cancel();
+		const err = /* @__PURE__ */ new Error("DNS lookup for " + host + " timed out");
+		err.code = dns.TIMEOUT;
+		if (!respondCached(err)) respond(err);
+	}, timeout);
+	let ipv4Addresses = [];
+	let ipv6Addresses = [];
+	let ipv4Error = null;
+	let ipv6Error = null;
+	let pending = 2;
+	const onResolved = () => {
+		if (--pending || responded) return;
+		const allAddresses = ipv4Addresses.concat(ipv6Addresses);
+		if (allAddresses.length) {
+			const value = { addresses: allAddresses };
+			dnsCache.set(host, {
+				value,
+				expires: Date.now() + (options.dnsTtl || DNS_TTL)
+			});
+			return respond(null, formatDNSValue(value, {
+				servername,
+				cached: false
+			}));
+		}
+		if (ipv4Error && ipv6Error && respondCached(ipv4Error)) return;
+		try {
+			dns.lookup(host, { all: true }, (err, addresses) => {
+				if (err) {
+					if (respondCached(err)) return;
+					return respond(err);
+				}
+				const supportedAddresses = addresses ? addresses.filter((addr) => isFamilySupported(addr.family)).map((addr) => addr.address) : [];
+				if (addresses && addresses.length && !supportedAddresses.length) console.warn(`Failed to resolve IPv${addresses[0].family} addresses with current network`);
+				if (!supportedAddresses.length && cached) return respond(null, formatDNSValue(cached.value, {
+					servername,
+					cached: true
+				}));
+				const value = { addresses: supportedAddresses.length ? supportedAddresses : [host] };
+				dnsCache.set(host, {
+					value,
+					expires: Date.now() + (options.dnsTtl || DNS_TTL)
+				});
+				return respond(null, formatDNSValue(value, {
+					servername,
+					cached: false
+				}));
+			});
+		} catch (lookupErr) {
+			if (respondCached(lookupErr)) return;
+			return respond(ipv4Error || ipv6Error || lookupErr);
+		}
+	};
+	for (const family of [4, 6]) {
+		const resolver = resolve(family, host, options, (err, addresses) => {
+			if (family === 4) {
+				ipv4Error = err;
+				ipv4Addresses = addresses || [];
+			} else {
+				ipv6Error = err;
+				ipv6Addresses = addresses || [];
+			}
+			onResolved();
+		});
+		if (resolver) resolvers.push(resolver);
+	}
+};
+/**
+* Parses connection url to a structured configuration object
+*
+* @param str Connection url
+* @return Configuration object
+*/
+const parseConnectionUrl = (str) => {
+	str = str || "";
+	const options = {};
+	const url = parse(str, true);
+	switch (url.protocol) {
+		case "smtp:":
+			options.secure = false;
+			break;
+		case "smtps:":
+			options.secure = true;
+			break;
+		case "direct:": options.direct = true;
+	}
+	if (!isNaN(url.port) && Number(url.port)) options.port = Number(url.port);
+	if (url.hostname) options.host = url.hostname;
+	if (url.username || url.password) options.auth = {
+		user: url.username || "",
+		pass: url.password || ""
+	};
+	Object.keys(url.query || {}).forEach((key) => {
+		let obj = options;
+		let lKey = key;
+		let value = url.query[key];
+		if (!isNaN(value)) value = Number(value);
+		switch (value) {
+			case "true":
+				value = true;
+				break;
+			case "false": value = false;
+		}
+		if (key.indexOf("tls.") === 0) {
+			lKey = key.substr(4);
+			if (!options.tls) options.tls = {};
+			obj = options.tls;
+		} else if (key.indexOf(".") >= 0) return;
+		if (!isProtoKey(lKey) && !(lKey in obj)) obj[lKey] = value;
+	});
+	return options;
+};
+/** @internal */
+const _logFunc = (logger, level, defaults, data, message, ...args) => {
+	const entry = Object.assign({}, defaults || {}, data || {});
+	delete entry.level;
+	let logLevel = level;
+	if (typeof logger[logLevel] !== "function") logLevel = [
+		"info",
+		"debug",
+		"log",
+		"trace",
+		"warn",
+		"error"
+	].find((name) => typeof logger[name] === "function");
+	if (logLevel) logger[logLevel](entry, message, ...args);
+};
+/**
+* Returns a bunyan-compatible logger interface. Uses either provided logger or
+* creates a default console logger
+*
+* @param [options] Options object that might include 'logger' value
+* @param [defaults] Fields merged into every log entry, overridden by the fields of the entry itself
+* @return bunyan compatible logger
+*/
+const getLogger = (options, defaults) => {
+	options = options || {};
+	const response = {};
+	const levels = [
+		"trace",
+		"debug",
+		"info",
+		"warn",
+		"error",
+		"fatal"
+	];
+	if (!options.logger) {
+		levels.forEach((level) => {
+			response[level] = () => false;
+		});
+		return response;
+	}
+	const logger = options.logger === true ? createDefaultLogger(levels) : options.logger;
+	levels.forEach((level) => {
+		response[level] = (...args) => {
+			const data = typeof args[0] === "string" ? void 0 : args.shift();
+			_logFunc(logger, level, defaults, data, ...args);
+		};
+	});
+	return response;
+};
+/**
+* Wrapper for creating a callback that either resolves or rejects a promise
+* based on input
+*
+* @param resolve Function to run if callback is called
+* @param reject Function to run if callback ends with an error
+*/
+const callbackPromise = (resolve, reject) => function(...args) {
+	const err = args.shift();
+	if (err) reject(err);
+	else resolve(...args);
+};
+const parseDataURI = (uri) => {
+	if (typeof uri !== "string") return null;
+	if (!uri.startsWith("data:")) return null;
+	const commaPos = uri.indexOf(",");
+	if (commaPos === -1) return null;
+	const data = uri.substring(commaPos + 1);
+	const metaStr = uri.substring(5, commaPos);
+	let encoding;
+	const metaEntries = metaStr.split(";");
+	if (metaEntries.length > 0) {
+		const lastEntry = metaEntries[metaEntries.length - 1].toLowerCase().trim();
+		if ([
+			"base64",
+			"utf8",
+			"utf-8"
+		].includes(lastEntry) && lastEntry.indexOf("=") === -1) {
+			encoding = lastEntry;
+			metaEntries.pop();
+		}
+	}
+	const contentType = metaEntries.length > 0 ? metaEntries.shift() : "application/octet-stream";
+	const params = {};
+	for (let i = 0; i < metaEntries.length; i++) {
+		const entry = metaEntries[i];
+		const sepPos = entry.indexOf("=");
+		if (sepPos > 0) {
+			const key = entry.substring(0, sepPos).trim();
+			const value = entry.substring(sepPos + 1).trim();
+			if (key && !isProtoKey(key)) params[key] = value;
+		}
+	}
+	let bufferData;
+	try {
+		if (encoding === "base64") bufferData = Buffer.from(data, "base64");
+		else try {
+			bufferData = Buffer.from(decodeURIComponent(data));
+		} catch (_decodeError) {
+			bufferData = Buffer.from(data);
+		}
+	} catch (_bufferError) {
+		bufferData = Buffer.alloc(0);
+	}
+	return {
+		data: bufferData,
+		encoding: encoding || null,
+		contentType: contentType || "application/octet-stream",
+		params
+	};
+};
+function resolveContent(data, key, options, callback) {
+	if (!callback && typeof options === "function") {
+		callback = options;
+		options = false;
+	}
+	options = options || {};
+	let promise;
+	if (!callback) promise = new Promise((resolve, reject) => {
+		callback = callbackPromise(resolve, reject);
+	});
+	resolveContentValue(data, key, options, callback);
+	return promise;
+}
+function resolveContentValue(data, key, options, callback) {
+	let content = data && data[key] && data[key].content || data[key];
+	const encoding = (typeof data[key] === "object" && data[key].encoding || "utf8").toString().toLowerCase().replace(/[-_\s]/g, "");
+	if (!content) return callback(null, content);
+	if (typeof content === "object") {
+		if (typeof content.pipe === "function") return resolveStream(content, (err, value) => {
+			if (err) return callback(err);
+			if (data[key].content) data[key].content = value;
+			else data[key] = value;
+			callback(null, value);
+		});
+		else if (/^data:/i.test(content.path || content.href)) {
+			const parsedDataUri = parseDataURI(content.path || content.href);
+			return callback(null, parsedDataUri && parsedDataUri.data ? parsedDataUri.data : Buffer.alloc(0));
+		} else if (content.href || /^https?:\/\//i.test(content.path)) {
+			const url = content.href || content.path;
+			if (options.disableUrlAccess) {
+				setImmediate(() => {
+					const err = /* @__PURE__ */ new Error("Url access rejected for " + url);
+					err.code = EURLACCESS;
+					callback(err);
+				});
+				return;
+			}
+			return resolveStream(nmfetch(url, {
+				headers: content.httpHeaders,
+				tls: content.tls
+			}), callback);
+		} else if (content.path) {
+			if (options.disableFileAccess) {
+				setImmediate(() => {
+					const err = /* @__PURE__ */ new Error("File access rejected for " + content.path);
+					err.code = EFILEACCESS;
+					callback(err);
+				});
+				return;
+			}
+			return resolveStream(fs.createReadStream(content.path), callback);
+		}
+	}
+	if (typeof data[key].content === "string" && ![
+		"utf8",
+		"usascii",
+		"ascii"
+	].includes(encoding)) content = Buffer.from(data[key].content, encoding);
+	setImmediate(() => callback(null, content));
+}
+/**
+* Copies properties from source objects to target objects
+*/
+const assign = function(...args) {
+	const target = args.shift() || {};
+	args.forEach((source) => {
+		Object.keys(source || {}).forEach((key) => {
+			if (isProtoKey(key)) return;
+			if (["tls", "auth"].includes(key) && source[key] && typeof source[key] === "object") target[key] = copyOwnKeys(target[key] || {}, source[key]);
+			else target[key] = source[key];
+		});
+	});
+	return target;
+};
+const encodeXText = (str) => {
+	if (!/[^\x21-\x2A\x2C-\x3C\x3E-\x7E]/.test(str)) return str;
+	const buf = Buffer.from(str);
+	let result = "";
+	for (let i = 0, len = buf.length; i < len; i++) {
+		const c = buf[i];
+		if (c < 33 || c > 126 || c === 43 || c === 61) result += "+" + (c < 16 ? "0" : "") + c.toString(16).toUpperCase();
+		else result += String.fromCharCode(c);
+	}
+	return result;
+};
+const streamErrors = /* @__PURE__ */ new WeakMap();
+/**
+* Keeps the first error a content stream emits before it is read, so the error is reported
+* when the stream is read instead of being thrown as unhandled. The listener stays attached
+* for good, a stream that emits 'error' more than once never throws the later ones either
+*
+* @param stream Readable stream
+*/
+function recordStreamErrors(stream) {
+	stream.on("error", (err) => {
+		if (!streamErrors.has(stream)) streamErrors.set(stream, err);
+	});
+}
+/**
+* Destroys a value if it is a readable stream that was not destroyed yet
+*
+* @param value Any content value
+*/
+function destroyStream(value) {
+	const stream = value;
+	if (stream && typeof stream.pipe === "function" && typeof stream.destroy === "function" && !stream.destroyed) stream.destroy();
+}
+/**
+* Tells why a stream can not be read from start to end anymore. A stream that ended or was
+* destroyed before anyone read it would never emit 'end' to a new reader, or, when piped, would
+* end the destination right away and turn into an empty value without any error
+*
+* @param stream Readable stream
+* @returns The error the stream failed with, an ESTREAM error, or null when it can be read
+*/
+function unreadableStreamError(stream) {
+	const err = streamErrors.get(stream) || stream.errored;
+	if (err) return err;
+	if (stream.readableEnded || stream.destroyed) {
+		const unreadable = /* @__PURE__ */ new Error("Content stream was already read or destroyed");
+		unreadable.code = ESTREAM;
+		return unreadable;
+	}
+	return null;
+}
+/**
+* Streams a stream value into a Buffer
+*
+* @param stream Readable stream
+* @param callback Callback function with (err, value)
+*/
+function resolveStream(stream, callback) {
+	let responded = false;
+	const respond = (err, value) => {
+		if (responded) return;
+		responded = true;
+		callback(err, value);
+	};
+	const unreadable = unreadableStreamError(stream);
+	if (unreadable) {
+		stream.on("error", () => false);
+		setImmediate(() => respond(unreadable));
+		return;
+	}
+	const chunks = [];
+	let chunklen = 0;
+	stream.on("data", (chunk) => {
+		if (typeof chunk === "string") chunk = Buffer.from(chunk);
+		chunks.push(chunk);
+		chunklen += chunk.length;
+	});
+	finished(stream, { writable: false }, (err) => {
+		if (err) return respond(err);
+		let value;
+		try {
+			value = Buffer.concat(chunks, chunklen);
+		} catch (E) {
+			return respond(E);
+		}
+		respond(null, value);
+	});
+}
+/**
+* Generates a bunyan-like logger that prints to console
+*
+* @returns Bunyan logger instance
+*/
+function createDefaultLogger(levels) {
+	const levelMaxLen = levels.reduce((max, level) => Math.max(max, level.length), 0);
+	const levelNames = /* @__PURE__ */ new Map();
+	levels.forEach((level) => {
+		let levelName = level.toUpperCase();
+		if (levelName.length < levelMaxLen) levelName += " ".repeat(levelMaxLen - levelName.length);
+		levelNames.set(level, levelName);
+	});
+	const print = (level, entry, message, ...args) => {
+		let prefix = "";
+		if (entry) {
+			if (entry.tnx === "server") prefix = "S: ";
+			else if (entry.tnx === "client") prefix = "C: ";
+			if (entry.sid) prefix = "[" + entry.sid + "] " + prefix;
+			if (entry.cid) prefix = "[#" + entry.cid + "] " + prefix;
+		}
+		message = util.format(message, ...args);
+		message.split(/\r?\n/).forEach((line) => {
+			console.log("[%s] %s %s", (/* @__PURE__ */ new Date()).toISOString().substr(0, 19).replace(/T/, " "), levelNames.get(level), prefix + line);
+		});
+	};
+	const logger = {};
+	levels.forEach((level) => {
+		logger[level] = print.bind(null, level);
+	});
+	return logger;
+}
+const URL_PARSER_UNSAFE = /[/\\?#%\x00-\x20\x7F]/;
+const MAX_DOMAIN_LENGTH = 253;
+const MAX_LABEL_LENGTH = 63;
+/**
+* Checks a domain against the DNS length limits, counted in code points per label and in
+* total. The label separators are the ones the bundled codec splits on.
+*
+* @param domain Domain to check
+* @return true if a label or the domain as a whole is too long to be a valid domain
+*/
+function exceedsDomainLimits(domain) {
+	let total = 0;
+	let label = 0;
+	for (const char of domain) {
+		total++;
+		if (char === "." || char === "。" || char === "．" || char === "｡") label = 0;
+		else if (++label > MAX_LABEL_LENGTH) return true;
+	}
+	return total > MAX_DOMAIN_LENGTH;
+}
+/**
+* Encodes a domain the way browsers, the WHATWG URL Standard and DNS facing resolvers do,
+* which is with UTS-46 mapping applied before the Punycode step.
+*
+* The bundled codec is plain RFC 3492 and maps nothing, so it disagrees with every
+* conformant parser on any domain holding a mapped or ignored code point. An invisible
+* U+00AD in 'compa\u00ADny.com' encoded to 'xn--company-pka.com' where a validator reads
+* 'company.com', which let an allow-listed domain be checked and a different one mailed.
+*
+* Anything the URL parser does not accept as a hostname, an address literal such as
+* '[127.0.0.1]' included, comes back empty and falls through to the bundled codec, which
+* leaves those as they were supplied apart from lowercasing them.
+*
+* The mapper gets the domain as supplied, since UTS-46 does its own case mapping and
+* toLowerCase() differs from it: it turns U+1E9E into U+00DF where Node 20 and 22 map it
+* to 'ss', and a word-final U+03A3 into U+03C2 where UTS-46 gives U+03C3. Lowercasing
+* first sent 'user@stra\u1E9Ee.de', which a validator reads as strasse.de, to xn--strae-oqa.de.
+*
+* @param domain Domain to encode
+* @param toUnicode Return the U-label form instead of the A-label form
+* @return Encoded domain
+*/
+function normalizeDomain(domain, toUnicode$1) {
+	if (typeof urllib.domainToASCII === "function" && typeof urllib.domainToUnicode === "function" && !URL_PARSER_UNSAFE.test(domain)) {
+		const ascii = urllib.domainToASCII(domain);
+		const mapped = ascii && toUnicode$1 ? urllib.domainToUnicode(ascii) : ascii;
+		if (mapped) return mapped;
+	}
+	domain = domain.toLowerCase();
+	if (exceedsDomainLimits(domain)) return domain;
+	return toUnicode$1 ? toUnicode(domain) : toASCII(domain);
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mime-funcs/mime-types.js
+const defaultMimeType = "application/octet-stream";
+const defaultExtension = "bin";
+const mimeTypes = /* @__PURE__ */ new Map([
+	["application/acad", "dwg"],
+	["application/applixware", "aw"],
+	["application/arj", "arj"],
+	["application/atom+xml", "xml"],
+	["application/atomcat+xml", "atomcat"],
+	["application/atomsvc+xml", "atomsvc"],
+	["application/base64", ["mm", "mme"]],
+	["application/binhex", "hqx"],
+	["application/binhex4", "hqx"],
+	["application/book", ["book", "boo"]],
+	["application/ccxml+xml,", "ccxml"],
+	["application/cdf", "cdf"],
+	["application/cdmi-capability", "cdmia"],
+	["application/cdmi-container", "cdmic"],
+	["application/cdmi-domain", "cdmid"],
+	["application/cdmi-object", "cdmio"],
+	["application/cdmi-queue", "cdmiq"],
+	["application/clariscad", "ccad"],
+	["application/commonground", "dp"],
+	["application/cu-seeme", "cu"],
+	["application/davmount+xml", "davmount"],
+	["application/drafting", "drw"],
+	["application/dsptype", "tsp"],
+	["application/dssc+der", "dssc"],
+	["application/dssc+xml", "xdssc"],
+	["application/dxf", "dxf"],
+	["application/ecmascript", ["js", "es"]],
+	["application/emma+xml", "emma"],
+	["application/envoy", "evy"],
+	["application/epub+zip", "epub"],
+	["application/excel", [
+		"xls",
+		"xl",
+		"xla",
+		"xlb",
+		"xlc",
+		"xld",
+		"xlk",
+		"xll",
+		"xlm",
+		"xlt",
+		"xlv",
+		"xlw"
+	]],
+	["application/exi", "exi"],
+	["application/font-tdpfr", "pfr"],
+	["application/fractals", "fif"],
+	["application/freeloader", "frl"],
+	["application/futuresplash", "spl"],
+	["application/geo+json", "geojson"],
+	["application/gnutar", "tgz"],
+	["application/groupwise", "vew"],
+	["application/hlp", "hlp"],
+	["application/hta", "hta"],
+	["application/hyperstudio", "stk"],
+	["application/i-deas", "unv"],
+	["application/iges", ["iges", "igs"]],
+	["application/inf", "inf"],
+	["application/internet-property-stream", "acx"],
+	["application/ipfix", "ipfix"],
+	["application/java", "class"],
+	["application/java-archive", "jar"],
+	["application/java-byte-code", "class"],
+	["application/java-serialized-object", "ser"],
+	["application/java-vm", "class"],
+	["application/javascript", "js"],
+	["application/json", "json"],
+	["application/lha", "lha"],
+	["application/lzx", "lzx"],
+	["application/mac-binary", "bin"],
+	["application/mac-binhex", "hqx"],
+	["application/mac-binhex40", "hqx"],
+	["application/mac-compactpro", "cpt"],
+	["application/macbinary", "bin"],
+	["application/mads+xml", "mads"],
+	["application/marc", "mrc"],
+	["application/marcxml+xml", "mrcx"],
+	["application/mathematica", "ma"],
+	["application/mathml+xml", "mathml"],
+	["application/mbedlet", "mbd"],
+	["application/mbox", "mbox"],
+	["application/mcad", "mcd"],
+	["application/mediaservercontrol+xml", "mscml"],
+	["application/metalink4+xml", "meta4"],
+	["application/mets+xml", "mets"],
+	["application/mime", "aps"],
+	["application/mods+xml", "mods"],
+	["application/mp21", "m21"],
+	["application/mp4", "mp4"],
+	["application/mspowerpoint", [
+		"ppt",
+		"pot",
+		"pps",
+		"ppz"
+	]],
+	["application/msword", [
+		"doc",
+		"dot",
+		"w6w",
+		"wiz",
+		"word"
+	]],
+	["application/mswrite", "wri"],
+	["application/mxf", "mxf"],
+	["application/netmc", "mcp"],
+	["application/octet-stream", ["*"]],
+	["application/oda", "oda"],
+	["application/oebps-package+xml", "opf"],
+	["application/ogg", "ogx"],
+	["application/olescript", "axs"],
+	["application/onenote", "onetoc"],
+	["application/patch-ops-error+xml", "xer"],
+	["application/pdf", "pdf"],
+	["application/pgp-encrypted", "asc"],
+	["application/pgp-signature", "pgp"],
+	["application/pics-rules", "prf"],
+	["application/pkcs-12", "p12"],
+	["application/pkcs-crl", "crl"],
+	["application/pkcs10", "p10"],
+	["application/pkcs7-mime", ["p7c", "p7m"]],
+	["application/pkcs7-signature", "p7s"],
+	["application/pkcs8", "p8"],
+	["application/pkix-attr-cert", "ac"],
+	["application/pkix-cert", ["cer", "crt"]],
+	["application/pkix-crl", "crl"],
+	["application/pkix-pkipath", "pkipath"],
+	["application/pkixcmp", "pki"],
+	["application/plain", "text"],
+	["application/pls+xml", "pls"],
+	["application/postscript", [
+		"ps",
+		"ai",
+		"eps"
+	]],
+	["application/powerpoint", "ppt"],
+	["application/pro_eng", ["part", "prt"]],
+	["application/prs.cww", "cww"],
+	["application/pskc+xml", "pskcxml"],
+	["application/rdf+xml", "rdf"],
+	["application/reginfo+xml", "rif"],
+	["application/relax-ng-compact-syntax", "rnc"],
+	["application/resource-lists+xml", "rl"],
+	["application/resource-lists-diff+xml", "rld"],
+	["application/ringing-tones", "rng"],
+	["application/rls-services+xml", "rs"],
+	["application/rsd+xml", "rsd"],
+	["application/rss+xml", "xml"],
+	["application/rtf", ["rtf", "rtx"]],
+	["application/sbml+xml", "sbml"],
+	["application/scvp-cv-request", "scq"],
+	["application/scvp-cv-response", "scs"],
+	["application/scvp-vp-request", "spq"],
+	["application/scvp-vp-response", "spp"],
+	["application/sdp", "sdp"],
+	["application/sea", "sea"],
+	["application/set", "set"],
+	["application/set-payment-initiation", "setpay"],
+	["application/set-registration-initiation", "setreg"],
+	["application/shf+xml", "shf"],
+	["application/sla", "stl"],
+	["application/smil", ["smi", "smil"]],
+	["application/smil+xml", "smi"],
+	["application/solids", "sol"],
+	["application/sounder", "sdr"],
+	["application/sparql-query", "rq"],
+	["application/sparql-results+xml", "srx"],
+	["application/srgs", "gram"],
+	["application/srgs+xml", "grxml"],
+	["application/sru+xml", "sru"],
+	["application/ssml+xml", "ssml"],
+	["application/step", ["step", "stp"]],
+	["application/streamingmedia", "ssm"],
+	["application/tei+xml", "tei"],
+	["application/thraud+xml", "tfi"],
+	["application/timestamped-data", "tsd"],
+	["application/toolbook", "tbk"],
+	["application/vda", "vda"],
+	["application/vnd.3gpp.pic-bw-large", "plb"],
+	["application/vnd.3gpp.pic-bw-small", "psb"],
+	["application/vnd.3gpp.pic-bw-var", "pvb"],
+	["application/vnd.3gpp2.tcap", "tcap"],
+	["application/vnd.3m.post-it-notes", "pwn"],
+	["application/vnd.accpac.simply.aso", "aso"],
+	["application/vnd.accpac.simply.imp", "imp"],
+	["application/vnd.acucobol", "acu"],
+	["application/vnd.acucorp", "atc"],
+	["application/vnd.adobe.air-application-installer-package+zip", "air"],
+	["application/vnd.adobe.fxp", "fxp"],
+	["application/vnd.adobe.xdp+xml", "xdp"],
+	["application/vnd.adobe.xfdf", "xfdf"],
+	["application/vnd.ahead.space", "ahead"],
+	["application/vnd.airzip.filesecure.azf", "azf"],
+	["application/vnd.airzip.filesecure.azs", "azs"],
+	["application/vnd.amazon.ebook", "azw"],
+	["application/vnd.americandynamics.acc", "acc"],
+	["application/vnd.amiga.ami", "ami"],
+	["application/vnd.android.package-archive", "apk"],
+	["application/vnd.anser-web-certificate-issue-initiation", "cii"],
+	["application/vnd.anser-web-funds-transfer-initiation", "fti"],
+	["application/vnd.antix.game-component", "atx"],
+	["application/vnd.apple.installer+xml", "mpkg"],
+	["application/vnd.apple.mpegurl", "m3u8"],
+	["application/vnd.aristanetworks.swi", "swi"],
+	["application/vnd.audiograph", "aep"],
+	["application/vnd.blueice.multipass", "mpm"],
+	["application/vnd.bmi", "bmi"],
+	["application/vnd.businessobjects", "rep"],
+	["application/vnd.chemdraw+xml", "cdxml"],
+	["application/vnd.chipnuts.karaoke-mmd", "mmd"],
+	["application/vnd.cinderella", "cdy"],
+	["application/vnd.claymore", "cla"],
+	["application/vnd.cloanto.rp9", "rp9"],
+	["application/vnd.clonk.c4group", "c4g"],
+	["application/vnd.cluetrust.cartomobile-config", "c11amc"],
+	["application/vnd.cluetrust.cartomobile-config-pkg", "c11amz"],
+	["application/vnd.commonspace", "csp"],
+	["application/vnd.contact.cmsg", "cdbcmsg"],
+	["application/vnd.cosmocaller", "cmc"],
+	["application/vnd.crick.clicker", "clkx"],
+	["application/vnd.crick.clicker.keyboard", "clkk"],
+	["application/vnd.crick.clicker.palette", "clkp"],
+	["application/vnd.crick.clicker.template", "clkt"],
+	["application/vnd.crick.clicker.wordbank", "clkw"],
+	["application/vnd.criticaltools.wbs+xml", "wbs"],
+	["application/vnd.ctc-posml", "pml"],
+	["application/vnd.cups-ppd", "ppd"],
+	["application/vnd.curl.car", "car"],
+	["application/vnd.curl.pcurl", "pcurl"],
+	["application/vnd.data-vision.rdz", "rdz"],
+	["application/vnd.denovo.fcselayout-link", "fe_launch"],
+	["application/vnd.dna", "dna"],
+	["application/vnd.dolby.mlp", "mlp"],
+	["application/vnd.dpgraph", "dpg"],
+	["application/vnd.dreamfactory", "dfac"],
+	["application/vnd.dvb.ait", "ait"],
+	["application/vnd.dvb.service", "svc"],
+	["application/vnd.dynageo", "geo"],
+	["application/vnd.ecowin.chart", "mag"],
+	["application/vnd.enliven", "nml"],
+	["application/vnd.epson.esf", "esf"],
+	["application/vnd.epson.msf", "msf"],
+	["application/vnd.epson.quickanime", "qam"],
+	["application/vnd.epson.salt", "slt"],
+	["application/vnd.epson.ssf", "ssf"],
+	["application/vnd.eszigno3+xml", "es3"],
+	["application/vnd.ezpix-album", "ez2"],
+	["application/vnd.ezpix-package", "ez3"],
+	["application/vnd.fdf", "fdf"],
+	["application/vnd.fdsn.seed", "seed"],
+	["application/vnd.flographit", "gph"],
+	["application/vnd.fluxtime.clip", "ftc"],
+	["application/vnd.framemaker", "fm"],
+	["application/vnd.frogans.fnc", "fnc"],
+	["application/vnd.frogans.ltf", "ltf"],
+	["application/vnd.fsc.weblaunch", "fsc"],
+	["application/vnd.fujitsu.oasys", "oas"],
+	["application/vnd.fujitsu.oasys2", "oa2"],
+	["application/vnd.fujitsu.oasys3", "oa3"],
+	["application/vnd.fujitsu.oasysgp", "fg5"],
+	["application/vnd.fujitsu.oasysprs", "bh2"],
+	["application/vnd.fujixerox.ddd", "ddd"],
+	["application/vnd.fujixerox.docuworks", "xdw"],
+	["application/vnd.fujixerox.docuworks.binder", "xbd"],
+	["application/vnd.fuzzysheet", "fzs"],
+	["application/vnd.genomatix.tuxedo", "txd"],
+	["application/vnd.geogebra.file", "ggb"],
+	["application/vnd.geogebra.tool", "ggt"],
+	["application/vnd.geometry-explorer", "gex"],
+	["application/vnd.geonext", "gxt"],
+	["application/vnd.geoplan", "g2w"],
+	["application/vnd.geospace", "g3w"],
+	["application/vnd.gmx", "gmx"],
+	["application/vnd.google-earth.kml+xml", "kml"],
+	["application/vnd.google-earth.kmz", "kmz"],
+	["application/vnd.grafeq", "gqf"],
+	["application/vnd.groove-account", "gac"],
+	["application/vnd.groove-help", "ghf"],
+	["application/vnd.groove-identity-message", "gim"],
+	["application/vnd.groove-injector", "grv"],
+	["application/vnd.groove-tool-message", "gtm"],
+	["application/vnd.groove-tool-template", "tpl"],
+	["application/vnd.groove-vcard", "vcg"],
+	["application/vnd.hal+xml", "hal"],
+	["application/vnd.handheld-entertainment+xml", "zmm"],
+	["application/vnd.hbci", "hbci"],
+	["application/vnd.hhe.lesson-player", "les"],
+	["application/vnd.hp-hpgl", [
+		"hgl",
+		"hpg",
+		"hpgl"
+	]],
+	["application/vnd.hp-hpid", "hpid"],
+	["application/vnd.hp-hps", "hps"],
+	["application/vnd.hp-jlyt", "jlt"],
+	["application/vnd.hp-pcl", "pcl"],
+	["application/vnd.hp-pclxl", "pclxl"],
+	["application/vnd.hydrostatix.sof-data", "sfd-hdstx"],
+	["application/vnd.hzn-3d-crossword", "x3d"],
+	["application/vnd.ibm.minipay", "mpy"],
+	["application/vnd.ibm.modcap", "afp"],
+	["application/vnd.ibm.rights-management", "irm"],
+	["application/vnd.ibm.secure-container", "sc"],
+	["application/vnd.iccprofile", "icc"],
+	["application/vnd.igloader", "igl"],
+	["application/vnd.immervision-ivp", "ivp"],
+	["application/vnd.immervision-ivu", "ivu"],
+	["application/vnd.insors.igm", "igm"],
+	["application/vnd.intercon.formnet", "xpw"],
+	["application/vnd.intergeo", "i2g"],
+	["application/vnd.intu.qbo", "qbo"],
+	["application/vnd.intu.qfx", "qfx"],
+	["application/vnd.ipunplugged.rcprofile", "rcprofile"],
+	["application/vnd.irepository.package+xml", "irp"],
+	["application/vnd.is-xpr", "xpr"],
+	["application/vnd.isac.fcs", "fcs"],
+	["application/vnd.jam", "jam"],
+	["application/vnd.jcp.javame.midlet-rms", "rms"],
+	["application/vnd.jisp", "jisp"],
+	["application/vnd.joost.joda-archive", "joda"],
+	["application/vnd.kahootz", "ktz"],
+	["application/vnd.kde.karbon", "karbon"],
+	["application/vnd.kde.kchart", "chrt"],
+	["application/vnd.kde.kformula", "kfo"],
+	["application/vnd.kde.kivio", "flw"],
+	["application/vnd.kde.kontour", "kon"],
+	["application/vnd.kde.kpresenter", "kpr"],
+	["application/vnd.kde.kspread", "ksp"],
+	["application/vnd.kde.kword", "kwd"],
+	["application/vnd.kenameaapp", "htke"],
+	["application/vnd.kidspiration", "kia"],
+	["application/vnd.kinar", "kne"],
+	["application/vnd.koan", "skp"],
+	["application/vnd.kodak-descriptor", "sse"],
+	["application/vnd.las.las+xml", "lasxml"],
+	["application/vnd.llamagraphics.life-balance.desktop", "lbd"],
+	["application/vnd.llamagraphics.life-balance.exchange+xml", "lbe"],
+	["application/vnd.lotus-1-2-3", "123"],
+	["application/vnd.lotus-approach", "apr"],
+	["application/vnd.lotus-freelance", "pre"],
+	["application/vnd.lotus-notes", "nsf"],
+	["application/vnd.lotus-organizer", "org"],
+	["application/vnd.lotus-screencam", "scm"],
+	["application/vnd.lotus-wordpro", "lwp"],
+	["application/vnd.macports.portpkg", "portpkg"],
+	["application/vnd.mcd", "mcd"],
+	["application/vnd.medcalcdata", "mc1"],
+	["application/vnd.mediastation.cdkey", "cdkey"],
+	["application/vnd.mfer", "mwf"],
+	["application/vnd.mfmp", "mfm"],
+	["application/vnd.micrografx.flo", "flo"],
+	["application/vnd.micrografx.igx", "igx"],
+	["application/vnd.mif", "mif"],
+	["application/vnd.mobius.daf", "daf"],
+	["application/vnd.mobius.dis", "dis"],
+	["application/vnd.mobius.mbk", "mbk"],
+	["application/vnd.mobius.mqy", "mqy"],
+	["application/vnd.mobius.msl", "msl"],
+	["application/vnd.mobius.plc", "plc"],
+	["application/vnd.mobius.txf", "txf"],
+	["application/vnd.mophun.application", "mpn"],
+	["application/vnd.mophun.certificate", "mpc"],
+	["application/vnd.mozilla.xul+xml", "xul"],
+	["application/vnd.ms-artgalry", "cil"],
+	["application/vnd.ms-cab-compressed", "cab"],
+	["application/vnd.ms-excel", [
+		"xls",
+		"xla",
+		"xlc",
+		"xlm",
+		"xlt",
+		"xlw",
+		"xlb",
+		"xll"
+	]],
+	["application/vnd.ms-excel.addin.macroenabled.12", "xlam"],
+	["application/vnd.ms-excel.sheet.binary.macroenabled.12", "xlsb"],
+	["application/vnd.ms-excel.sheet.macroenabled.12", "xlsm"],
+	["application/vnd.ms-excel.template.macroenabled.12", "xltm"],
+	["application/vnd.ms-fontobject", "eot"],
+	["application/vnd.ms-htmlhelp", "chm"],
+	["application/vnd.ms-ims", "ims"],
+	["application/vnd.ms-lrm", "lrm"],
+	["application/vnd.ms-officetheme", "thmx"],
+	["application/vnd.ms-outlook", "msg"],
+	["application/vnd.ms-pki.certstore", "sst"],
+	["application/vnd.ms-pki.pko", "pko"],
+	["application/vnd.ms-pki.seccat", "cat"],
+	["application/vnd.ms-pki.stl", "stl"],
+	["application/vnd.ms-pkicertstore", "sst"],
+	["application/vnd.ms-pkiseccat", "cat"],
+	["application/vnd.ms-pkistl", "stl"],
+	["application/vnd.ms-powerpoint", [
+		"ppt",
+		"pot",
+		"pps",
+		"ppa",
+		"pwz"
+	]],
+	["application/vnd.ms-powerpoint.addin.macroenabled.12", "ppam"],
+	["application/vnd.ms-powerpoint.presentation.macroenabled.12", "pptm"],
+	["application/vnd.ms-powerpoint.slide.macroenabled.12", "sldm"],
+	["application/vnd.ms-powerpoint.slideshow.macroenabled.12", "ppsm"],
+	["application/vnd.ms-powerpoint.template.macroenabled.12", "potm"],
+	["application/vnd.ms-project", "mpp"],
+	["application/vnd.ms-word.document.macroenabled.12", "docm"],
+	["application/vnd.ms-word.template.macroenabled.12", "dotm"],
+	["application/vnd.ms-works", [
+		"wks",
+		"wcm",
+		"wdb",
+		"wps"
+	]],
+	["application/vnd.ms-wpl", "wpl"],
+	["application/vnd.ms-xpsdocument", "xps"],
+	["application/vnd.mseq", "mseq"],
+	["application/vnd.musician", "mus"],
+	["application/vnd.muvee.style", "msty"],
+	["application/vnd.neurolanguage.nlu", "nlu"],
+	["application/vnd.noblenet-directory", "nnd"],
+	["application/vnd.noblenet-sealer", "nns"],
+	["application/vnd.noblenet-web", "nnw"],
+	["application/vnd.nokia.configuration-message", "ncm"],
+	["application/vnd.nokia.n-gage.data", "ngdat"],
+	["application/vnd.nokia.n-gage.symbian.install", "n-gage"],
+	["application/vnd.nokia.radio-preset", "rpst"],
+	["application/vnd.nokia.radio-presets", "rpss"],
+	["application/vnd.nokia.ringing-tone", "rng"],
+	["application/vnd.novadigm.edm", "edm"],
+	["application/vnd.novadigm.edx", "edx"],
+	["application/vnd.novadigm.ext", "ext"],
+	["application/vnd.oasis.opendocument.chart", "odc"],
+	["application/vnd.oasis.opendocument.chart-template", "otc"],
+	["application/vnd.oasis.opendocument.database", "odb"],
+	["application/vnd.oasis.opendocument.formula", "odf"],
+	["application/vnd.oasis.opendocument.formula-template", "odft"],
+	["application/vnd.oasis.opendocument.graphics", "odg"],
+	["application/vnd.oasis.opendocument.graphics-template", "otg"],
+	["application/vnd.oasis.opendocument.image", "odi"],
+	["application/vnd.oasis.opendocument.image-template", "oti"],
+	["application/vnd.oasis.opendocument.presentation", "odp"],
+	["application/vnd.oasis.opendocument.presentation-template", "otp"],
+	["application/vnd.oasis.opendocument.spreadsheet", "ods"],
+	["application/vnd.oasis.opendocument.spreadsheet-template", "ots"],
+	["application/vnd.oasis.opendocument.text", "odt"],
+	["application/vnd.oasis.opendocument.text-master", "odm"],
+	["application/vnd.oasis.opendocument.text-template", "ott"],
+	["application/vnd.oasis.opendocument.text-web", "oth"],
+	["application/vnd.olpc-sugar", "xo"],
+	["application/vnd.oma.dd2+xml", "dd2"],
+	["application/vnd.openofficeorg.extension", "oxt"],
+	["application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx"],
+	["application/vnd.openxmlformats-officedocument.presentationml.slide", "sldx"],
+	["application/vnd.openxmlformats-officedocument.presentationml.slideshow", "ppsx"],
+	["application/vnd.openxmlformats-officedocument.presentationml.template", "potx"],
+	["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"],
+	["application/vnd.openxmlformats-officedocument.spreadsheetml.template", "xltx"],
+	["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"],
+	["application/vnd.openxmlformats-officedocument.wordprocessingml.template", "dotx"],
+	["application/vnd.osgeo.mapguide.package", "mgp"],
+	["application/vnd.osgi.dp", "dp"],
+	["application/vnd.palm", "pdb"],
+	["application/vnd.pawaafile", "paw"],
+	["application/vnd.pg.format", "str"],
+	["application/vnd.pg.osasli", "ei6"],
+	["application/vnd.picsel", "efif"],
+	["application/vnd.pmi.widget", "wg"],
+	["application/vnd.pocketlearn", "plf"],
+	["application/vnd.powerbuilder6", "pbd"],
+	["application/vnd.previewsystems.box", "box"],
+	["application/vnd.proteus.magazine", "mgz"],
+	["application/vnd.publishare-delta-tree", "qps"],
+	["application/vnd.pvi.ptid1", "ptid"],
+	["application/vnd.quark.quarkxpress", "qxd"],
+	["application/vnd.realvnc.bed", "bed"],
+	["application/vnd.recordare.musicxml", "mxl"],
+	["application/vnd.recordare.musicxml+xml", "musicxml"],
+	["application/vnd.rig.cryptonote", "cryptonote"],
+	["application/vnd.rim.cod", "cod"],
+	["application/vnd.rn-realmedia", "rm"],
+	["application/vnd.rn-realplayer", "rnx"],
+	["application/vnd.route66.link66+xml", "link66"],
+	["application/vnd.sailingtracker.track", "st"],
+	["application/vnd.seemail", "see"],
+	["application/vnd.sema", "sema"],
+	["application/vnd.semd", "semd"],
+	["application/vnd.semf", "semf"],
+	["application/vnd.shana.informed.formdata", "ifm"],
+	["application/vnd.shana.informed.formtemplate", "itp"],
+	["application/vnd.shana.informed.interchange", "iif"],
+	["application/vnd.shana.informed.package", "ipk"],
+	["application/vnd.simtech-mindmapper", "twd"],
+	["application/vnd.smaf", "mmf"],
+	["application/vnd.smart.teacher", "teacher"],
+	["application/vnd.solent.sdkm+xml", "sdkm"],
+	["application/vnd.spotfire.dxp", "dxp"],
+	["application/vnd.spotfire.sfs", "sfs"],
+	["application/vnd.stardivision.calc", "sdc"],
+	["application/vnd.stardivision.draw", "sda"],
+	["application/vnd.stardivision.impress", "sdd"],
+	["application/vnd.stardivision.math", "smf"],
+	["application/vnd.stardivision.writer", "sdw"],
+	["application/vnd.stardivision.writer-global", "sgl"],
+	["application/vnd.stepmania.stepchart", "sm"],
+	["application/vnd.sun.xml.calc", "sxc"],
+	["application/vnd.sun.xml.calc.template", "stc"],
+	["application/vnd.sun.xml.draw", "sxd"],
+	["application/vnd.sun.xml.draw.template", "std"],
+	["application/vnd.sun.xml.impress", "sxi"],
+	["application/vnd.sun.xml.impress.template", "sti"],
+	["application/vnd.sun.xml.math", "sxm"],
+	["application/vnd.sun.xml.writer", "sxw"],
+	["application/vnd.sun.xml.writer.global", "sxg"],
+	["application/vnd.sun.xml.writer.template", "stw"],
+	["application/vnd.sus-calendar", "sus"],
+	["application/vnd.svd", "svd"],
+	["application/vnd.symbian.install", "sis"],
+	["application/vnd.syncml+xml", "xsm"],
+	["application/vnd.syncml.dm+wbxml", "bdm"],
+	["application/vnd.syncml.dm+xml", "xdm"],
+	["application/vnd.tao.intent-module-archive", "tao"],
+	["application/vnd.tmobile-livetv", "tmo"],
+	["application/vnd.trid.tpt", "tpt"],
+	["application/vnd.triscape.mxs", "mxs"],
+	["application/vnd.trueapp", "tra"],
+	["application/vnd.ufdl", "ufd"],
+	["application/vnd.uiq.theme", "utz"],
+	["application/vnd.umajin", "umj"],
+	["application/vnd.unity", "unityweb"],
+	["application/vnd.uoml+xml", "uoml"],
+	["application/vnd.vcx", "vcx"],
+	["application/vnd.visio", "vsd"],
+	["application/vnd.visionary", "vis"],
+	["application/vnd.vsf", "vsf"],
+	["application/vnd.wap.wbxml", "wbxml"],
+	["application/vnd.wap.wmlc", "wmlc"],
+	["application/vnd.wap.wmlscriptc", "wmlsc"],
+	["application/vnd.webturbo", "wtb"],
+	["application/vnd.wolfram.player", "nbp"],
+	["application/vnd.wordperfect", "wpd"],
+	["application/vnd.wqd", "wqd"],
+	["application/vnd.wt.stf", "stf"],
+	["application/vnd.xara", ["web", "xar"]],
+	["application/vnd.xfdl", "xfdl"],
+	["application/vnd.yamaha.hv-dic", "hvd"],
+	["application/vnd.yamaha.hv-script", "hvs"],
+	["application/vnd.yamaha.hv-voice", "hvp"],
+	["application/vnd.yamaha.openscoreformat", "osf"],
+	["application/vnd.yamaha.openscoreformat.osfpvg+xml", "osfpvg"],
+	["application/vnd.yamaha.smaf-audio", "saf"],
+	["application/vnd.yamaha.smaf-phrase", "spf"],
+	["application/vnd.yellowriver-custom-menu", "cmp"],
+	["application/vnd.zul", "zir"],
+	["application/vnd.zzazz.deck+xml", "zaz"],
+	["application/vocaltec-media-desc", "vmd"],
+	["application/vocaltec-media-file", "vmf"],
+	["application/voicexml+xml", "vxml"],
+	["application/widget", "wgt"],
+	["application/winhlp", "hlp"],
+	["application/wordperfect", [
+		"wp",
+		"wp5",
+		"wp6",
+		"wpd"
+	]],
+	["application/wordperfect6.0", ["w60", "wp5"]],
+	["application/wordperfect6.1", "w61"],
+	["application/wsdl+xml", "wsdl"],
+	["application/wspolicy+xml", "wspolicy"],
+	["application/x-123", "wk1"],
+	["application/x-7z-compressed", "7z"],
+	["application/x-abiword", "abw"],
+	["application/x-ace-compressed", "ace"],
+	["application/x-aim", "aim"],
+	["application/x-authorware-bin", "aab"],
+	["application/x-authorware-map", "aam"],
+	["application/x-authorware-seg", "aas"],
+	["application/x-bcpio", "bcpio"],
+	["application/x-binary", "bin"],
+	["application/x-binhex40", "hqx"],
+	["application/x-bittorrent", "torrent"],
+	["application/x-bsh", [
+		"bsh",
+		"sh",
+		"shar"
+	]],
+	["application/x-bytecode.elisp", "elc"],
+	["application/x-bytecode.python", "pyc"],
+	["application/x-bzip", "bz"],
+	["application/x-bzip2", ["boz", "bz2"]],
+	["application/x-cdf", "cdf"],
+	["application/x-cdlink", "vcd"],
+	["application/x-chat", ["cha", "chat"]],
+	["application/x-chess-pgn", "pgn"],
+	["application/x-cmu-raster", "ras"],
+	["application/x-cocoa", "cco"],
+	["application/x-compactpro", "cpt"],
+	["application/x-compress", "z"],
+	["application/x-compressed", [
+		"tgz",
+		"gz",
+		"z",
+		"zip"
+	]],
+	["application/x-conference", "nsc"],
+	["application/x-cpio", "cpio"],
+	["application/x-cpt", "cpt"],
+	["application/x-csh", "csh"],
+	["application/x-debian-package", "deb"],
+	["application/x-deepv", "deepv"],
+	["application/x-director", [
+		"dir",
+		"dcr",
+		"dxr"
+	]],
+	["application/x-doom", "wad"],
+	["application/x-dtbncx+xml", "ncx"],
+	["application/x-dtbook+xml", "dtb"],
+	["application/x-dtbresource+xml", "res"],
+	["application/x-dvi", "dvi"],
+	["application/x-elc", "elc"],
+	["application/x-envoy", ["env", "evy"]],
+	["application/x-esrehber", "es"],
+	["application/x-excel", [
+		"xls",
+		"xla",
+		"xlb",
+		"xlc",
+		"xld",
+		"xlk",
+		"xll",
+		"xlm",
+		"xlt",
+		"xlv",
+		"xlw"
+	]],
+	["application/x-font-bdf", "bdf"],
+	["application/x-font-ghostscript", "gsf"],
+	["application/x-font-linux-psf", "psf"],
+	["application/x-font-otf", "otf"],
+	["application/x-font-pcf", "pcf"],
+	["application/x-font-snf", "snf"],
+	["application/x-font-ttf", "ttf"],
+	["application/x-font-type1", "pfa"],
+	["application/x-font-woff", "woff"],
+	["application/x-frame", "mif"],
+	["application/x-freelance", "pre"],
+	["application/x-futuresplash", "spl"],
+	["application/x-gnumeric", "gnumeric"],
+	["application/x-gsp", "gsp"],
+	["application/x-gss", "gss"],
+	["application/x-gtar", "gtar"],
+	["application/x-gzip", ["gz", "gzip"]],
+	["application/x-hdf", "hdf"],
+	["application/x-helpfile", ["help", "hlp"]],
+	["application/x-httpd-imap", "imap"],
+	["application/x-ima", "ima"],
+	["application/x-internet-signup", ["ins", "isp"]],
+	["application/x-internett-signup", "ins"],
+	["application/x-inventor", "iv"],
+	["application/x-ip2", "ip"],
+	["application/x-iphone", "iii"],
+	["application/x-java-class", "class"],
+	["application/x-java-commerce", "jcm"],
+	["application/x-java-jnlp-file", "jnlp"],
+	["application/x-javascript", "js"],
+	["application/x-koan", [
+		"skd",
+		"skm",
+		"skp",
+		"skt"
+	]],
+	["application/x-ksh", "ksh"],
+	["application/x-latex", ["latex", "ltx"]],
+	["application/x-lha", "lha"],
+	["application/x-lisp", "lsp"],
+	["application/x-livescreen", "ivy"],
+	["application/x-lotus", "wq1"],
+	["application/x-lotusscreencam", "scm"],
+	["application/x-lzh", "lzh"],
+	["application/x-lzx", "lzx"],
+	["application/x-mac-binhex40", "hqx"],
+	["application/x-macbinary", "bin"],
+	["application/x-magic-cap-package-1.0", "mc$"],
+	["application/x-mathcad", "mcd"],
+	["application/x-meme", "mm"],
+	["application/x-midi", ["mid", "midi"]],
+	["application/x-mif", "mif"],
+	["application/x-mix-transfer", "nix"],
+	["application/x-mobipocket-ebook", "prc"],
+	["application/x-mplayer2", "asx"],
+	["application/x-ms-application", "application"],
+	["application/x-ms-wmd", "wmd"],
+	["application/x-ms-wmz", "wmz"],
+	["application/x-ms-xbap", "xbap"],
+	["application/x-msaccess", "mdb"],
+	["application/x-msbinder", "obd"],
+	["application/x-mscardfile", "crd"],
+	["application/x-msclip", "clp"],
+	["application/x-msdownload", ["exe", "dll"]],
+	["application/x-msexcel", [
+		"xls",
+		"xla",
+		"xlw"
+	]],
+	["application/x-msmediaview", [
+		"mvb",
+		"m13",
+		"m14"
+	]],
+	["application/x-msmetafile", "wmf"],
+	["application/x-msmoney", "mny"],
+	["application/x-mspowerpoint", "ppt"],
+	["application/x-mspublisher", "pub"],
+	["application/x-msschedule", "scd"],
+	["application/x-msterminal", "trm"],
+	["application/x-mswrite", "wri"],
+	["application/x-navi-animation", "ani"],
+	["application/x-navidoc", "nvd"],
+	["application/x-navimap", "map"],
+	["application/x-navistyle", "stl"],
+	["application/x-netcdf", ["cdf", "nc"]],
+	["application/x-newton-compatible-pkg", "pkg"],
+	["application/x-nokia-9000-communicator-add-on-software", "aos"],
+	["application/x-omc", "omc"],
+	["application/x-omcdatamaker", "omcd"],
+	["application/x-omcregerator", "omcr"],
+	["application/x-pagemaker", ["pm4", "pm5"]],
+	["application/x-pcl", "pcl"],
+	["application/x-perfmon", [
+		"pma",
+		"pmc",
+		"pml",
+		"pmr",
+		"pmw"
+	]],
+	["application/x-pixclscript", "plx"],
+	["application/x-pkcs10", "p10"],
+	["application/x-pkcs12", ["p12", "pfx"]],
+	["application/x-pkcs7-certificates", ["p7b", "spc"]],
+	["application/x-pkcs7-certreqresp", "p7r"],
+	["application/x-pkcs7-mime", ["p7m", "p7c"]],
+	["application/x-pkcs7-signature", ["p7s", "p7a"]],
+	["application/x-pointplus", "css"],
+	["application/x-portable-anymap", "pnm"],
+	["application/x-project", [
+		"mpc",
+		"mpt",
+		"mpv",
+		"mpx"
+	]],
+	["application/x-qpro", "wb1"],
+	["application/x-rar-compressed", "rar"],
+	["application/x-rtf", "rtf"],
+	["application/x-sdp", "sdp"],
+	["application/x-sea", "sea"],
+	["application/x-seelogo", "sl"],
+	["application/x-sh", "sh"],
+	["application/x-shar", ["shar", "sh"]],
+	["application/x-shockwave-flash", "swf"],
+	["application/x-silverlight-app", "xap"],
+	["application/x-sit", "sit"],
+	["application/x-sprite", ["spr", "sprite"]],
+	["application/x-stuffit", "sit"],
+	["application/x-stuffitx", "sitx"],
+	["application/x-sv4cpio", "sv4cpio"],
+	["application/x-sv4crc", "sv4crc"],
+	["application/x-tar", "tar"],
+	["application/x-tbook", ["sbk", "tbk"]],
+	["application/x-tcl", "tcl"],
+	["application/x-tex", "tex"],
+	["application/x-tex-tfm", "tfm"],
+	["application/x-texinfo", ["texi", "texinfo"]],
+	["application/x-troff", [
+		"roff",
+		"t",
+		"tr"
+	]],
+	["application/x-troff-man", "man"],
+	["application/x-troff-me", "me"],
+	["application/x-troff-ms", "ms"],
+	["application/x-troff-msvideo", "avi"],
+	["application/x-ustar", "ustar"],
+	["application/x-visio", [
+		"vsd",
+		"vst",
+		"vsw"
+	]],
+	["application/x-vnd.audioexplosion.mzz", "mzz"],
+	["application/x-vnd.ls-xpix", "xpix"],
+	["application/x-vrml", "vrml"],
+	["application/x-wais-source", ["src", "wsrc"]],
+	["application/x-winhelp", "hlp"],
+	["application/x-wintalk", "wtk"],
+	["application/x-world", ["wrl", "svr"]],
+	["application/x-wpwin", "wpd"],
+	["application/x-wri", "wri"],
+	["application/x-x509-ca-cert", [
+		"cer",
+		"crt",
+		"der"
+	]],
+	["application/x-x509-user-cert", "crt"],
+	["application/x-xfig", "fig"],
+	["application/x-xpinstall", "xpi"],
+	["application/x-zip-compressed", "zip"],
+	["application/xcap-diff+xml", "xdf"],
+	["application/xenc+xml", "xenc"],
+	["application/xhtml+xml", "xhtml"],
+	["application/xml", "xml"],
+	["application/xml-dtd", "dtd"],
+	["application/xop+xml", "xop"],
+	["application/xslt+xml", "xslt"],
+	["application/xspf+xml", "xspf"],
+	["application/xv+xml", "mxml"],
+	["application/yang", "yang"],
+	["application/yin+xml", "yin"],
+	["application/ynd.ms-pkipko", "pko"],
+	["application/zip", "zip"],
+	["audio/adpcm", "adp"],
+	["audio/aiff", [
+		"aiff",
+		"aif",
+		"aifc"
+	]],
+	["audio/basic", ["snd", "au"]],
+	["audio/it", "it"],
+	["audio/make", [
+		"funk",
+		"my",
+		"pfunk"
+	]],
+	["audio/make.my.funk", "pfunk"],
+	["audio/mid", ["mid", "rmi"]],
+	["audio/midi", [
+		"midi",
+		"kar",
+		"mid"
+	]],
+	["audio/mod", "mod"],
+	["audio/mp4", "mp4a"],
+	["audio/mpeg", [
+		"mpga",
+		"mp3",
+		"m2a",
+		"mp2",
+		"mpa",
+		"mpg"
+	]],
+	["audio/mpeg3", "mp3"],
+	["audio/nspaudio", ["la", "lma"]],
+	["audio/ogg", "oga"],
+	["audio/s3m", "s3m"],
+	["audio/tsp-audio", "tsi"],
+	["audio/tsplayer", "tsp"],
+	["audio/vnd.dece.audio", "uva"],
+	["audio/vnd.digital-winds", "eol"],
+	["audio/vnd.dra", "dra"],
+	["audio/vnd.dts", "dts"],
+	["audio/vnd.dts.hd", "dtshd"],
+	["audio/vnd.lucent.voice", "lvp"],
+	["audio/vnd.ms-playready.media.pya", "pya"],
+	["audio/vnd.nuera.ecelp4800", "ecelp4800"],
+	["audio/vnd.nuera.ecelp7470", "ecelp7470"],
+	["audio/vnd.nuera.ecelp9600", "ecelp9600"],
+	["audio/vnd.qcelp", "qcp"],
+	["audio/vnd.rip", "rip"],
+	["audio/voc", "voc"],
+	["audio/voxware", "vox"],
+	["audio/wav", "wav"],
+	["audio/webm", "weba"],
+	["audio/x-aac", "aac"],
+	["audio/x-adpcm", "snd"],
+	["audio/x-aiff", [
+		"aiff",
+		"aif",
+		"aifc"
+	]],
+	["audio/x-au", "au"],
+	["audio/x-gsm", ["gsd", "gsm"]],
+	["audio/x-jam", "jam"],
+	["audio/x-liveaudio", "lam"],
+	["audio/x-mid", ["mid", "midi"]],
+	["audio/x-midi", ["midi", "mid"]],
+	["audio/x-mod", "mod"],
+	["audio/x-mpeg", "mp2"],
+	["audio/x-mpeg-3", "mp3"],
+	["audio/x-mpegurl", "m3u"],
+	["audio/x-mpequrl", "m3u"],
+	["audio/x-ms-wax", "wax"],
+	["audio/x-ms-wma", "wma"],
+	["audio/x-nspaudio", ["la", "lma"]],
+	["audio/x-pn-realaudio", [
+		"ra",
+		"ram",
+		"rm",
+		"rmm",
+		"rmp"
+	]],
+	["audio/x-pn-realaudio-plugin", [
+		"ra",
+		"rmp",
+		"rpm"
+	]],
+	["audio/x-psid", "sid"],
+	["audio/x-realaudio", "ra"],
+	["audio/x-twinvq", "vqf"],
+	["audio/x-twinvq-plugin", ["vqe", "vql"]],
+	["audio/x-vnd.audioexplosion.mjuicemediafile", "mjf"],
+	["audio/x-voc", "voc"],
+	["audio/x-wav", "wav"],
+	["audio/xm", "xm"],
+	["chemical/x-cdx", "cdx"],
+	["chemical/x-cif", "cif"],
+	["chemical/x-cmdf", "cmdf"],
+	["chemical/x-cml", "cml"],
+	["chemical/x-csml", "csml"],
+	["chemical/x-pdb", ["pdb", "xyz"]],
+	["chemical/x-xyz", "xyz"],
+	["drawing/x-dwf", "dwf"],
+	["i-world/i-vrml", "ivr"],
+	["image/bmp", ["bmp", "bm"]],
+	["image/cgm", "cgm"],
+	["image/cis-cod", "cod"],
+	["image/cmu-raster", ["ras", "rast"]],
+	["image/fif", "fif"],
+	["image/florian", ["flo", "turbot"]],
+	["image/g3fax", "g3"],
+	["image/gif", "gif"],
+	["image/ief", ["ief", "iefs"]],
+	["image/jpeg", [
+		"jpeg",
+		"jpe",
+		"jpg",
+		"jfif",
+		"jfif-tbnl"
+	]],
+	["image/jutvision", "jut"],
+	["image/ktx", "ktx"],
+	["image/naplps", ["nap", "naplps"]],
+	["image/pict", ["pic", "pict"]],
+	["image/pipeg", "jfif"],
+	["image/pjpeg", [
+		"jfif",
+		"jpe",
+		"jpeg",
+		"jpg"
+	]],
+	["image/png", ["png", "x-png"]],
+	["image/prs.btif", "btif"],
+	["image/svg+xml", "svg"],
+	["image/tiff", ["tif", "tiff"]],
+	["image/vasa", "mcf"],
+	["image/vnd.adobe.photoshop", "psd"],
+	["image/vnd.dece.graphic", "uvi"],
+	["image/vnd.djvu", "djvu"],
+	["image/vnd.dvb.subtitle", "sub"],
+	["image/vnd.dwg", [
+		"dwg",
+		"dxf",
+		"svf"
+	]],
+	["image/vnd.dxf", "dxf"],
+	["image/vnd.fastbidsheet", "fbs"],
+	["image/vnd.fpx", "fpx"],
+	["image/vnd.fst", "fst"],
+	["image/vnd.fujixerox.edmics-mmr", "mmr"],
+	["image/vnd.fujixerox.edmics-rlc", "rlc"],
+	["image/vnd.ms-modi", "mdi"],
+	["image/vnd.net-fpx", ["fpx", "npx"]],
+	["image/vnd.rn-realflash", "rf"],
+	["image/vnd.rn-realpix", "rp"],
+	["image/vnd.wap.wbmp", "wbmp"],
+	["image/vnd.xiff", "xif"],
+	["image/webp", "webp"],
+	["image/x-cmu-raster", "ras"],
+	["image/x-cmx", "cmx"],
+	["image/x-dwg", [
+		"dwg",
+		"dxf",
+		"svf"
+	]],
+	["image/x-freehand", "fh"],
+	["image/x-icon", "ico"],
+	["image/x-jg", "art"],
+	["image/x-jps", "jps"],
+	["image/x-niff", ["niff", "nif"]],
+	["image/x-pcx", "pcx"],
+	["image/x-pict", ["pct", "pic"]],
+	["image/x-portable-anymap", "pnm"],
+	["image/x-portable-bitmap", "pbm"],
+	["image/x-portable-graymap", "pgm"],
+	["image/x-portable-greymap", "pgm"],
+	["image/x-portable-pixmap", "ppm"],
+	["image/x-quicktime", [
+		"qif",
+		"qti",
+		"qtif"
+	]],
+	["image/x-rgb", "rgb"],
+	["image/x-tiff", ["tif", "tiff"]],
+	["image/x-windows-bmp", "bmp"],
+	["image/x-xbitmap", "xbm"],
+	["image/x-xbm", "xbm"],
+	["image/x-xpixmap", ["xpm", "pm"]],
+	["image/x-xwd", "xwd"],
+	["image/x-xwindowdump", "xwd"],
+	["image/xbm", "xbm"],
+	["image/xpm", "xpm"],
+	["message/rfc822", [
+		"eml",
+		"mht",
+		"mhtml",
+		"nws",
+		"mime"
+	]],
+	["model/iges", ["iges", "igs"]],
+	["model/mesh", "msh"],
+	["model/vnd.collada+xml", "dae"],
+	["model/vnd.dwf", "dwf"],
+	["model/vnd.gdl", "gdl"],
+	["model/vnd.gtw", "gtw"],
+	["model/vnd.mts", "mts"],
+	["model/vnd.vtu", "vtu"],
+	["model/vrml", [
+		"vrml",
+		"wrl",
+		"wrz"
+	]],
+	["model/x-pov", "pov"],
+	["multipart/x-gzip", "gzip"],
+	["multipart/x-ustar", "ustar"],
+	["multipart/x-zip", "zip"],
+	["music/crescendo", ["mid", "midi"]],
+	["music/x-karaoke", "kar"],
+	["paleovu/x-pv", "pvu"],
+	["text/asp", "asp"],
+	["text/calendar", "ics"],
+	["text/css", "css"],
+	["text/csv", "csv"],
+	["text/ecmascript", "js"],
+	["text/h323", "323"],
+	["text/html", [
+		"html",
+		"htm",
+		"stm",
+		"acgi",
+		"htmls",
+		"htx",
+		"shtml"
+	]],
+	["text/iuls", "uls"],
+	["text/javascript", "js"],
+	["text/mcf", "mcf"],
+	["text/n3", "n3"],
+	["text/pascal", "pas"],
+	["text/plain", [
+		"txt",
+		"bas",
+		"c",
+		"h",
+		"c++",
+		"cc",
+		"com",
+		"conf",
+		"cxx",
+		"def",
+		"f",
+		"f90",
+		"for",
+		"g",
+		"hh",
+		"idc",
+		"jav",
+		"java",
+		"list",
+		"log",
+		"lst",
+		"m",
+		"mar",
+		"pl",
+		"sdml",
+		"text"
+	]],
+	["text/plain-bas", "par"],
+	["text/prs.lines.tag", "dsc"],
+	["text/richtext", [
+		"rtx",
+		"rt",
+		"rtf"
+	]],
+	["text/scriplet", "wsc"],
+	["text/scriptlet", "sct"],
+	["text/sgml", ["sgm", "sgml"]],
+	["text/tab-separated-values", "tsv"],
+	["text/troff", "t"],
+	["text/turtle", "ttl"],
+	["text/uri-list", [
+		"uni",
+		"unis",
+		"uri",
+		"uris"
+	]],
+	["text/vnd.abc", "abc"],
+	["text/vnd.curl", "curl"],
+	["text/vnd.curl.dcurl", "dcurl"],
+	["text/vnd.curl.mcurl", "mcurl"],
+	["text/vnd.curl.scurl", "scurl"],
+	["text/vnd.fly", "fly"],
+	["text/vnd.fmi.flexstor", "flx"],
+	["text/vnd.graphviz", "gv"],
+	["text/vnd.in3d.3dml", "3dml"],
+	["text/vnd.in3d.spot", "spot"],
+	["text/vnd.rn-realtext", "rt"],
+	["text/vnd.sun.j2me.app-descriptor", "jad"],
+	["text/vnd.wap.wml", "wml"],
+	["text/vnd.wap.wmlscript", "wmls"],
+	["text/webviewhtml", "htt"],
+	["text/x-asm", ["asm", "s"]],
+	["text/x-audiosoft-intra", "aip"],
+	["text/x-c", [
+		"c",
+		"cc",
+		"cpp"
+	]],
+	["text/x-component", "htc"],
+	["text/x-fortran", [
+		"for",
+		"f",
+		"f77",
+		"f90"
+	]],
+	["text/x-h", ["h", "hh"]],
+	["text/x-java-source", ["java", "jav"]],
+	["text/x-java-source,java", "java"],
+	["text/x-la-asf", "lsx"],
+	["text/x-m", "m"],
+	["text/x-pascal", "p"],
+	["text/x-script", "hlb"],
+	["text/x-script.csh", "csh"],
+	["text/x-script.elisp", "el"],
+	["text/x-script.guile", "scm"],
+	["text/x-script.ksh", "ksh"],
+	["text/x-script.lisp", "lsp"],
+	["text/x-script.perl", "pl"],
+	["text/x-script.perl-module", "pm"],
+	["text/x-script.phyton", "py"],
+	["text/x-script.rexx", "rexx"],
+	["text/x-script.scheme", "scm"],
+	["text/x-script.sh", "sh"],
+	["text/x-script.tcl", "tcl"],
+	["text/x-script.tcsh", "tcsh"],
+	["text/x-script.zsh", "zsh"],
+	["text/x-server-parsed-html", ["shtml", "ssi"]],
+	["text/x-setext", "etx"],
+	["text/x-sgml", ["sgm", "sgml"]],
+	["text/x-speech", ["spc", "talk"]],
+	["text/x-uil", "uil"],
+	["text/x-uuencode", ["uu", "uue"]],
+	["text/x-vcalendar", "vcs"],
+	["text/x-vcard", "vcf"],
+	["text/xml", "xml"],
+	["video/3gpp", "3gp"],
+	["video/3gpp2", "3g2"],
+	["video/animaflex", "afl"],
+	["video/avi", "avi"],
+	["video/avs-video", "avs"],
+	["video/dl", "dl"],
+	["video/fli", "fli"],
+	["video/gl", "gl"],
+	["video/h261", "h261"],
+	["video/h263", "h263"],
+	["video/h264", "h264"],
+	["video/jpeg", "jpgv"],
+	["video/jpm", "jpm"],
+	["video/mj2", "mj2"],
+	["video/mp4", "mp4"],
+	["video/mpeg", [
+		"mpeg",
+		"mp2",
+		"mpa",
+		"mpe",
+		"mpg",
+		"mpv2",
+		"m1v",
+		"m2v",
+		"mp3"
+	]],
+	["video/msvideo", "avi"],
+	["video/ogg", "ogv"],
+	["video/quicktime", [
+		"mov",
+		"qt",
+		"moov"
+	]],
+	["video/vdo", "vdo"],
+	["video/vivo", ["viv", "vivo"]],
+	["video/vnd.dece.hd", "uvh"],
+	["video/vnd.dece.mobile", "uvm"],
+	["video/vnd.dece.pd", "uvp"],
+	["video/vnd.dece.sd", "uvs"],
+	["video/vnd.dece.video", "uvv"],
+	["video/vnd.fvt", "fvt"],
+	["video/vnd.mpegurl", "mxu"],
+	["video/vnd.ms-playready.media.pyv", "pyv"],
+	["video/vnd.rn-realvideo", "rv"],
+	["video/vnd.uvvu.mp4", "uvu"],
+	["video/vnd.vivo", ["viv", "vivo"]],
+	["video/vosaic", "vos"],
+	["video/webm", "webm"],
+	["video/x-amt-demorun", "xdr"],
+	["video/x-amt-showrun", "xsr"],
+	["video/x-atomic3d-feature", "fmf"],
+	["video/x-dl", "dl"],
+	["video/x-dv", ["dif", "dv"]],
+	["video/x-f4v", "f4v"],
+	["video/x-fli", "fli"],
+	["video/x-flv", "flv"],
+	["video/x-gl", "gl"],
+	["video/x-isvideo", "isu"],
+	["video/x-la-asf", ["lsf", "lsx"]],
+	["video/x-m4v", "m4v"],
+	["video/x-motion-jpeg", "mjpg"],
+	["video/x-mpeg", ["mp3", "mp2"]],
+	["video/x-mpeq2a", "mp2"],
+	["video/x-ms-asf", [
+		"asf",
+		"asr",
+		"asx"
+	]],
+	["video/x-ms-asf-plugin", "asx"],
+	["video/x-ms-wm", "wm"],
+	["video/x-ms-wmv", "wmv"],
+	["video/x-ms-wmx", "wmx"],
+	["video/x-ms-wvx", "wvx"],
+	["video/x-msvideo", "avi"],
+	["video/x-qtc", "qtc"],
+	["video/x-scm", "scm"],
+	["video/x-sgi-movie", ["movie", "mv"]],
+	["windows/metafile", "wmf"],
+	["www/mime", "mime"],
+	["x-conference/x-cooltalk", "ice"],
+	["x-music/x-midi", ["mid", "midi"]],
+	["x-world/x-3dmf", [
+		"3dm",
+		"3dmf",
+		"qd3",
+		"qd3d"
+	]],
+	["x-world/x-svr", "svr"],
+	["x-world/x-vrml", [
+		"flr",
+		"vrml",
+		"wrl",
+		"wrz",
+		"xaf",
+		"xof"
+	]],
+	["x-world/x-vrt", "vrt"],
+	["xgl/drawing", "xgz"],
+	["xgl/movie", "xmz"]
+]);
+const extensions = /* @__PURE__ */ new Map([
+	["123", "application/vnd.lotus-1-2-3"],
+	["323", "text/h323"],
+	["*", "application/octet-stream"],
+	["3dm", "x-world/x-3dmf"],
+	["3dmf", "x-world/x-3dmf"],
+	["3dml", "text/vnd.in3d.3dml"],
+	["3g2", "video/3gpp2"],
+	["3gp", "video/3gpp"],
+	["7z", "application/x-7z-compressed"],
+	["a", "application/octet-stream"],
+	["aab", "application/x-authorware-bin"],
+	["aac", "audio/x-aac"],
+	["aam", "application/x-authorware-map"],
+	["aas", "application/x-authorware-seg"],
+	["abc", "text/vnd.abc"],
+	["abw", "application/x-abiword"],
+	["ac", "application/pkix-attr-cert"],
+	["acc", "application/vnd.americandynamics.acc"],
+	["ace", "application/x-ace-compressed"],
+	["acgi", "text/html"],
+	["acu", "application/vnd.acucobol"],
+	["acx", "application/internet-property-stream"],
+	["adp", "audio/adpcm"],
+	["aep", "application/vnd.audiograph"],
+	["afl", "video/animaflex"],
+	["afp", "application/vnd.ibm.modcap"],
+	["ahead", "application/vnd.ahead.space"],
+	["ai", "application/postscript"],
+	["aif", ["audio/aiff", "audio/x-aiff"]],
+	["aifc", ["audio/aiff", "audio/x-aiff"]],
+	["aiff", ["audio/aiff", "audio/x-aiff"]],
+	["aim", "application/x-aim"],
+	["aip", "text/x-audiosoft-intra"],
+	["air", "application/vnd.adobe.air-application-installer-package+zip"],
+	["ait", "application/vnd.dvb.ait"],
+	["ami", "application/vnd.amiga.ami"],
+	["ani", "application/x-navi-animation"],
+	["aos", "application/x-nokia-9000-communicator-add-on-software"],
+	["apk", "application/vnd.android.package-archive"],
+	["application", "application/x-ms-application"],
+	["apr", "application/vnd.lotus-approach"],
+	["aps", "application/mime"],
+	["arc", "application/octet-stream"],
+	["arj", ["application/arj", "application/octet-stream"]],
+	["art", "image/x-jg"],
+	["asf", "video/x-ms-asf"],
+	["asm", "text/x-asm"],
+	["aso", "application/vnd.accpac.simply.aso"],
+	["asp", "text/asp"],
+	["asr", "video/x-ms-asf"],
+	["asx", [
+		"video/x-ms-asf",
+		"application/x-mplayer2",
+		"video/x-ms-asf-plugin"
+	]],
+	["atc", "application/vnd.acucorp"],
+	["atomcat", "application/atomcat+xml"],
+	["atomsvc", "application/atomsvc+xml"],
+	["atx", "application/vnd.antix.game-component"],
+	["au", ["audio/basic", "audio/x-au"]],
+	["avi", [
+		"video/avi",
+		"video/msvideo",
+		"application/x-troff-msvideo",
+		"video/x-msvideo"
+	]],
+	["avs", "video/avs-video"],
+	["aw", "application/applixware"],
+	["axs", "application/olescript"],
+	["azf", "application/vnd.airzip.filesecure.azf"],
+	["azs", "application/vnd.airzip.filesecure.azs"],
+	["azw", "application/vnd.amazon.ebook"],
+	["bas", "text/plain"],
+	["bcpio", "application/x-bcpio"],
+	["bdf", "application/x-font-bdf"],
+	["bdm", "application/vnd.syncml.dm+wbxml"],
+	["bed", "application/vnd.realvnc.bed"],
+	["bh2", "application/vnd.fujitsu.oasysprs"],
+	["bin", [
+		"application/octet-stream",
+		"application/mac-binary",
+		"application/macbinary",
+		"application/x-macbinary",
+		"application/x-binary"
+	]],
+	["bm", "image/bmp"],
+	["bmi", "application/vnd.bmi"],
+	["bmp", ["image/bmp", "image/x-windows-bmp"]],
+	["boo", "application/book"],
+	["book", "application/book"],
+	["box", "application/vnd.previewsystems.box"],
+	["boz", "application/x-bzip2"],
+	["bsh", "application/x-bsh"],
+	["btif", "image/prs.btif"],
+	["bz", "application/x-bzip"],
+	["bz2", "application/x-bzip2"],
+	["c", ["text/plain", "text/x-c"]],
+	["c++", "text/plain"],
+	["c11amc", "application/vnd.cluetrust.cartomobile-config"],
+	["c11amz", "application/vnd.cluetrust.cartomobile-config-pkg"],
+	["c4g", "application/vnd.clonk.c4group"],
+	["cab", "application/vnd.ms-cab-compressed"],
+	["car", "application/vnd.curl.car"],
+	["cat", ["application/vnd.ms-pkiseccat", "application/vnd.ms-pki.seccat"]],
+	["cc", ["text/plain", "text/x-c"]],
+	["ccad", "application/clariscad"],
+	["cco", "application/x-cocoa"],
+	["ccxml", "application/ccxml+xml,"],
+	["cdbcmsg", "application/vnd.contact.cmsg"],
+	["cdf", [
+		"application/cdf",
+		"application/x-cdf",
+		"application/x-netcdf"
+	]],
+	["cdkey", "application/vnd.mediastation.cdkey"],
+	["cdmia", "application/cdmi-capability"],
+	["cdmic", "application/cdmi-container"],
+	["cdmid", "application/cdmi-domain"],
+	["cdmio", "application/cdmi-object"],
+	["cdmiq", "application/cdmi-queue"],
+	["cdx", "chemical/x-cdx"],
+	["cdxml", "application/vnd.chemdraw+xml"],
+	["cdy", "application/vnd.cinderella"],
+	["cer", ["application/pkix-cert", "application/x-x509-ca-cert"]],
+	["cgm", "image/cgm"],
+	["cha", "application/x-chat"],
+	["chat", "application/x-chat"],
+	["chm", "application/vnd.ms-htmlhelp"],
+	["chrt", "application/vnd.kde.kchart"],
+	["cif", "chemical/x-cif"],
+	["cii", "application/vnd.anser-web-certificate-issue-initiation"],
+	["cil", "application/vnd.ms-artgalry"],
+	["cla", "application/vnd.claymore"],
+	["class", [
+		"application/octet-stream",
+		"application/java",
+		"application/java-byte-code",
+		"application/java-vm",
+		"application/x-java-class"
+	]],
+	["clkk", "application/vnd.crick.clicker.keyboard"],
+	["clkp", "application/vnd.crick.clicker.palette"],
+	["clkt", "application/vnd.crick.clicker.template"],
+	["clkw", "application/vnd.crick.clicker.wordbank"],
+	["clkx", "application/vnd.crick.clicker"],
+	["clp", "application/x-msclip"],
+	["cmc", "application/vnd.cosmocaller"],
+	["cmdf", "chemical/x-cmdf"],
+	["cml", "chemical/x-cml"],
+	["cmp", "application/vnd.yellowriver-custom-menu"],
+	["cmx", "image/x-cmx"],
+	["cod", ["image/cis-cod", "application/vnd.rim.cod"]],
+	["com", ["application/octet-stream", "text/plain"]],
+	["conf", "text/plain"],
+	["cpio", "application/x-cpio"],
+	["cpp", "text/x-c"],
+	["cpt", [
+		"application/mac-compactpro",
+		"application/x-compactpro",
+		"application/x-cpt"
+	]],
+	["crd", "application/x-mscardfile"],
+	["crl", ["application/pkix-crl", "application/pkcs-crl"]],
+	["crt", [
+		"application/pkix-cert",
+		"application/x-x509-user-cert",
+		"application/x-x509-ca-cert"
+	]],
+	["cryptonote", "application/vnd.rig.cryptonote"],
+	["csh", ["text/x-script.csh", "application/x-csh"]],
+	["csml", "chemical/x-csml"],
+	["csp", "application/vnd.commonspace"],
+	["css", ["text/css", "application/x-pointplus"]],
+	["csv", "text/csv"],
+	["cu", "application/cu-seeme"],
+	["curl", "text/vnd.curl"],
+	["cww", "application/prs.cww"],
+	["cxx", "text/plain"],
+	["dae", "model/vnd.collada+xml"],
+	["daf", "application/vnd.mobius.daf"],
+	["davmount", "application/davmount+xml"],
+	["dcr", "application/x-director"],
+	["dcurl", "text/vnd.curl.dcurl"],
+	["dd2", "application/vnd.oma.dd2+xml"],
+	["ddd", "application/vnd.fujixerox.ddd"],
+	["deb", "application/x-debian-package"],
+	["deepv", "application/x-deepv"],
+	["def", "text/plain"],
+	["der", "application/x-x509-ca-cert"],
+	["dfac", "application/vnd.dreamfactory"],
+	["dif", "video/x-dv"],
+	["dir", "application/x-director"],
+	["dis", "application/vnd.mobius.dis"],
+	["djvu", "image/vnd.djvu"],
+	["dl", ["video/dl", "video/x-dl"]],
+	["dll", "application/x-msdownload"],
+	["dms", "application/octet-stream"],
+	["dna", "application/vnd.dna"],
+	["doc", "application/msword"],
+	["docm", "application/vnd.ms-word.document.macroenabled.12"],
+	["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+	["dot", "application/msword"],
+	["dotm", "application/vnd.ms-word.template.macroenabled.12"],
+	["dotx", "application/vnd.openxmlformats-officedocument.wordprocessingml.template"],
+	["dp", ["application/commonground", "application/vnd.osgi.dp"]],
+	["dpg", "application/vnd.dpgraph"],
+	["dra", "audio/vnd.dra"],
+	["drw", "application/drafting"],
+	["dsc", "text/prs.lines.tag"],
+	["dssc", "application/dssc+der"],
+	["dtb", "application/x-dtbook+xml"],
+	["dtd", "application/xml-dtd"],
+	["dts", "audio/vnd.dts"],
+	["dtshd", "audio/vnd.dts.hd"],
+	["dump", "application/octet-stream"],
+	["dv", "video/x-dv"],
+	["dvi", "application/x-dvi"],
+	["dwf", ["model/vnd.dwf", "drawing/x-dwf"]],
+	["dwg", [
+		"application/acad",
+		"image/vnd.dwg",
+		"image/x-dwg"
+	]],
+	["dxf", [
+		"application/dxf",
+		"image/vnd.dwg",
+		"image/vnd.dxf",
+		"image/x-dwg"
+	]],
+	["dxp", "application/vnd.spotfire.dxp"],
+	["dxr", "application/x-director"],
+	["ecelp4800", "audio/vnd.nuera.ecelp4800"],
+	["ecelp7470", "audio/vnd.nuera.ecelp7470"],
+	["ecelp9600", "audio/vnd.nuera.ecelp9600"],
+	["edm", "application/vnd.novadigm.edm"],
+	["edx", "application/vnd.novadigm.edx"],
+	["efif", "application/vnd.picsel"],
+	["ei6", "application/vnd.pg.osasli"],
+	["el", "text/x-script.elisp"],
+	["elc", ["application/x-elc", "application/x-bytecode.elisp"]],
+	["eml", "message/rfc822"],
+	["emma", "application/emma+xml"],
+	["env", "application/x-envoy"],
+	["eol", "audio/vnd.digital-winds"],
+	["eot", "application/vnd.ms-fontobject"],
+	["eps", "application/postscript"],
+	["epub", "application/epub+zip"],
+	["es", ["application/ecmascript", "application/x-esrehber"]],
+	["es3", "application/vnd.eszigno3+xml"],
+	["esf", "application/vnd.epson.esf"],
+	["etx", "text/x-setext"],
+	["evy", ["application/envoy", "application/x-envoy"]],
+	["exe", ["application/octet-stream", "application/x-msdownload"]],
+	["exi", "application/exi"],
+	["ext", "application/vnd.novadigm.ext"],
+	["ez2", "application/vnd.ezpix-album"],
+	["ez3", "application/vnd.ezpix-package"],
+	["f", ["text/plain", "text/x-fortran"]],
+	["f4v", "video/x-f4v"],
+	["f77", "text/x-fortran"],
+	["f90", ["text/plain", "text/x-fortran"]],
+	["fbs", "image/vnd.fastbidsheet"],
+	["fcs", "application/vnd.isac.fcs"],
+	["fdf", "application/vnd.fdf"],
+	["fe_launch", "application/vnd.denovo.fcselayout-link"],
+	["fg5", "application/vnd.fujitsu.oasysgp"],
+	["fh", "image/x-freehand"],
+	["fif", ["application/fractals", "image/fif"]],
+	["fig", "application/x-xfig"],
+	["fli", ["video/fli", "video/x-fli"]],
+	["flo", ["image/florian", "application/vnd.micrografx.flo"]],
+	["flr", "x-world/x-vrml"],
+	["flv", "video/x-flv"],
+	["flw", "application/vnd.kde.kivio"],
+	["flx", "text/vnd.fmi.flexstor"],
+	["fly", "text/vnd.fly"],
+	["fm", "application/vnd.framemaker"],
+	["fmf", "video/x-atomic3d-feature"],
+	["fnc", "application/vnd.frogans.fnc"],
+	["for", ["text/plain", "text/x-fortran"]],
+	["fpx", ["image/vnd.fpx", "image/vnd.net-fpx"]],
+	["frl", "application/freeloader"],
+	["fsc", "application/vnd.fsc.weblaunch"],
+	["fst", "image/vnd.fst"],
+	["ftc", "application/vnd.fluxtime.clip"],
+	["fti", "application/vnd.anser-web-funds-transfer-initiation"],
+	["funk", "audio/make"],
+	["fvt", "video/vnd.fvt"],
+	["fxp", "application/vnd.adobe.fxp"],
+	["fzs", "application/vnd.fuzzysheet"],
+	["g", "text/plain"],
+	["g2w", "application/vnd.geoplan"],
+	["g3", "image/g3fax"],
+	["g3w", "application/vnd.geospace"],
+	["gac", "application/vnd.groove-account"],
+	["gdl", "model/vnd.gdl"],
+	["geo", "application/vnd.dynageo"],
+	["geojson", "application/geo+json"],
+	["gex", "application/vnd.geometry-explorer"],
+	["ggb", "application/vnd.geogebra.file"],
+	["ggt", "application/vnd.geogebra.tool"],
+	["ghf", "application/vnd.groove-help"],
+	["gif", "image/gif"],
+	["gim", "application/vnd.groove-identity-message"],
+	["gl", ["video/gl", "video/x-gl"]],
+	["gmx", "application/vnd.gmx"],
+	["gnumeric", "application/x-gnumeric"],
+	["gph", "application/vnd.flographit"],
+	["gqf", "application/vnd.grafeq"],
+	["gram", "application/srgs"],
+	["grv", "application/vnd.groove-injector"],
+	["grxml", "application/srgs+xml"],
+	["gsd", "audio/x-gsm"],
+	["gsf", "application/x-font-ghostscript"],
+	["gsm", "audio/x-gsm"],
+	["gsp", "application/x-gsp"],
+	["gss", "application/x-gss"],
+	["gtar", "application/x-gtar"],
+	["gtm", "application/vnd.groove-tool-message"],
+	["gtw", "model/vnd.gtw"],
+	["gv", "text/vnd.graphviz"],
+	["gxt", "application/vnd.geonext"],
+	["gz", ["application/x-gzip", "application/x-compressed"]],
+	["gzip", ["multipart/x-gzip", "application/x-gzip"]],
+	["h", ["text/plain", "text/x-h"]],
+	["h261", "video/h261"],
+	["h263", "video/h263"],
+	["h264", "video/h264"],
+	["hal", "application/vnd.hal+xml"],
+	["hbci", "application/vnd.hbci"],
+	["hdf", "application/x-hdf"],
+	["help", "application/x-helpfile"],
+	["hgl", "application/vnd.hp-hpgl"],
+	["hh", ["text/plain", "text/x-h"]],
+	["hlb", "text/x-script"],
+	["hlp", [
+		"application/winhlp",
+		"application/hlp",
+		"application/x-helpfile",
+		"application/x-winhelp"
+	]],
+	["hpg", "application/vnd.hp-hpgl"],
+	["hpgl", "application/vnd.hp-hpgl"],
+	["hpid", "application/vnd.hp-hpid"],
+	["hps", "application/vnd.hp-hps"],
+	["hqx", [
+		"application/mac-binhex40",
+		"application/binhex",
+		"application/binhex4",
+		"application/mac-binhex",
+		"application/x-binhex40",
+		"application/x-mac-binhex40"
+	]],
+	["hta", "application/hta"],
+	["htc", "text/x-component"],
+	["htke", "application/vnd.kenameaapp"],
+	["htm", "text/html"],
+	["html", "text/html"],
+	["htmls", "text/html"],
+	["htt", "text/webviewhtml"],
+	["htx", "text/html"],
+	["hvd", "application/vnd.yamaha.hv-dic"],
+	["hvp", "application/vnd.yamaha.hv-voice"],
+	["hvs", "application/vnd.yamaha.hv-script"],
+	["i2g", "application/vnd.intergeo"],
+	["icc", "application/vnd.iccprofile"],
+	["ice", "x-conference/x-cooltalk"],
+	["ico", "image/x-icon"],
+	["ics", "text/calendar"],
+	["idc", "text/plain"],
+	["ief", "image/ief"],
+	["iefs", "image/ief"],
+	["ifm", "application/vnd.shana.informed.formdata"],
+	["iges", ["application/iges", "model/iges"]],
+	["igl", "application/vnd.igloader"],
+	["igm", "application/vnd.insors.igm"],
+	["igs", ["application/iges", "model/iges"]],
+	["igx", "application/vnd.micrografx.igx"],
+	["iif", "application/vnd.shana.informed.interchange"],
+	["iii", "application/x-iphone"],
+	["ima", "application/x-ima"],
+	["imap", "application/x-httpd-imap"],
+	["imp", "application/vnd.accpac.simply.imp"],
+	["ims", "application/vnd.ms-ims"],
+	["inf", "application/inf"],
+	["ins", ["application/x-internet-signup", "application/x-internett-signup"]],
+	["ip", "application/x-ip2"],
+	["ipfix", "application/ipfix"],
+	["ipk", "application/vnd.shana.informed.package"],
+	["irm", "application/vnd.ibm.rights-management"],
+	["irp", "application/vnd.irepository.package+xml"],
+	["isp", "application/x-internet-signup"],
+	["isu", "video/x-isvideo"],
+	["it", "audio/it"],
+	["itp", "application/vnd.shana.informed.formtemplate"],
+	["iv", "application/x-inventor"],
+	["ivp", "application/vnd.immervision-ivp"],
+	["ivr", "i-world/i-vrml"],
+	["ivu", "application/vnd.immervision-ivu"],
+	["ivy", "application/x-livescreen"],
+	["jad", "text/vnd.sun.j2me.app-descriptor"],
+	["jam", ["application/vnd.jam", "audio/x-jam"]],
+	["jar", "application/java-archive"],
+	["jav", ["text/plain", "text/x-java-source"]],
+	["java", [
+		"text/plain",
+		"text/x-java-source,java",
+		"text/x-java-source"
+	]],
+	["jcm", "application/x-java-commerce"],
+	["jfif", [
+		"image/pipeg",
+		"image/jpeg",
+		"image/pjpeg"
+	]],
+	["jfif-tbnl", "image/jpeg"],
+	["jisp", "application/vnd.jisp"],
+	["jlt", "application/vnd.hp-jlyt"],
+	["jnlp", "application/x-java-jnlp-file"],
+	["joda", "application/vnd.joost.joda-archive"],
+	["jpe", ["image/jpeg", "image/pjpeg"]],
+	["jpeg", ["image/jpeg", "image/pjpeg"]],
+	["jpg", ["image/jpeg", "image/pjpeg"]],
+	["jpgv", "video/jpeg"],
+	["jpm", "video/jpm"],
+	["jps", "image/x-jps"],
+	["js", [
+		"application/javascript",
+		"application/ecmascript",
+		"text/javascript",
+		"text/ecmascript",
+		"application/x-javascript"
+	]],
+	["json", "application/json"],
+	["jut", "image/jutvision"],
+	["kar", ["audio/midi", "music/x-karaoke"]],
+	["karbon", "application/vnd.kde.karbon"],
+	["kfo", "application/vnd.kde.kformula"],
+	["kia", "application/vnd.kidspiration"],
+	["kml", "application/vnd.google-earth.kml+xml"],
+	["kmz", "application/vnd.google-earth.kmz"],
+	["kne", "application/vnd.kinar"],
+	["kon", "application/vnd.kde.kontour"],
+	["kpr", "application/vnd.kde.kpresenter"],
+	["ksh", ["application/x-ksh", "text/x-script.ksh"]],
+	["ksp", "application/vnd.kde.kspread"],
+	["ktx", "image/ktx"],
+	["ktz", "application/vnd.kahootz"],
+	["kwd", "application/vnd.kde.kword"],
+	["la", ["audio/nspaudio", "audio/x-nspaudio"]],
+	["lam", "audio/x-liveaudio"],
+	["lasxml", "application/vnd.las.las+xml"],
+	["latex", "application/x-latex"],
+	["lbd", "application/vnd.llamagraphics.life-balance.desktop"],
+	["lbe", "application/vnd.llamagraphics.life-balance.exchange+xml"],
+	["les", "application/vnd.hhe.lesson-player"],
+	["lha", [
+		"application/octet-stream",
+		"application/lha",
+		"application/x-lha"
+	]],
+	["lhx", "application/octet-stream"],
+	["link66", "application/vnd.route66.link66+xml"],
+	["list", "text/plain"],
+	["lma", ["audio/nspaudio", "audio/x-nspaudio"]],
+	["log", "text/plain"],
+	["lrm", "application/vnd.ms-lrm"],
+	["lsf", "video/x-la-asf"],
+	["lsp", ["application/x-lisp", "text/x-script.lisp"]],
+	["lst", "text/plain"],
+	["lsx", ["video/x-la-asf", "text/x-la-asf"]],
+	["ltf", "application/vnd.frogans.ltf"],
+	["ltx", "application/x-latex"],
+	["lvp", "audio/vnd.lucent.voice"],
+	["lwp", "application/vnd.lotus-wordpro"],
+	["lzh", ["application/octet-stream", "application/x-lzh"]],
+	["lzx", [
+		"application/lzx",
+		"application/octet-stream",
+		"application/x-lzx"
+	]],
+	["m", ["text/plain", "text/x-m"]],
+	["m13", "application/x-msmediaview"],
+	["m14", "application/x-msmediaview"],
+	["m1v", "video/mpeg"],
+	["m21", "application/mp21"],
+	["m2a", "audio/mpeg"],
+	["m2v", "video/mpeg"],
+	["m3u", ["audio/x-mpegurl", "audio/x-mpequrl"]],
+	["m3u8", "application/vnd.apple.mpegurl"],
+	["m4v", "video/x-m4v"],
+	["ma", "application/mathematica"],
+	["mads", "application/mads+xml"],
+	["mag", "application/vnd.ecowin.chart"],
+	["man", "application/x-troff-man"],
+	["map", "application/x-navimap"],
+	["mar", "text/plain"],
+	["mathml", "application/mathml+xml"],
+	["mbd", "application/mbedlet"],
+	["mbk", "application/vnd.mobius.mbk"],
+	["mbox", "application/mbox"],
+	["mc$", "application/x-magic-cap-package-1.0"],
+	["mc1", "application/vnd.medcalcdata"],
+	["mcd", [
+		"application/mcad",
+		"application/vnd.mcd",
+		"application/x-mathcad"
+	]],
+	["mcf", ["image/vasa", "text/mcf"]],
+	["mcp", "application/netmc"],
+	["mcurl", "text/vnd.curl.mcurl"],
+	["mdb", "application/x-msaccess"],
+	["mdi", "image/vnd.ms-modi"],
+	["me", "application/x-troff-me"],
+	["meta4", "application/metalink4+xml"],
+	["mets", "application/mets+xml"],
+	["mfm", "application/vnd.mfmp"],
+	["mgp", "application/vnd.osgeo.mapguide.package"],
+	["mgz", "application/vnd.proteus.magazine"],
+	["mht", "message/rfc822"],
+	["mhtml", "message/rfc822"],
+	["mid", [
+		"audio/mid",
+		"audio/midi",
+		"music/crescendo",
+		"x-music/x-midi",
+		"audio/x-midi",
+		"application/x-midi",
+		"audio/x-mid"
+	]],
+	["midi", [
+		"audio/midi",
+		"music/crescendo",
+		"x-music/x-midi",
+		"audio/x-midi",
+		"application/x-midi",
+		"audio/x-mid"
+	]],
+	["mif", [
+		"application/vnd.mif",
+		"application/x-mif",
+		"application/x-frame"
+	]],
+	["mime", ["message/rfc822", "www/mime"]],
+	["mj2", "video/mj2"],
+	["mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"],
+	["mjpg", "video/x-motion-jpeg"],
+	["mlp", "application/vnd.dolby.mlp"],
+	["mm", ["application/base64", "application/x-meme"]],
+	["mmd", "application/vnd.chipnuts.karaoke-mmd"],
+	["mme", "application/base64"],
+	["mmf", "application/vnd.smaf"],
+	["mmr", "image/vnd.fujixerox.edmics-mmr"],
+	["mny", "application/x-msmoney"],
+	["mod", ["audio/mod", "audio/x-mod"]],
+	["mods", "application/mods+xml"],
+	["moov", "video/quicktime"],
+	["mov", "video/quicktime"],
+	["movie", "video/x-sgi-movie"],
+	["mp2", [
+		"video/mpeg",
+		"audio/mpeg",
+		"video/x-mpeg",
+		"audio/x-mpeg",
+		"video/x-mpeq2a"
+	]],
+	["mp3", [
+		"audio/mpeg",
+		"audio/mpeg3",
+		"video/mpeg",
+		"audio/x-mpeg-3",
+		"video/x-mpeg"
+	]],
+	["mp4", ["video/mp4", "application/mp4"]],
+	["mp4a", "audio/mp4"],
+	["mpa", ["video/mpeg", "audio/mpeg"]],
+	["mpc", ["application/vnd.mophun.certificate", "application/x-project"]],
+	["mpe", "video/mpeg"],
+	["mpeg", "video/mpeg"],
+	["mpg", ["video/mpeg", "audio/mpeg"]],
+	["mpga", "audio/mpeg"],
+	["mpkg", "application/vnd.apple.installer+xml"],
+	["mpm", "application/vnd.blueice.multipass"],
+	["mpn", "application/vnd.mophun.application"],
+	["mpp", "application/vnd.ms-project"],
+	["mpt", "application/x-project"],
+	["mpv", "application/x-project"],
+	["mpv2", "video/mpeg"],
+	["mpx", "application/x-project"],
+	["mpy", "application/vnd.ibm.minipay"],
+	["mqy", "application/vnd.mobius.mqy"],
+	["mrc", "application/marc"],
+	["mrcx", "application/marcxml+xml"],
+	["ms", "application/x-troff-ms"],
+	["mscml", "application/mediaservercontrol+xml"],
+	["mseq", "application/vnd.mseq"],
+	["msf", "application/vnd.epson.msf"],
+	["msg", "application/vnd.ms-outlook"],
+	["msh", "model/mesh"],
+	["msl", "application/vnd.mobius.msl"],
+	["msty", "application/vnd.muvee.style"],
+	["mts", "model/vnd.mts"],
+	["mus", "application/vnd.musician"],
+	["musicxml", "application/vnd.recordare.musicxml+xml"],
+	["mv", "video/x-sgi-movie"],
+	["mvb", "application/x-msmediaview"],
+	["mwf", "application/vnd.mfer"],
+	["mxf", "application/mxf"],
+	["mxl", "application/vnd.recordare.musicxml"],
+	["mxml", "application/xv+xml"],
+	["mxs", "application/vnd.triscape.mxs"],
+	["mxu", "video/vnd.mpegurl"],
+	["my", "audio/make"],
+	["mzz", "application/x-vnd.audioexplosion.mzz"],
+	["n-gage", "application/vnd.nokia.n-gage.symbian.install"],
+	["n3", "text/n3"],
+	["nap", "image/naplps"],
+	["naplps", "image/naplps"],
+	["nbp", "application/vnd.wolfram.player"],
+	["nc", "application/x-netcdf"],
+	["ncm", "application/vnd.nokia.configuration-message"],
+	["ncx", "application/x-dtbncx+xml"],
+	["ngdat", "application/vnd.nokia.n-gage.data"],
+	["nif", "image/x-niff"],
+	["niff", "image/x-niff"],
+	["nix", "application/x-mix-transfer"],
+	["nlu", "application/vnd.neurolanguage.nlu"],
+	["nml", "application/vnd.enliven"],
+	["nnd", "application/vnd.noblenet-directory"],
+	["nns", "application/vnd.noblenet-sealer"],
+	["nnw", "application/vnd.noblenet-web"],
+	["npx", "image/vnd.net-fpx"],
+	["nsc", "application/x-conference"],
+	["nsf", "application/vnd.lotus-notes"],
+	["nvd", "application/x-navidoc"],
+	["nws", "message/rfc822"],
+	["o", "application/octet-stream"],
+	["oa2", "application/vnd.fujitsu.oasys2"],
+	["oa3", "application/vnd.fujitsu.oasys3"],
+	["oas", "application/vnd.fujitsu.oasys"],
+	["obd", "application/x-msbinder"],
+	["oda", "application/oda"],
+	["odb", "application/vnd.oasis.opendocument.database"],
+	["odc", "application/vnd.oasis.opendocument.chart"],
+	["odf", "application/vnd.oasis.opendocument.formula"],
+	["odft", "application/vnd.oasis.opendocument.formula-template"],
+	["odg", "application/vnd.oasis.opendocument.graphics"],
+	["odi", "application/vnd.oasis.opendocument.image"],
+	["odm", "application/vnd.oasis.opendocument.text-master"],
+	["odp", "application/vnd.oasis.opendocument.presentation"],
+	["ods", "application/vnd.oasis.opendocument.spreadsheet"],
+	["odt", "application/vnd.oasis.opendocument.text"],
+	["oga", "audio/ogg"],
+	["ogv", "video/ogg"],
+	["ogx", "application/ogg"],
+	["omc", "application/x-omc"],
+	["omcd", "application/x-omcdatamaker"],
+	["omcr", "application/x-omcregerator"],
+	["onetoc", "application/onenote"],
+	["opf", "application/oebps-package+xml"],
+	["org", "application/vnd.lotus-organizer"],
+	["osf", "application/vnd.yamaha.openscoreformat"],
+	["osfpvg", "application/vnd.yamaha.openscoreformat.osfpvg+xml"],
+	["otc", "application/vnd.oasis.opendocument.chart-template"],
+	["otf", "application/x-font-otf"],
+	["otg", "application/vnd.oasis.opendocument.graphics-template"],
+	["oth", "application/vnd.oasis.opendocument.text-web"],
+	["oti", "application/vnd.oasis.opendocument.image-template"],
+	["otp", "application/vnd.oasis.opendocument.presentation-template"],
+	["ots", "application/vnd.oasis.opendocument.spreadsheet-template"],
+	["ott", "application/vnd.oasis.opendocument.text-template"],
+	["oxt", "application/vnd.openofficeorg.extension"],
+	["p", "text/x-pascal"],
+	["p10", ["application/pkcs10", "application/x-pkcs10"]],
+	["p12", ["application/pkcs-12", "application/x-pkcs12"]],
+	["p7a", "application/x-pkcs7-signature"],
+	["p7b", "application/x-pkcs7-certificates"],
+	["p7c", ["application/pkcs7-mime", "application/x-pkcs7-mime"]],
+	["p7m", ["application/pkcs7-mime", "application/x-pkcs7-mime"]],
+	["p7r", "application/x-pkcs7-certreqresp"],
+	["p7s", ["application/pkcs7-signature", "application/x-pkcs7-signature"]],
+	["p8", "application/pkcs8"],
+	["par", "text/plain-bas"],
+	["part", "application/pro_eng"],
+	["pas", "text/pascal"],
+	["paw", "application/vnd.pawaafile"],
+	["pbd", "application/vnd.powerbuilder6"],
+	["pbm", "image/x-portable-bitmap"],
+	["pcf", "application/x-font-pcf"],
+	["pcl", ["application/vnd.hp-pcl", "application/x-pcl"]],
+	["pclxl", "application/vnd.hp-pclxl"],
+	["pct", "image/x-pict"],
+	["pcurl", "application/vnd.curl.pcurl"],
+	["pcx", "image/x-pcx"],
+	["pdb", ["application/vnd.palm", "chemical/x-pdb"]],
+	["pdf", "application/pdf"],
+	["pfa", "application/x-font-type1"],
+	["pfr", "application/font-tdpfr"],
+	["pfunk", ["audio/make", "audio/make.my.funk"]],
+	["pfx", "application/x-pkcs12"],
+	["pgm", ["image/x-portable-graymap", "image/x-portable-greymap"]],
+	["pgn", "application/x-chess-pgn"],
+	["pgp", "application/pgp-signature"],
+	["pic", ["image/pict", "image/x-pict"]],
+	["pict", "image/pict"],
+	["pkg", "application/x-newton-compatible-pkg"],
+	["pki", "application/pkixcmp"],
+	["pkipath", "application/pkix-pkipath"],
+	["pko", ["application/ynd.ms-pkipko", "application/vnd.ms-pki.pko"]],
+	["pl", ["text/plain", "text/x-script.perl"]],
+	["plb", "application/vnd.3gpp.pic-bw-large"],
+	["plc", "application/vnd.mobius.plc"],
+	["plf", "application/vnd.pocketlearn"],
+	["pls", "application/pls+xml"],
+	["plx", "application/x-pixclscript"],
+	["pm", ["text/x-script.perl-module", "image/x-xpixmap"]],
+	["pm4", "application/x-pagemaker"],
+	["pm5", "application/x-pagemaker"],
+	["pma", "application/x-perfmon"],
+	["pmc", "application/x-perfmon"],
+	["pml", ["application/vnd.ctc-posml", "application/x-perfmon"]],
+	["pmr", "application/x-perfmon"],
+	["pmw", "application/x-perfmon"],
+	["png", "image/png"],
+	["pnm", ["application/x-portable-anymap", "image/x-portable-anymap"]],
+	["portpkg", "application/vnd.macports.portpkg"],
+	["pot", ["application/vnd.ms-powerpoint", "application/mspowerpoint"]],
+	["potm", "application/vnd.ms-powerpoint.template.macroenabled.12"],
+	["potx", "application/vnd.openxmlformats-officedocument.presentationml.template"],
+	["pov", "model/x-pov"],
+	["ppa", "application/vnd.ms-powerpoint"],
+	["ppam", "application/vnd.ms-powerpoint.addin.macroenabled.12"],
+	["ppd", "application/vnd.cups-ppd"],
+	["ppm", "image/x-portable-pixmap"],
+	["pps", ["application/vnd.ms-powerpoint", "application/mspowerpoint"]],
+	["ppsm", "application/vnd.ms-powerpoint.slideshow.macroenabled.12"],
+	["ppsx", "application/vnd.openxmlformats-officedocument.presentationml.slideshow"],
+	["ppt", [
+		"application/vnd.ms-powerpoint",
+		"application/mspowerpoint",
+		"application/powerpoint",
+		"application/x-mspowerpoint"
+	]],
+	["pptm", "application/vnd.ms-powerpoint.presentation.macroenabled.12"],
+	["pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+	["ppz", "application/mspowerpoint"],
+	["prc", "application/x-mobipocket-ebook"],
+	["pre", ["application/vnd.lotus-freelance", "application/x-freelance"]],
+	["prf", "application/pics-rules"],
+	["prt", "application/pro_eng"],
+	["ps", "application/postscript"],
+	["psb", "application/vnd.3gpp.pic-bw-small"],
+	["psd", ["application/octet-stream", "image/vnd.adobe.photoshop"]],
+	["psf", "application/x-font-linux-psf"],
+	["pskcxml", "application/pskc+xml"],
+	["ptid", "application/vnd.pvi.ptid1"],
+	["pub", "application/x-mspublisher"],
+	["pvb", "application/vnd.3gpp.pic-bw-var"],
+	["pvu", "paleovu/x-pv"],
+	["pwn", "application/vnd.3m.post-it-notes"],
+	["pwz", "application/vnd.ms-powerpoint"],
+	["py", "text/x-script.phyton"],
+	["pya", "audio/vnd.ms-playready.media.pya"],
+	["pyc", "application/x-bytecode.python"],
+	["pyv", "video/vnd.ms-playready.media.pyv"],
+	["qam", "application/vnd.epson.quickanime"],
+	["qbo", "application/vnd.intu.qbo"],
+	["qcp", "audio/vnd.qcelp"],
+	["qd3", "x-world/x-3dmf"],
+	["qd3d", "x-world/x-3dmf"],
+	["qfx", "application/vnd.intu.qfx"],
+	["qif", "image/x-quicktime"],
+	["qps", "application/vnd.publishare-delta-tree"],
+	["qt", "video/quicktime"],
+	["qtc", "video/x-qtc"],
+	["qti", "image/x-quicktime"],
+	["qtif", "image/x-quicktime"],
+	["qxd", "application/vnd.quark.quarkxpress"],
+	["ra", [
+		"audio/x-realaudio",
+		"audio/x-pn-realaudio",
+		"audio/x-pn-realaudio-plugin"
+	]],
+	["ram", "audio/x-pn-realaudio"],
+	["rar", "application/x-rar-compressed"],
+	["ras", [
+		"image/cmu-raster",
+		"application/x-cmu-raster",
+		"image/x-cmu-raster"
+	]],
+	["rast", "image/cmu-raster"],
+	["rcprofile", "application/vnd.ipunplugged.rcprofile"],
+	["rdf", "application/rdf+xml"],
+	["rdz", "application/vnd.data-vision.rdz"],
+	["rep", "application/vnd.businessobjects"],
+	["res", "application/x-dtbresource+xml"],
+	["rexx", "text/x-script.rexx"],
+	["rf", "image/vnd.rn-realflash"],
+	["rgb", "image/x-rgb"],
+	["rif", "application/reginfo+xml"],
+	["rip", "audio/vnd.rip"],
+	["rl", "application/resource-lists+xml"],
+	["rlc", "image/vnd.fujixerox.edmics-rlc"],
+	["rld", "application/resource-lists-diff+xml"],
+	["rm", ["application/vnd.rn-realmedia", "audio/x-pn-realaudio"]],
+	["rmi", "audio/mid"],
+	["rmm", "audio/x-pn-realaudio"],
+	["rmp", ["audio/x-pn-realaudio-plugin", "audio/x-pn-realaudio"]],
+	["rms", "application/vnd.jcp.javame.midlet-rms"],
+	["rnc", "application/relax-ng-compact-syntax"],
+	["rng", ["application/ringing-tones", "application/vnd.nokia.ringing-tone"]],
+	["rnx", "application/vnd.rn-realplayer"],
+	["roff", "application/x-troff"],
+	["rp", "image/vnd.rn-realpix"],
+	["rp9", "application/vnd.cloanto.rp9"],
+	["rpm", "audio/x-pn-realaudio-plugin"],
+	["rpss", "application/vnd.nokia.radio-presets"],
+	["rpst", "application/vnd.nokia.radio-preset"],
+	["rq", "application/sparql-query"],
+	["rs", "application/rls-services+xml"],
+	["rsd", "application/rsd+xml"],
+	["rt", ["text/richtext", "text/vnd.rn-realtext"]],
+	["rtf", [
+		"application/rtf",
+		"text/richtext",
+		"application/x-rtf"
+	]],
+	["rtx", ["text/richtext", "application/rtf"]],
+	["rv", "video/vnd.rn-realvideo"],
+	["s", "text/x-asm"],
+	["s3m", "audio/s3m"],
+	["saf", "application/vnd.yamaha.smaf-audio"],
+	["saveme", "application/octet-stream"],
+	["sbk", "application/x-tbook"],
+	["sbml", "application/sbml+xml"],
+	["sc", "application/vnd.ibm.secure-container"],
+	["scd", "application/x-msschedule"],
+	["scm", [
+		"application/vnd.lotus-screencam",
+		"video/x-scm",
+		"text/x-script.guile",
+		"application/x-lotusscreencam",
+		"text/x-script.scheme"
+	]],
+	["scq", "application/scvp-cv-request"],
+	["scs", "application/scvp-cv-response"],
+	["sct", "text/scriptlet"],
+	["scurl", "text/vnd.curl.scurl"],
+	["sda", "application/vnd.stardivision.draw"],
+	["sdc", "application/vnd.stardivision.calc"],
+	["sdd", "application/vnd.stardivision.impress"],
+	["sdkm", "application/vnd.solent.sdkm+xml"],
+	["sdml", "text/plain"],
+	["sdp", ["application/sdp", "application/x-sdp"]],
+	["sdr", "application/sounder"],
+	["sdw", "application/vnd.stardivision.writer"],
+	["sea", ["application/sea", "application/x-sea"]],
+	["see", "application/vnd.seemail"],
+	["seed", "application/vnd.fdsn.seed"],
+	["sema", "application/vnd.sema"],
+	["semd", "application/vnd.semd"],
+	["semf", "application/vnd.semf"],
+	["ser", "application/java-serialized-object"],
+	["set", "application/set"],
+	["setpay", "application/set-payment-initiation"],
+	["setreg", "application/set-registration-initiation"],
+	["sfd-hdstx", "application/vnd.hydrostatix.sof-data"],
+	["sfs", "application/vnd.spotfire.sfs"],
+	["sgl", "application/vnd.stardivision.writer-global"],
+	["sgm", ["text/sgml", "text/x-sgml"]],
+	["sgml", ["text/sgml", "text/x-sgml"]],
+	["sh", [
+		"application/x-shar",
+		"application/x-bsh",
+		"application/x-sh",
+		"text/x-script.sh"
+	]],
+	["shar", ["application/x-bsh", "application/x-shar"]],
+	["shf", "application/shf+xml"],
+	["shtml", ["text/html", "text/x-server-parsed-html"]],
+	["sid", "audio/x-psid"],
+	["sis", "application/vnd.symbian.install"],
+	["sit", ["application/x-stuffit", "application/x-sit"]],
+	["sitx", "application/x-stuffitx"],
+	["skd", "application/x-koan"],
+	["skm", "application/x-koan"],
+	["skp", ["application/vnd.koan", "application/x-koan"]],
+	["skt", "application/x-koan"],
+	["sl", "application/x-seelogo"],
+	["sldm", "application/vnd.ms-powerpoint.slide.macroenabled.12"],
+	["sldx", "application/vnd.openxmlformats-officedocument.presentationml.slide"],
+	["slt", "application/vnd.epson.salt"],
+	["sm", "application/vnd.stepmania.stepchart"],
+	["smf", "application/vnd.stardivision.math"],
+	["smi", ["application/smil", "application/smil+xml"]],
+	["smil", "application/smil"],
+	["snd", ["audio/basic", "audio/x-adpcm"]],
+	["snf", "application/x-font-snf"],
+	["sol", "application/solids"],
+	["spc", ["text/x-speech", "application/x-pkcs7-certificates"]],
+	["spf", "application/vnd.yamaha.smaf-phrase"],
+	["spl", ["application/futuresplash", "application/x-futuresplash"]],
+	["spot", "text/vnd.in3d.spot"],
+	["spp", "application/scvp-vp-response"],
+	["spq", "application/scvp-vp-request"],
+	["spr", "application/x-sprite"],
+	["sprite", "application/x-sprite"],
+	["src", "application/x-wais-source"],
+	["sru", "application/sru+xml"],
+	["srx", "application/sparql-results+xml"],
+	["sse", "application/vnd.kodak-descriptor"],
+	["ssf", "application/vnd.epson.ssf"],
+	["ssi", "text/x-server-parsed-html"],
+	["ssm", "application/streamingmedia"],
+	["ssml", "application/ssml+xml"],
+	["sst", ["application/vnd.ms-pkicertstore", "application/vnd.ms-pki.certstore"]],
+	["st", "application/vnd.sailingtracker.track"],
+	["stc", "application/vnd.sun.xml.calc.template"],
+	["std", "application/vnd.sun.xml.draw.template"],
+	["step", "application/step"],
+	["stf", "application/vnd.wt.stf"],
+	["sti", "application/vnd.sun.xml.impress.template"],
+	["stk", "application/hyperstudio"],
+	["stl", [
+		"application/vnd.ms-pkistl",
+		"application/sla",
+		"application/vnd.ms-pki.stl",
+		"application/x-navistyle"
+	]],
+	["stm", "text/html"],
+	["stp", "application/step"],
+	["str", "application/vnd.pg.format"],
+	["stw", "application/vnd.sun.xml.writer.template"],
+	["sub", "image/vnd.dvb.subtitle"],
+	["sus", "application/vnd.sus-calendar"],
+	["sv4cpio", "application/x-sv4cpio"],
+	["sv4crc", "application/x-sv4crc"],
+	["svc", "application/vnd.dvb.service"],
+	["svd", "application/vnd.svd"],
+	["svf", ["image/vnd.dwg", "image/x-dwg"]],
+	["svg", "image/svg+xml"],
+	["svr", ["x-world/x-svr", "application/x-world"]],
+	["swf", "application/x-shockwave-flash"],
+	["swi", "application/vnd.aristanetworks.swi"],
+	["sxc", "application/vnd.sun.xml.calc"],
+	["sxd", "application/vnd.sun.xml.draw"],
+	["sxg", "application/vnd.sun.xml.writer.global"],
+	["sxi", "application/vnd.sun.xml.impress"],
+	["sxm", "application/vnd.sun.xml.math"],
+	["sxw", "application/vnd.sun.xml.writer"],
+	["t", ["text/troff", "application/x-troff"]],
+	["talk", "text/x-speech"],
+	["tao", "application/vnd.tao.intent-module-archive"],
+	["tar", "application/x-tar"],
+	["tbk", ["application/toolbook", "application/x-tbook"]],
+	["tcap", "application/vnd.3gpp2.tcap"],
+	["tcl", ["text/x-script.tcl", "application/x-tcl"]],
+	["tcsh", "text/x-script.tcsh"],
+	["teacher", "application/vnd.smart.teacher"],
+	["tei", "application/tei+xml"],
+	["tex", "application/x-tex"],
+	["texi", "application/x-texinfo"],
+	["texinfo", "application/x-texinfo"],
+	["text", ["application/plain", "text/plain"]],
+	["tfi", "application/thraud+xml"],
+	["tfm", "application/x-tex-tfm"],
+	["tgz", ["application/gnutar", "application/x-compressed"]],
+	["thmx", "application/vnd.ms-officetheme"],
+	["tif", ["image/tiff", "image/x-tiff"]],
+	["tiff", ["image/tiff", "image/x-tiff"]],
+	["tmo", "application/vnd.tmobile-livetv"],
+	["torrent", "application/x-bittorrent"],
+	["tpl", "application/vnd.groove-tool-template"],
+	["tpt", "application/vnd.trid.tpt"],
+	["tr", "application/x-troff"],
+	["tra", "application/vnd.trueapp"],
+	["trm", "application/x-msterminal"],
+	["tsd", "application/timestamped-data"],
+	["tsi", "audio/tsp-audio"],
+	["tsp", ["application/dsptype", "audio/tsplayer"]],
+	["tsv", "text/tab-separated-values"],
+	["ttf", "application/x-font-ttf"],
+	["ttl", "text/turtle"],
+	["turbot", "image/florian"],
+	["twd", "application/vnd.simtech-mindmapper"],
+	["txd", "application/vnd.genomatix.tuxedo"],
+	["txf", "application/vnd.mobius.txf"],
+	["txt", "text/plain"],
+	["ufd", "application/vnd.ufdl"],
+	["uil", "text/x-uil"],
+	["uls", "text/iuls"],
+	["umj", "application/vnd.umajin"],
+	["uni", "text/uri-list"],
+	["unis", "text/uri-list"],
+	["unityweb", "application/vnd.unity"],
+	["unv", "application/i-deas"],
+	["uoml", "application/vnd.uoml+xml"],
+	["uri", "text/uri-list"],
+	["uris", "text/uri-list"],
+	["ustar", ["application/x-ustar", "multipart/x-ustar"]],
+	["utz", "application/vnd.uiq.theme"],
+	["uu", ["application/octet-stream", "text/x-uuencode"]],
+	["uue", "text/x-uuencode"],
+	["uva", "audio/vnd.dece.audio"],
+	["uvh", "video/vnd.dece.hd"],
+	["uvi", "image/vnd.dece.graphic"],
+	["uvm", "video/vnd.dece.mobile"],
+	["uvp", "video/vnd.dece.pd"],
+	["uvs", "video/vnd.dece.sd"],
+	["uvu", "video/vnd.uvvu.mp4"],
+	["uvv", "video/vnd.dece.video"],
+	["vcd", "application/x-cdlink"],
+	["vcf", "text/x-vcard"],
+	["vcg", "application/vnd.groove-vcard"],
+	["vcs", "text/x-vcalendar"],
+	["vcx", "application/vnd.vcx"],
+	["vda", "application/vda"],
+	["vdo", "video/vdo"],
+	["vew", "application/groupwise"],
+	["vis", "application/vnd.visionary"],
+	["viv", ["video/vivo", "video/vnd.vivo"]],
+	["vivo", ["video/vivo", "video/vnd.vivo"]],
+	["vmd", "application/vocaltec-media-desc"],
+	["vmf", "application/vocaltec-media-file"],
+	["voc", ["audio/voc", "audio/x-voc"]],
+	["vos", "video/vosaic"],
+	["vox", "audio/voxware"],
+	["vqe", "audio/x-twinvq-plugin"],
+	["vqf", "audio/x-twinvq"],
+	["vql", "audio/x-twinvq-plugin"],
+	["vrml", [
+		"model/vrml",
+		"x-world/x-vrml",
+		"application/x-vrml"
+	]],
+	["vrt", "x-world/x-vrt"],
+	["vsd", ["application/vnd.visio", "application/x-visio"]],
+	["vsf", "application/vnd.vsf"],
+	["vst", "application/x-visio"],
+	["vsw", "application/x-visio"],
+	["vtu", "model/vnd.vtu"],
+	["vxml", "application/voicexml+xml"],
+	["w60", "application/wordperfect6.0"],
+	["w61", "application/wordperfect6.1"],
+	["w6w", "application/msword"],
+	["wad", "application/x-doom"],
+	["wav", ["audio/wav", "audio/x-wav"]],
+	["wax", "audio/x-ms-wax"],
+	["wb1", "application/x-qpro"],
+	["wbmp", "image/vnd.wap.wbmp"],
+	["wbs", "application/vnd.criticaltools.wbs+xml"],
+	["wbxml", "application/vnd.wap.wbxml"],
+	["wcm", "application/vnd.ms-works"],
+	["wdb", "application/vnd.ms-works"],
+	["web", "application/vnd.xara"],
+	["weba", "audio/webm"],
+	["webm", "video/webm"],
+	["webp", "image/webp"],
+	["wg", "application/vnd.pmi.widget"],
+	["wgt", "application/widget"],
+	["wiz", "application/msword"],
+	["wk1", "application/x-123"],
+	["wks", "application/vnd.ms-works"],
+	["wm", "video/x-ms-wm"],
+	["wma", "audio/x-ms-wma"],
+	["wmd", "application/x-ms-wmd"],
+	["wmf", ["windows/metafile", "application/x-msmetafile"]],
+	["wml", "text/vnd.wap.wml"],
+	["wmlc", "application/vnd.wap.wmlc"],
+	["wmls", "text/vnd.wap.wmlscript"],
+	["wmlsc", "application/vnd.wap.wmlscriptc"],
+	["wmv", "video/x-ms-wmv"],
+	["wmx", "video/x-ms-wmx"],
+	["wmz", "application/x-ms-wmz"],
+	["woff", "application/x-font-woff"],
+	["word", "application/msword"],
+	["wp", "application/wordperfect"],
+	["wp5", ["application/wordperfect", "application/wordperfect6.0"]],
+	["wp6", "application/wordperfect"],
+	["wpd", [
+		"application/wordperfect",
+		"application/vnd.wordperfect",
+		"application/x-wpwin"
+	]],
+	["wpl", "application/vnd.ms-wpl"],
+	["wps", "application/vnd.ms-works"],
+	["wq1", "application/x-lotus"],
+	["wqd", "application/vnd.wqd"],
+	["wri", [
+		"application/mswrite",
+		"application/x-wri",
+		"application/x-mswrite"
+	]],
+	["wrl", [
+		"model/vrml",
+		"x-world/x-vrml",
+		"application/x-world"
+	]],
+	["wrz", ["model/vrml", "x-world/x-vrml"]],
+	["wsc", "text/scriplet"],
+	["wsdl", "application/wsdl+xml"],
+	["wspolicy", "application/wspolicy+xml"],
+	["wsrc", "application/x-wais-source"],
+	["wtb", "application/vnd.webturbo"],
+	["wtk", "application/x-wintalk"],
+	["wvx", "video/x-ms-wvx"],
+	["x-png", "image/png"],
+	["x3d", "application/vnd.hzn-3d-crossword"],
+	["xaf", "x-world/x-vrml"],
+	["xap", "application/x-silverlight-app"],
+	["xar", "application/vnd.xara"],
+	["xbap", "application/x-ms-xbap"],
+	["xbd", "application/vnd.fujixerox.docuworks.binder"],
+	["xbm", [
+		"image/xbm",
+		"image/x-xbm",
+		"image/x-xbitmap"
+	]],
+	["xdf", "application/xcap-diff+xml"],
+	["xdm", "application/vnd.syncml.dm+xml"],
+	["xdp", "application/vnd.adobe.xdp+xml"],
+	["xdr", "video/x-amt-demorun"],
+	["xdssc", "application/dssc+xml"],
+	["xdw", "application/vnd.fujixerox.docuworks"],
+	["xenc", "application/xenc+xml"],
+	["xer", "application/patch-ops-error+xml"],
+	["xfdf", "application/vnd.adobe.xfdf"],
+	["xfdl", "application/vnd.xfdl"],
+	["xgz", "xgl/drawing"],
+	["xhtml", "application/xhtml+xml"],
+	["xif", "image/vnd.xiff"],
+	["xl", "application/excel"],
+	["xla", [
+		"application/vnd.ms-excel",
+		"application/excel",
+		"application/x-msexcel",
+		"application/x-excel"
+	]],
+	["xlam", "application/vnd.ms-excel.addin.macroenabled.12"],
+	["xlb", [
+		"application/excel",
+		"application/vnd.ms-excel",
+		"application/x-excel"
+	]],
+	["xlc", [
+		"application/vnd.ms-excel",
+		"application/excel",
+		"application/x-excel"
+	]],
+	["xld", ["application/excel", "application/x-excel"]],
+	["xlk", ["application/excel", "application/x-excel"]],
+	["xll", [
+		"application/excel",
+		"application/vnd.ms-excel",
+		"application/x-excel"
+	]],
+	["xlm", [
+		"application/vnd.ms-excel",
+		"application/excel",
+		"application/x-excel"
+	]],
+	["xls", [
+		"application/vnd.ms-excel",
+		"application/excel",
+		"application/x-msexcel",
+		"application/x-excel"
+	]],
+	["xlsb", "application/vnd.ms-excel.sheet.binary.macroenabled.12"],
+	["xlsm", "application/vnd.ms-excel.sheet.macroenabled.12"],
+	["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+	["xlt", [
+		"application/vnd.ms-excel",
+		"application/excel",
+		"application/x-excel"
+	]],
+	["xltm", "application/vnd.ms-excel.template.macroenabled.12"],
+	["xltx", "application/vnd.openxmlformats-officedocument.spreadsheetml.template"],
+	["xlv", ["application/excel", "application/x-excel"]],
+	["xlw", [
+		"application/vnd.ms-excel",
+		"application/excel",
+		"application/x-msexcel",
+		"application/x-excel"
+	]],
+	["xm", "audio/xm"],
+	["xml", [
+		"application/xml",
+		"text/xml",
+		"application/atom+xml",
+		"application/rss+xml"
+	]],
+	["xmz", "xgl/movie"],
+	["xo", "application/vnd.olpc-sugar"],
+	["xof", "x-world/x-vrml"],
+	["xop", "application/xop+xml"],
+	["xpi", "application/x-xpinstall"],
+	["xpix", "application/x-vnd.ls-xpix"],
+	["xpm", ["image/xpm", "image/x-xpixmap"]],
+	["xpr", "application/vnd.is-xpr"],
+	["xps", "application/vnd.ms-xpsdocument"],
+	["xpw", "application/vnd.intercon.formnet"],
+	["xslt", "application/xslt+xml"],
+	["xsm", "application/vnd.syncml+xml"],
+	["xspf", "application/xspf+xml"],
+	["xsr", "video/x-amt-showrun"],
+	["xul", "application/vnd.mozilla.xul+xml"],
+	["xwd", ["image/x-xwd", "image/x-xwindowdump"]],
+	["xyz", ["chemical/x-xyz", "chemical/x-pdb"]],
+	["yang", "application/yang"],
+	["yin", "application/yin+xml"],
+	["z", ["application/x-compressed", "application/x-compress"]],
+	["zaz", "application/vnd.zzazz.deck+xml"],
+	["zip", [
+		"application/zip",
+		"multipart/x-zip",
+		"application/x-zip-compressed",
+		"application/x-compressed"
+	]],
+	["zir", "application/vnd.zul"],
+	["zmm", "application/vnd.handheld-entertainment+xml"],
+	["zoo", "application/octet-stream"],
+	["zsh", "text/x-script.zsh"]
+]);
+function detectMimeType$1(filename) {
+	if (!filename) return defaultMimeType;
+	const parsed = path.parse(filename);
+	const extension = (parsed.ext.substr(1) || parsed.name || "").split("?").shift().trim().toLowerCase();
+	const value = extensions.has(extension) ? extensions.get(extension) : defaultMimeType;
+	if (Array.isArray(value)) return value[0];
+	return value;
+}
+function detectExtension$1(mimeType) {
+	if (!mimeType) return defaultExtension;
+	const parts = mimeType.toLowerCase().trim().split("/");
+	const rootType = parts.shift().trim();
+	const subType = parts.join("/").trim();
+	if (mimeTypes.has(rootType + "/" + subType)) {
+		const value = mimeTypes.get(rootType + "/" + subType);
+		if (Array.isArray(value)) return value[0];
+		return value;
+	}
+	switch (rootType) {
+		case "text": return "txt";
+		default: return "bin";
+	}
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/base64/index.js
+/**
+* Encodes a Buffer into a base64 encoded string
+*
+* @param buffer Buffer to convert
+* @returns base64 encoded string
+*/
+function encode$1(buffer) {
+	if (typeof buffer === "string") buffer = Buffer.from(buffer, "utf-8");
+	return buffer.toString("base64");
+}
+/**
+* Turns a line length option into a whole number of characters, the default for anything unusable
+*/
+function normalizeLineLength(lineLength) {
+	const length = Math.floor(Number(lineLength));
+	return Number.isFinite(length) && length >= 1 ? length : 76;
+}
+/**
+* Splits the bytes of `src` into lines of `lineLength` bytes, each followed by a line break. With
+* `final` set the last line, which may be shorter, gets no line break; otherwise only complete
+* lines are taken and the rest is left for the caller
+*
+* @param src Bytes to wrap
+* @param lineLength Line length
+* @param final Whether `src` ends the output
+* @returns The wrapped bytes and the number of trailing bytes not taken
+*/
+function wrapBuffer(src, lineLength, final) {
+	const lines = Math.ceil(src.length / lineLength);
+	const complete = Math.max(lines - 1, 0);
+	let rest = src.length - complete * lineLength;
+	const output = Buffer.allocUnsafe(complete * (lineLength + 2) + (final ? rest : 0));
+	let to = 0;
+	for (let from = 0; from < complete * lineLength; from += lineLength) {
+		src.copy(output, to, from, from + lineLength);
+		to += lineLength;
+		output[to++] = 13;
+		output[to++] = 10;
+	}
+	if (final) {
+		to += src.copy(output, to, complete * lineLength);
+		rest = 0;
+	}
+	if (to !== output.length) throw new Error("Unexpected wrapped length");
+	return {
+		output,
+		rest
+	};
+}
+/**
+* Creates a transform stream for encoding data to base64 encoding
+*
+* The output is the same as `wrap(encode(input), lineLength)` no matter how the input is split
+* into chunks: every line but the last one ends with a line break, the last one does not
+*
+* @constructor
+* @param options Stream options
+* @param [options.lineLength=76] Maximum length for lines, set to false to disable wrapping
+*/
+var Encoder$1 = class extends Transform {
+	constructor(options) {
+		super();
+		this.options = options || {};
+		if (this.options.lineLength !== false) this.options.lineLength = normalizeLineLength(this.options.lineLength);
+		this._curLine = "";
+		this._remainingBytes = false;
+		this.inputBytes = 0;
+		this.outputBytes = 0;
+	}
+	/**
+	* Emits the encoded characters `b64` that follow the current line, keeping what can not be
+	* emitted yet as the new current line
+	*
+	* @internal
+	*/
+	_emit(b64, final) {
+		const src = Buffer.from(this._curLine + b64, "latin1");
+		if (!src.length) return;
+		let output = src;
+		if (this.options.lineLength) {
+			const wrapped = wrapBuffer(src, this.options.lineLength, final);
+			output = wrapped.output;
+			this._curLine = wrapped.rest ? src.toString("latin1", src.length - wrapped.rest) : "";
+		} else this._curLine = "";
+		if (output.length) {
+			this.outputBytes += output.length;
+			this.push(output);
+		}
+	}
+	/** @internal */
+	_transform(chunk, encoding, done) {
+		let buf = encoding !== "buffer" ? Buffer.from(chunk, encoding) : chunk;
+		if (!buf || !buf.length) return done();
+		this.inputBytes += buf.length;
+		if (this._remainingBytes) {
+			buf = Buffer.concat([this._remainingBytes, buf], this._remainingBytes.length + buf.length);
+			this._remainingBytes = false;
+		}
+		const extra = buf.length % 3;
+		if (extra) {
+			this._remainingBytes = buf.subarray(buf.length - extra);
+			buf = buf.subarray(0, buf.length - extra);
+		}
+		this._emit(encode$1(buf), false);
+		done();
+	}
+	/** @internal */
+	_flush(done) {
+		this._emit(this._remainingBytes ? encode$1(this._remainingBytes) : "", true);
+		this._remainingBytes = false;
+		done();
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/qp/index.js
+/**
+* Encodes a Buffer into a Quoted-Printable encoded string
+*
+* @param buffer Buffer to convert
+* @returns Quoted-Printable encoded string
+*/
+const MIN_LINE_LENGTH = 4;
+const QP_RANGES = [
+	[9],
+	[10],
+	[13],
+	[32, 60],
+	[62, 126]
+];
+const QP_LITERAL = /* @__PURE__ */ new Uint8Array(256);
+for (let i = 0; i < 256; i++) QP_LITERAL[i] = checkRanges(i, QP_RANGES) ? 1 : 0;
+const HEX_DIGITS = Buffer.from("0123456789ABCDEF", "latin1");
+const isWhitespace = (c) => c === 32 || c === 9;
+function encode(buffer) {
+	return encodeBytes(typeof buffer === "string" ? Buffer.from(buffer, "utf-8") : buffer);
+}
+/**
+* Encodes bytes that may be followed by more input
+*
+* @param buffer Bytes to encode
+* @param [next] The byte that follows the buffer, whitespace before it is kept literal unless it
+*        is a line break. Without it the buffer ends the input and its trailing whitespace is encoded
+* @param [binary] Keep only CRLF pairs literal. A lone CR or LF is data, not a line break, and
+*        anything that rewrites line endings on the way would change it
+* @param [previous] The byte before the buffer, for a buffer that starts with LF
+* @returns Quoted-Printable encoded string
+*/
+function encodeBytes(buffer, next, binary, previous) {
+	const len = buffer.length;
+	const output = Buffer.allocUnsafe(len * 3);
+	let pos = 0;
+	for (let i = 0; i < len; i++) {
+		const ord = buffer[i];
+		const following = i + 1 < len ? buffer[i + 1] : next;
+		const lineBreakByte = binary && (ord === 13 || ord === 10) ? ord === 13 ? following === 10 : (i > 0 ? buffer[i - 1] : previous) === 13 : true;
+		if (QP_LITERAL[ord] && lineBreakByte && !(isWhitespace(ord) && (following === void 0 || following === 10 || following === 13))) {
+			output[pos++] = ord;
+			continue;
+		}
+		output[pos++] = 61;
+		output[pos++] = HEX_DIGITS[Math.floor(ord / 16)];
+		output[pos++] = HEX_DIGITS[ord % 16];
+	}
+	return output.toString("latin1", 0, pos);
+}
+/**
+* Adds soft line breaks to a Quoted-Printable string
+*
+* @param str Quoted-Printable encoded string that might need line wrapping
+* @param [lineLength=76] Maximum allowed length for a line
+* @returns Soft-wrapped Quoted-Printable encoded string
+*/
+function wrap(str, lineLength) {
+	str = (str || "").toString();
+	lineLength = Math.max(Number(lineLength) || 76, MIN_LINE_LENGTH);
+	if (str.length <= lineLength) return str;
+	let pos = 0;
+	const len = str.length;
+	let match, code, line;
+	const lineMargin = Math.floor(lineLength / 3);
+	let result = "";
+	while (pos < len) {
+		line = str.substr(pos, lineLength);
+		if (match = line.match(/\r\n/)) {
+			line = line.substr(0, match.index + match[0].length);
+			result += line;
+			pos += line.length;
+			continue;
+		}
+		if (line.substr(-1) === "\n") {
+			result += line;
+			pos += line.length;
+			continue;
+		}
+		if (match = line.substr(-lineMargin).match(/\n.*?$/)) {
+			line = line.substr(0, line.length - (match[0].length - 1));
+			result += line;
+			pos += line.length;
+			continue;
+		}
+		if (line.length > lineLength - lineMargin && (match = line.substr(-lineMargin).match(/[ \t.,!?][^ \t.,!?]*$/))) line = line.substr(0, line.length - (match[0].length - 1));
+		else if (line.match(/[=][\da-f]{0,2}$/i)) {
+			if (match = line.match(/[=][\da-f]{0,1}$/i)) line = line.substr(0, line.length - match[0].length);
+			while (line.length > 3 && line.length < len - pos && !line.match(/^(?:=[\da-f]{2}){1,4}$/i) && (match = line.match(/[=][\da-f]{2}$/gi))) {
+				code = parseInt(match[0].substr(1, 2), 16);
+				if (code < 128) break;
+				line = line.substr(0, line.length - 3);
+				if (code >= 192) break;
+			}
+		}
+		if (!line.length) line = str.substr(pos, lineLength);
+		if (pos + line.length < len && line.substr(-1) !== "\n") {
+			if (line.length === lineLength && line.match(/[=][\da-f]{2}$/i)) line = line.substr(0, line.length - 3);
+			else if (line.length === lineLength) line = line.substr(0, line.length - 1);
+			pos += line.length;
+			line += "=\r\n";
+		} else pos += line.length;
+		result += line;
+	}
+	return result;
+}
+/**
+* Helper function to check if a number is inside provided ranges
+*
+* @param nr Number to check for
+* @param ranges An Array of allowed values
+* @returns True if the value was found inside allowed ranges, false otherwise
+*/
+function checkRanges(nr, ranges) {
+	for (let i = ranges.length - 1; i >= 0; i--) {
+		const range = ranges[i];
+		if (!range.length) continue;
+		if (range.length === 1 && nr === range[0]) return true;
+		if (range.length === 2 && nr >= range[0] && nr <= range[1]) return true;
+	}
+	return false;
+}
+const ENCODE_SLICE_SIZE = 65536;
+/**
+* Creates a transform stream for encoding data to Quoted-Printable encoding
+*
+* @constructor
+* @param options Stream options
+* @param [options.lineLength=76] Maximum length for lines, set to false to disable wrapping
+*/
+var Encoder = class extends Transform {
+	constructor(options) {
+		super();
+		this.options = options || {};
+		if (this.options.lineLength !== false) this.options.lineLength = this.options.lineLength || 76;
+		this._curLine = "";
+		this._remainingBytes = false;
+		this._lastByte = void 0;
+		this.inputBytes = 0;
+		this.outputBytes = 0;
+	}
+	/** @internal */
+	_transform(chunk, encoding, done) {
+		let buf = encoding !== "buffer" ? Buffer.from(chunk, encoding) : chunk;
+		if (!buf || !buf.length) return done();
+		this.inputBytes += buf.length;
+		if (this._remainingBytes) {
+			buf = Buffer.concat([this._remainingBytes, buf], this._remainingBytes.length + buf.length);
+			this._remainingBytes = false;
+		}
+		let end = buf.length;
+		while (end > 0 && (isWhitespace(buf[end - 1]) || this.options.binary && buf[end - 1] === 13)) end--;
+		if (buf.length - end <= ENCODE_SLICE_SIZE) {
+			this._remainingBytes = end < buf.length ? Buffer.from(buf.subarray(end)) : false;
+			buf = buf.subarray(0, end);
+		}
+		this._encodeSlices(buf);
+		done();
+	}
+	/** @internal */
+	_flush(done) {
+		if (this._remainingBytes) {
+			this._encodeSlices(this._remainingBytes);
+			this._remainingBytes = false;
+		}
+		if (this._curLine) {
+			this.outputBytes += this._curLine.length;
+			this.push(this._curLine, "ascii");
+			this._curLine = "";
+		}
+		done();
+	}
+	/**
+	* Encodes the input in slices of ENCODE_SLICE_SIZE bytes. Each slice is told the byte that
+	* follows it, so a slice that ends in whitespace is encoded as if it was not split
+	*
+	* @internal
+	*/
+	_encodeSlices(buf) {
+		for (let start = 0; start < buf.length; start += ENCODE_SLICE_SIZE) {
+			const end = Math.min(start + ENCODE_SLICE_SIZE, buf.length);
+			this._encodeSlice(buf.subarray(start, end), end < buf.length ? buf[end] : void 0);
+			this._lastByte = buf[end - 1];
+		}
+	}
+	/** @internal */
+	_encodeSlice(buf, next) {
+		let qp;
+		if (this.options.lineLength) {
+			qp = wrap(this._curLine + encodeBytes(buf, next, this.options.binary, this._lastByte), this.options.lineLength);
+			const lastLF = qp.lastIndexOf("\n");
+			this._curLine = qp.substring(lastLF + 1);
+			qp = qp.substring(0, lastLF + 1);
+			if (qp) {
+				this.outputBytes += qp.length;
+				this.push(qp, "ascii");
+			}
+		} else {
+			qp = encodeBytes(buf, next, this.options.binary, this._lastByte);
+			this.outputBytes += qp.length;
+			this.push(qp, "ascii");
+		}
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mime-funcs/index.js
+/**
+* Checks if a value is plaintext string (uses only printable 7bit chars)
+*
+* When isParam is set the value is destined for a header parameter, so HT, CR and LF
+* are not plaintext either: a header parameter has no way to carry them. HT is a valid
+* fold point, so folding and unfolding a header would rewrite it as a space, and CR/LF
+* cannot appear in a header value at all. DEL is neither a token character nor qtext,
+* so it can not be carried bare or quoted. Such values have to go through the rfc2231
+* parameter continuation encoding instead, the same way a quote already does.
+*
+* @param value String to be tested
+* @param [isParam] Set to true if the value is a header parameter value
+* @returns true if it is a plaintext string
+*/
+function isPlainText(value, isParam) {
+	return typeof value === "string" && !(isParam ? /[\x00-\x1f\x7f"\u0080-\uFFFF]/ : /[\x00-\x08\x0b\x0c\x0e-\x1f\u0080-\uFFFF]/).test(value);
+}
+function isPlainParamValue(value) {
+	return isPlainText(value, true) && !value.includes("=?");
+}
+/**
+* Wraps a value into a quoted-string. Inside one a quote would end the string early
+* and a backslash would escape whatever follows it, so both go out as quoted-pairs.
+*
+* @param value String to be quoted
+* @returns The value as a quoted-string, quotes included
+*/
+function quoteString(value) {
+	return "\"" + (value || "").toString().replace(/["\\]/g, "\\$&") + "\"";
+}
+/**
+* Checks if a multi line string containes lines longer than the selected value.
+*
+* Useful when detecting if a mail message needs any processing at all:
+* if only plaintext characters are used and lines are short, then there is
+* no need to encode the values in any way. If the value is plaintext but has
+* longer lines then allowed, then use format=flowed
+*
+* @param str Multi line string to check
+* @param lineLength Max line length to check for
+* @returns Returns true if there is at least one line longer than lineLength chars
+*/
+function hasLongerLines(str, lineLength) {
+	if (str.length > 131072) return true;
+	return new RegExp("^.{" + (lineLength + 1) + ",}", "m").test(str);
+}
+/**
+* Encodes a string or an Buffer to an UTF-8 MIME Word (rfc2047)
+*
+* @param data String to be encoded
+* @param mimeWordEncoding='Q' Encoding for the mime word, either Q or B
+* @param [maxLength=0] If set, split mime words into several chunks if needed
+* @return Single or several mime words joined together
+*/
+function encodeWord(data, mimeWordEncoding, maxLength) {
+	mimeWordEncoding = (mimeWordEncoding || "Q").toString().toUpperCase().trim().charAt(0);
+	maxLength = maxLength || 0;
+	let encodedStr;
+	if (maxLength && maxLength > 12) maxLength -= 12;
+	if (mimeWordEncoding === "Q") encodedStr = encode(data).replace(/[^a-z0-9!*+\-/=]/gi, (chr) => {
+		const ord = chr.charCodeAt(0).toString(16).toUpperCase();
+		if (chr === " ") return "_";
+		return "=" + (ord.length === 1 ? "0" + ord : ord);
+	});
+	else if (mimeWordEncoding === "B") {
+		encodedStr = typeof data === "string" ? data : data.toString("utf-8");
+		maxLength = maxLength ? Math.max(3, (maxLength - maxLength % 4) / 4 * 3) : 0;
+	}
+	if (maxLength && (mimeWordEncoding !== "B" ? encodedStr : encode$1(data)).length > maxLength) {
+		if (mimeWordEncoding === "Q") encodedStr = splitMimeEncodedString(encodedStr, maxLength).join("?= =?UTF-8?" + mimeWordEncoding + "?");
+		else {
+			const parts = [];
+			let lpart = "";
+			for (let i = 0, len = encodedStr.length; i < len; i++) {
+				let chr = encodedStr.charAt(i);
+				if (/[\ud800-\udbff]/.test(chr) && /[\udc00-\udfff]/.test(encodedStr.charAt(i + 1))) chr += encodedStr.charAt(++i);
+				if (Buffer.byteLength(lpart + chr) <= maxLength || i === 0) lpart += chr;
+				else {
+					parts.push(encode$1(lpart));
+					lpart = chr;
+				}
+			}
+			if (lpart) parts.push(encode$1(lpart));
+			if (parts.length > 1) encodedStr = parts.join("?= =?UTF-8?" + mimeWordEncoding + "?");
+			else encodedStr = parts.join("");
+		}
+	} else if (mimeWordEncoding === "B") encodedStr = encode$1(data);
+	return "=?UTF-8?" + mimeWordEncoding + "?" + encodedStr + (encodedStr.substr(-2) === "?=" ? "" : "?=");
+}
+const VALID_ENCODED_WORD = /^=\?[^\s()<>@,;:"/[\]?.=]+\?[BbQq]\?[^?\s]+\?=$/;
+const LENIENT_ENCODED_WORD = /[=]\?[^?]*\?[BbQq]\?[^?]*\?=/y;
+/**
+* Marks the text a receiver would read as an encoded-word when it is not one valid encoded-word
+* on its own. RFC 2047 section 7 requires that a word beginning with '=?' and ending with '?='
+* is a valid encoded-word, and decoders also decode a look-alike that spans whitespace, so
+* '=?utf-8?X?x?=' and 'see =?utf-8?Q?a b?= here' read differently on every receiver. A valid
+* encoded-word is left alone, which is what lets a caller pass a value that is already encoded,
+* as most other mail libraries do.
+*
+* The bounds of the word around each '=?' are found once per word and reused, walking back to
+* the start of a long word from every '=?' it holds would be quadratic.
+*
+* @param value String to look in
+* @param range The first and the last offset that needs encoding so far, -1 for none
+* @return The range, widened to cover the words of every invalid look-alike
+*/
+function _markInvalidEncodedWords(value, range) {
+	const len = value.length;
+	const isSpace = (pos) => /\s/.test(value.charAt(pos));
+	let wordStart = 0;
+	let wordEnd = -1;
+	const wordAt = (pos) => {
+		if (pos < wordEnd) return;
+		wordStart = pos;
+		while (wordStart > 0 && !isSpace(wordStart - 1)) wordStart--;
+		wordEnd = pos;
+		while (wordEnd < len && !isSpace(wordEnd)) wordEnd++;
+	};
+	let pos = value.indexOf("=?");
+	while (pos >= 0) {
+		wordAt(pos);
+		const start = wordStart;
+		LENIENT_ENCODED_WORD.lastIndex = pos;
+		const match = LENIENT_ENCODED_WORD.exec(value);
+		const end = match ? pos + match[0].length : wordEnd;
+		if (match && end > wordEnd) wordAt(end - 1);
+		const word = value.substring(start, wordEnd);
+		const looksLike = match ? true : start === pos && word.length >= 4 && word.endsWith("?=");
+		const valid = start === pos && wordEnd === end && word.length <= 75 && VALID_ENCODED_WORD.test(word);
+		if (looksLike && !valid) {
+			range[0] = range[0] < 0 ? start : Math.min(range[0], start);
+			range[1] = Math.max(range[1], wordEnd - 1);
+		}
+		pos = value.indexOf("=?", match ? end : pos + 2);
+	}
+	return range;
+}
+/**
+* Finds word sequences with non ascii text, and words that look like an invalid encoded-word,
+* and converts these to mime words. A valid encoded-word is passed through as it is.
+*
+* @param value String to be encoded
+* @param mimeWordEncoding='Q' Encoding for the mime word, either Q or B
+* @param [maxLength=0] If set, split mime words into several chunks if needed
+* @param [encodeAll=false] If true and the value needs encoding then encodes entire string, not just the smallest match
+* @return String with possible mime words
+*/
+function encodeWords(value, mimeWordEncoding, maxLength, encodeAll) {
+	maxLength = maxLength || 0;
+	let firstSpecial = -1;
+	let lastSpecial = -1;
+	for (let i = 0; i < value.length; i++) {
+		const code = value.charCodeAt(i);
+		if (code === 34 || code >= 128) {
+			if (firstSpecial < 0) firstSpecial = i;
+			lastSpecial = i;
+		}
+	}
+	if (value.indexOf("=?") >= 0) [firstSpecial, lastSpecial] = _markInvalidEncodedWords(value, [firstSpecial, lastSpecial]);
+	if (firstSpecial < 0) return value;
+	if (encodeAll) return encodeWord(value, mimeWordEncoding, maxLength);
+	let startIndex = firstSpecial;
+	while (startIndex > 0 && !/\s/.test(value.charAt(startIndex - 1))) startIndex--;
+	let endIndex = lastSpecial + 1;
+	while (endIndex < value.length && !/\s/.test(value.charAt(endIndex))) endIndex++;
+	return (startIndex ? value.substr(0, startIndex) : "") + encodeWord(value.substring(startIndex, endIndex), mimeWordEncoding || "Q", maxLength) + (endIndex < value.length ? value.substr(endIndex) : "");
+}
+/**
+* Joins parsed header value together as 'value; param1=value1; param2=value2'
+* PS: We are following RFC 822 for the list of special characters that we need to keep in quotes.
+*      Refer: https://www.w3.org/Protocols/rfc1341/4_Content-Type.html
+* @param structured Parsed header value
+* @return joined header value
+*/
+function buildHeaderValue(structured) {
+	const paramsArray = [];
+	Object.keys(structured.params || {}).forEach((key) => {
+		const value = structured.params[key];
+		const param = key.replace(/[\x00-\x1f\x7f]/g, "");
+		if (!isPlainParamValue(value) || value.length >= 75) buildHeaderParam(param, value, 50).forEach((encodedParam) => {
+			if (!/[\s"\\;:/=(),<>@[\]?]|^[-']|'$/.test(encodedParam.value) || encodedParam.key.substr(-1) === "*") paramsArray.push(encodedParam.key + "=" + encodedParam.value);
+			else paramsArray.push(encodedParam.key + "=" + JSON.stringify(encodedParam.value));
+		});
+		else if (!value.length || /[\s'"\\;:/=(),<>@[\]?]|^-/.test(value)) paramsArray.push(param + "=" + JSON.stringify(value));
+		else paramsArray.push(param + "=" + value);
+	});
+	return (typeof structured.value === "string" ? structured.value.replace(/[\x00-\x1f\x7f]/g, "") : structured.value) + (paramsArray.length ? "; " + paramsArray.join("; ") : "");
+}
+/**
+* Encodes a string or an Buffer to an UTF-8 Parameter Value Continuation encoding (rfc2231)
+* Useful for splitting long parameter values.
+*
+* For example
+*      title="unicode string"
+* becomes
+*     title*0*=utf-8''unicode
+*     title*1*=%20string
+*
+* @param key Parameter name the generated keys are built from, for example title
+* @param data String to be encoded
+* @param [maxLength=50] Max length for generated chunks
+* @return A list of encoded keys and headers
+*/
+function buildHeaderParam(key, data, maxLength) {
+	const list = [];
+	let encodedStr = typeof data === "string" ? data : (data || "").toString();
+	let chr;
+	let line;
+	let startPos = 0;
+	let i, len;
+	maxLength = maxLength || 50;
+	if (isPlainParamValue(data)) {
+		if (encodedStr.length <= maxLength) return [{
+			key,
+			value: encodedStr
+		}];
+		encodedStr = encodedStr.replace(new RegExp(".{" + maxLength + "}", "g"), (str) => {
+			list.push({ line: str });
+			return "";
+		});
+		if (encodedStr) list.push({ line: encodedStr });
+	} else {
+		if (/[\uD800-\uDBFF]/.test(encodedStr)) {
+			const encodedStrArr = [];
+			for (i = 0, len = encodedStr.length; i < len; i++) {
+				chr = encodedStr.charAt(i);
+				if (/[\ud800-\udbff]/.test(chr) && /[\udc00-\udfff]/.test(encodedStr.charAt(i + 1))) {
+					chr += encodedStr.charAt(i + 1);
+					encodedStrArr.push(chr);
+					i++;
+				} else encodedStrArr.push(chr);
+			}
+			encodedStr = encodedStrArr;
+		}
+		line = "utf-8''";
+		let encoded = true;
+		startPos = 0;
+		for (i = 0, len = encodedStr.length; i < len; i++) {
+			chr = encodedStr[i];
+			if (encoded) chr = safeEncodeURIComponent(chr);
+			else {
+				chr = chr === " " ? chr : safeEncodeURIComponent(chr);
+				if (chr !== encodedStr[i]) {
+					if ((safeEncodeURIComponent(line) + chr).length >= maxLength) {
+						list.push({
+							line,
+							encoded
+						});
+						line = "";
+						encoded = true;
+					} else {
+						encoded = true;
+						i = startPos;
+						line = "";
+						continue;
+					}
+				}
+			}
+			if ((line + chr).length >= maxLength) {
+				list.push({
+					line,
+					encoded
+				});
+				line = chr = encodedStr[i] === " " ? " " : safeEncodeURIComponent(encodedStr[i]);
+				if (chr === encodedStr[i]) {
+					encoded = false;
+					startPos = i - 1;
+				} else encoded = true;
+			} else line += chr;
+		}
+		if (line) list.push({
+			line,
+			encoded
+		});
+	}
+	return list.map((item, i) => ({
+		key: key + "*" + i + (item.encoded ? "*" : ""),
+		value: item.line
+	}));
+}
+/**
+* An RFC 2045 token: printable ASCII without SPACE, the control characters, DEL and the
+* tspecials. A charset name is one, and the name a continuation carries is written into
+* the encoded word the parameter value becomes, so it is checked against this before it
+* goes in. Whitespace used to come off it only because the value was trimmed first.
+*/
+const TOKEN = /^[^\x00-\x20\x7f()<>@,;:\\"/[\]?=]+$/;
+/**
+* Offset of the ')' that closes the RFC 822 comment opening at `start`, or -1 when the
+* comment never closes. Comments nest, and a backslash escapes the character after it
+*/
+function _findCommentEnd(str, start) {
+	let depth = 0;
+	for (let i = start, len = str.length; i < len; i++) {
+		const c = str.charAt(i);
+		if (c === "\\") i++;
+		else if (c === "(") depth++;
+		else if (c === ")" && --depth === 0) return i;
+	}
+	return -1;
+}
+/**
+* Whether a string can be a header parameter name.
+*
+* A parameter name is a token, so it is never empty. A "__proto__" name would target the
+* prototype chain of the params object instead of an own property of it and read back as
+* Object.prototype, so it is no name either.
+*
+* @param name Candidate parameter name, already lowercased
+* @return true when the name can be used
+*/
+function _isParamName(name) {
+	return !!name && !isProtoKey(name);
+}
+/**
+* Parses a header value with key=value arguments into a structured
+* object.
+*
+*   parseHeaderValue('content-type: text/plain; CHARSET='UTF-8'') ->
+*   {
+*     'value': 'text/plain',
+*     'params': {
+*       'charset': 'UTF-8'
+*     }
+*   }
+*
+* @param str Header value
+* @param options Options, see ParseHeaderValueOptions
+* @return Header value as a parsed structure
+*/
+function parseHeaderValue(str, options) {
+	const response = {
+		value: "",
+		params: {}
+	};
+	let stripComments = !!options?.stripComments;
+	const setParam = (name, value) => {
+		name = name.toLowerCase();
+		if (_isParamName(name) && !Object.prototype.hasOwnProperty.call(response.params, name)) response.params[name] = value;
+	};
+	let key = false;
+	let value = "";
+	let stage = "value";
+	let quote = false;
+	let escaped = false;
+	let chr;
+	let pendingSpace = "";
+	let quoteClosed = false;
+	const flushSpace = () => {
+		if (value.length) value += pendingSpace;
+		pendingSpace = "";
+	};
+	const addChr = (c) => {
+		flushSpace();
+		value += c;
+	};
+	const takeValue = () => {
+		const taken = value;
+		value = "";
+		pendingSpace = "";
+		quoteClosed = false;
+		return taken;
+	};
+	const storeValue = () => {
+		const taken = takeValue();
+		if (key === false) response.value = taken;
+		else setParam(key, taken);
+	};
+	const storeEmptyKey = () => {
+		setParam(takeValue().trim(), "");
+	};
+	for (let i = 0, len = str.length; i < len; i++) {
+		chr = str.charAt(i);
+		if (stripComments && chr === "(" && !quote && !quoteClosed && !(stage === "value" && key !== false && !pendingSpace)) {
+			let end = _findCommentEnd(str, i);
+			if (end < 0 && str.indexOf(";", i) < 0) end = len - 1;
+			if (end >= 0) {
+				i = end;
+				continue;
+			}
+			stripComments = false;
+		}
+		if (stage === "key") {
+			if (chr === "=") {
+				key = takeValue().trim();
+				stage = "value";
+				continue;
+			}
+			if (chr === ";") {
+				storeEmptyKey();
+				continue;
+			}
+			value += chr;
+		} else {
+			if (quoteClosed && chr !== ";") {
+				escaped = false;
+				continue;
+			}
+			if (escaped) addChr(chr);
+			else if (quote && chr === "\\") {
+				escaped = true;
+				continue;
+			} else if (quote && chr === quote) {
+				quote = false;
+				quoteClosed = true;
+			} else if (!quote && chr === "\"") {
+				quote = chr;
+				flushSpace();
+			} else if (!quote && chr === ";") {
+				storeValue();
+				stage = "key";
+			} else if (!quote && (chr === " " || chr === "	")) pendingSpace += chr;
+			else addChr(chr);
+			escaped = false;
+		}
+	}
+	if (stage === "value") storeValue();
+	else storeEmptyKey();
+	const continuations = /* @__PURE__ */ new Map();
+	Object.keys(response.params).forEach((key) => {
+		const match = key.match(/(\*(\d+)|\*(\d+)\*|\*)$/);
+		if (!match) return;
+		const actualKey = key.substr(0, match.index);
+		const nr = Number(match[2] || match[3]) || 0;
+		const encoded = match[0].substr(-1) === "*";
+		let value = response.params[key];
+		delete response.params[key];
+		if (!_isParamName(actualKey)) return;
+		let continuation = continuations.get(actualKey);
+		if (!continuation) {
+			continuation = {
+				charset: false,
+				sections: []
+			};
+			continuations.set(actualKey, continuation);
+		}
+		const charsetMatch = nr === 0 && encoded ? value.match(/^([^']*)'[^']*'(.*)$/) : null;
+		if (charsetMatch) {
+			continuation.charset = TOKEN.test(charsetMatch[1]) ? charsetMatch[1] : "iso-8859-1";
+			value = charsetMatch[2];
+		}
+		continuation.sections.push({
+			nr,
+			value,
+			encoded
+		});
+	});
+	continuations.forEach((continuation, key) => {
+		if (Object.prototype.hasOwnProperty.call(response.params, key)) return;
+		continuation.sections.sort((a, b) => a.nr - b.nr);
+		if (!continuation.charset) {
+			response.params[key] = continuation.sections.map((section) => section.value).join("");
+			return;
+		}
+		response.params[key] = "=?" + continuation.charset + "?Q?" + continuation.sections.map(_encodeContinuationSection).join("") + "?=";
+	});
+	return response;
+}
+/**
+* Renders one parameter value continuation section as the payload of a Q encoded word.
+*
+* A section whose name ends in '*' is percent encoded and its escapes carry the bytes of
+* the value, so they only have to be rewritten into the "=AB" spelling a Q encoded word
+* uses. A section without the '*' is literal text (RFC 2231 section 4.1), so its '%' is a
+* '%' and is escaped along with the characters a Q encoded word can not carry bare.
+* Decoding a literal section invents bytes that never appeared on the wire: it is how the
+* value 'filename*0*=utf-8''safe; filename*1=%2F..%2F..%2Fetc%2Fpasswd' was emitted as a
+* filename every receiving client reads back as 'safe/../../etc/passwd'.
+*
+* @param section One collected continuation section
+* @return The section as Q encoded word payload
+*/
+function _encodeContinuationSection(section) {
+	const specials = section.encoded ? /[=?_\s]/g : /[=?_\s%]/g;
+	return section.value.replace(specials, (s) => {
+		const c = s.charCodeAt(0).toString(16);
+		if (s === " ") return "_";
+		return "%" + (c.length < 2 ? "0" : "") + c;
+	}).replace(/%/g, "=");
+}
+/**
+* Returns file extension for a content type string. If no suitable extensions
+* are found, 'bin' is used as the default extension
+*
+* @param mimeType Content type to be checked for
+* @return File extension
+*/
+function detectExtension(mimeType) {
+	return detectExtension$1(mimeType);
+}
+/**
+* Returns content type for a file extension. If no suitable content types
+* are found, 'application/octet-stream' is used as the default content type
+*
+* @param extension Extension to be checked for
+* @return File extension
+*/
+function detectMimeType(extension) {
+	return detectMimeType$1(extension);
+}
+/**
+* Folds long lines, useful for folding header lines (afterSpace=false) and
+* flowed text (afterSpace=true)
+*
+* @param str String to be folded
+* @param [lineLength=76] Maximum length of a line
+* @param afterSpace If true, leave a space in th end of a line
+* @return String with folded lines
+*/
+function foldLines(str, lineLength, afterSpace) {
+	str = (str || "").toString();
+	lineLength = lineLength || 76;
+	let pos = 0;
+	const len = str.length;
+	let result = "";
+	let line, match;
+	while (pos < len) {
+		line = str.substr(pos, lineLength);
+		if (line.length < lineLength) {
+			result += line;
+			break;
+		}
+		if (match = line.match(/^[^\n\r]*(\r?\n|\r)/)) {
+			line = match[0];
+			result += line;
+			pos += line.length;
+			continue;
+		} else if ((match = line.match(/(\s+)[^\s]*$/)) && match[0].length - (afterSpace ? (match[1] || "").length : 0) < line.length) line = line.substr(0, line.length - (match[0].length - (afterSpace ? (match[1] || "").length : 0)));
+		else if (match = str.substr(pos + line.length).match(/^[^\s]+(\s*)/)) line = line + match[0].substr(0, match[0].length - (!afterSpace ? (match[1] || "").length : 0));
+		result += line;
+		pos += line.length;
+		if (pos < len) result += "\r\n";
+	}
+	return result;
+}
+/**
+* Splits a mime encoded string. Needed for dividing mime words into smaller chunks
+*
+* @param str Mime encoded string to be split up
+* @param maxlen Maximum length of characters for one part (minimum 12)
+* @return Split string
+*/
+function splitMimeEncodedString(str, maxlen) {
+	const lines = [];
+	let curLine, fallbackLine, match, chr, done;
+	maxlen = Math.max(maxlen || 0, 12);
+	while (str.length) {
+		curLine = str.substr(0, maxlen);
+		if (match = curLine.match(/[=][0-9A-F]?$/i)) curLine = curLine.substr(0, match.index);
+		fallbackLine = curLine.length ? curLine : str.substr(0, maxlen);
+		done = false;
+		while (!done && curLine.length) {
+			done = true;
+			if (match = str.substr(curLine.length).match(/^[=]([0-9A-F]{2})/i)) {
+				chr = parseInt(match[1], 16);
+				if (chr < 194 && chr > 127) {
+					curLine = curLine.substr(0, curLine.length - 3);
+					done = false;
+				}
+			}
+		}
+		if (!curLine.length) curLine = fallbackLine;
+		lines.push(curLine);
+		str = str.substr(curLine.length);
+	}
+	return lines;
+}
+function encodeURICharComponent(chr) {
+	let res = "";
+	let ord = chr.charCodeAt(0).toString(16).toUpperCase();
+	if (ord.length % 2) ord = "0" + ord;
+	if (ord.length > 2) for (let i = 0, len = ord.length / 2; i < len; i++) res += "%" + ord.substr(i, 2);
+	else res += "%" + ord;
+	return res;
+}
+function safeEncodeURIComponent(str) {
+	str = (str || "").toString();
+	try {
+		str = encodeURIComponent(str);
+	} catch (_E) {
+		str = encodeURIComponent(Buffer.from(str, "utf-8").toString("utf-8"));
+	}
+	return str.replace(/[\x00-\x1F *'()<>@,;:\\"[\]?=\u007F-\uFFFF]/g, (chr) => encodeURICharComponent(chr));
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/addressparser/index.js
+/** The token is an operator, a text run otherwise */
+const TOKEN_OPERATOR = 1;
+/** The next character continues the same run without whitespace in between */
+const TOKEN_NO_BREAK = 2;
+/** The text run holds characters its value leaves out or changes, so it is no plain slice */
+const TOKEN_DIRTY = 4;
+/** A backslash escapes the next character in the text run, inside a quoted string or a comment */
+const TOKEN_ESCAPES = 8;
+/** The text run opens on a character an escaping backslash in front of it has escaped */
+const TOKEN_STARTS_ESCAPED = 16;
+/**
+* The tokens of an address field, kept as offsets into it.
+*
+* Every token used to be an object of its own, an operator for every ',' and a value string
+* for every run of text, and a list of one letter names, 'a,a,a,...', took some 65 times its
+* size in tokens before any address was read. A token is now three numbers in one typed
+* array, its kind and the range of the field it covers, and its value is sliced off the field
+* when it is read. The few text runs whose value differs from their slice, as they hold an
+* escaping backslash, a line break or a control character, are rebuilt once and kept aside.
+*/
+var TokenList = class {
+	constructor(str) {
+		this.str = str;
+		this.slots = /* @__PURE__ */ new Int32Array(48);
+		this.length = 0;
+		this.cleaned = /* @__PURE__ */ new Map();
+	}
+	/**
+	* Appends a token
+	*
+	* @param kind Kind and flags of the token
+	* @param start Offset of its first character
+	* @param end Offset just past its last character
+	* @return Index of the token
+	*/
+	push(kind, start, end) {
+		if ((this.length + 1) * 3 > this.slots.length) {
+			const grown = new Int32Array(this.slots.length * 2);
+			grown.set(this.slots);
+			this.slots = grown;
+		}
+		const at = this.length * 3;
+		this.slots[at] = kind;
+		this.slots[at + 1] = start;
+		this.slots[at + 2] = end;
+		return this.length++;
+	}
+	/**
+	* Offset of the first character of a token that is part of its value. A text run that is
+	* no plain slice of the field still spans the whitespace and control characters its value
+	* is trimmed of.
+	*/
+	contentStart(index) {
+		let start = this.slots[index * 3 + 1];
+		const end = this.slots[index * 3 + 2];
+		while (start < end && _isDroppedCode(this.str.charCodeAt(start))) start++;
+		return start;
+	}
+	/**
+	* Offset just past the last character of a token that is part of its value
+	*/
+	contentEnd(index) {
+		const start = this.slots[index * 3 + 1];
+		let end = this.slots[index * 3 + 2];
+		while (end > start && _isDroppedCode(this.str.charCodeAt(end - 1))) end--;
+		return end;
+	}
+	/**
+	* The character of an operator token, an empty string for a text run
+	*/
+	operatorAt(index) {
+		const at = index * 3;
+		return this.slots[at] & TOKEN_OPERATOR ? this.str.charAt(this.slots[at + 1]) : "";
+	}
+	/**
+	* Whether a token is an operator
+	*/
+	isOperator(index) {
+		return (this.slots[index * 3] & TOKEN_OPERATOR) !== 0;
+	}
+	/**
+	* Whether the next character continues the run of a token without whitespace in between
+	*/
+	noBreak(index) {
+		return (this.slots[index * 3] & TOKEN_NO_BREAK) !== 0;
+	}
+	/**
+	* Value of a token
+	*/
+	value(index) {
+		const cleaned = this.cleaned.get(index);
+		if (cleaned !== void 0) return cleaned;
+		return this.str.slice(this.slots[index * 3 + 1], this.slots[index * 3 + 2]);
+	}
+};
+/**
+* A domain literal that ends an address. dtext includes '@' (RFC 5322 3.4.1), so the '@'
+* in front of the literal is the one that splits the domain off, not the last one: reading
+* 'a@[x@evil.com]' at its last '@' made it an address at evil.com.
+*/
+const DOMAIN_LITERAL_TAIL$1 = /@(\[[^[\]\\]*\])$/;
+/**
+* Offset of the '@' that splits the domain off an address, or -1 when there is none
+*
+* @param address Address to split
+* @return Offset of the '@'
+*/
+function _domainAt(address) {
+	const literal = address.charAt(address.length - 1) === "]" ? DOMAIN_LITERAL_TAIL$1.exec(address) : null;
+	return literal ? address.length - literal[1].length - 1 : address.lastIndexOf("@");
+}
+/**
+* Restores the quoting of a local part that was read out of a quoted string.
+*
+* RFC 5321 allows '@' inside a quoted local part, so handing '"user@evil.com"@good.com'
+* on as the bare 'user@evil.com@good.com' leaves it to the consumer which '@' splits the
+* domain off. Getting that wrong is a misrouting vector, so the quotes go back on. The
+* same holds for the other specials: a ',' or a ';' that loses its quotes reads as a
+* recipient separator once the consumer puts the address back into a header.
+*
+* This module has no dependencies so that it can ship on its own, which is why the two
+* grammar tests below are spelled out here instead of shared with src/mime-node. Keeping
+* only what is ambiguous quoted is deliberate, mime-node applies the stricter RFC 5321
+* dot-atom rule on top of this when it emits an address.
+*
+* @param address Address with an unquoted local part
+* @return Address with the local part as a quoted-string
+*/
+function _quoteLocalPart(address) {
+	const lastAt = _domainAt(address);
+	if (lastAt < 0) return address;
+	const user = address.substr(0, lastAt);
+	if (/^[^\s"(),:;<>@[\\\]]+$/.test(user) || /^"(?:[^"\\]|\\[\s\S])*"$/.test(user)) return address;
+	return "\"" + user.replace(/["\\]/g, "\\$&") + "\"@" + address.substr(lastAt + 1);
+}
+/**
+* Reached for every parsed address, so it is built once rather than per call.
+*/
+const HAS_WHITESPACE = /\s/;
+/**
+* An addr-spec that carries its whitespace legally, inside a quoted local part. The
+* optional tail is the malformed shape: a real mailbox with wreckage trailing it.
+*/
+const QUOTED_LOCAL_ADDR = /^("(?:[^"\\]|\\[\s\S])*"@\S+)(?:\s+([\s\S]+))?$/;
+/**
+* One run holding a single '@' and no whitespace, the shape an addr-spec has to have.
+*/
+const ADDR_SPEC = /^[^@\s]+@[^@\s]+$/;
+/**
+* The same with a domain literal for the domain, which may hold an '@' of its own.
+*/
+const LITERAL_ADDR_SPEC = /^[^@\s]+@\[[^[\]\\\s]*\]$/;
+/**
+* The '@' and domain that follow a quoted local part in the same run.
+*/
+const QUOTED_LOCAL_DOMAIN = /^@(?:[^@\s"]+|\[[^[\]\\\s]*\])$/;
+/**
+* Whether a whitespace free run reads as an addr-spec under the strict grammar
+*
+* @param value Run to check
+* @return true when it does
+*/
+function _isAddrSpec(value) {
+	return ADDR_SPEC.test(value) || LITERAL_ADDR_SPEC.test(value);
+}
+/**
+* The looser reading applied once the strict one finds nothing, which tolerates the
+* further '@' that a domain should not have but malformed headers carry anyway.
+*/
+const LOOSE_ADDR_SPEC = /^[^@\s]+@\S+$/;
+/**
+* An addr-spec sitting inside free text, together with the whitespace around it. Sticky
+* on purpose: it is run at the one offset _looseAddressStart picks rather than being let
+* loose to search, see there.
+*/
+const LOOSE_TEXT_ADDR = /\s*\b[^@\s]+@[^\s]+\b\s*/y;
+/**
+* The characters JS `\s` matches, which the scan below has to agree with to land on the
+* same match the pattern would.
+*/
+function _isSpaceCode(code) {
+	return code === 32 || code >= 9 && code <= 13 || code === 160 || code === 5760 || code >= 8192 && code <= 8202 || code === 8232 || code === 8233 || code === 8239 || code === 8287 || code === 12288 || code === 65279;
+}
+/**
+* Checks for the whitespace RFC 5322 folding whitespace is made of: SP and HTAB, plus the
+* line break a fold carries. The other characters _isSpaceCode accepts are atext under
+* RFC 6532, and parsers disagree on them: mailauth keeps U+00A0 in a domain, so joining a
+* domain across one names a domain that reader never sees
+*
+* @param code Character code
+* @return true if the character is folding whitespace
+*/
+function _isFoldingSpaceCode(code) {
+	return code === 32 || code === 9 || code === 13 || code === 10;
+}
+/**
+* Checks if every character in a stretch of the field is folding whitespace
+*
+* @param str The field
+* @param from Offset of the first character
+* @param to Offset just past the last one
+* @return true if the stretch holds nothing but folding whitespace
+*/
+function _isFoldingGap(str, from, to) {
+	for (let i = from; i < to; i++) if (!_isFoldingSpaceCode(str.charCodeAt(i))) return false;
+	return true;
+}
+/**
+* Checks for a character the value of a text run is trimmed of, or leaves out: whitespace,
+* C0 controls and DEL
+*
+* @param code Character code
+* @return true if the character is not part of the value at the edge of a run
+*/
+function _isDroppedCode(code) {
+	return code < 32 || code === 127 || _isSpaceCode(code);
+}
+/**
+* The characters JS `\w` matches without the unicode flag, the set the `\b` in
+* LOOSE_TEXT_ADDR is read against. charCodeAt off either end of the string gives NaN,
+* which compares false throughout, so out of range reads as the non-word the pattern
+* treats them as.
+*/
+function _isWordCode(code) {
+	return code >= 48 && code <= 57 || code >= 65 && code <= 90 || code >= 97 && code <= 122 || code === 95;
+}
+/**
+* Whether `\b` holds at an offset
+*/
+function _isBoundary(text, at) {
+	return _isWordCode(text.charCodeAt(at - 1)) !== _isWordCode(text.charCodeAt(at));
+}
+/**
+* Offset of the first '@' in `text` between `from` and `to`, or -1 when the range holds none.
+*
+* indexOf would scan on to the end of the value, and the value here is a whole header. The
+* walk below steps one whitespace delimited run at a time and only ever uses a '@' that sits
+* inside the run it is on, so an unbounded probe rescans everything behind that run once per
+* run and grows with the square of the header: 400KB of free text carrying no '@' took a
+* quarter of a second. GHSA-v53p-9fqp-m79j took the pattern search out of this walk and left
+* the probe unbounded behind it.
+*
+* @param text Text to look in
+* @param from Offset to start at
+* @param to Offset to stop before
+* @return Offset of the '@', or -1
+*/
+function _indexOfAt(text, from, to) {
+	for (let i = from; i < to; i++) if (text.charCodeAt(i) === 64) return i;
+	return -1;
+}
+/**
+* A quoted-string a value opens with.
+*/
+const LEADING_QUOTED_STRING = /^"(?:[^"\\]|\\[\s\S])*"/;
+/**
+* Drops the whitespace on either side of the '@' at an offset.
+*
+* obs-local-part and obs-domain allow CFWS around the '@' (RFC 5322 4.4), so 'user @ good.com'
+* names user@good.com. Kept, the whitespace went into the envelope as '"user "@ good.com'.
+* The scan is by index, a pattern such as /\s+@/ backtracks over a long whitespace run that
+* no '@' follows.
+*
+* The whitespace around the dots of the domain that follows is dropped as well, see
+* _joinDomainDotSpacing.
+*
+* @param value Value holding the '@'
+* @param at Offset of the '@', or -1
+* @return The value with the whitespace beside that '@' removed
+*/
+function _joinAtSpacing(value, at) {
+	if (at < 0) return value;
+	let start = at;
+	while (start > 0 && _isSpaceCode(value.charCodeAt(start - 1))) start--;
+	let end = at + 1;
+	while (end < value.length && _isSpaceCode(value.charCodeAt(end))) end++;
+	return _joinDomainDotSpacing(start === at && end === at + 1 ? value : value.slice(0, start) + "@" + value.slice(end), start);
+}
+const ASCII_ATEXT = /* @__PURE__ */ new Uint8Array(128);
+for (let code = 33; code < 127; code++) ASCII_ATEXT[code] = "()<>[]:;@\\,.\"".indexOf(String.fromCharCode(code)) < 0 ? 1 : 0;
+/**
+* Checks if a character can be part of an atom: anything but the specials, whitespace and
+* the control characters (RFC 5322 3.2.3, with non-ASCII allowed as RFC 6532 does)
+*
+* @param code Character code
+* @return true if the character is atext
+*/
+function _isAtextCode(code) {
+	return code < 128 ? ASCII_ATEXT[code] === 1 : !_isSpaceCode(code);
+}
+/**
+* Drops the whitespace around the dots of the domain behind the '@' at an offset.
+*
+* obs-domain is atoms with CFWS around the dots (RFC 5322 4.4), so 'user@victim.example
+* .allowed.example' names user@victim.example.allowed.example. Read as two runs, the domain
+* ended at the whitespace and the envelope went to victim.example, a different domain than
+* the one an RFC 5322 parser, and an application validating the address with one, reads
+* (GHSA-3q53-mvfw-q9v8). A comment around a dot reaches here as whitespace.
+*
+* Only SP, HTAB and a fold count as the whitespace, see _isFoldingSpaceCode.
+*
+* Only a dot with an atom on both sides joins, as for a conformant parser: whitespace that
+* is not beside a dot ends the domain, and so does a dot that no atom follows, which keeps
+* 'user@example.com .' from becoming a domain with a trailing dot. A domain literal is left
+* alone. Everything from where the domain ends is kept as it is.
+*
+* @param value Value holding the '@'
+* @param at Offset of the '@'
+* @return The value with the whitespace around the dots of that domain removed
+*/
+function _joinDomainDotSpacing(value, at) {
+	const len = value.length;
+	let pos = at + 1;
+	let spaced = false;
+	for (;;) {
+		const labelStart = pos;
+		while (pos < len && _isAtextCode(value.charCodeAt(pos))) pos++;
+		if (pos === labelStart) break;
+		let next = pos;
+		while (next < len && _isFoldingSpaceCode(value.charCodeAt(next))) next++;
+		if (value.charCodeAt(next) !== 46) break;
+		next++;
+		while (next < len && _isFoldingSpaceCode(value.charCodeAt(next))) next++;
+		if (next >= len || !_isAtextCode(value.charCodeAt(next))) break;
+		spaced = spaced || next !== pos + 1;
+		pos = next;
+	}
+	if (!spaced) return value;
+	let domain = "";
+	for (let k = at + 1; k < pos; k++) if (!_isFoldingSpaceCode(value.charCodeAt(k))) domain += value.charAt(k);
+	return value.slice(0, at + 1) + domain + value.slice(pos);
+}
+/**
+* Drops the whitespace beside the '@' that splits the domain off a value. That is the '@'
+* right after a quoted local part the value opens with, or else the only '@' it holds outside
+* any quoted string. With several it is not clear which one the whitespace belongs to, and
+* '<x@evil.com @good.com>' is left to the addr-spec recovery to read as it always has.
+*
+* @param value Value to clean up
+* @return The value with the whitespace beside that '@' removed
+*/
+function _collapseAtSpacing(value) {
+	const quoted = LEADING_QUOTED_STRING.exec(value);
+	if (quoted) {
+		let at = quoted[0].length;
+		while (at < value.length && _isSpaceCode(value.charCodeAt(at))) at++;
+		if (value.charAt(at) === "@" && value.indexOf("@", at + 1) < 0) return _joinAtSpacing(value, at);
+	}
+	const at = value.indexOf("@");
+	if (at < 0 || value.indexOf("@", at + 1) >= 0 || value.lastIndexOf("\"") > at) return value;
+	return _joinAtSpacing(value, at);
+}
+/**
+* Finds the offset LOOSE_TEXT_ADDR matches at, or -1 when it does not match at all.
+*
+* Letting the pattern search for itself is quadratic: '[^@\s]+' is retried from every
+* offset and rescans the run to the next '@' each time, so 140KB of header holding no
+* usable '@' blocks the event loop for about ten seconds (GHSA-v53p-9fqp-m79j). The search is also unnecessary.
+* '[^@\s]+' crosses neither whitespace nor a '@', so a match can only begin at the head of
+* a whitespace delimited run or just past a '@' inside one, and '[^\s]+\b' gives characters
+* back until it lands on a boundary, so the only end it can take in that run is the last
+* boundary in it. Both are found in one pass, and the pattern is then run at that single
+* offset.
+*
+* @param text Free text to look in
+* @return Offset to match at, or -1
+*/
+function _looseAddressStart(text) {
+	const len = text.length;
+	let pos = 0;
+	while (pos < len) {
+		while (pos < len && _isSpaceCode(text.charCodeAt(pos))) pos++;
+		if (pos >= len) break;
+		const runStart = pos;
+		let runEnd = pos;
+		while (runEnd < len && !_isSpaceCode(text.charCodeAt(runEnd))) runEnd++;
+		let at = _indexOfAt(text, runStart, runEnd);
+		if (at >= 0) {
+			let lastBoundary = -1;
+			for (let k = runEnd; k > runStart; k--) if (_isBoundary(text, k)) {
+				lastBoundary = k;
+				break;
+			}
+			let atomStart = runStart;
+			while (lastBoundary >= 0 && at >= 0) {
+				if (at > atomStart && runEnd > at + 1 && lastBoundary > at + 1) {
+					for (let start = atomStart; start < at; start++) if (_isBoundary(text, start)) {
+						if (start > runStart) return start;
+						let padded = runStart;
+						while (padded > 0 && _isSpaceCode(text.charCodeAt(padded - 1))) padded--;
+						return padded;
+					}
+				}
+				atomStart = at + 1;
+				at = _indexOfAt(text, atomStart, runEnd);
+			}
+		}
+		pos = runEnd;
+	}
+	return -1;
+}
+/**
+* Recovers the addr-spec from an angle-addr that came back holding unquoted whitespace.
+*
+* A malformed header can put more than a mailbox between the angle brackets, most often
+* because the generator wrote the recipient twice: '<user@example.com user@example.com>'
+* or '<example.com user@example.com>'. Whitespace is not addr-spec, so the whole run can
+* never be a mailbox anyone could deliver to, and passing it on as the address loses the
+* recipient that is sitting right there in the header.
+*
+* The run that still reads as an addr-spec is kept and whatever is left over becomes
+* display text rather than being dropped. Candidates are read strictly first and then
+* under the looser grammar, the same two tiers the unquoted-text branch below applies to
+* the same problem, so that '<a@b@c.com junk>' and a bare 'a@b@c.com junk' agree on the
+* recipient. When several runs qualify the first wins, which is what that branch's looser
+* tier does within a token.
+*
+* A quoted local part is left alone: RFC 5321 allows whitespace inside it, so
+* '<"user name"@example.com>' is well formed and means exactly what it says.
+*
+* @param data Collected address parts, mutated in place
+*/
+function _recoverAddrSpec(data) {
+	data.address = _collapseAtSpacing(data.address);
+	if (!HAS_WHITESPACE.test(data.address)) return;
+	let address;
+	let rest;
+	const quoted = data.address.match(QUOTED_LOCAL_ADDR);
+	if (quoted) {
+		if (!quoted[2]) return;
+		address = quoted[1];
+		rest = [quoted[2]];
+	} else {
+		if (data.address.indexOf("\"") >= 0) return;
+		const parts = data.address.split(/\s+/);
+		let addrIndex = parts.findIndex(_isAddrSpec);
+		if (addrIndex < 0) addrIndex = parts.findIndex((part) => LOOSE_ADDR_SPEC.test(part));
+		if (addrIndex < 0) return;
+		address = parts.splice(addrIndex, 1)[0];
+		rest = parts;
+	}
+	data.address = address;
+	data.text = [data.text].concat(rest).filter((part) => part).join(" ");
+}
+/**
+* Takes the RFC 5322 comments out of the contents of an angle-addr.
+*
+* The tokenizer tracks a single open operator, so once '<' is open a '(' is plain text and
+* a comment inside the brackets reached the address verbatim: 'Name <user@example.com(x)evil.com>'
+* put 'user@example.com(x)evil.com' into the envelope, a value that is no mailbox and that a
+* receiver stripping the comment reads as 'user@example.comevil.com' (GHSA-g73g-hqqh-jr95).
+* A comment is folding whitespace, so it is read as a space that splits two atoms and as
+* nothing next to an '@', the same rule the token walk applies outside the brackets. Quoted
+* strings and domain literals are copied through untouched, a '(' in there is not a comment.
+* An unexpected '<' outside them drops everything in front of it, comments included.
+*
+* RFC 822 also let an angle-addr name the relays to go through in front of the mailbox,
+* '<@relay1,@relay2:user@example.com>', which RFC 5322 still parses as obs-route. The route
+* is not part of the mailbox, and folded into the local part it made
+* '"@relay1,@relay2:user"@example.com' a recipient that does not exist. A local part can not
+* start with '@', so contents that do, up to the first ':' outside a domain literal and in
+* front of any quoted string, are a route and are dropped, as long as a mailbox with an '@'
+* of its own follows.
+*
+* @param address Contents of the angle brackets
+* @return The address with the comments removed, and the text of the comments
+*/
+function _stripAddressComments(address) {
+	const comments = [];
+	let result = "";
+	let comment = "";
+	let depth = 0;
+	let closer = "";
+	let lastChar = "";
+	let pendingSpace = false;
+	let firstChar = "";
+	let quoteSeen = false;
+	let routeEnd = -1;
+	for (let i = 0, len = address.length; i < len; i++) {
+		const chr = address.charAt(i);
+		if (depth) {
+			if (chr === "\\" && i < len - 1) comment += address.charAt(++i);
+			else if (chr === "(") {
+				depth++;
+				comment += chr;
+			} else if (chr === ")" && !--depth) {
+				comments.push(comment.trim());
+				comment = "";
+				pendingSpace = lastChar !== "@";
+			} else comment += chr;
+			continue;
+		}
+		if (pendingSpace && chr !== "(") {
+			pendingSpace = false;
+			if (chr !== "@" && chr !== "<" && !_isSpaceCode(address.charCodeAt(i))) {
+				result += " ";
+				lastChar = " ";
+			}
+		}
+		if (closer) {
+			if (chr === "\\" && closer === "\"" && i < len - 1) {
+				result += chr + address.charAt(++i);
+				lastChar = address.charAt(i);
+				continue;
+			}
+			if (chr === closer) closer = "";
+		} else if (chr === "\"") {
+			closer = "\"";
+			quoteSeen = true;
+		} else if (chr === ":" && routeEnd < 0 && firstChar === "@" && !quoteSeen) routeEnd = result.length + 1;
+		else if (chr === "[") closer = "]";
+		else if (chr === "(") {
+			depth = 1;
+			continue;
+		} else if (chr === "<") {
+			result = "";
+			lastChar = "";
+			comments.length = 0;
+			firstChar = "";
+			quoteSeen = false;
+			routeEnd = -1;
+			continue;
+		}
+		result += chr;
+		lastChar = chr;
+		if (!firstChar && !_isSpaceCode(address.charCodeAt(i))) firstChar = chr;
+	}
+	if (routeEnd >= 0 && result.indexOf("@", routeEnd) >= 0) result = result.slice(routeEnd);
+	if (depth) comments.push(comment.trim());
+	return {
+		address: result.trim(),
+		comments: comments.filter((text) => text)
+	};
+}
+/**
+* Walks the tokens of one entry of an address list and sorts them into the runs of display
+* text, angle-addr and comment they belong to
+*
+* @param tokens Tokens of the whole address list
+* @param from Index of the first token of the entry
+* @param to Index just past the last token of the entry
+* @return The collected runs, and whether the display text came out of a comment
+*/
+function _collectAddressParts(tokens, from, to) {
+	let state = "text";
+	const data = {
+		address: [],
+		comment: [],
+		text: [],
+		textWasQuoted: [],
+		quotedLocalAt: []
+	};
+	let insideQuotes = false;
+	let lastTextPureQuoted = false;
+	let lastTextHasAt = false;
+	let lastTextOpen = false;
+	let gapFrom = 0;
+	let gapsFolding = true;
+	const lastChars = {
+		address: "",
+		comment: "",
+		text: ""
+	};
+	for (let i = from; i < to; i++) {
+		const value = tokens.value(i);
+		const prevOperator = i > from ? tokens.operatorAt(i - 1) : "";
+		const prevNoBreak = i > from && tokens.noBreak(i - 1);
+		if (tokens.isOperator(i)) switch (value) {
+			case "<":
+				state = "address";
+				insideQuotes = false;
+				lastTextOpen = false;
+				break;
+			case "(":
+				state = "comment";
+				insideQuotes = false;
+				gapsFolding = gapsFolding && _isFoldingGap(tokens.str, gapFrom, tokens.contentStart(i));
+				break;
+			case "\"":
+				insideQuotes = !insideQuotes;
+				state = "text";
+				lastTextOpen = false;
+				break;
+			default:
+				state = "text";
+				insideQuotes = false;
+				if (value !== ")") lastTextOpen = false;
+				else gapFrom = tokens.contentEnd(i);
+		}
+		else {
+			const opensAfterEmptyQuotedString = prevOperator === "\"" && prevNoBreak && i > from + 1 && tokens.operatorAt(i - 2) === "\"";
+			const parts = data[state];
+			const secondAt = lastTextHasAt && prevOperator === ")" && value.indexOf("@") >= 0;
+			const joins = !secondAt && lastTextOpen && lastTextHasAt && prevOperator === ")" && (lastChars.text === "." || value.charAt(0) === ".") && gapsFolding && _isFoldingGap(tokens.str, gapFrom, tokens.contentStart(i)) || !secondAt && prevNoBreak && parts.length > 0 && (prevOperator !== ")" || lastChars[state] === "@" || value.charAt(0) === "@");
+			if (joins) {
+				const last = data[state].length - 1;
+				if (state === "text" && !insideQuotes) {
+					if (lastTextPureQuoted && value.charAt(0) === "@") data.quotedLocalAt[last] = data.text[last].length;
+					lastTextPureQuoted = false;
+				}
+				data[state][last] += value;
+				lastChars[state] = value.charAt(value.length - 1);
+				if (state === "text" && insideQuotes) data.textWasQuoted[last] = true;
+			} else {
+				data[state].push(value);
+				lastChars[state] = value.charAt(value.length - 1);
+				if (state === "text") {
+					data.textWasQuoted.push(insideQuotes || opensAfterEmptyQuotedString);
+					data.quotedLocalAt.push(opensAfterEmptyQuotedString && value.charAt(0) === "@" ? 0 : -1);
+					lastTextPureQuoted = insideQuotes;
+				}
+			}
+			if (state === "text") {
+				lastTextHasAt = joins && lastTextHasAt || !insideQuotes && value.indexOf("@") >= 0;
+				lastTextOpen = true;
+				gapFrom = tokens.contentEnd(i);
+				gapsFolding = true;
+			}
+		}
+	}
+	let textFromComment = false;
+	if (!data.text.length && data.comment.length) {
+		data.text = data.comment;
+		data.comment = [];
+		textFromComment = true;
+	}
+	return {
+		data,
+		textFromComment
+	};
+}
+/**
+* Name of a group, from the tokens in front of its ':'. A comment names it when no text does,
+* as it names a mailbox.
+*
+* @param tokens Tokens of the whole address list
+* @param from Index of the first token in front of the ':'
+* @param to Index of the ':'
+* @return Name of the group
+*/
+function _groupName(tokens, from, to) {
+	return _collectAddressParts(tokens, from, to).data.text.join(" ");
+}
+/**
+* Converts tokens for a single address into an address object
+*
+* @param tokens Tokens of the whole address list
+* @param from Index of the first token of this address
+* @param to Index just past the last token of this address
+* @return Address object
+*/
+function _handleAddress(tokens, from, to) {
+	const collected = _collectAddressParts(tokens, from, to);
+	const data = collected.data;
+	let textFromComment = collected.textFromComment;
+	const addressComments = [];
+	const addressParts = [];
+	for (const part of data.address) {
+		const stripped = _stripAddressComments(part);
+		for (const comment of stripped.comments) addressComments.push(comment);
+		if (stripped.address) addressParts.push(stripped.address);
+	}
+	data.address = addressParts;
+	if (!data.address.length && data.text.length && !textFromComment) {
+		const candidates = data.text.map((part) => _collapseAtSpacing(part));
+		for (let i = 0; i < data.text.length; i++) {
+			const local = data.quotedLocalAt[i];
+			const quotedLocal = data.textWasQuoted[i] && local >= 0 && QUOTED_LOCAL_DOMAIN.test(data.text[i].slice(local)) ? _quoteLocalPart(data.text[i]) : "";
+			if (quotedLocal || !data.textWasQuoted[i] && _isAddrSpec(candidates[i])) {
+				data.address = [quotedLocal || candidates[i]];
+				data.text.splice(i, 1);
+				data.textWasQuoted.splice(i, 1);
+				data.quotedLocalAt.splice(i, 1);
+				break;
+			}
+		}
+		if (!data.address.length) {
+			let extracted = false;
+			for (let i = 0; i < data.text.length; i++) if (!data.textWasQuoted[i]) {
+				const part = candidates[i];
+				let remainder = data.text[i];
+				const at = _looseAddressStart(part);
+				if (at >= 0) {
+					LOOSE_TEXT_ADDR.lastIndex = at;
+					const match = LOOSE_TEXT_ADDR.exec(part);
+					if (match) {
+						data.address = [match[0].trim()];
+						extracted = true;
+						remainder = part.slice(0, at) + " " + part.slice(at + match[0].length);
+					}
+				}
+				data.text[i] = remainder.trim();
+				if (extracted) break;
+			}
+		}
+	}
+	if (!data.text.length && data.comment.length) {
+		data.text = data.comment;
+		data.comment = [];
+	}
+	if (data.address.length > 1) data.text = data.text.concat(data.address.splice(1));
+	const addressFromQuotedText = !data.address.length && data.textWasQuoted.some((wasQuoted) => wasQuoted);
+	data.text = data.text.join(" ");
+	data.address = data.address.join(" ");
+	if (addressFromQuotedText && data.text.indexOf("@") >= 0) {
+		data.address = _quoteLocalPart(_joinAtSpacing(data.text, _domainAt(data.text)));
+		data.text = "";
+	}
+	_recoverAddrSpec(data);
+	if (!data.text && addressComments.length) {
+		data.text = addressComments.join(" ");
+		textFromComment = true;
+	}
+	const address = {
+		address: data.address || (textFromComment ? "" : data.text) || "",
+		name: data.text || data.address || ""
+	};
+	if (address.address === address.name) {
+		if (/@/.test(address.address || "")) address.name = "";
+		else address.address = "";
+	}
+	return address;
+}
+/**
+* Creates a Tokenizer object for tokenizing address field strings
+*
+* @constructor
+* @param str Address field string
+*/
+var Tokenizer = class {
+	constructor(str) {
+		this.str = (str || "").toString();
+		this.operatorCurrent = "";
+		this.operatorExpecting = "";
+		this.node = -1;
+		this.escaped = false;
+		this.inDomainLiteral = false;
+		this.afterAt = false;
+		this.inGroup = false;
+		this.innerQuoted = false;
+		this.innerComment = 0;
+		this.innerLiteral = false;
+		this.innerEscaped = false;
+		this.list = new TokenList(this.str);
+		/**
+		* Operator tokens and which tokens are expected to end the sequence
+		*/
+		this.operators = {
+			"\"": "\"",
+			"(": ")",
+			"<": ">",
+			",": "",
+			":": "",
+			";": ""
+		};
+	}
+	/**
+	* Tokenizes the original input string
+	*
+	* @return An array of operator|text tokens
+	*/
+	tokenize() {
+		const str = this.str;
+		const len = str.length;
+		for (let i = 0; i < len; i++) this.checkChar(str.charAt(i), i);
+		this._closeText(len);
+		const list = this.list;
+		const slots = list.slots;
+		let kept = 0;
+		for (let i = 0, count = list.length; i < count; i++) {
+			const kind = slots[i * 3];
+			let start = slots[i * 3 + 1];
+			let end = slots[i * 3 + 2];
+			if (kind & TOKEN_DIRTY) {
+				const value = this._cleanValue(start, end, kind).trim();
+				if (!value) continue;
+				list.cleaned.set(kept, value);
+			} else if (!(kind & TOKEN_OPERATOR)) {
+				while (start < end && _isSpaceCode(str.charCodeAt(start))) start++;
+				while (end > start && _isSpaceCode(str.charCodeAt(end - 1))) end--;
+				if (start === end) continue;
+			}
+			slots[kept * 3] = kind;
+			slots[kept * 3 + 1] = start;
+			slots[kept * 3 + 2] = end;
+			kept++;
+		}
+		list.length = kept;
+		return list;
+	}
+	/**
+	* Ends the text run being collected, if there is one
+	*
+	* @param end Offset just past its last character
+	*/
+	_closeText(end) {
+		if (this.node >= 0) {
+			this.list.slots[this.node * 3 + 2] = end;
+			this.node = -1;
+		}
+	}
+	/**
+	* Rebuilds the value of a text run that is no plain slice of the field, applying the
+	* rules checkChar collects characters by: an escaping backslash is dropped, a line break
+	* reads as a space and any other control character is left out
+	*
+	* @param start Offset of the first character of the run
+	* @param end Offset just past its last character
+	* @param kind Kind and flags of the run
+	* @return Value of the run
+	*/
+	_cleanValue(start, end, kind) {
+		const str = this.str;
+		const escapes = (kind & TOKEN_ESCAPES) !== 0;
+		let escaped = (kind & TOKEN_STARTS_ESCAPED) !== 0;
+		let value = "";
+		for (let i = start; i < end; i++) {
+			const chr = str.charAt(i);
+			if (escapes && !escaped && chr === "\\") {
+				escaped = true;
+				continue;
+			}
+			escaped = false;
+			if (chr === "\n") value += " ";
+			else if (chr.charCodeAt(0) >= 33 || chr === " " || chr === "	") value += chr;
+		}
+		return value;
+	}
+	/**
+	* Checks if a character is an operator or text and acts accordingly
+	*
+	* @param chr Character from the address field
+	* @param i Offset of the character in the field
+	*/
+	checkChar(chr, i) {
+		if (!this.escaped && !this.operatorExpecting) {
+			if (!this.inDomainLiteral && chr === "[" && this.afterAt) this.inDomainLiteral = true;
+			else if (this.inDomainLiteral && (chr === "]" || chr === "," || chr === ";")) this.inDomainLiteral = false;
+		}
+		let nested = false;
+		if (this.operatorExpecting === ">") {
+			nested = this._trackInner(chr);
+			if (!nested && chr === ";" && this.inGroup) {
+				this._closeText(i);
+				this.operatorExpecting = "";
+				this._resetInner();
+			}
+		} else if (this.operatorExpecting === ")" && !this.escaped) {
+			if (chr === "(") this.innerComment++;
+			else if (chr === ")" && this.innerComment) {
+				this.innerComment--;
+				nested = true;
+			}
+		}
+		if (this.escaped) {} else if (chr === this.operatorExpecting && !nested) {
+			const nextChr = this.str.charAt(i + 1);
+			this._closeText(i);
+			this.list.push(nextChr && ![
+				" ",
+				"	",
+				"\r",
+				"\n",
+				",",
+				";"
+			].includes(nextChr) ? 3 : TOKEN_OPERATOR, i, i + 1);
+			if (chr !== ")") this.afterAt = false;
+			this.operatorExpecting = "";
+			this.escaped = false;
+			this._resetInner();
+			return;
+		} else if (!this.operatorExpecting && !(this.inDomainLiteral && chr === ":") && chr in this.operators) {
+			this._closeText(i);
+			this.list.push(TOKEN_OPERATOR, i, i + 1);
+			if (chr === ":") this.inGroup = true;
+			else if (chr === ";") this.inGroup = false;
+			if (chr !== "(") this.afterAt = false;
+			this.operatorExpecting = this.operators[chr];
+			this.escaped = false;
+			this._resetInner();
+			return;
+		} else if ([
+			"\"",
+			"'",
+			")"
+		].includes(this.operatorExpecting) && chr === "\\") {
+			this.escaped = true;
+			if (this.node >= 0) this.list.slots[this.node * 3] |= TOKEN_DIRTY;
+			return;
+		}
+		if (this.node < 0) this.node = this.list.push((this.operatorExpecting === "\"" || this.operatorExpecting === ")" ? TOKEN_ESCAPES : 0) | (this.escaped ? TOKEN_STARTS_ESCAPED : 0), i, i);
+		if (chr === "\n") {
+			chr = " ";
+			this.list.slots[this.node * 3] |= TOKEN_DIRTY;
+		}
+		if (chr.charCodeAt(0) >= 33 || chr === " " || chr === "	") {
+			if (!this.operatorExpecting && chr !== " " && chr !== "	") this.afterAt = chr === "@";
+		} else this.list.slots[this.node * 3] |= TOKEN_DIRTY;
+		this.escaped = false;
+	}
+	/**
+	* Tracks the quoted strings, comments and domain literals inside an angle-addr, which its
+	* closer must not be read from. A backslash escapes the next character inside a quoted
+	* string and a comment. A domain literal opens right after an "@" and ends at the "]".
+	* dtext holds the list separators as well, and inside the brackets they never split the
+	* list anyway.
+	*
+	* @param chr Character from the address field
+	* @return true while the character sits inside one of them, the one that closes it included
+	*/
+	_trackInner(chr) {
+		if (this.innerEscaped) {
+			this.innerEscaped = false;
+			return true;
+		}
+		if (this.innerQuoted) {
+			if (chr === "\\") this.innerEscaped = true;
+			else if (chr === "\"") this.innerQuoted = false;
+			return true;
+		}
+		if (this.innerComment) {
+			if (chr === "\\") this.innerEscaped = true;
+			else if (chr === "(") this.innerComment++;
+			else if (chr === ")") this.innerComment--;
+			return true;
+		}
+		if (this.innerLiteral) {
+			if (chr === "]") this.innerLiteral = false;
+			return true;
+		}
+		if (chr === "\"") {
+			this.innerQuoted = true;
+			return true;
+		}
+		if (chr === "(") {
+			this.innerComment = 1;
+			return true;
+		}
+		if (chr === "[" && this.afterAt) {
+			this.innerLiteral = true;
+			return true;
+		}
+		if (!_isSpaceCode(chr.charCodeAt(0))) this.afterAt = chr === "@";
+		return false;
+	}
+	/**
+	* Forgets the nesting collected for the operator that just opened or ended
+	*/
+	_resetInner() {
+		this.innerQuoted = false;
+		this.innerComment = 0;
+		this.innerLiteral = false;
+		this.innerEscaped = false;
+	}
+};
+/**
+* Folds the fragments an unquoted display name holding a comma is split into back together.
+*
+* "Joe Foo, PhD <joe@example.com>" is split on the comma into
+* [{name:"Joe Foo", address:""}, {name:"PhD", address:"joe@example.com"}]. A name-only entry
+* followed by an entry with both name and address is recombined. Walked back to front so
+* that a run of fragments folds into one entry in a single pass. Splicing each fragment out
+* of the list instead would cost O(n^2).
+*
+* @param list Parsed entries, in order
+* @return The entries with the fragments folded in
+*/
+function _mergeNameFragments(list) {
+	const merged = [];
+	for (let i = list.length - 1; i >= 0; i--) {
+		const current = list[i];
+		const next = merged.length ? merged[merged.length - 1] : null;
+		if (next && current.address === "" && current.name && !current.group && next.address && next.name) next.name = current.name + ", " + next.name;
+		else merged.push(current);
+	}
+	return merged.reverse();
+}
+/**
+* Parses an address list, groups included, in a single pass over its tokens.
+*
+* A group used to be cut out of the field at the ';' that ends it and parsed again as an
+* address list of its own, recursively, so every level of nesting parsed what was left of
+* the field once more and the depth had to be capped. RFC 5322 does not nest groups at all,
+* and the nested ones were flattened anyway. The tokens are now walked once: a ':' opens a
+* group, its members are read as they come, a ';' closes it. A ':' inside an open group
+* stands for a group nested in it, whose name is dropped and whose members belong to the
+* outer one, which is how they were flattened before. The first ';' ends the group, nested
+* or not, as it did.
+*
+* @param str Address field
+* @return An array of address objects
+*/
+function _parseAddressList(str) {
+	const tokens = new Tokenizer(str).tokenize();
+	const parsedAddresses = [];
+	let group = null;
+	let members = [];
+	let from = 0;
+	for (let i = 0, len = tokens.length; i <= len; i++) {
+		const operator = i < len ? tokens.operatorAt(i) : "";
+		if (i < len && operator !== "," && operator !== ";" && operator !== ":") continue;
+		if (operator === ":") {
+			if (!group) {
+				group = {
+					name: _groupName(tokens, from, i),
+					group: []
+				};
+				members = [];
+			}
+			from = i + 1;
+			continue;
+		}
+		if (i > from) {
+			const address = _handleAddress(tokens, from, i);
+			if (group) members.push(address);
+			else parsedAddresses.push(address);
+		}
+		from = i + 1;
+		if (group && (operator === ";" || i === len)) {
+			group.group = _mergeNameFragments(members);
+			parsedAddresses.push(group);
+			group = null;
+		}
+	}
+	return _mergeNameFragments(parsedAddresses);
+}
+function addressparser(str, options) {
+	const parsedAddresses = _parseAddressList(str);
+	if (options?.flatten) {
+		const flatAddresses = [];
+		const walkAddressList = (list) => {
+			list.forEach((entry) => {
+				if (entry.group) return walkAddressList(entry.group);
+				flatAddresses.push(entry);
+			});
+		};
+		walkAddressList(parsedAddresses);
+		return flatAddresses;
+	}
+	return parsedAddresses;
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mime-node/last-newline.js
+var LastNewline = class extends Transform {
+	constructor() {
+		super();
+		this.lastByte = false;
+	}
+	/** @internal */
+	_transform(chunk, encoding, done) {
+		if (chunk.length) this.lastByte = chunk[chunk.length - 1];
+		this.push(chunk);
+		done();
+	}
+	/** @internal */
+	_flush(done) {
+		if (this.lastByte === 10) return done();
+		if (this.lastByte === 13) {
+			this.push(Buffer.from("\n"));
+			return done();
+		}
+		this.push(Buffer.from("\r\n"));
+		return done();
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mime-node/le-windows.js
+/**
+* Ensures that only <CR><LF> sequences are used for linebreaks
+*
+* @param options Stream options
+*/
+var LeWindows = class extends Transform {
+	constructor(options) {
+		super(options);
+		this.lastByte = false;
+	}
+	/**
+	* Escapes dots
+	* @internal
+	*/
+	_transform(chunk, encoding, done) {
+		let buf;
+		let lastPos = 0;
+		for (let i = 0, len = chunk.length; i < len; i++) if (chunk[i] === 10) {
+			if (i && chunk[i - 1] !== 13 || !i && this.lastByte !== 13) {
+				if (i > lastPos) {
+					buf = chunk.slice(lastPos, i);
+					this.push(buf);
+				}
+				this.push(Buffer.from("\r\n"));
+				lastPos = i + 1;
+			}
+		}
+		if (lastPos && lastPos < chunk.length) {
+			buf = chunk.slice(lastPos);
+			this.push(buf);
+		} else if (!lastPos) this.push(chunk);
+		this.lastByte = chunk[chunk.length - 1];
+		done();
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mime-node/le-unix.js
+/**
+* Ensures that only <LF> is used for linebreaks
+*
+* @param options Stream options
+*/
+var LeUnix = class extends Transform {
+	constructor(options) {
+		super(options);
+	}
+	/**
+	* Escapes dots
+	* @internal
+	*/
+	_transform(chunk, encoding, done) {
+		let buf;
+		let lastPos = 0;
+		for (let i = 0, len = chunk.length; i < len; i++) if (chunk[i] === 13) {
+			buf = chunk.slice(lastPos, i);
+			lastPos = i + 1;
+			this.push(buf);
+		}
+		if (lastPos && lastPos < chunk.length) {
+			buf = chunk.slice(lastPos);
+			this.push(buf);
+		} else if (!lastPos) this.push(chunk);
+		done();
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mime-node/index.js
+const FORMATTED_HEADERS = [
+	"From",
+	"Sender",
+	"To",
+	"Cc",
+	"Bcc",
+	"Reply-To",
+	"Date",
+	"References"
+];
+const ATEXT = "[A-Za-z0-9!#$%&'*+\\-/=?^_`{|}~\\x80-\\uFFFF]";
+const DOT_ATOM = new RegExp("^" + ATEXT + "+(?:\\." + ATEXT + "+)*$");
+const QUOTED_STRING = /^"(?:[^"\\]|\\[\s\S])*"$/;
+const PLAIN_ADDRESS = /^[^\s"(),:;<>@[\\\]]+@[^\s"(),:;<>@[\\\]]+$/;
+/**
+* A domain literal that ends an address, see _normalizeAddress
+*/
+const DOMAIN_LITERAL_TAIL = /@(\[[^[\]\\]*\])$/;
+/**
+* Removes the whitespace inside every <...> of a References value. A "<" with no ">" after
+* it is left as it is. An index scan, the regex /<[^>]*>/g rescans the rest of the value
+* from every such "<"
+*
+* @param value References header value
+* @returns The value with the msg-ids closed up
+*/
+function stripWhitespaceInAngleBrackets(value) {
+	let result = "";
+	let pos = 0;
+	for (;;) {
+		const open = value.indexOf("<", pos);
+		if (open < 0) break;
+		const close = value.indexOf(">", open + 1);
+		if (close < 0) break;
+		result += value.slice(pos, open) + value.slice(open, close + 1).replace(/\s/g, "");
+		pos = close + 1;
+	}
+	return result + value.slice(pos);
+}
+const PIPELINE_NOOP = () => false;
+function abortedError() {
+	const err = /* @__PURE__ */ new Error("Message stream was closed before the message was generated");
+	err.code = ESTREAM;
+	return err;
+}
+/**
+* Removes the characters that must never reach a multipart delimiter line.
+*
+* A line break splits the delimiter, so the boundary declared in the header can never
+* match it again and the parts go out as body lines instead. The other C0 controls and
+* DEL do not split anything but must not be written either: RFC 5321 does not allow a
+* NUL in DATA at all, and an MTA or a scanner that stops at one reads a different
+* message than a client that does not, which is the same parser disagreement a split
+* delimiter creates. Both sides are cleaned together, since the declared value and the
+* delimiters come from this one result.
+*
+* @param value Value to clean
+* @return Value with every control character removed
+*/
+function _stripBoundaryControls(value) {
+	return value.replace(/[\x00-\x1f\x7f]+/g, "");
+}
+/**
+* Creates a new mime tree node. Assumes 'multipart/*' as the content type
+* if it is a branch, anything else counts as leaf. If rootNode is missing from
+* the options, assumes this is the root.
+*
+* @param contentType Define the content type for the node. Can be left blank for attachments (derived from filename)
+* @param [options] optional options
+* @param [options.rootNode] root node for this tree
+* @param [options.parentNode] immediate parent for this node
+* @param [options.filename] filename for an attachment node
+* @param [options.baseBoundary] shared part of the unique multipart boundary
+* @param [options.keepBcc] If true, do not exclude Bcc from the generated headers
+* @param [options.normalizeHeaderKey] method to normalize header keys for custom caseing
+* @param [options.textEncoding] either 'Q' (the default) or 'B'
+*/
+var MimeNode = class MimeNode {
+	constructor(contentType, options) {
+		this.nodeCounter = 0;
+		options = options || {};
+		/**
+		* shared part of the unique multipart boundary. Control characters are dropped
+		* here rather than at the delimiter, see _stripBoundaryControls
+		*/
+		this.baseBoundary = _stripBoundaryControls(options.baseBoundary || crypto$1.randomBytes(8).toString("hex"));
+		this.boundaryPrefix = _stripBoundaryControls(options.boundaryPrefix || "--_NmP");
+		this.disableFileAccess = !!options.disableFileAccess;
+		this.disableUrlAccess = !!options.disableUrlAccess;
+		this.normalizeHeaderKey = options.normalizeHeaderKey;
+		/**
+		* If date headers is missing and current node is the root, this value is used instead
+		*/
+		this.date = options.parentNode ? null : /* @__PURE__ */ new Date();
+		/**
+		* Root node for current mime tree
+		*/
+		this.rootNode = options.rootNode || this;
+		/**
+		* If true include Bcc in generated headers (if available)
+		*/
+		this.keepBcc = !!options.keepBcc;
+		/**
+		* If filename is specified but contentType is not (probably an attachment)
+		* detect the content type from filename extension
+		*/
+		if (options.filename) {
+			/**
+			* Filename for this node. Useful with attachments
+			*/
+			this.filename = options.filename;
+			if (!contentType) contentType = detectMimeType(this.filename.split(".").pop());
+		}
+		/**
+		* Indicates which encoding should be used for header strings: "Q" or "B"
+		*/
+		this.textEncoding = (options.textEncoding || "").toString().trim().charAt(0).toUpperCase();
+		/**
+		* Immediate parent for this node (or undefined if not set)
+		*/
+		this.parentNode = options.parentNode;
+		/**
+		* Hostname for default message-id values
+		*/
+		this.hostname = options.hostname;
+		/**
+		* If set to 'win' then uses \r\n, if 'linux' then \n. If not set (or `raw` is used) then newlines are kept as is.
+		*/
+		this.newline = options.newline;
+		/**
+		* An array for possible child nodes
+		*/
+		this.childNodes = [];
+		/**
+		* Used for generating unique boundaries (prepended to the shared base)
+		*/
+		this._nodeId = ++this.rootNode.nodeCounter;
+		/**
+		* A list of header values for this node in the form of [{key:'', value:''}]
+		*/
+		this._headers = [];
+		/**
+		* True if the content only uses ASCII printable characters
+		* @type {Boolean}
+		*/
+		this._isPlainText = false;
+		/**
+		* True if the content is plain text but has longer lines than allowed
+		* @type {Boolean}
+		*/
+		this._hasLongLines = false;
+		/**
+		* If set, use instead this value for envelopes instead of generating one
+		* @type {Boolean}
+		*/
+		this._envelope = false;
+		/**
+		* If set then use this value as the stream content instead of building it
+		* @type {String|Buffer|Stream}
+		*/
+		this._raw = false;
+		/**
+		* Additional transform streams that the message will be piped before
+		* exposing by createReadStream
+		* @type {Array}
+		*/
+		this._transforms = [];
+		/**
+		* Additional process functions that the message will be piped through before
+		* exposing by createReadStream. These functions are run after transforms
+		* @type {Array}
+		*/
+		this._processFuncs = [];
+		/**
+		* If content type is set (or derived from the filename) add it to headers
+		*/
+		if (contentType) this.setHeader("Content-Type", contentType);
+	}
+	/**
+	* Creates and appends a child node.Arguments provided are passed to MimeNode constructor
+	*
+	* @param [contentType] Optional content type
+	* @param [options] Optional options object
+	* @return Created node object
+	*/
+	createChild(contentType, options) {
+		if (!options && typeof contentType === "object") {
+			options = contentType;
+			contentType = void 0;
+		}
+		const node = new MimeNode(contentType, options);
+		this.appendChild(node);
+		return node;
+	}
+	/**
+	* Appends an existing node to the mime tree. Removes the node from an existing
+	* tree if needed
+	*
+	* @param childNode node to be appended
+	* @return Appended node object
+	*/
+	appendChild(childNode) {
+		if (childNode.parentNode && childNode.parentNode !== this) childNode.remove();
+		if (childNode.rootNode !== this.rootNode) {
+			childNode.rootNode = this.rootNode;
+			childNode._nodeId = ++this.rootNode.nodeCounter;
+		}
+		childNode.parentNode = this;
+		this.childNodes.push(childNode);
+		return childNode;
+	}
+	/**
+	* Replaces current node with another node
+	*
+	* @param node Replacement node
+	* @return Replacement node
+	*/
+	replace(node) {
+		if (node === this) return this;
+		this.parentNode.childNodes.forEach((childNode, i) => {
+			if (childNode === this) {
+				node.rootNode = this.rootNode;
+				node.parentNode = this.parentNode;
+				node._nodeId = this._nodeId;
+				this.rootNode = this;
+				this.parentNode = void 0;
+				node.parentNode.childNodes[i] = node;
+			}
+		});
+		return node;
+	}
+	/**
+	* Removes current node from the mime tree
+	*
+	* @return removed node
+	*/
+	remove() {
+		if (!this.parentNode) return this;
+		for (let i = this.parentNode.childNodes.length - 1; i >= 0; i--) if (this.parentNode.childNodes[i] === this) {
+			this.parentNode.childNodes.splice(i, 1);
+			this.parentNode = void 0;
+			this.rootNode = this;
+			return this;
+		}
+	}
+	/**
+	* Sets a header value. If the value for selected key exists, it is overwritten.
+	* You can set multiple values as well by using [{key:'', value:''}] or
+	* {key: 'value'} as the first argument.
+	*
+	* @param key Header key or a list of key value pairs
+	* @param value Header value
+	* @return current node
+	*/
+	setHeader(key, value) {
+		let added = false;
+		if (!value && key && typeof key === "object") {
+			if (key.key && "value" in key) this.setHeader(key.key, key.value);
+			else if (Array.isArray(key)) key.forEach((i) => {
+				this.setHeader(i.key, i.value);
+			});
+			else Object.keys(key).forEach((i) => {
+				this.setHeader(i, key[i]);
+			});
+			return this;
+		}
+		key = this._normalizeHeaderKey(key);
+		const headerValue = {
+			key,
+			value
+		};
+		for (let i = 0, len = this._headers.length; i < len; i++) if (this._headers[i].key === key) {
+			if (!added) {
+				this._headers[i] = headerValue;
+				added = true;
+			} else {
+				this._headers.splice(i, 1);
+				i--;
+				len--;
+			}
+		}
+		if (!added) this._headers.push(headerValue);
+		return this;
+	}
+	/**
+	* Adds a header value. If the value for selected key exists, the value is appended
+	* as a new field and old one is not touched.
+	* You can set multiple values as well by using [{key:'', value:''}] or
+	* {key: 'value'} as the first argument.
+	*
+	* @param key Header key or a list of key value pairs
+	* @param value Header value
+	* @return current node
+	*/
+	addHeader(key, value) {
+		if (!value && key && typeof key === "object") {
+			if (key.key && key.value) this.addHeader(key.key, key.value);
+			else if (Array.isArray(key)) key.forEach((i) => {
+				this.addHeader(i.key, i.value);
+			});
+			else Object.keys(key).forEach((i) => {
+				this.addHeader(i, key[i]);
+			});
+			return this;
+		} else if (Array.isArray(value)) {
+			value.forEach((val) => {
+				this.addHeader(key, val);
+			});
+			return this;
+		}
+		this._headers.push({
+			key: this._normalizeHeaderKey(key),
+			value
+		});
+		return this;
+	}
+	/**
+	* Retrieves the first mathcing value of a selected key
+	*
+	* @param key Key to search for
+	* @retun Value for the key
+	*/
+	getHeader(key) {
+		key = this._normalizeHeaderKey(key);
+		for (let i = 0, len = this._headers.length; i < len; i++) if (this._headers[i].key === key) return this._headers[i].value;
+	}
+	/**
+	* Sets body content for current node. If the value is a string, charset is added automatically
+	* to Content-Type (if it is text/*). If the value is a Buffer, you need to specify
+	* the charset yourself
+	*
+	* @param content Body content
+	* @return current node
+	*/
+	setContent(content) {
+		this.content = content;
+		if (typeof this.content.pipe === "function") recordStreamErrors(this.content);
+		else if (typeof this.content === "string") {
+			this._isPlainText = isPlainText(this.content);
+			if (this._isPlainText && hasLongerLines(this.content, 76)) this._hasLongLines = true;
+		}
+		return this;
+	}
+	build(callback) {
+		let promise;
+		if (!callback) promise = new Promise((resolve, reject) => {
+			callback = callbackPromise(resolve, reject);
+		});
+		const done = callback;
+		const stream = this.createReadStream();
+		const buf = [];
+		let buflen = 0;
+		let returned = false;
+		stream.on("readable", () => {
+			let chunk;
+			while ((chunk = stream.read()) !== null) {
+				buf.push(chunk);
+				buflen += chunk.length;
+			}
+		});
+		stream.once("error", (err) => {
+			if (returned) return;
+			returned = true;
+			return done(err);
+		});
+		stream.once("end", (chunk) => {
+			if (returned) return;
+			returned = true;
+			if (chunk && chunk.length) {
+				buf.push(chunk);
+				buflen += chunk.length;
+			}
+			return done(null, Buffer.concat(buf, buflen));
+		});
+		return promise;
+	}
+	getTransferEncoding() {
+		let transferEncoding = false;
+		const contentType = (this.getHeader("Content-Type") || "").toString().toLowerCase().trim();
+		if (this.content) {
+			transferEncoding = (this.getHeader("Content-Transfer-Encoding") || "").toString().toLowerCase().trim();
+			if (!transferEncoding || !["base64", "quoted-printable"].includes(transferEncoding)) {
+				if (/^text\//i.test(contentType)) {
+					if (this._isPlainText && !this._hasLongLines) transferEncoding = "7bit";
+					else if (typeof this.content === "string" || this.content instanceof Buffer) transferEncoding = this._getTextEncoding(this.content) === "Q" ? "quoted-printable" : "base64";
+					else transferEncoding = this.textEncoding === "B" ? "base64" : "quoted-printable";
+				} else if (!/^(multipart|message)\//i.test(contentType)) transferEncoding = transferEncoding || "base64";
+			}
+		}
+		return transferEncoding;
+	}
+	/**
+	* Builds the header block for the mime node. Append \r\n\r\n before writing the content
+	*
+	* @returns Headers
+	*/
+	buildHeaders() {
+		const transferEncoding = this.getTransferEncoding();
+		const headers = [];
+		if (transferEncoding) this.setHeader("Content-Transfer-Encoding", transferEncoding);
+		if (this.filename && !this.getHeader("Content-Disposition")) this.setHeader("Content-Disposition", "attachment");
+		if (this.rootNode === this) {
+			if (!this.getHeader("Date")) this.setHeader("Date", this.date.toUTCString().replace(/GMT/, "+0000"));
+			this.messageId();
+			if (!this.getHeader("MIME-Version")) this.setHeader("MIME-Version", "1.0");
+			for (let i = this._headers.length - 2; i >= 0; i--) {
+				const header = this._headers[i];
+				if (header.key === "Content-Type") {
+					this._headers.splice(i, 1);
+					this._headers.push(header);
+				}
+			}
+		}
+		this._headers.forEach((header) => {
+			let key = header.key;
+			let value = header.value;
+			let structured;
+			let param;
+			const options = {};
+			if (value && typeof value === "object" && !FORMATTED_HEADERS.includes(key)) {
+				copyOwnKeys(options, value, (optionKey) => optionKey === "value");
+				value = (value.value || "").toString();
+				if (!value.trim()) return;
+			}
+			if (options.prepared) {
+				if (options.foldLines) headers.push(foldLines(key + ": " + value));
+				else headers.push(key + ": " + value);
+				return;
+			}
+			switch (header.key) {
+				case "Content-Disposition":
+					structured = parseHeaderValue(value, { stripComments: true });
+					if (this.filename) structured.params.filename = this.filename;
+					value = buildHeaderValue(structured);
+					break;
+				case "Content-Type":
+					structured = parseHeaderValue(value, { stripComments: true });
+					structured.value = (structured.value || "").toString().replace(/[\x00-\x1f\x7f]/g, "");
+					this._handleContentType(structured);
+					if (structured.value.match(/^text\/plain\b/) && typeof this.content === "string" && /[\u0080-\uFFFF]/.test(this.content)) structured.params.charset = "utf-8";
+					if (this.filename) {
+						for (const paramKey of Object.keys(structured.params)) if (/^name(\*|$)/i.test(paramKey)) delete structured.params[paramKey];
+					}
+					value = buildHeaderValue(structured);
+					if (this.filename) {
+						param = /[\x00-\x1f\x7f]/.test(this.filename) ? encodeWord(this.filename, this._getTextEncoding(this.filename), 52) : this._encodeWords(this.filename);
+						if (param !== this.filename || /[\s'"\\;:/=(),<>@[\]?]|^-/.test(param)) param = JSON.stringify(param);
+						value += "; name=" + param;
+					}
+					break;
+				case "Bcc": if (!this.keepBcc) return;
+			}
+			value = this.encodeHeaderValue(key, value);
+			if (!(value || "").toString().trim()) return;
+			if (typeof this.normalizeHeaderKey === "function") {
+				const normalized = this.normalizeHeaderKey(key, value);
+				const cleaned = typeof normalized === "string" ? normalized.replace(/[\x00-\x1f\x7f]/g, "") : "";
+				if (cleaned) key = cleaned;
+			}
+			headers.push(foldLines(key + ": " + value, 76));
+		});
+		return headers.join("\r\n");
+	}
+	/**
+	* Streams the rfc2822 message from the current node. If this is a root node,
+	* mandatory header fields are set if missing (Date, Message-Id, MIME-Version)
+	*
+	* @return Compiled message
+	*/
+	createReadStream(options) {
+		options = options || {};
+		const stream = new PassThrough(options);
+		this.stream(stream, options, (err) => {
+			if (err) {
+				stream.destroy(err);
+				return;
+			}
+			stream.end();
+		});
+		stream.once("close", () => {
+			if (!stream.writableFinished) this._destroyContentStreams();
+		});
+		const stages = [stream];
+		for (const transform of this._transforms) stages.push(typeof transform === "function" ? transform() : transform);
+		stages.push(new LastNewline());
+		let outputStream = pipeline(stages, PIPELINE_NOOP);
+		for (const processFunc of this._processFuncs) {
+			const input = outputStream;
+			outputStream = processFunc(input);
+			if (outputStream !== input) finished(outputStream, (err) => {
+				if (err) input.destroy();
+			});
+		}
+		if (this.newline) {
+			const winbreak = [
+				"win",
+				"windows",
+				"dos",
+				"\r\n"
+			].includes(this.newline.toString().toLowerCase());
+			outputStream = pipeline(outputStream, winbreak ? new LeWindows() : new LeUnix(), PIPELINE_NOOP);
+		}
+		return outputStream;
+	}
+	/**
+	* Appends a transform stream object to the transforms list. Final output
+	* is passed through this stream before exposing
+	*
+	* @param transform Read-Write stream
+	*/
+	transform(transform) {
+		this._transforms.push(transform);
+	}
+	/**
+	* Appends a post process function. The functon is run after transforms and
+	* uses the following syntax
+	*
+	*   processFunc(input) -> outputStream
+	*
+	* @param processFunc Read-Write stream
+	*/
+	processFunc(processFunc) {
+		this._processFuncs.push(processFunc);
+	}
+	stream(outputStream, options, done) {
+		const transferEncoding = this.getTransferEncoding();
+		let activeStreams = [];
+		let returned = false;
+		const callback = (err) => {
+			if (returned) return;
+			returned = true;
+			outputStream.removeListener("close", onOutputClose);
+			done(err);
+		};
+		function onOutputClose() {
+			for (const stream of activeStreams) stream.destroy();
+			return callback(abortedError());
+		}
+		const readInto = (...streams) => {
+			if (!activeStreams.length) outputStream.once("close", onOutputClose);
+			activeStreams = streams;
+		};
+		const aborted = () => {
+			if (outputStream.destroyed) {
+				callback(abortedError());
+				return true;
+			}
+			return false;
+		};
+		const finalize = () => {
+			let childId = 0;
+			const processChildNode = () => {
+				if (aborted()) return;
+				if (childId >= this.childNodes.length) {
+					outputStream.write("\r\n--" + this.boundary + "--\r\n");
+					return callback();
+				}
+				const child = this.childNodes[childId++];
+				outputStream.write((childId > 1 ? "\r\n" : "") + "--" + this.boundary + "\r\n");
+				child.stream(outputStream, options, (err) => {
+					if (err) return callback(err);
+					setImmediate(processChildNode);
+				});
+			};
+			if (this.multipart) setImmediate(processChildNode);
+			else return callback();
+		};
+		const sendContent = () => {
+			if (aborted()) return;
+			if (!this.content) return setImmediate(finalize);
+			const createStream = () => {
+				if (aborted()) return;
+				const contentError = this._takeStreamContent(this.content);
+				if (contentError) return callback(contentError);
+				const localStream = this._getStream(this.content);
+				if (["quoted-printable", "base64"].includes(transferEncoding)) {
+					const contentStream = transferEncoding === "base64" ? new Encoder$1(options) : new Encoder(Object.assign({}, options, { binary: !/^text\//i.test(this.contentType || "") }));
+					readInto(localStream, contentStream);
+					contentStream.pipe(outputStream, { end: false });
+					pipeline(localStream, contentStream, (err) => err && callback(err));
+					finished(contentStream, { writable: false }, (err) => err ? callback(err) : finalize());
+				} else {
+					readInto(localStream);
+					localStream.pipe(outputStream, { end: false });
+					finished(localStream, { writable: false }, (err) => err ? callback(err) : finalize());
+				}
+			};
+			if (this.content._resolve) {
+				const sourceStream = this._getStream(this.content);
+				readInto(sourceStream);
+				resolveStream(sourceStream, (err, value) => {
+					if (err) return callback(err);
+					if (returned) return;
+					this.content._resolve = false;
+					this.content._resolvedValue = value;
+					setImmediate(createStream);
+				});
+			} else setImmediate(createStream);
+		};
+		if (this._raw) setImmediate(() => {
+			if (aborted()) return;
+			const rawError = this._takeStreamContent(this._raw);
+			if (rawError) return callback(rawError);
+			const raw = this._getStream(this._raw);
+			readInto(raw);
+			raw.pipe(outputStream, { end: false });
+			finished(raw, { writable: false }, (err) => err ? callback(err) : finalize());
+		});
+		else {
+			outputStream.write(this.buildHeaders() + "\r\n\r\n");
+			setImmediate(sendContent);
+		}
+	}
+	/**
+	* Sets envelope to be used instead of the generated one
+	*
+	* @return SMTP envelope in the form of {from: 'from@example.com', to: ['to@example.com']}
+	*/
+	setEnvelope(envelope) {
+		let list;
+		this._envelope = {
+			from: false,
+			to: []
+		};
+		if (envelope.from) {
+			list = [];
+			this._convertAddresses(this._parseEnvelopeAddresses(envelope.from), list);
+			list = list.filter((address) => address && address.address);
+			if (list.length && list[0]) this._envelope.from = list[0].address;
+		}
+		const seenRecipients = /* @__PURE__ */ new Set();
+		const recipients = [];
+		[
+			"to",
+			"cc",
+			"bcc"
+		].forEach((key) => {
+			if (envelope[key]) this._convertAddresses(this._parseEnvelopeAddresses(envelope[key]), recipients, seenRecipients);
+		});
+		this._envelope.to = recipients.map((to) => to.address).filter((address) => address);
+		const standardFields = [
+			"to",
+			"cc",
+			"bcc",
+			"from"
+		];
+		copyOwnKeys(this._envelope, envelope, (key) => standardFields.includes(key));
+		return this;
+	}
+	/**
+	* Generates and returns an object with parsed address fields
+	*
+	* @return Address object
+	*/
+	getAddresses() {
+		const addresses = {};
+		const seenByKey = /* @__PURE__ */ new Map();
+		this._headers.forEach((header) => {
+			const key = header.key.toLowerCase();
+			if ([
+				"from",
+				"sender",
+				"reply-to",
+				"to",
+				"cc",
+				"bcc"
+			].includes(key)) {
+				if (!Array.isArray(addresses[key])) {
+					addresses[key] = [];
+					seenByKey.set(key, /* @__PURE__ */ new Set());
+				}
+				this._convertAddresses(this._parseAddresses(header.value), addresses[key], seenByKey.get(key));
+			}
+		});
+		return addresses;
+	}
+	/**
+	* Generates and returns SMTP envelope with the sender address and a list of recipients addresses
+	*
+	* @return SMTP envelope in the form of {from: 'from@example.com', to: ['to@example.com']}
+	*/
+	getEnvelope() {
+		if (this._envelope) return this._envelope;
+		const envelope = {
+			from: false,
+			to: []
+		};
+		const seenRecipients = /* @__PURE__ */ new Set();
+		const recipients = [];
+		this._headers.forEach((header) => {
+			const list = [];
+			if (header.key === "From" || !envelope.from && ["Reply-To", "Sender"].includes(header.key)) {
+				this._convertAddresses(this._parseAddresses(header.value), list);
+				if (list.length && list[0]) envelope.from = list[0].address;
+			} else if ([
+				"To",
+				"Cc",
+				"Bcc"
+			].includes(header.key)) this._convertAddresses(this._parseAddresses(header.value), recipients, seenRecipients);
+		});
+		envelope.to = recipients.map((to) => to.address);
+		return envelope;
+	}
+	/**
+	* Returns Message-Id value. If it does not exist, then creates one
+	*
+	* @return Message-Id value
+	*/
+	messageId() {
+		let messageId = this.getHeader("Message-ID");
+		if (!messageId) {
+			messageId = this._generateMessageId();
+			this.setHeader("Message-ID", messageId);
+		}
+		return messageId;
+	}
+	/**
+	* Sets pregenerated content that will be used as the output of this node
+	*
+	* @param raw Raw MIME contents
+	*/
+	setRaw(raw) {
+		this._raw = raw;
+		if (this._raw && typeof this._raw.pipe === "function") recordStreamErrors(this._raw);
+		return this;
+	}
+	/**
+	* Checks an access policy flag for this node and every node above it. The flags are set
+	* from the options the node was built with, and createChild only ever sees the options
+	* the caller passed, so a child of a closed tree starts out open. Reading the answer off
+	* the parent chain keeps it right whatever order the tree was assembled in.
+	*
+	* @param flag Either 'disableFileAccess' or 'disableUrlAccess'
+	* @return true if this node or an ancestor closed that access
+	* @internal
+	*/
+	_accessDisabled(flag) {
+		let node = this;
+		while (node) {
+			if (node[flag]) return true;
+			node = node.parentNode;
+		}
+		return false;
+	}
+	/**
+	* Destroys the content streams of this node and of every node below it
+	*
+	* @internal
+	*/
+	_destroyContentStreams() {
+		destroyStream(this.content);
+		destroyStream(this._raw);
+		for (const child of this.childNodes) child._destroyContentStreams();
+	}
+	/**
+	* Checks that a content value can still be read before the node streams it. A stream is
+	* refused once it errored, ended or was destroyed: piping it would either never finish or
+	* produce an empty body without any error
+	*
+	* @param content Node content or raw value
+	* @returns The error to stop with, or null when the content can be read
+	* @internal
+	*/
+	_takeStreamContent(content) {
+		if (Object.prototype.toString.call(content) === "[object Error]") return content;
+		if (!content || typeof content.pipe !== "function" || content._resolvedValue) return null;
+		return unreadableStreamError(content);
+	}
+	/**
+	* Detects and returns handle to a stream related with the content.
+	*
+	* @param content Node content
+	* @returns Stream object
+	* @internal
+	*/
+	_getStream(content) {
+		let contentStream;
+		if (content._resolvedValue) {
+			contentStream = new PassThrough();
+			setImmediate(() => {
+				try {
+					contentStream.end(content._resolvedValue);
+				} catch (_err) {
+					contentStream.emit("error", _err);
+				}
+			});
+			return contentStream;
+		}
+		if (typeof content.pipe === "function") return content;
+		if (content && typeof content.path === "string" && !content.href) {
+			if (this._accessDisabled("disableFileAccess")) {
+				contentStream = new PassThrough();
+				setImmediate(() => {
+					const err = /* @__PURE__ */ new Error("File access rejected for " + content.path);
+					err.code = EFILEACCESS;
+					contentStream.emit("error", err);
+				});
+				return contentStream;
+			}
+			return fs.createReadStream(content.path);
+		}
+		if (content && typeof content.href === "string") {
+			if (this._accessDisabled("disableUrlAccess")) {
+				contentStream = new PassThrough();
+				setImmediate(() => {
+					const err = /* @__PURE__ */ new Error("Url access rejected for " + content.href);
+					err.code = EURLACCESS;
+					contentStream.emit("error", err);
+				});
+				return contentStream;
+			}
+			return nmfetch(content.href, {
+				headers: content.httpHeaders,
+				tls: content.tls
+			});
+		}
+		contentStream = new PassThrough();
+		setImmediate(() => {
+			try {
+				contentStream.end(content || "");
+			} catch (_err) {
+				contentStream.emit("error", _err);
+			}
+		});
+		return contentStream;
+	}
+	/**
+	* Parses addresses. Takes in a single address or an array or an
+	* array of address arrays (eg. To: [[first group], [second group],...])
+	*
+	* @param addresses Addresses to be parsed
+	* @return An array of address objects
+	* @internal
+	*/
+	_parseAddresses(addresses) {
+		const flattened = [];
+		const seen = /* @__PURE__ */ new WeakSet();
+		const stack = [];
+		const enter = (list) => {
+			if (!seen.has(list)) {
+				seen.add(list);
+				stack.push({
+					list,
+					pos: 0
+				});
+			}
+		};
+		enter(Array.isArray(addresses) ? addresses : [addresses]);
+		while (stack.length) {
+			const frame = stack[stack.length - 1];
+			if (frame.pos >= frame.list.length) {
+				stack.pop();
+				continue;
+			}
+			const address = frame.list[frame.pos++];
+			if (Array.isArray(address)) {
+				enter(address);
+				continue;
+			}
+			if (address && address.address) {
+				const normalized = this._normalizeAddress(address.address);
+				if (normalized === address.address && typeof address.name === "string") {
+					flattened.push(address);
+					continue;
+				}
+				const copy = copyOwnKeys({}, address);
+				copy.address = normalized;
+				copy.name = address.name || "";
+				flattened.push(copy);
+				continue;
+			}
+			const parsed = this._normalizeParsedAddresses(addressparser(address));
+			for (let i = 0; i < parsed.length; i++) flattened.push(parsed[i]);
+		}
+		return flattened;
+	}
+	/**
+	* Normalizes the addresses of a freshly parsed address list, groups included.
+	*
+	* Everything this method returns carries a normalized address, whether it arrived as an
+	* object or was parsed out of a header value. Without this the two shapes disagree, and
+	* a consumer reading the parsed form back is handed the ambiguous
+	* 'user@evil.com@good.com' that the header and the envelope no longer carry.
+	*
+	* @param parsed An array of address objects, as returned by addressparser
+	* @return The same array, with every address normalized
+	* @internal
+	*/
+	_normalizeParsedAddresses(parsed) {
+		parsed.forEach((entry) => {
+			if (entry.address) entry.address = this._normalizeAddress(entry.address);
+			else if (entry.group) this._normalizeParsedAddresses(entry.group);
+		});
+		return parsed;
+	}
+	/**
+	* Parses the addresses of an explicitly set envelope.
+	*
+	* An envelope value is an addr-spec and never a display name, so a bare local username
+	* such as 'root' is the address here. Header parsing has to read the same value as a
+	* display name, as a value with no '@' in it can not be an addr-spec in a header.
+	*
+	* @param addresses Addresses to be parsed
+	* @return An array of address objects
+	* @internal
+	*/
+	_parseEnvelopeAddresses(addresses) {
+		return this._parseAddresses(addresses).map((entry) => {
+			if (entry.address || entry.group || !entry.name || /[\s@]/.test(entry.name)) return entry;
+			return {
+				address: this._normalizeAddress(entry.name),
+				name: ""
+			};
+		});
+	}
+	/**
+	* Normalizes a header key, uses Camel-Case form, except for uppercase MIME-
+	*
+	* @param key Key to be normalized
+	* @return key in Camel-Case form
+	* @internal
+	*/
+	_normalizeHeaderKey(key) {
+		key = (key || "").toString().replace(/[\s\x00-\x20\x7f:]/g, "").toLowerCase().replace(/^X-SMTPAPI$|^(MIME|DKIM|ARC|BIMI)\b|^OTP(?=-Token$)|^[a-z]|-(SPF|FBL|ID|MD5)$|-[a-z]/gi, (c) => c.toUpperCase()).replace(/^Content-Features$/i, "Content-features");
+		return key;
+	}
+	/**
+	* Checks if the content type is multipart and defines boundary if needed.
+	* Doesn't return anything, modifies object argument instead.
+	*
+	* @param structured Parsed header value for 'Content-Type' key
+	* @internal
+	*/
+	_handleContentType(structured) {
+		this.contentType = structured.value.trim().toLowerCase();
+		this.multipart = /^multipart\//i.test(this.contentType) ? this.contentType.substr(this.contentType.indexOf("/") + 1) : false;
+		if (this.multipart) {
+			const declared = _stripBoundaryControls(structured.params.boundary || this.boundary || "");
+			this.boundary = structured.params.boundary = declared || _stripBoundaryControls(this._generateBoundary());
+		} else this.boundary = false;
+	}
+	/**
+	* Generates a multipart boundary value
+	*
+	* @return boundary value
+	* @internal
+	*/
+	_generateBoundary() {
+		return _stripBoundaryControls(this.rootNode.boundaryPrefix + "-" + this.rootNode.baseBoundary) + "-Part_" + this._nodeId;
+	}
+	/**
+	* Encodes a header value the way this node encodes it in the generated message:
+	* address headers are punycoded and mime encoded, message id headers get their
+	* angle brackets, a Date object is formatted and any other value is mime encoded
+	* when it holds non-ascii or control characters (using the node's `textEncoding`).
+	*
+	* The result is a single unfolded line without the key. Fold it before writing it
+	* into a message, `key + ': ' + value` folded at 76 characters is what the node does.
+	*
+	* @param key Header key, case insensitive
+	* @param value Header value
+	* @returns Encoded header value
+	*/
+	encodeHeaderValue(key, value) {
+		key = this._normalizeHeaderKey(key);
+		switch (key) {
+			case "From":
+			case "Sender":
+			case "To":
+			case "Cc":
+			case "Bcc":
+			case "Reply-To": return this._convertAddresses(this._parseAddresses(value));
+			case "Message-ID":
+			case "In-Reply-To":
+			case "Content-ID":
+				value = (value || "").toString().replace(/\r?\n|\r/g, " ").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+				if (value.charAt(0) !== "<") value = "<" + value;
+				if (value.charAt(value.length - 1) !== ">") value = value + ">";
+				return value;
+			case "OTP-Token": return (value || "").toString().replace(/\r?\n|\r/g, " ").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+			case "References": {
+				const ids = [];
+				for (const entry of [].concat(value || "")) {
+					const elm = (entry || "").toString().replace(/\r?\n|\r/g, " ").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").trim();
+					for (let id of stripWhitespaceInAngleBrackets(elm).split(/\s+/)) {
+						if (id.charAt(0) !== "<") id = "<" + id;
+						if (id.charAt(id.length - 1) !== ">") id = id + ">";
+						ids.push(id);
+					}
+				}
+				return ids.join(" ").trim();
+			}
+			case "Date":
+				if (Object.prototype.toString.call(value) === "[object Date]") return value.toUTCString().replace(/GMT/, "+0000");
+				value = (value || "").toString().replace(/\r?\n|\r/g, " ");
+				return this._encodeHeaderText(value);
+			case "Content-Type":
+			case "Content-Disposition": return (value || "").toString().replace(/\r?\n|\r/g, " ");
+			default:
+				value = (value || "").toString().replace(/\r?\n|\r/g, " ");
+				return this._encodeHeaderText(value);
+		}
+	}
+	/**
+	* Encodes a header value without a node at hand. Same as the instance method of a
+	* node created with the given options.
+	*
+	* @param key Header key, case insensitive
+	* @param value Header value
+	* @param [options] Encoding options
+	* @param [options.textEncoding] either 'Q' (the default) or 'B'
+	* @returns Encoded header value
+	*/
+	static encodeHeaderValue(key, value, options) {
+		return new MimeNode(false, { textEncoding: options?.textEncoding }).encodeHeaderValue(key, value);
+	}
+	/**
+	* Alias of encodeHeaderValue, kept for callers that used the method before it was public
+	*
+	* @internal
+	*/
+	_encodeHeaderValue(key, value) {
+		return this.encodeHeaderValue(key, value);
+	}
+	/**
+	* Rebuilds address object using punycode and other adjustments
+	*
+	* @param addresses An array of address objects
+	* @param [uniqueList] An array to be populated with addresses
+	* @param [seenAddresses] Addresses already added to uniqueList, shared with recursive calls to keep deduplication linear
+	* @return address string
+	* @internal
+	*/
+	_convertAddresses(addresses, uniqueList, seenAddresses) {
+		const values = [];
+		uniqueList = uniqueList || [];
+		if (!seenAddresses) {
+			seenAddresses = /* @__PURE__ */ new Set();
+			for (let i = 0; i < uniqueList.length; i++) seenAddresses.add(uniqueList[i].address);
+		}
+		[].concat(addresses || []).forEach((address) => {
+			if (address.address) {
+				address.address = this._normalizeAddress(address.address);
+				if (!address.name) values.push(PLAIN_ADDRESS.test(address.address) ? address.address : `<${address.address}>`);
+				else values.push(`${this._encodeAddressName(address.name)} <${address.address}>`);
+				if (!seenAddresses.has(address.address)) {
+					seenAddresses.add(address.address);
+					uniqueList.push(address);
+				}
+			} else if (address.group) {
+				const groupListAddresses = (address.group.length ? this._convertAddresses(address.group, uniqueList, seenAddresses) : "").trim();
+				values.push(`${this._encodeAddressName(address.name)}:${groupListAddresses};`);
+			}
+		});
+		return values.join(", ");
+	}
+	/**
+	* Normalizes an email address
+	*
+	* @param address An array of address objects
+	* @return address string
+	* @internal
+	*/
+	_normalizeAddress(address) {
+		address = (address || "").toString().replace(/[\x00-\x1F\x7F<>]+/g, " ").trim();
+		if (!address) return address;
+		const literal = address.charAt(address.length - 1) === "]" ? DOMAIN_LITERAL_TAIL.exec(address) : null;
+		const lastAt = literal ? address.length - literal[1].length - 1 : address.lastIndexOf("@");
+		if (lastAt < 0) return this._normalizeLocalPart(address);
+		const user = address.substr(0, lastAt);
+		const domain = address.substr(lastAt + 1);
+		let encodedDomain = domain;
+		const smtputf8 = /[\x80-\uFFFF]/.test(user);
+		try {
+			encodedDomain = normalizeDomain(domain, smtputf8);
+		} catch (_err) {}
+		return `${this._normalizeLocalPart(user)}@${encodedDomain}`;
+	}
+	/**
+	* Normalizes the local part of an address into a form that can be emitted as is.
+	*
+	* A local part is either a dot-atom or a quoted-string, anything else is not a valid
+	* addr-spec. The quotes of a quoted local part get lost along the way, and a bare
+	* 'user@evil.com@good.com' leaves it to the receiver which '@' splits the domain off,
+	* while the split here is always at the last one. So whatever is not already one of
+	* the two valid forms goes back out as a quoted-string.
+	*
+	* @param user Local part of an address
+	* @return Local part as a dot-atom or as a quoted-string
+	* @internal
+	*/
+	_normalizeLocalPart(user) {
+		if (DOT_ATOM.test(user) || QUOTED_STRING.test(user)) return user;
+		return quoteString(user);
+	}
+	/**
+	* If needed, mime encodes the name part
+	*
+	* @param name Name part of an address
+	* @returns Mime word encoded string if needed
+	* @internal
+	*/
+	_encodeAddressName(name) {
+		if (!/^[\w ]*$/.test(name)) {
+			if (/^[\x20-\x7e]*$/.test(name)) return quoteString(name);
+			else return encodeWord(name, this._getTextEncoding(name), 52);
+		}
+		return name;
+	}
+	/**
+	* Encodes an unstructured header value. Such a value can only carry VCHAR and WSP, so a
+	* control char or DEL has to be forced into the mime encoded word that a non-ascii value
+	* would get anyway. HT stays as it is, it is valid folding whitespace here.
+	*
+	* @param value Header value to encode
+	* @returns Mime word encoded string if needed
+	* @internal
+	*/
+	_encodeHeaderText(value) {
+		return /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(value) ? encodeWord(value, this._getTextEncoding(value), 52) : this._encodeWords(value);
+	}
+	/**
+	* If needed, mime encodes the name part
+	*
+	* @param value Name part of an address
+	* @returns Mime word encoded string if needed
+	* @internal
+	*/
+	_encodeWords(value) {
+		return encodeWords(value, this._getTextEncoding(value), 52, true);
+	}
+	/**
+	* Detects best mime encoding for a text value
+	*
+	* @param value Value to check for
+	* @return either 'Q' or 'B'
+	* @internal
+	*/
+	_getTextEncoding(value) {
+		value = (value || "").toString();
+		if (this.textEncoding) return this.textEncoding;
+		let nonLatinLen = 0;
+		let latinLen = 0;
+		for (let i = 0, len = value.length; i < len; i++) {
+			const code = value.charCodeAt(i);
+			if (code >= 0 && code <= 8 || code === 11 || code === 12 || code >= 14 && code <= 31 || code >= 128) nonLatinLen++;
+			else if (code >= 65 && code <= 90 || code >= 97 && code <= 122) latinLen++;
+		}
+		return nonLatinLen < latinLen ? "Q" : "B";
+	}
+	/**
+	* Generates a message id
+	*
+	* @return Random Message-ID value
+	* @internal
+	*/
+	_generateMessageId() {
+		return "<" + [
+			2,
+			2,
+			2,
+			6
+		].reduce((prev, len) => prev + "-" + crypto$1.randomBytes(len).toString("hex"), crypto$1.randomBytes(4).toString("hex")) + "@" + (this.getEnvelope().from || this.hostname || "localhost").split("@").pop() + ">";
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mail-composer/index.js
+/**
+* Creates the object for composing a MimeNode instance out from the mail options
+*
+* @constructor
+* @param mail Mail options
+*/
+/**
+* Tells whether a content value is a content descriptor object (something to load or to
+* use as is) rather than the content itself
+*/
+function isContentObject(value) {
+	const content = value;
+	return typeof value === "object" && !!(content.content || content.path || content.href || content.raw);
+}
+/**
+* Tells whether attachment content is a string or a Buffer that 7bit can describe: ASCII
+* only, no NUL and no line over the 998 octets of RFC 5322. Anything else, a stream or a
+* file path included, can not be checked here
+*/
+function fitsSevenBit(content) {
+	let at;
+	let length;
+	if (typeof content === "string") {
+		at = (i) => content.charCodeAt(i);
+		length = content.length;
+	} else if (Buffer.isBuffer(content)) {
+		at = (i) => content[i];
+		length = content.length;
+	} else return false;
+	let lineLength = 0;
+	for (let i = 0; i < length; i++) {
+		const c = at(i);
+		if (c === 0 || c > 127) return false;
+		if (c === 10 || c === 13) lineLength = 0;
+		else if (++lineLength > 998) return false;
+	}
+	return true;
+}
+var MailComposer = class {
+	constructor(mail) {
+		this.mail = mail || {};
+		this.message = false;
+	}
+	/**
+	* Builds MimeNode instance
+	*/
+	compile() {
+		this._alternatives = this.getAlternatives();
+		this._htmlNode = this._alternatives.filter((alternative) => /^text\/html\b/i.test(alternative.contentType)).pop();
+		this._attachments = this.getAttachments(!!this._htmlNode);
+		this._useRelated = !!(this._htmlNode && this._attachments.related.length);
+		this._useAlternative = this._alternatives.length > 1;
+		this._useMixed = this._attachments.attached.length > 1 || this._alternatives.length && this._attachments.attached.length === 1;
+		if (this.mail.raw) this.message = new MimeNode("message/rfc822", {
+			newline: this.mail.newline,
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess
+		}).setRaw(this.mail.raw);
+		else if (this._useMixed) this.message = this._createMixed();
+		else if (this._useAlternative) this.message = this._createAlternative();
+		else if (this._useRelated) this.message = this._createRelated();
+		else this.message = this._createContentNode(false, [].concat(this._alternatives || []).concat(this._attachments.attached || []).shift() || {
+			contentType: "text/plain",
+			content: ""
+		});
+		if (this.mail.headers) this.message.addHeader(this.mail.headers);
+		if (this.mail.otp) this.message.setHeader("OTP-Token", formatOtpToken(this.mail.otp));
+		[
+			"from",
+			"sender",
+			"to",
+			"cc",
+			"bcc",
+			"reply-to",
+			"in-reply-to",
+			"references",
+			"subject",
+			"message-id",
+			"date"
+		].forEach((header) => {
+			const key = header.replace(/-(\w)/g, (o, c) => c.toUpperCase());
+			if (this.mail[key]) this.message.setHeader(header, this.mail[key]);
+		});
+		if (this.mail.envelope) this.message.setEnvelope(this.mail.envelope);
+		this.message.messageId();
+		return this.message;
+	}
+	/**
+	* List all attachments. Resulting attachment objects can be used as input for MimeNode nodes
+	*
+	* @param findRelated If true separate related attachments from attached ones
+	* @returns An object of arrays (`related` and `attached`)
+	*/
+	getAttachments(findRelated) {
+		let eventObject;
+		const attachments = [].concat(this.mail.attachments || []).map((attachment, i) => {
+			if (/^data:/i.test(attachment.path || attachment.href)) attachment = this._processDataUrl(attachment);
+			const contentType = attachment.contentType || detectMimeType(attachment.filename || attachment.path || attachment.href || "bin");
+			const isImage = /^image\//i.test(contentType);
+			const isMessageNode = /^message\//i.test(contentType);
+			const contentDisposition = attachment.contentDisposition || (isMessageNode || isImage && attachment.cid ? "inline" : "attachment");
+			let contentTransferEncoding;
+			if ("contentTransferEncoding" in attachment) contentTransferEncoding = attachment.contentTransferEncoding;
+			else if (isMessageNode) contentTransferEncoding = !attachment.encoding && fitsSevenBit(attachment.content) ? "7bit" : "8bit";
+			else contentTransferEncoding = "base64";
+			const data = {
+				contentType,
+				contentDisposition,
+				contentTransferEncoding
+			};
+			if (attachment.filename) data.filename = attachment.filename;
+			else if (!isMessageNode && attachment.filename !== false) {
+				data.filename = (attachment.path || attachment.href || "").split(/[/\\]/).pop().split("?").shift() || "attachment-" + (i + 1);
+				if (data.filename.indexOf(".") < 0) data.filename += "." + detectExtension(data.contentType);
+			}
+			if (/^https?:\/\//i.test(attachment.path)) {
+				attachment.href = attachment.path;
+				attachment.path = void 0;
+			}
+			if (attachment.cid) data.cid = attachment.cid;
+			if (attachment.raw) data.raw = attachment.raw;
+			else if (attachment.path) data.content = { path: attachment.path };
+			else if (attachment.href) data.content = {
+				href: attachment.href,
+				httpHeaders: attachment.httpHeaders,
+				tls: attachment.tls
+			};
+			else data.content = attachment.content || "";
+			if (attachment.encoding) data.encoding = attachment.encoding;
+			if (attachment.headers) data.headers = attachment.headers;
+			return data;
+		});
+		if (this.mail.icalEvent) {
+			eventObject = Object.assign({}, this._getIcalEvent());
+			eventObject.contentType = "application/ics";
+			if (!eventObject.headers) eventObject.headers = {};
+			eventObject.filename = eventObject.filename || "invite.ics";
+			eventObject.headers["Content-Disposition"] = "attachment";
+			eventObject.headers["Content-Transfer-Encoding"] = "base64";
+		}
+		if (!findRelated) return {
+			attached: attachments.concat(eventObject || []),
+			related: []
+		};
+		return {
+			attached: attachments.filter((attachment) => !attachment.cid).concat(eventObject || []),
+			related: attachments.filter((attachment) => !!attachment.cid)
+		};
+	}
+	/**
+	* Returns the icalEvent value with `path`/`href`/data uri input normalized into
+	* a `content` entry, the same way as for regular attachments. The same event is
+	* included twice (as a text/calendar alternative and as an application/ics
+	* attachment), so the shared content object is marked to be resolved just once
+	* and the buffered result is reused by the second node.
+	*
+	* @returns Normalized icalEvent data
+	* @internal
+	*/
+	_getIcalEvent() {
+		if (!this._icalEvent) {
+			let icalEvent;
+			if (isContentObject(this.mail.icalEvent)) icalEvent = copyOwnKeys({}, this.mail.icalEvent);
+			else icalEvent = { content: this.mail.icalEvent };
+			if (/^data:/i.test(icalEvent.path || icalEvent.href)) icalEvent = this._processDataUrl(icalEvent);
+			if (/^https?:\/\//i.test(icalEvent.path)) {
+				icalEvent.href = icalEvent.path;
+				icalEvent.path = void 0;
+			}
+			if (!icalEvent.raw) {
+				if (icalEvent.path) {
+					icalEvent.content = { path: icalEvent.path };
+					icalEvent.path = void 0;
+				} else if (icalEvent.href) {
+					icalEvent.content = {
+						href: icalEvent.href,
+						httpHeaders: icalEvent.httpHeaders,
+						tls: icalEvent.tls
+					};
+					icalEvent.href = void 0;
+				}
+			}
+			if (icalEvent.content && typeof icalEvent.content === "object") icalEvent.content._resolve = true;
+			this._icalEvent = icalEvent;
+		}
+		return this._icalEvent;
+	}
+	/**
+	* List alternatives. Resulting objects can be used as input for MimeNode nodes
+	*
+	* @returns An array of alternative elements. Includes the `text` and `html` values as well
+	*/
+	getAlternatives() {
+		const alternatives = [];
+		let text, html, watchHtml, amp, eventObject;
+		if (this.mail.text) {
+			if (isContentObject(this.mail.text)) text = this.mail.text;
+			else text = { content: this.mail.text };
+			text.contentType = "text/plain; charset=utf-8";
+		}
+		if (this.mail.watchHtml) {
+			if (isContentObject(this.mail.watchHtml)) watchHtml = this.mail.watchHtml;
+			else watchHtml = { content: this.mail.watchHtml };
+			watchHtml.contentType = "text/watch-html; charset=utf-8";
+		}
+		if (this.mail.amp) {
+			if (isContentObject(this.mail.amp)) amp = this.mail.amp;
+			else amp = { content: this.mail.amp };
+			amp.contentType = "text/x-amp-html; charset=utf-8";
+		}
+		if (this.mail.icalEvent) {
+			eventObject = Object.assign({}, this._getIcalEvent());
+			eventObject.filename = false;
+			eventObject.contentType = "text/calendar; charset=utf-8; method=" + (eventObject.method || "PUBLISH").toString().trim().toUpperCase();
+			if (!eventObject.headers) eventObject.headers = {};
+		}
+		if (this.mail.html) {
+			if (isContentObject(this.mail.html)) html = this.mail.html;
+			else html = { content: this.mail.html };
+			html.contentType = "text/html; charset=utf-8";
+		}
+		[].concat(text || []).concat(watchHtml || []).concat(amp || []).concat(html || []).concat(eventObject || []).concat(this.mail.alternatives || []).forEach((alternative) => {
+			if (/^data:/i.test(alternative.path || alternative.href)) alternative = this._processDataUrl(alternative);
+			const data = {
+				contentType: alternative.contentType || detectMimeType(alternative.filename || alternative.path || alternative.href || "txt"),
+				contentTransferEncoding: alternative.contentTransferEncoding
+			};
+			if (alternative.filename) data.filename = alternative.filename;
+			if (/^https?:\/\//i.test(alternative.path)) {
+				alternative.href = alternative.path;
+				alternative.path = void 0;
+			}
+			if (alternative.raw) data.raw = alternative.raw;
+			else if (alternative.path) data.content = { path: alternative.path };
+			else if (alternative.href) data.content = {
+				href: alternative.href,
+				httpHeaders: alternative.httpHeaders,
+				tls: alternative.tls
+			};
+			else data.content = alternative.content || "";
+			if (alternative.encoding) data.encoding = alternative.encoding;
+			if (alternative.headers) data.headers = alternative.headers;
+			alternatives.push(data);
+		});
+		return alternatives;
+	}
+	/**
+	* Builds multipart/mixed node. It should always contain different type of elements on the same level
+	* eg. text + attachments
+	*
+	* @param parentNode Parent for this note. If it does not exist, a root node is created
+	* @returns MimeNode node element
+	* @internal
+	*/
+	_createMixed(parentNode) {
+		const node = parentNode ? parentNode.createChild("multipart/mixed", {
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		}) : new MimeNode("multipart/mixed", {
+			baseBoundary: this.mail.baseBoundary,
+			textEncoding: this.mail.textEncoding,
+			boundaryPrefix: this.mail.boundaryPrefix,
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		});
+		if (this._useAlternative) this._createAlternative(node);
+		else if (this._useRelated) this._createRelated(node);
+		[].concat(!this._useAlternative && this._alternatives || []).concat(this._attachments.attached || []).forEach((element) => {
+			if (!this._useRelated || element !== this._htmlNode) this._createContentNode(node, element);
+		});
+		return node;
+	}
+	/**
+	* Builds multipart/alternative node. It should always contain same type of elements on the same level
+	* eg. text + html view of the same data
+	*
+	* @param parentNode Parent for this note. If it does not exist, a root node is created
+	* @returns MimeNode node element
+	* @internal
+	*/
+	_createAlternative(parentNode) {
+		const node = parentNode ? parentNode.createChild("multipart/alternative", {
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		}) : new MimeNode("multipart/alternative", {
+			baseBoundary: this.mail.baseBoundary,
+			textEncoding: this.mail.textEncoding,
+			boundaryPrefix: this.mail.boundaryPrefix,
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		});
+		this._alternatives.forEach((alternative) => {
+			if (this._useRelated && this._htmlNode === alternative) this._createRelated(node);
+			else this._createContentNode(node, alternative);
+		});
+		return node;
+	}
+	/**
+	* Builds multipart/related node. It should always contain html node with related attachments
+	*
+	* @param parentNode Parent for this note. If it does not exist, a root node is created
+	* @returns MimeNode node element
+	* @internal
+	*/
+	_createRelated(parentNode) {
+		const node = parentNode ? parentNode.createChild("multipart/related; type=\"text/html\"", {
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		}) : new MimeNode("multipart/related; type=\"text/html\"", {
+			baseBoundary: this.mail.baseBoundary,
+			textEncoding: this.mail.textEncoding,
+			boundaryPrefix: this.mail.boundaryPrefix,
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		});
+		this._createContentNode(node, this._htmlNode);
+		this._attachments.related.forEach((alternative) => this._createContentNode(node, alternative));
+		return node;
+	}
+	/**
+	* Creates a regular node with contents
+	*
+	* @param parentNode Parent for this note. If it does not exist, a root node is created
+	* @param element Node data
+	* @returns MimeNode node element
+	* @internal
+	*/
+	_createContentNode(parentNode, element) {
+		element = element || {};
+		element.content = element.content || "";
+		const encoding = (element.encoding || "utf8").toString().toLowerCase().replace(/[-_\s]/g, "");
+		const node = parentNode ? parentNode.createChild(element.contentType, {
+			filename: element.filename,
+			textEncoding: this.mail.textEncoding,
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		}) : new MimeNode(element.contentType, {
+			filename: element.filename,
+			baseBoundary: this.mail.baseBoundary,
+			textEncoding: this.mail.textEncoding,
+			boundaryPrefix: this.mail.boundaryPrefix,
+			disableUrlAccess: this.mail.disableUrlAccess,
+			disableFileAccess: this.mail.disableFileAccess,
+			normalizeHeaderKey: this.mail.normalizeHeaderKey,
+			newline: this.mail.newline
+		});
+		if (element.headers) node.addHeader(element.headers);
+		if (element.cid) node.setHeader("Content-Id", "<" + element.cid.replace(/[<>]/g, "") + ">");
+		if (element.contentTransferEncoding) node.setHeader("Content-Transfer-Encoding", element.contentTransferEncoding);
+		else if (this.mail.encoding && /^text\//i.test(element.contentType)) node.setHeader("Content-Transfer-Encoding", this.mail.encoding);
+		if (!/^text\//i.test(element.contentType) || element.contentDisposition) node.setHeader("Content-Disposition", element.contentDisposition || (element.cid && /^image\//i.test(element.contentType) ? "inline" : "attachment"));
+		if (typeof element.content === "string" && ![
+			"utf8",
+			"usascii",
+			"ascii"
+		].includes(encoding)) element.content = Buffer.from(element.content, encoding);
+		if (element.raw) node.setRaw(element.raw);
+		else node.setContent(element.content);
+		return node;
+	}
+	/**
+	* Parses data uri and converts it to a Buffer
+	*
+	* @param element Content element
+	* @return Parsed element
+	* @internal
+	*/
+	_processDataUrl(element) {
+		const dataUrl = element.path || element.href;
+		if (!dataUrl || typeof dataUrl !== "string") return element;
+		if (!dataUrl.startsWith("data:")) return element;
+		if (dataUrl.length > 52428800) {
+			let detectedType = "application/octet-stream";
+			const commaPos = dataUrl.indexOf(",");
+			if (commaPos > 0 && commaPos < 200) {
+				const parts = dataUrl.substring(5, commaPos).split(";");
+				if (parts[0] && parts[0].includes("/")) detectedType = parts[0].trim();
+			}
+			return Object.assign(copyOwnKeys({}, element), {
+				path: false,
+				href: false,
+				content: Buffer.alloc(0),
+				contentType: element.contentType || detectedType
+			});
+		}
+		let parsedDataUri;
+		try {
+			parsedDataUri = parseDataURI(dataUrl);
+		} catch (_err) {
+			return element;
+		}
+		if (!parsedDataUri) return element;
+		element.content = parsedDataUri.data;
+		element.contentType = element.contentType || parsedDataUri.contentType;
+		if ("path" in element) element.path = false;
+		if ("href" in element) element.href = false;
+		return element;
+	}
+};
+/**
+* Returns the value of the OTP-Token header for the otp option. The header is defined by
+* draft-goto-otp-token-01, an Internet-Draft that expires on 25 March 2027. By then check
+* for a newer revision of the draft or a published RFC, the header name and its
+* parameters are still open questions in the draft.
+*/
+function formatOtpToken(otp) {
+	if (typeof otp.code !== "string" || !/^[\x20-\x7e]+$/.test(otp.code)) throw otpError("The otp code must be a non-empty string of printable ASCII characters");
+	return quoteString(otp.code) + "; origin=" + quoteString(getOtpOrigin(otp.origin));
+}
+/**
+* Returns the canonical ascii serialization of the origin the code is bound to. The draft
+* requires a potentially trustworthy origin, so only https is accepted, plus http on a
+* loopback host for local development
+*/
+function getOtpOrigin(origin) {
+	let url;
+	try {
+		url = new URL(String(origin));
+	} catch {}
+	if (!url || url.username || url.password || !/^([a-z0-9_-]+\.)*[a-z0-9_-]+$|^\[[0-9a-f:.]+\]$/.test(url.hostname)) throw otpError("The otp origin must be an absolute https URL");
+	const isLoopback = /^(localhost|.+\.localhost|127(\.\d+){3}|\[::1\])$/.test(url.hostname);
+	if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) throw otpError("The otp origin must be an https URL, or an http URL on a loopback host");
+	return url.origin;
+}
+function otpError(message) {
+	const err = new Error(message);
+	err.code = EOTP;
+	return err;
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/dkim/message-parser.js
+/**
+* Drops the SP and HTAB from both ends of a field name.
+*
+* An index scan rather than `/^[ \t]+|[ \t]+$/g`, which retries the trailing branch at
+* every offset of a blank run that is followed by other text: the run is consumed greedily,
+* `$` fails, and the engine gives the characters back one at a time before moving on to
+* start the same walk one offset further in. A field name carrying a 128 KiB run of spaces
+* between two atoms took about 6.7 seconds to trim, and the cost grows with its square.
+*
+* Not `.trim()`, which takes the other Unicode spaces along: an NBSP in front of a field
+* name would come off and select the name into the signed set, where the relaxed
+* canonicalization in sign.ts deliberately leaves everything but SP and HTAB alone.
+*
+* @param str Field name to trim
+* @return The field name without the surrounding SP and HTAB
+*/
+function _trimFieldName(str) {
+	let start = 0;
+	let end = str.length;
+	while (start < end && (str.charCodeAt(start) === 32 || str.charCodeAt(start) === 9)) start++;
+	while (end > start && (str.charCodeAt(end - 1) === 32 || str.charCodeAt(end - 1) === 9)) end--;
+	return str.slice(start, end);
+}
+/**
+* MessageParser instance is a transform stream that separates message headers
+* from the rest of the body. Headers are emitted with the 'headers' event. Message
+* body is passed on as the resulting stream.
+*/
+var MessageParser = class extends Transform {
+	constructor(options) {
+		super(options);
+		this.lastBytes = Buffer.alloc(4);
+		this.headersParsed = false;
+		this.headerBytes = 0;
+		this.headerChunks = [];
+		this.rawHeaders = false;
+		this.bodySize = 0;
+	}
+	/**
+	* Keeps count of the last 4 bytes in order to detect line breaks on chunk boundaries
+	*
+	* @param data Next data chunk from the stream
+	*/
+	updateLastBytes(data) {
+		const lblen = this.lastBytes.length;
+		const nblen = Math.min(data.length, lblen);
+		for (let i = 0, len = lblen - nblen; i < len; i++) this.lastBytes[i] = this.lastBytes[i + nblen];
+		for (let i = 1; i <= nblen; i++) this.lastBytes[lblen - i] = data[data.length - i];
+	}
+	/**
+	* Finds and removes message headers from the remaining body. We want to keep
+	* headers separated until final delivery to be able to modify these
+	*
+	* @param data Next chunk of data
+	* @return Returns true if headers are already found or false otherwise
+	*/
+	checkHeaders(data) {
+		if (this.headersParsed) return true;
+		const lblen = this.lastBytes.length;
+		let headerPos = 0;
+		for (let i = 0, len = this.lastBytes.length + data.length; i < len; i++) {
+			let chr;
+			if (i < lblen) chr = this.lastBytes[i];
+			else chr = data[i - lblen];
+			if (chr === 10 && i) {
+				const pr1 = i - 1 < lblen ? this.lastBytes[i - 1] : data[i - 1 - lblen];
+				const pr2 = i > 1 ? i - 2 < lblen ? this.lastBytes[i - 2] : data[i - 2 - lblen] : false;
+				if (pr1 === 10) {
+					this.headersParsed = true;
+					headerPos = i - lblen + 1;
+					this.headerBytes += headerPos;
+					break;
+				} else if (pr1 === 13 && pr2 === 10) {
+					this.headersParsed = true;
+					headerPos = i - lblen + 1;
+					this.headerBytes += headerPos;
+					break;
+				}
+			}
+		}
+		if (this.headersParsed) {
+			this.headerChunks.push(data.slice(0, headerPos));
+			this.rawHeaders = Buffer.concat(this.headerChunks, this.headerBytes);
+			this.headerChunks = null;
+			this.emit("headers", this.parseHeaders());
+			if (data.length > headerPos) {
+				const chunk = data.slice(headerPos);
+				this.bodySize += chunk.length;
+				this.push(chunk);
+			}
+			return false;
+		}
+		this.headerBytes += data.length;
+		this.headerChunks.push(data);
+		this.updateLastBytes(data);
+		return false;
+	}
+	/** @internal */
+	_transform(chunk, encoding, callback) {
+		if (!chunk || !chunk.length) return callback();
+		if (typeof chunk === "string") chunk = Buffer.from(chunk, encoding);
+		let headersFound;
+		try {
+			headersFound = this.checkHeaders(chunk);
+		} catch (E) {
+			return callback(E);
+		}
+		if (headersFound) {
+			this.bodySize += chunk.length;
+			this.push(chunk);
+		}
+		callback();
+	}
+	/** @internal */
+	_flush(callback) {
+		if (this.headerChunks) {
+			this.rawHeaders = Buffer.concat(this.headerChunks, this.headerBytes);
+			this.headerChunks = null;
+			this.emit("headers", this.parseHeaders());
+		}
+		callback();
+	}
+	parseHeaders() {
+		const rawLines = (this.rawHeaders || Buffer.alloc(0)).toString("binary").split(/\r?\n/);
+		const lines = [];
+		for (const rawLine of rawLines) if (lines.length && /^[ \t]/.test(rawLine)) lines[lines.length - 1] += "\n" + rawLine;
+		else lines.push(rawLine);
+		return lines.filter((line) => /[^ \t\r]/.test(line)).map((line) => ({
+			key: _trimFieldName(line.substr(0, line.indexOf(":"))).toLowerCase(),
+			line
+		}));
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/dkim/relaxed-body.js
+const CHAR_CR = 13;
+const CHAR_LF = 10;
+const CHAR_SPACE = 32;
+const CHAR_TAB = 9;
+const CRLF = Buffer.from("\r\n");
+const EMPTY_LINES = Buffer.alloc(4096, CRLF);
+/**
+* Passes the message body through unchanged and hashes its relaxed
+* canonicalization (RFC 6376 section 3.4.4) on the side: whitespace at the end
+* of a line is dropped, runs of whitespace within a line become a single space,
+* every line ends with CRLF, empty lines at the end of the body are ignored and
+* a non-empty body always ends with CRLF. Bytes are canonicalized as they arrive,
+* so a line of any length costs constant memory.
+*/
+var RelaxedBody = class extends Transform {
+	constructor(options) {
+		super();
+		options = options || {};
+		this.bodyHash = crypto$1.createHash(options.hashAlgo || "sha256");
+		this.byteLength = 0;
+		this.debug = options.debug;
+		this._debugBody = options.debug ? [] : false;
+		this._lineHasContent = false;
+		this._pendingWsp = false;
+		this._pendingCr = false;
+		this._pendingEmptyLines = 0;
+	}
+	/** @internal */
+	_hashCanonical(data) {
+		if (!data.length) return;
+		this.bodyHash.update(data);
+		if (this._debugBody) this._debugBody.push(Buffer.from(data));
+	}
+	/** @internal */
+	_hashEmptyLines() {
+		while (this._pendingEmptyLines > 0) {
+			const count = Math.min(this._pendingEmptyLines, EMPTY_LINES.length / 2);
+			this._hashCanonical(EMPTY_LINES.subarray(0, count * 2));
+			this._pendingEmptyLines -= count;
+		}
+	}
+	/**
+	* Writes a content byte, with the space a pending run of whitespace collapses to,
+	* into the output buffer and returns the new write position. Kept a method rather
+	* than a closure so the write position stays a plain local in the byte loop
+	* @internal
+	*/
+	_emitContent(out, outPos, c) {
+		if (!this._lineHasContent) {
+			if (this._pendingEmptyLines) {
+				this._hashCanonical(out.subarray(0, outPos));
+				outPos = 0;
+				this._hashEmptyLines();
+			}
+			this._lineHasContent = true;
+		}
+		if (this._pendingWsp) {
+			out[outPos++] = CHAR_SPACE;
+			this._pendingWsp = false;
+		}
+		out[outPos++] = c;
+		return outPos;
+	}
+	updateHash(chunk, final) {
+		const out = Buffer.allocUnsafe(chunk.length * 2 + 2);
+		let outPos = 0;
+		for (let i = 0; i < chunk.length; i++) {
+			const c = chunk[i];
+			if (c === CHAR_LF) {
+				if (this._lineHasContent) {
+					out[outPos++] = CHAR_CR;
+					out[outPos++] = CHAR_LF;
+					this._lineHasContent = false;
+				} else this._pendingEmptyLines++;
+				this._pendingWsp = false;
+				this._pendingCr = false;
+				continue;
+			}
+			if (this._pendingCr) {
+				outPos = this._emitContent(out, outPos, CHAR_CR);
+				this._pendingCr = false;
+			}
+			if (c === CHAR_CR) this._pendingCr = true;
+			else if (c === CHAR_SPACE || c === CHAR_TAB) this._pendingWsp = true;
+			else outPos = this._emitContent(out, outPos, c);
+		}
+		if (final && this._pendingCr) {
+			outPos = this._emitContent(out, outPos, CHAR_CR);
+			this._pendingCr = false;
+		}
+		this._hashCanonical(out.subarray(0, outPos));
+	}
+	/** @internal */
+	_transform(chunk, encoding, callback) {
+		if (!chunk || !chunk.length) return callback();
+		if (typeof chunk === "string") chunk = Buffer.from(chunk, encoding);
+		this.updateHash(chunk);
+		this.byteLength += chunk.length;
+		this.push(chunk);
+		callback();
+	}
+	/** @internal */
+	_flush(callback) {
+		this.updateHash(Buffer.alloc(0), true);
+		if (this._lineHasContent) this._hashCanonical(CRLF);
+		this.emit("hash", this.bodyHash.digest("base64"), this.debug ? Buffer.concat(this._debugBody) : false);
+		callback();
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/dkim/sign.js
+/**
+* Error for a hashAlgo value the crypto module does not know
+*/
+function unsupportedHashAlgoError(hashAlgo) {
+	const err = /* @__PURE__ */ new Error("Unsupported DKIM hash algorithm \"" + hashAlgo + "\"");
+	err.code = ECONFIG;
+	return err;
+}
+/**
+* Returns DKIM signature header line
+*
+* @param headers Parsed headers object from MessageParser
+* @param hashAlgo Hash algorithm the body hash was calculated with, for example "sha256"
+* @param bodyHash Base64 encoded hash of the message
+* @param options DKIM options
+* @param options.domainName Domain name to be signed for
+* @param options.keySelector DKIM key selector to use
+* @param options.privateKey DKIM private key to use
+* @return Complete header line
+*/
+function sign(headers, hashAlgo, bodyHash, options) {
+	options = options || {};
+	const canonicalizedHeaderData = relaxedHeaders(headers, options.headerFieldNames || "From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Unsubscribe-Post:List-Subscribe:List-Post:List-Owner:List-Archive:OTP-Token", options.skipFields);
+	const dkimHeader = generateDKIMHeader(options.domainName, options.keySelector, canonicalizedHeaderData.fieldNames, hashAlgo, bodyHash);
+	canonicalizedHeaderData.headers += "dkim-signature:" + relaxedHeaderLine(dkimHeader);
+	let signer;
+	try {
+		signer = crypto$1.createSign(("rsa-" + hashAlgo).toUpperCase());
+	} catch (_E) {
+		throw unsupportedHashAlgoError(hashAlgo);
+	}
+	signer.update(canonicalizedHeaderData.headers, "latin1");
+	let signature;
+	try {
+		signature = signer.sign(options.privateKey, "base64");
+	} catch (_E) {
+		return false;
+	}
+	return dkimHeader + signature.replace(/(^.{73}|.{75}(?!\r?\n|\r))/g, "$&\r\n ").trim();
+}
+sign.relaxedHeaders = relaxedHeaders;
+sign.unsupportedHashAlgoError = unsupportedHashAlgoError;
+function generateDKIMHeader(domainName, keySelector, fieldNames, hashAlgo, bodyHash) {
+	const cleanTagValue = (value) => (value || "").toString().replace(/[\x00-\x1f\x7f;=]/g, "");
+	return foldLines("DKIM-Signature: " + [
+		"v=1",
+		"a=rsa-" + hashAlgo,
+		"c=relaxed/relaxed",
+		"d=" + normalizeDomain(cleanTagValue(domainName), false),
+		"q=dns/txt",
+		"s=" + cleanTagValue(keySelector),
+		"bh=" + bodyHash,
+		"h=" + cleanTagValue(fieldNames)
+	].join("; "), 76) + ";\r\n b=";
+}
+function relaxedHeaders(headers, fieldNames, skipFields) {
+	const includedFields = /* @__PURE__ */ new Set();
+	const skip = /* @__PURE__ */ new Set();
+	const headerFields = /* @__PURE__ */ new Map();
+	(skipFields || "").toLowerCase().split(":").forEach((field) => {
+		skip.add(field.trim());
+	});
+	(fieldNames || "").toLowerCase().split(":").filter((field) => !skip.has(field.trim())).forEach((field) => {
+		includedFields.add(field.trim());
+	});
+	for (let i = headers.length - 1; i >= 0; i--) {
+		const line = headers[i];
+		if (includedFields.has(line.key) && !headerFields.has(line.key)) headerFields.set(line.key, relaxedHeaderLine(line.line));
+	}
+	const headersList = [];
+	const fields = [];
+	includedFields.forEach((field) => {
+		if (headerFields.has(field)) {
+			fields.push(field);
+			headersList.push(field + ":" + headerFields.get(field));
+		}
+	});
+	return {
+		headers: headersList.join("\r\n") + "\r\n",
+		fieldNames: fields.join(":")
+	};
+}
+/**
+* Relaxed canonicalization of a header field value (RFC 6376 section 3.4.2): unfold, turn
+* every run of SP and HTAB into a single SP and drop the whitespace next to the colon and
+* at the end. Only SP and HTAB count as whitespace, so bytes that decode to other space
+* characters, such as a non-breaking space in a UTF-8 header, stay as they are
+*/
+function relaxedHeaderLine(line) {
+	return line.substr(line.indexOf(":") + 1).replace(/\r?\n/g, "").replace(/[ \t]+/g, " ").replace(/^ | $/g, "");
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/dkim/index.js
+const DKIM_ALGO = "sha256";
+const MAX_MESSAGE_SIZE = 10485760;
+var DKIMSigner = class {
+	constructor(options, keys, input, output) {
+		this.options = options || {};
+		this.keys = keys;
+		this.cacheTreshold = Number(this.options.cacheTreshold) || MAX_MESSAGE_SIZE;
+		this.hashAlgo = this.options.hashAlgo || DKIM_ALGO;
+		this.cacheDir = this.options.cacheDir || false;
+		this.chunks = [];
+		this.chunklen = 0;
+		this.readPos = 0;
+		this.cachePath = this.cacheDir ? path.join(this.cacheDir, "message." + Date.now() + "-" + crypto$1.randomBytes(14).toString("hex")) : false;
+		this.cache = false;
+		this.headers = false;
+		this.bodyHash = false;
+		this.parser = false;
+		this.relaxedBody = false;
+		this.input = input;
+		this.output = output;
+		this.output.usingCache = false;
+		this.hasErrored = false;
+		this.input.on("error", (err) => this.fail(err));
+		this.output.once("close", () => {
+			if (this.output.writableFinished) return;
+			this.hasErrored = true;
+			this.input.unpipe();
+			this.input.destroy();
+			this.cleanup();
+		});
+	}
+	/**
+	* Ends the output with an error and releases the cache file
+	*/
+	fail(err) {
+		this.hasErrored = true;
+		this.cleanup();
+		this.output.destroy(err);
+	}
+	cleanup() {
+		if (!this.cache || !this.cachePath) return;
+		const cache = this.cache;
+		this.cache = false;
+		cache.destroy();
+		fs.unlink(this.cachePath, () => false);
+	}
+	createReadCache() {
+		this.cache = fs.createReadStream(this.cachePath);
+		this.cache.once("error", (err) => this.fail(err));
+		this.cache.once("close", () => {
+			this.cleanup();
+		});
+		this.cache.pipe(this.output);
+	}
+	sendNextChunk() {
+		while (!this.hasErrored) {
+			if (this.readPos >= this.chunks.length) {
+				if (!this.cache) {
+					this.output.end();
+					return;
+				}
+				return this.createReadCache();
+			}
+			const chunk = this.chunks[this.readPos++];
+			if (this.output.write(chunk) === false) {
+				this.output.once("drain", () => {
+					this.sendNextChunk();
+				});
+				return;
+			}
+		}
+	}
+	sendSignedOutput() {
+		if (this.hasErrored) return;
+		let keyPos = 0;
+		const signNextKey = () => {
+			if (keyPos >= this.keys.length) {
+				this.output.write(this.parser.rawHeaders);
+				setImmediate(() => this.sendNextChunk());
+				return;
+			}
+			const key = this.keys[keyPos++];
+			let dkimField;
+			try {
+				dkimField = sign(this.headers, this.hashAlgo, this.bodyHash, {
+					domainName: key.domainName,
+					keySelector: key.keySelector,
+					privateKey: key.privateKey,
+					headerFieldNames: this.options.headerFieldNames,
+					skipFields: this.options.skipFields
+				});
+			} catch (err) {
+				this.fail(err);
+				return;
+			}
+			if (dkimField) this.output.write(Buffer.from(dkimField + "\r\n"));
+			setImmediate(signNextKey);
+		};
+		if (this.bodyHash && this.headers) return signNextKey();
+		this.output.write(this.parser.rawHeaders);
+		this.sendNextChunk();
+	}
+	createWriteCache() {
+		this.output.usingCache = true;
+		this.cache = fs.createWriteStream(this.cachePath, { mode: 384 });
+		this.cache.once("error", (err) => {
+			this.relaxedBody.unpipe(this.cache);
+			this.relaxedBody.on("readable", () => {
+				while (this.relaxedBody.read() !== null);
+			});
+			this.fail(err);
+		});
+		this.cache.once("close", () => {
+			if (this.hasErrored) return;
+			this.sendSignedOutput();
+		});
+		this.relaxedBody.removeAllListeners("readable");
+		this.relaxedBody.pipe(this.cache);
+	}
+	signStream() {
+		this.parser = new MessageParser();
+		this.relaxedBody = new RelaxedBody({ hashAlgo: this.hashAlgo });
+		this.parser.on("headers", (value) => {
+			this.headers = value;
+		});
+		this.relaxedBody.on("hash", (value) => {
+			this.bodyHash = value;
+		});
+		this.relaxedBody.on("readable", () => {
+			let chunk;
+			if (this.cache) return;
+			while ((chunk = this.relaxedBody.read()) !== null) {
+				this.chunks.push(chunk);
+				this.chunklen += chunk.length;
+				if (this.chunklen >= this.cacheTreshold && this.cachePath) return this.createWriteCache();
+			}
+		});
+		this.relaxedBody.on("end", () => {
+			if (this.cache) return;
+			this.sendSignedOutput();
+		});
+		this.parser.pipe(this.relaxedBody);
+		setImmediate(() => this.input.pipe(this.parser));
+	}
+};
+var DKIM = class {
+	constructor(options) {
+		this.options = options || {};
+		this.keys = [].concat(this.options.keys || {
+			domainName: options.domainName,
+			keySelector: options.keySelector,
+			privateKey: options.privateKey
+		});
+	}
+	sign(input, extraOptions) {
+		const output = new PassThrough();
+		let inputStream = input;
+		let writeValue = false;
+		if (Buffer.isBuffer(input)) {
+			writeValue = input;
+			inputStream = new PassThrough();
+		} else if (typeof input === "string") {
+			writeValue = Buffer.from(input);
+			inputStream = new PassThrough();
+		}
+		let options = this.options;
+		if (extraOptions && Object.keys(extraOptions).length) {
+			options = copyOwnKeys({}, extraOptions);
+			copyOwnKeys(options, this.options);
+		}
+		const signer = new DKIMSigner(options, this.keys, inputStream, output);
+		setImmediate(() => {
+			try {
+				signer.signStream();
+			} catch (_E) {
+				signer.fail(sign.unsupportedHashAlgoError(signer.hashAlgo));
+				return;
+			}
+			if (writeValue) setImmediate(() => {
+				inputStream.end(writeValue);
+			});
+		});
+		return output;
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-connection/http-proxy-client.js
+/**
+* Minimal HTTP/S proxy client
+*/
+const MAX_RESPONSE_HEADER_BYTES = 65536;
+const unbracket = (host) => typeof host === "string" && host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
+function httpProxyClient(proxyUrl, destinationPort, destinationHost, tlsOptions, callback) {
+	if (typeof tlsOptions === "function") {
+		callback = tlsOptions;
+		tlsOptions = {};
+	}
+	tlsOptions = tlsOptions || {};
+	const done = callback;
+	destinationPort = Number(destinationPort) || 0;
+	if (!destinationPort || /[\r\n]/.test(destinationHost)) {
+		const err = /* @__PURE__ */ new Error("Invalid proxy destination");
+		err.code = EPROXY;
+		setImmediate(() => done(err));
+		return;
+	}
+	const proxy = parse(proxyUrl);
+	const authority = (net.isIPv6(unbracket(destinationHost)) ? "[" + unbracket(destinationHost) + "]" : destinationHost) + ":" + destinationPort;
+	const connectOptions = {
+		host: proxy.hostname,
+		port: Number(proxy.port) ? Number(proxy.port) : proxy.protocol === "https:" ? 443 : 80
+	};
+	let connect;
+	if (proxy.protocol === "https:") {
+		connectOptions.rejectUnauthorized = tlsOptions.rejectUnauthorized !== false;
+		connect = tls.connect.bind(tls);
+	} else connect = net.connect.bind(net);
+	const timeout = Number(tlsOptions.timeout) || httpProxyClient.timeout || 3e4;
+	let socket;
+	let finished = false;
+	let timer;
+	const cleanup = () => {
+		clearTimeout(timer);
+		socket.removeListener("data", onSocketData);
+		socket.removeListener("error", fail);
+		socket.removeListener("close", onEarlyClose);
+	};
+	function fail(err) {
+		if (finished) return;
+		finished = true;
+		cleanup();
+		try {
+			socket.destroy();
+		} catch (_E) {}
+		done(err);
+	}
+	function onEarlyClose() {
+		const err = /* @__PURE__ */ new Error("Proxy closed the connection before the tunnel was established");
+		err.code = EPROXY;
+		fail(err);
+	}
+	const chunks = [];
+	let received = 0;
+	let tail = "";
+	function onSocketData(chunk) {
+		if (finished) return;
+		const window = tail + chunk.toString("binary");
+		const windowEnd = window.indexOf("\r\n\r\n");
+		chunks.push(chunk);
+		received += chunk.length;
+		tail = window.slice(-3);
+		if (windowEnd < 0) {
+			if (received > MAX_RESPONSE_HEADER_BYTES) {
+				const err = /* @__PURE__ */ new Error("Proxy response headers too large");
+				err.code = EPROXY;
+				fail(err);
+			}
+			return;
+		}
+		socket.removeListener("data", onSocketData);
+		socket.pause();
+		const headerEnd = received - window.length + windowEnd;
+		const response = Buffer.concat(chunks, received);
+		if (response.length > headerEnd + 4) socket.unshift(response.subarray(headerEnd + 4));
+		const match = response.toString("binary", 0, headerEnd).match(/^HTTP\/\d+\.\d+ (\d+)/i);
+		if (!match || (match[1] || "").charAt(0) !== "2") {
+			const err = /* @__PURE__ */ new Error("Invalid response from proxy" + (match && ": " + match[1] || ""));
+			err.code = EPROXY;
+			return fail(err);
+		}
+		finished = true;
+		cleanup();
+		const resumeOnData = (event) => {
+			if (event === "data") {
+				socket.removeListener("newListener", resumeOnData);
+				socket.resume();
+			}
+		};
+		socket.on("newListener", resumeOnData);
+		return done(null, socket);
+	}
+	socket = connect(connectOptions, () => {
+		if (finished) return;
+		const reqHeaders = {
+			Host: authority,
+			Connection: "close"
+		};
+		if (proxy.auth) reqHeaders["Proxy-Authorization"] = "Basic " + Buffer.from(proxy.auth).toString("base64");
+		socket.write("CONNECT " + authority + " HTTP/1.1\r\n" + Object.keys(reqHeaders).map((key) => key + ": " + reqHeaders[key]).join("\r\n") + "\r\n\r\n");
+		socket.on("data", onSocketData);
+	});
+	timer = setTimeout(() => {
+		const err = /* @__PURE__ */ new Error("Proxy socket timed out");
+		err.code = ETIMEDOUT;
+		fail(err);
+	}, timeout);
+	socket.once("error", fail);
+	socket.once("close", onEarlyClose);
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mailer/mail-message.js
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+var MailMessage = class {
+	constructor(mailer, data) {
+		this.mailer = mailer;
+		this.data = {};
+		this.message = null;
+		data = data || {};
+		const options = mailer.options || {};
+		const defaults = mailer._defaults || {};
+		copyOwnKeys(this.data, data);
+		this.data.headers = this.data.headers || {};
+		copyOwnKeys(this.data, defaults, (key) => hasOwn(this.data, key));
+		copyOwnKeys(this.data.headers, defaults.headers, (key) => hasOwn(this.data.headers, key));
+		[
+			"disableFileAccess",
+			"disableUrlAccess",
+			"normalizeHeaderKey",
+			"maxRecipients"
+		].forEach((key) => {
+			if (key in options) this.data[key] = options[key];
+		});
+		["disableFileAccess", "disableUrlAccess"].forEach((key) => {
+			if (!(key in options) && hasOwn(defaults, key)) this.data[key] = this.data[key] || defaults[key];
+		});
+	}
+	resolveContent(data, key, options, callback) {
+		if (!callback && typeof options === "function") {
+			callback = options;
+			options = false;
+		}
+		options = options || {};
+		return resolveContent(data, key, {
+			disableFileAccess: this.data.disableFileAccess || options.disableFileAccess,
+			disableUrlAccess: this.data.disableUrlAccess || options.disableUrlAccess
+		}, callback);
+	}
+	resolveAll(callback) {
+		const keys = [
+			[this.data, "html"],
+			[this.data, "text"],
+			[this.data, "watchHtml"],
+			[this.data, "amp"],
+			[this.data, "icalEvent"]
+		];
+		if (this.data.alternatives && this.data.alternatives.length) this.data.alternatives.forEach((alternative, i) => {
+			keys.push([this.data.alternatives, i]);
+		});
+		if (this.data.attachments && this.data.attachments.length) this.data.attachments.forEach((attachment, i) => {
+			if (!attachment.filename) {
+				attachment.filename = (attachment.path || attachment.href || "").split(/[/\\]/).pop().split("?").shift() || "attachment-" + (i + 1);
+				if (attachment.filename.indexOf(".") < 0) attachment.filename += "." + detectExtension(attachment.contentType);
+			}
+			if (!attachment.contentType) attachment.contentType = detectMimeType(attachment.filename || attachment.path || attachment.href || "bin");
+			keys.push([this.data.attachments, i]);
+		});
+		const mimeNode = new MimeNode();
+		[
+			"from",
+			"to",
+			"cc",
+			"bcc",
+			"sender",
+			"replyTo"
+		].forEach((address) => {
+			let value;
+			if (this.message) value = [].concat(mimeNode._parseAddresses(this.message.getHeader(address === "replyTo" ? "reply-to" : address)) || []);
+			else if (this.data[address]) value = [].concat(mimeNode._parseAddresses(this.data[address]) || []);
+			if (value && value.length) this.data[address] = value;
+			else if (address in this.data) this.data[address] = null;
+		});
+		["from", "sender"].forEach((address) => {
+			if (this.data[address]) this.data[address] = this.data[address].shift();
+		});
+		let pos = 0;
+		const resolveNext = () => {
+			if (pos >= keys.length) return callback(null, this.data);
+			const args = keys[pos++];
+			if (!args[0] || !args[0][args[1]]) return resolveNext();
+			resolveContent(...args, {
+				disableFileAccess: this.data.disableFileAccess,
+				disableUrlAccess: this.data.disableUrlAccess
+			}, (err, value) => {
+				if (err) return callback(err);
+				const node = { content: value };
+				if (args[0][args[1]] && typeof args[0][args[1]] === "object" && !Buffer.isBuffer(args[0][args[1]])) copyOwnKeys(node, args[0][args[1]], (key) => key in node || [
+					"content",
+					"path",
+					"href",
+					"raw"
+				].includes(key));
+				args[0][args[1]] = node;
+				resolveNext();
+			});
+		};
+		setImmediate(() => resolveNext());
+	}
+	/**
+	* Destroys the content streams of the message once sending failed. A stream that was not
+	* read to the end would otherwise keep the file or the socket behind it open
+	*/
+	releaseStreams() {
+		const data = this.data;
+		const values = [
+			data.html,
+			data.text,
+			data.watchHtml,
+			data.amp,
+			data.raw,
+			data.icalEvent
+		];
+		for (const key of ["attachments", "alternatives"]) if (Array.isArray(data[key])) for (const entry of data[key]) values.push(entry);
+		for (const value of values) if (value && typeof value === "object") {
+			destroyStream(value);
+			destroyStream(value.content);
+			destroyStream(value.raw);
+		}
+	}
+	normalize(callback) {
+		const envelope = this.message.getEnvelope();
+		const messageId = this.message.messageId();
+		this.resolveAll((err, data) => {
+			if (err) return callback(err);
+			data.envelope = envelope;
+			data.messageId = messageId;
+			[
+				"html",
+				"text",
+				"watchHtml",
+				"amp"
+			].forEach((key) => {
+				if (data[key] && data[key].content) {
+					if (typeof data[key].content === "string") data[key] = data[key].content;
+					else if (Buffer.isBuffer(data[key].content)) data[key] = data[key].content.toString();
+				}
+			});
+			if (data.icalEvent && Buffer.isBuffer(data.icalEvent.content)) {
+				data.icalEvent.content = data.icalEvent.content.toString("base64");
+				data.icalEvent.encoding = "base64";
+			}
+			if (data.alternatives && data.alternatives.length) data.alternatives.forEach((alternative) => {
+				if (alternative && alternative.content && Buffer.isBuffer(alternative.content)) {
+					alternative.content = alternative.content.toString("base64");
+					alternative.encoding = "base64";
+				}
+			});
+			if (data.attachments && data.attachments.length) data.attachments.forEach((attachment) => {
+				if (attachment && attachment.content && Buffer.isBuffer(attachment.content)) {
+					attachment.content = attachment.content.toString("base64");
+					attachment.encoding = "base64";
+				}
+			});
+			data.normalizedHeaders = {};
+			Object.keys(data.headers || {}).forEach((key) => {
+				if (isProtoKey(key)) return;
+				let value = [].concat(data.headers[key] || []).shift();
+				value = value && value.value || value;
+				if (value) {
+					if ([
+						"references",
+						"in-reply-to",
+						"message-id",
+						"content-id"
+					].includes(key)) value = this.message.encodeHeaderValue(key, value);
+					data.normalizedHeaders[key] = value;
+				}
+			});
+			if (data.list && typeof data.list === "object") this._getListHeaders(data.list).forEach((entry) => {
+				data.normalizedHeaders[entry.key] = entry.value.map((val) => val && val.value || val).join(", ");
+			});
+			if (data.references) data.normalizedHeaders.references = this.message.encodeHeaderValue("references", data.references);
+			if (data.inReplyTo) data.normalizedHeaders["in-reply-to"] = this.message.encodeHeaderValue("in-reply-to", data.inReplyTo);
+			return callback(null, data);
+		});
+	}
+	setMailerHeader() {
+		if (!this.message || !this.data.xMailer) return;
+		this.message.setHeader("X-Mailer", this.data.xMailer);
+	}
+	setPriorityHeaders() {
+		if (!this.message || !this.data.priority) return;
+		switch ((this.data.priority || "").toString().toLowerCase()) {
+			case "high":
+				this.message.setHeader("X-Priority", "1 (Highest)");
+				this.message.setHeader("X-MSMail-Priority", "High");
+				this.message.setHeader("Importance", "High");
+				break;
+			case "low":
+				this.message.setHeader("X-Priority", "5 (Lowest)");
+				this.message.setHeader("X-MSMail-Priority", "Low");
+				this.message.setHeader("Importance", "Low");
+		}
+	}
+	setListHeaders() {
+		if (!this.message || !this.data.list || typeof this.data.list !== "object") return;
+		this._getListHeaders(this.data.list).forEach((listHeader) => {
+			listHeader.value.forEach((value) => {
+				this.message.addHeader(listHeader.key, value);
+			});
+		});
+	}
+	/** @internal */
+	_getListHeaders(listData) {
+		return Object.keys(listData).map((key) => ({
+			key: "list-" + key.toLowerCase().trim(),
+			value: [].concat(listData[key] || []).map((value) => ({
+				prepared: true,
+				foldLines: true,
+				value: [].concat(value || []).map((value) => {
+					if (typeof value === "string") value = { url: value };
+					if (value && value.url) {
+						let comment = (value.comment || "").toString().replace(/\r?\n|\r/g, " ");
+						const needsEncoding = !isPlainText(comment) || /\x7f/.test(comment);
+						if (key.toLowerCase().trim() === "id") {
+							comment = needsEncoding ? encodeWord(comment) : quoteString(comment);
+							return (value.comment ? comment + " " : "") + this._formatListUrl(value.url).replace(/^<[^:]+:\/{0,2}/, "<");
+						}
+						comment = needsEncoding ? encodeWord(comment) : comment.replace(/[()\\]/g, "\\$&");
+						return this._formatListUrl(value.url) + (value.comment ? " (" + comment + ")" : "");
+					}
+					return "";
+				}).filter((value) => value).join(", ")
+			}))
+		}));
+	}
+	/** @internal */
+	_formatListUrl(url) {
+		url = url.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").replace(/[\s<]+|[\s>]+/g, "");
+		if (/^(https?|mailto|ftp):/.test(url)) return "<" + url + ">";
+		if (/^[^@]+@[^@]+$/.test(url)) return "<mailto:" + url + ">";
+		return "<http://" + url + ">";
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/mailer/index.js
+/**
+* Recipients allowed on one message unless the caller sets its own maxRecipients. A backstop
+* against a runaway or hostile recipient list rather than a delivery policy: RFC 5321 only
+* asks a server to accept 100, so a real send is bounded far below this.
+*/
+const DEFAULT_MAX_RECIPIENTS = 1e5;
+/**
+* Duck-typed so that signals from another realm or a polyfill are accepted as well
+*/
+function isAbortSignal(value) {
+	return typeof value === "object" && value !== null && "aborted" in value && typeof value.addEventListener === "function" && typeof value.removeEventListener === "function";
+}
+/**
+* Creates an object for exposing the Mail API
+*
+* @constructor
+* @param transporter Transport object instance to pass the mails to
+*/
+var Mail = class extends EventEmitter {
+	constructor(transporter, options, defaults) {
+		super();
+		this.options = options || {};
+		this._defaults = defaults || {};
+		this._defaultPlugins = {
+			compile: [(...args) => this._convertDataImages(...args)],
+			stream: []
+		};
+		this._userPlugins = {
+			compile: [],
+			stream: []
+		};
+		this.meta = /* @__PURE__ */ new Map();
+		this.dkim = this.options.dkim ? new DKIM(this.options.dkim) : false;
+		this.transporter = transporter;
+		this.transporter.mailer = this;
+		this.logger = getLogger(this.options, { component: this.options.component || "mail" });
+		this.logger.debug({ tnx: "create" }, "Creating transport: %s", this.getVersionString());
+		if (typeof this.transporter.on === "function") {
+			this.transporter.on("log", (log) => {
+				this.logger.debug({ tnx: "transport" }, "%s: %s", log.type, log.message);
+			});
+			this.transporter.on("error", (err) => {
+				this.logger.error({
+					err,
+					tnx: "transport"
+				}, "Transport Error: %s", err.message);
+				this.emit("error", err);
+			});
+			this.transporter.on("idle", (...args) => {
+				this.emit("idle", ...args);
+			});
+			this.transporter.on("clear", (...args) => {
+				this.emit("clear", ...args);
+			});
+		}
+		/**
+		* Optional methods passed to the underlying transport object
+		*/
+		[
+			"close",
+			"isIdle",
+			"verify"
+		].forEach((method) => {
+			this[method] = (...args) => {
+				if (typeof this.transporter[method] === "function") {
+					if (method === "verify" && typeof this.getSocket === "function") {
+						this.transporter.getSocket = this.getSocket;
+						this.getSocket = false;
+					}
+					return this.transporter[method](...args);
+				}
+				this.logger.warn({
+					tnx: "transport",
+					methodName: method
+				}, "Non existing method %s called for transport", method);
+				return false;
+			};
+		});
+		if (this.options.proxy && typeof this.options.proxy === "string") this.setupProxy(this.options.proxy);
+	}
+	use(step, plugin) {
+		step = (step || "").toString();
+		if (!this._userPlugins.hasOwnProperty(step)) this._userPlugins[step] = [plugin];
+		else this._userPlugins[step].push(plugin);
+		return this;
+	}
+	sendMail(data, callback = null) {
+		let promise;
+		if (!callback) promise = new Promise((resolve, reject) => {
+			callback = callbackPromise(resolve, reject);
+		});
+		const done = callback;
+		if (typeof this.getSocket === "function") {
+			this.transporter.getSocket = this.getSocket;
+			this.getSocket = false;
+		}
+		const mail = new MailMessage(this, data);
+		const signalOption = mail.data.signal;
+		const signal = isAbortSignal(signalOption) ? signalOption : void 0;
+		let settled = false;
+		const removeAbortListener = () => signal?.removeEventListener("abort", onAbort);
+		const finish = (err, info) => {
+			if (settled) return;
+			settled = true;
+			removeAbortListener();
+			if (err) mail.releaseStreams();
+			done(err, info);
+		};
+		const fail = (err) => {
+			finish(err);
+		};
+		function onAbort() {
+			fail(createAbortError(signal));
+		}
+		if (signalOption !== void 0 && signalOption !== null && !signal) {
+			const err = /* @__PURE__ */ new Error("The signal option must be an AbortSignal");
+			err.code = ECONFIG;
+			setImmediate(() => fail(err));
+			return promise;
+		}
+		if (signal) {
+			signal.addEventListener("abort", onAbort, { once: true });
+			if (signal.aborted) {
+				setImmediate(onAbort);
+				return promise;
+			}
+		}
+		this.logger.debug({
+			tnx: "transport",
+			name: this.transporter.name,
+			version: this.transporter.version,
+			action: "send"
+		}, "Sending mail using %s/%s", this.transporter.name, this.transporter.version);
+		this._processPlugins("compile", mail, (err) => {
+			if (settled) return;
+			if (err) {
+				this.logger.error({
+					err,
+					tnx: "plugin",
+					action: "compile"
+				}, "PluginCompile Error: %s", err.message);
+				return fail(err);
+			}
+			let recipientCount;
+			try {
+				mail.message = new MailComposer(mail.data).compile();
+				mail.setMailerHeader();
+				mail.setPriorityHeaders();
+				mail.setListHeaders();
+				recipientCount = mail.message.getEnvelope().to.length;
+			} catch (err) {
+				this.logger.error({
+					err,
+					tnx: "transport",
+					action: "send"
+				}, "Compile Error: %s", err.message);
+				return fail(err);
+			}
+			const maxRecipients = mail.data.maxRecipients === void 0 ? DEFAULT_MAX_RECIPIENTS : mail.data.maxRecipients;
+			if (maxRecipients && recipientCount > maxRecipients) {
+				const err = /* @__PURE__ */ new Error(`Message has ${recipientCount} recipients, which is over the ${maxRecipients} allowed by maxRecipients`);
+				err.code = EMAXRECIPIENTS;
+				this.logger.error({
+					err,
+					tnx: "transport",
+					action: "send"
+				}, "Send Error: %s", err.message);
+				return fail(err);
+			}
+			this._processPlugins("stream", mail, (err) => {
+				if (settled) return;
+				if (err) {
+					this.logger.error({
+						err,
+						tnx: "plugin",
+						action: "stream"
+					}, "PluginStream Error: %s", err.message);
+					return fail(err);
+				}
+				if (mail.data.dkim || this.dkim) mail.message.processFunc((input) => {
+					const dkim = mail.data.dkim ? new DKIM(mail.data.dkim) : this.dkim;
+					this.logger.debug({
+						tnx: "DKIM",
+						messageId: mail.message.messageId(),
+						dkimDomains: dkim.keys.map((key) => key.keySelector + "." + key.domainName).join(", ")
+					}, "Signing outgoing message with %s keys", dkim.keys.length);
+					return dkim.sign(input, mail.data._dkim);
+				});
+				removeAbortListener();
+				this.transporter.send(mail, (...args) => {
+					if (args[0]) this.logger.error({
+						err: args[0],
+						tnx: "transport",
+						action: "send"
+					}, "Send Error: %s", args[0].message);
+					finish(...args);
+				});
+			});
+		});
+		return promise;
+	}
+	getVersionString() {
+		return util.format("%s (%s; +%s; %s/%s)", name, version, homepage, this.transporter.name, this.transporter.version);
+	}
+	/** @internal */
+	_processPlugins(step, mail, callback) {
+		step = (step || "").toString();
+		if (!this._userPlugins.hasOwnProperty(step)) return callback();
+		const userPlugins = this._userPlugins[step] || [];
+		const defaultPlugins = this._defaultPlugins[step] || [];
+		if (userPlugins.length) this.logger.debug({
+			tnx: "transaction",
+			pluginCount: userPlugins.length,
+			step
+		}, "Using %s plugins for %s", userPlugins.length, step);
+		if (userPlugins.length + defaultPlugins.length === 0) return callback();
+		let pos = 0;
+		let block = "default";
+		const processPlugins = () => {
+			if (mail.data.signal?.aborted) return callback(createAbortError(mail.data.signal));
+			let curplugins = block === "default" ? defaultPlugins : userPlugins;
+			if (pos >= curplugins.length) {
+				if (block === "default" && userPlugins.length) {
+					block = "user";
+					pos = 0;
+					curplugins = userPlugins;
+				} else return callback();
+			}
+			const plugin = curplugins[pos++];
+			plugin(mail, (err) => {
+				if (err) return callback(err);
+				processPlugins();
+			});
+		};
+		processPlugins();
+	}
+	/**
+	* Sets up proxy handler for a Nodemailer object
+	*
+	* @param proxyUrl Proxy configuration url
+	*/
+	setupProxy(proxyUrl) {
+		const proxy = parse(proxyUrl);
+		this.getSocket = (options, callback) => {
+			const protocol = proxy.protocol.replace(/:$/, "").toLowerCase();
+			const configuredTimeout = Number(this.options.connectionTimeout) || 0;
+			const connectStartedAt = Number(options.connectStartedAt) || Date.now();
+			const connectionTimeout = configuredTimeout ? Math.max(connectStartedAt + configuredTimeout - Date.now(), 1) : void 0;
+			if (this.meta.has("proxy_handler_" + protocol)) return this.meta.get("proxy_handler_" + protocol)(proxy, options, callback);
+			switch (protocol) {
+				case "http":
+				case "https":
+					httpProxyClient(proxy.href, options.port, options.host, connectionTimeout ? Object.assign({}, this.options.tls, { timeout: connectionTimeout }) : this.options.tls || {}, (err, socket) => {
+						if (err) return callback(err);
+						return callback(null, { connection: socket });
+					});
+					return;
+				case "socks":
+				case "socks5":
+				case "socks4":
+				case "socks4a": {
+					if (!this.meta.has("proxy_socks_module")) {
+						let err = /* @__PURE__ */ new Error("Socks module not loaded");
+						err.code = EPROXY;
+						return callback(err);
+					}
+					const connect = (ipaddress) => {
+						const proxyV2 = !!this.meta.get("proxy_socks_module").SocksClient;
+						const socksClient = proxyV2 ? this.meta.get("proxy_socks_module").SocksClient : this.meta.get("proxy_socks_module");
+						const proxyType = Number(proxy.protocol.replace(/\D/g, "")) || 5;
+						const connectionOpts = {
+							proxy: {
+								ipaddress,
+								port: Number(proxy.port),
+								type: proxyType
+							},
+							[proxyV2 ? "destination" : "target"]: {
+								host: options.host,
+								port: options.port
+							},
+							command: "connect"
+						};
+						if (connectionTimeout) connectionOpts.timeout = connectionTimeout;
+						if (proxy.username || proxy.password) {
+							const username = proxy.username || "";
+							const password = proxy.password || "";
+							if (proxyV2) {
+								connectionOpts.proxy.userId = username;
+								connectionOpts.proxy.password = password;
+							} else if (proxyType === 4) connectionOpts.userid = username;
+							else connectionOpts.authentication = {
+								username,
+								password
+							};
+						}
+						socksClient.createConnection(connectionOpts, (err, info) => {
+							if (err) return callback(err);
+							return callback(null, { connection: info.socket || info });
+						});
+					};
+					if (net.isIP(proxy.hostname)) return connect(proxy.hostname);
+					return dns.lookup(proxy.hostname, (err, address) => {
+						if (err) return callback(err);
+						connect(address);
+					});
+				}
+			}
+			let err = /* @__PURE__ */ new Error("Unknown proxy configuration");
+			err.code = EPROXY;
+			callback(err);
+		};
+	}
+	/** @internal */
+	_convertDataImages(mail, callback) {
+		if (!this.options.attachDataUrls && !mail.data.attachDataUrls || !mail.data.html) return callback();
+		mail.resolveContent(mail.data, "html", {
+			disableFileAccess: mail.data.disableFileAccess,
+			disableUrlAccess: mail.data.disableUrlAccess
+		}, (err, html) => {
+			if (err) return callback(err);
+			let cidCounter = 0;
+			html = (html || "").toString().replace(/(<img\b[^<>]{0,1024} src\s{0,20}=[\s"']{0,20})(data:([^;"'<>\s]{1,255});[^"'>\s]+)/gi, (match, prefix, dataUri, mimeType) => {
+				const cid = crypto$1.randomBytes(10).toString("hex") + "@localhost";
+				if (!mail.data.attachments) mail.data.attachments = [];
+				if (!Array.isArray(mail.data.attachments)) mail.data.attachments = [].concat(mail.data.attachments || []);
+				mail.data.attachments.push({
+					path: dataUri,
+					cid,
+					filename: "image-" + ++cidCounter + "." + detectExtension$1(mimeType)
+				});
+				return prefix + "cid:" + cid;
+			});
+			mail.data.html = html;
+			callback();
+		});
+	}
+	set(key, value) {
+		return this.meta.set(key, value);
+	}
+	get(key) {
+		return this.meta.get(key);
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-connection/data-stream.js
+const INSERT_LF = Buffer.from("\n");
+const INSERT_LF_DOT = Buffer.from("\n.");
+const INSERT_CR = Buffer.from("\r");
+const INSERT_DOT = Buffer.from(".");
+/**
+* Escapes dots in the beginning of lines. Ends the stream with <CR><LF>.<CR><LF>
+* Also makes sure that only <CR><LF> sequences are used for linebreaks, bare CR and bare LF
+* are both turned into <CR><LF>
+*
+* @param options Stream options
+*/
+var DataStream = class extends Transform {
+	constructor(options) {
+		super(options);
+		this.options = options || {};
+		this.inByteCount = 0;
+		this.outByteCount = 0;
+		this.lastByte = false;
+	}
+	/**
+	* Escapes dots
+	* @internal
+	*/
+	_transform(chunk, encoding, done) {
+		const chunks = [];
+		let chunklen = 0;
+		let i, len, lastPos = 0;
+		let buf;
+		if (!chunk || !chunk.length) return done();
+		if (typeof chunk === "string") chunk = Buffer.from(chunk);
+		this.inByteCount += chunk.length;
+		for (i = 0, len = chunk.length; i < len; i++) {
+			const byte = chunk[i];
+			const prev = i ? chunk[i - 1] : this.lastByte;
+			let insert = false;
+			if (prev === 13 && byte !== 10) insert = byte === 46 ? INSERT_LF_DOT : INSERT_LF;
+			else if (byte === 10 && prev !== 13) insert = INSERT_CR;
+			else if (byte === 46 && (prev === 10 || prev === false)) insert = INSERT_DOT;
+			if (insert) {
+				if (i > lastPos) {
+					buf = chunk.slice(lastPos, i);
+					chunks.push(buf);
+					chunklen += buf.length;
+				}
+				chunks.push(insert);
+				chunklen += insert.length;
+				lastPos = i;
+			}
+		}
+		if (chunks.length) {
+			if (lastPos < chunk.length) {
+				buf = chunk.slice(lastPos);
+				chunks.push(buf);
+				chunklen += buf.length;
+			}
+			this.outByteCount += chunklen;
+			this.push(Buffer.concat(chunks, chunklen));
+		} else {
+			this.outByteCount += chunk.length;
+			this.push(chunk);
+		}
+		this.lastByte = chunk[chunk.length - 1];
+		done();
+	}
+	/**
+	* Finalizes the stream with a dot on a single line
+	* @internal
+	*/
+	_flush(done) {
+		let buf;
+		if (this.lastByte === 10) buf = Buffer.from(".\r\n");
+		else if (this.lastByte === 13) buf = Buffer.from("\n.\r\n");
+		else buf = Buffer.from("\r\n.\r\n");
+		this.outByteCount += buf.length;
+		this.push(buf);
+		done();
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-connection/server-message-id.js
+/**
+* Reads the Message-ID a receiving server gave the message out of its final 250 reply. Some
+* servers replace the Message-ID header of a submitted message with one of their own, and
+* the copy the recipients and the sent folder get carries that one instead of the id the
+* message was built with. Only replies in a format known to carry such an id are read.
+*/
+const OUTLOOK_REPLY = /^250 2\.0\.0 OK (<[^<>\s]+\.prod\.outlook\.com>)/i;
+const SES_REPLY = /^250 Ok ([0-9a-f]+(?:-[0-9a-f]+)+)$/i;
+const AWS_REGION = /^[a-z]{2}(?:-[a-z]+)+-\d+$/;
+/**
+* Finds the AWS region an SES SMTP endpoint is in from its hostname, such as
+* email-smtp.eu-west-1.amazonaws.com or a VPC endpoint name under it
+*
+* @param host SMTP hostname
+* @returns Region name, or undefined for a host outside amazonaws.com and awsapps.com
+*/
+function sesRegion(host) {
+	const labels = host.toLowerCase().replace(/\.$/, "").split(".");
+	const domain = labels.slice(-2).join(".");
+	if (domain !== "amazonaws.com" && domain !== "awsapps.com") return;
+	return labels.slice(0, -2).find((label) => AWS_REGION.test(label));
+}
+/**
+* Reads the server assigned Message-ID out of the final reply to a message
+*
+* @param response Final server reply for the message
+* @param [host] Hostname the connection was made to, SES replies are only read for an SES host
+* @returns The Message-ID with its angle brackets, or undefined when the reply names none
+*/
+function parseServerMessageId(response, host) {
+	const reply = (response || "").toString().trim();
+	const outlook = reply.match(OUTLOOK_REPLY);
+	if (outlook) return outlook[1];
+	const ses = reply.match(SES_REPLY);
+	if (ses && host) {
+		const region = sesRegion(host);
+		if (region) return "<" + ses[1].toLowerCase() + "@" + (region === "us-east-1" ? "email" : region) + ".amazonses.com>";
+	}
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-connection/index.js
+const CONNECTION_TIMEOUT = 12e4;
+const SOCKET_TIMEOUT = 6e5;
+const GREETING_TIMEOUT = 3e4;
+const DNS_TIMEOUT = 3e4;
+const CLOSE_TIMEOUT = 5e3;
+const KEEPALIVE_DELAY = 3e4;
+const TEARDOWN_NOOP = () => {};
+function shuffle(list) {
+	const result = list.slice();
+	for (let i = result.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[result[i], result[j]] = [result[j], result[i]];
+	}
+	return result;
+}
+function timeoutError(message, timeoutType) {
+	const err = new Error(message);
+	err.timeoutType = timeoutType;
+	return err;
+}
+const MAX_RESPONSE_SIZE = 1048576;
+/**
+* Re-interpret a server response stored in fake 8-bit byte-container form
+* (the result of chunk.toString('binary') in _onData) as UTF-8.
+*
+* Server reply text has no formally defined charset (RFC 5321 §4.2.1), but
+* modern MTAs commonly use UTF-8. The byte-container plumbing in _onData is
+* required to reassemble multi-byte sequences split across socket chunks;
+* this helper performs the actual decode at the line boundary, falling back
+* to the byte-container form when the bytes are not valid UTF-8 so that
+* legacy 8-bit replies are still recoverable byte-for-byte.
+*/
+function decodeServerResponse(str) {
+	if (!str) return str;
+	const utf8 = Buffer.from(str, "binary").toString("utf8");
+	return utf8.includes("�") ? str : utf8;
+}
+/**
+* True when the last line of a queued reply is a continuation ("250-..."), which means
+* the rest of the reply is still on its way.
+*
+* Called with the byte-container form the queue holds (see _onData): the check only looks
+* at leading ASCII digits and '-' of the last line, and a UTF-8 continuation byte is never
+* 0x0A, so line boundaries and the tested prefix are the same before and after decoding.
+* The last line is read with lastIndexOf rather than split() because a queue entry may hold
+* a whole multiline reply and only its final line matters.
+*/
+function isPartialResponse(str) {
+	return isPartialLine(str.slice(str.lastIndexOf("\n") + 1));
+}
+/**
+* True when a single reply line is a continuation ("250-..."). Used where the line is
+* already known to be one line, which skips the scan isPartialResponse needs to find the
+* last line of a whole reply.
+*/
+function isPartialLine(line) {
+	return /^\d+-/.test(line);
+}
+/**
+* The log form of a command a custom authentication handler sends. Such a command carries
+* the credentials in whatever shape its mechanism uses, so only an AUTH verb with its
+* mechanism name is kept, the way the built-in mechanisms hide their own secrets.
+*
+* @param cmd Command the handler sends
+* @return What the transaction log gets instead
+*/
+function maskAuthCommand(cmd) {
+	const match = (cmd || "").toString().match(/^AUTH\s+[^\s]+/i);
+	if (!match) return "/* secret */";
+	return match[0].length === cmd.length ? cmd : match[0] + " /* secret */";
+}
+/**
+* Generates a SMTP connection object
+*
+* Optional options object takes the following possible properties:
+*
+*  * **port** - is the port to connect to (defaults to 587 or 465)
+*  * **host** - is the hostname or IP address to connect to (defaults to 'localhost')
+*  * **secure** - use SSL
+*  * **ignoreTLS** - ignore server support for STARTTLS (has no effect when requireTLS is set)
+*  * **requireTLS** - forces the client to use STARTTLS, takes precedence over ignoreTLS and opportunisticTLS
+*  * **name** - the name of the client server
+*  * **localAddress** - outbound address to bind to (see: http://nodejs.org/api/net.html#net_net_connect_options_connectionlistener)
+*  * **greetingTimeout** - Time to wait in ms until greeting message is received from the server (defaults to 30 seconds)
+*  * **connectionTimeout** - how many milliseconds to wait for the connection to establish (defaults to 2 minutes)
+*  * **socketTimeout** - Time of inactivity until the connection is closed (defaults to 10 minutes)
+*  * **socketCloseTimeout** - Time in ms to wait for the peer to close after ending the socket (defaults to 5 seconds, 0 destroys immediately)
+*  * **maxResponseSize** - Largest single server response to accept in bytes (defaults to 1 MB)
+*  * **dnsTimeout** - Time to wait in ms for the DNS requests to be resolved (defaults to 30 seconds)
+*  * **lmtp** - if true, uses LMTP instead of SMTP protocol
+*  * **logger** - bunyan compatible logger interface
+*  * **debug** - if true pass SMTP traffic to the logger
+*  * **tls** - options for createCredentials
+*  * **socket** - existing socket to use instead of creating a new one (see: http://nodejs.org/api/net.html#net_class_net_socket)
+*  * **secured** - boolean indicates that the provided socket has already been upgraded to tls
+*
+* @constructor
+* @namespace SMTP Client module
+* @param [options] Option properties
+*/
+var SMTPConnection = class extends EventEmitter {
+	constructor(options) {
+		super(options);
+		this.id = crypto$1.randomBytes(8).toString("base64").replace(/\W/g, "");
+		this.stage = "init";
+		this.options = options || {};
+		if (this.options.requireTLS && (this.options.ignoreTLS || this.options.opportunisticTLS)) this.options = Object.assign({}, this.options, {
+			ignoreTLS: false,
+			opportunisticTLS: false
+		});
+		this.secureConnection = !!this.options.secure;
+		this.alreadySecured = !!this.options.secured;
+		this.port = Number(this.options.port) || (this.secureConnection ? 465 : 587);
+		this.host = this.options.host || "localhost";
+		this.servername = this.options.servername ? this.options.servername : !net.isIP(this.host) ? this.host : false;
+		this.allowInternalNetworkInterfaces = this.options.allowInternalNetworkInterfaces || false;
+		if (typeof this.options.secure === "undefined" && this.port === 465) this.secureConnection = true;
+		this.name = (this.options.name || this._getHostname()).toString().replace(/[\r\n]+/g, "");
+		this.logger = getLogger(this.options, {
+			component: this.options.component || "smtp-connection",
+			sid: this.id
+		});
+		this.customAuth = /* @__PURE__ */ new Map();
+		for (const key of Object.keys(this.options.customAuth || {})) {
+			const mapKey = (key || "").toString().trim().toUpperCase();
+			if (mapKey) this.customAuth.set(mapKey, this.options.customAuth[key]);
+		}
+		this.version = version;
+		this.authenticated = false;
+		this.destroyed = false;
+		this.secure = !!this.secureConnection;
+		this._remainder = "";
+		this._responseQueue = [];
+		this._responsePartial = false;
+		this.lastServerResponse = false;
+		this._socket = false;
+		this._supportedAuth = [];
+		this.allowsAuth = false;
+		this._envelope = false;
+		this._supportedExtensions = [];
+		this._maxAllowedSize = 0;
+		this._responseActions = [];
+		this._recipientQueue = [];
+		this._phaseTimer = false;
+		this._plaintextEhlo = false;
+		this._destroyed = false;
+		this._closing = false;
+		this._currentDataStream = false;
+		this._pendingSend = false;
+		this._connectCallback = false;
+		this._onSocketData = (chunk) => this._onData(chunk);
+		this._onSocketError = (error) => this._onError(error, "ESOCKET", false, "CONN");
+		this._onSocketClose = () => this._onClose();
+		this._onSocketEnd = () => this._onEnd();
+		this._onSocketTimeout = () => this._onTimeout();
+		this._onConnectionSocketError = (err) => this._onError(err, "ESOCKET", false, "CONN");
+	}
+	/**
+	* Creates a connection to a SMTP server and sets up connection
+	* listener
+	*/
+	connect(connectCallback) {
+		if (this._connectCalled && !this._destroyed) {
+			const err = this._formatError("Cannot connect - connect() was already called for this connection", "ECONNECTION", false, "API");
+			if (typeof connectCallback === "function") {
+				setImmediate(() => connectCallback(err));
+				return;
+			}
+			this.logger.warn({ tnx: "smtp" }, "%s", err.message);
+			return;
+		}
+		this._connectCalled = true;
+		if (typeof connectCallback === "function") {
+			this._connectCallback = connectCallback;
+			this.once("connect", () => {
+				this._connectCallback = false;
+				this.logger.debug({ tnx: "smtp" }, "SMTP handshake finished");
+				connectCallback();
+			});
+			const isDestroyedMessage = this._isDestroyedMessage("connect");
+			if (isDestroyedMessage) return connectCallback(this._formatError(isDestroyedMessage, "ECONNECTION", false, "CONN"));
+		}
+		const connectionTimeout = this.options.connectionTimeout || CONNECTION_TIMEOUT;
+		this._connectionDeadline = (this._connectStartedAt || Date.now()) + connectionTimeout;
+		let opts = {
+			port: this.port,
+			host: this.host,
+			allowInternalNetworkInterfaces: this.allowInternalNetworkInterfaces,
+			timeout: Math.min(this.options.dnsTimeout || DNS_TIMEOUT, connectionTimeout)
+		};
+		if (this.options.localAddress) opts.localAddress = this.options.localAddress;
+		if (this.options.connection) {
+			this._socket = this.options.connection;
+			this._setupConnectionHandlers();
+			if (this.secureConnection && !this.alreadySecured) setImmediate(() => this._upgradeConnection((err) => {
+				if (err) {
+					this._onError(/* @__PURE__ */ new Error("Error initiating TLS - " + (err.message || err)), "ETLS", false, "CONN");
+					return;
+				}
+				this._onConnect();
+			}));
+			else setImmediate(() => this._onConnect());
+			return;
+		} else if (this.options.socket) {
+			this._socket = this.options.socket;
+			return this._resolveAndConnect(opts, (_resolved) => {
+				if (this._destroyed || this._closing) return;
+				try {
+					this._socket.connect(this.port, this.host, () => {
+						if (this.secureConnection && !this.alreadySecured) return this._upgradeConnection((err) => {
+							if (err) {
+								this._onError(/* @__PURE__ */ new Error("Error initiating TLS - " + (err.message || err)), "ETLS", false, "CONN");
+								return;
+							}
+							this._onConnect();
+						});
+						this._onConnect();
+					});
+					this._setupConnectionHandlers();
+				} catch (E) {
+					setImmediate(() => this._onError(E, "ECONNECTION", false, "CONN"));
+					return;
+				}
+			});
+		} else {
+			if (this.secureConnection) {
+				Object.assign(opts, this.options.tls || {});
+				if (this.servername && !opts.servername) opts.servername = this.servername;
+			}
+			return this._resolveAndConnect(opts, (resolved) => {
+				let addresses = resolved._addresses || [];
+				if (opts.localAddress) {
+					const localFamily = net.isIPv6(opts.localAddress) ? 6 : 4;
+					const sameFamily = addresses.filter((addr) => net.isIP(addr) === localFamily);
+					addresses = sameFamily.length ? sameFamily : addresses;
+				}
+				if (addresses.length > 1) {
+					const ipv6 = addresses.filter((addr) => net.isIPv6(addr));
+					const ipv4 = addresses.filter((addr) => !net.isIPv6(addr));
+					const ordered = shuffle(ipv6).concat(shuffle(ipv4));
+					opts.host = this.host;
+					opts.autoSelectFamily = true;
+					if (!ipv6.length || !ipv4.length) {
+						const remaining = this._connectionDeadline - Date.now();
+						opts.autoSelectFamilyAttemptTimeout = Math.max(Math.floor(remaining / ordered.length), 10);
+					}
+					opts.lookup = ((hostname, lookupOptions, callback) => {
+						if (lookupOptions && lookupOptions.all) {
+							const all = ordered.map((address) => ({
+								address,
+								family: net.isIPv6(address) ? 6 : 4
+							}));
+							return setImmediate(() => callback(null, all));
+						}
+						setImmediate(() => callback(null, ordered[0], net.isIPv6(ordered[0]) ? 6 : 4));
+					});
+				} else if (addresses.length) opts.host = addresses[0];
+				this._connectToHost(opts, this.secureConnection);
+			});
+		}
+	}
+	/**
+	* Resolves the hostname and applies resolved values to opts,
+	* then calls the provided callback with the resolved data
+	*
+	* @param opts Connection options (modified in place)
+	* @param callback Called with resolved data on success
+	* @internal
+	*/
+	_resolveAndConnect(opts, callback) {
+		return resolveHostname(opts, (err, resolved) => {
+			if (err) return setImmediate(() => this._onError(err, "EDNS", false, "CONN"));
+			this.logger.debug({
+				tnx: "dns",
+				source: opts.host,
+				resolved: resolved.host,
+				cached: !!resolved.cached
+			}, "Resolved %s as %s [cache %s]", opts.host, resolved.host, resolved.cached ? "hit" : "miss");
+			for (const key of Object.keys(resolved)) if (key.charAt(0) !== "_" && resolved[key]) opts[key] = resolved[key];
+			callback(resolved);
+		});
+	}
+	/**
+	* Attempts to connect to the specified host address
+	*
+	* @param opts Connection options
+	* @param secure Whether to use TLS
+	* @internal
+	*/
+	_connectToHost(opts, secure) {
+		if (this._destroyed || this._closing) return;
+		const connectFn = secure ? tls.connect : net.connect;
+		try {
+			this._socket = connectFn(opts, () => this._onConnect());
+			this._setupConnectionHandlers();
+		} catch (E) {
+			setImmediate(() => this._onError(E, "ECONNECTION", false, "CONN"));
+			return;
+		}
+	}
+	/**
+	* Sets up connection timeout and error handlers
+	* @internal
+	*/
+	_setupConnectionHandlers() {
+		this._startPhase(Math.max((this._connectionDeadline || Date.now()) - Date.now(), 0), timeoutError("Connection timeout", "CONNECT_TIMEOUT"));
+		this._socket.on("error", this._onConnectionSocketError);
+	}
+	/**
+	* Starts the timer of a connection phase: connecting, waiting for the greeting or a TLS
+	* upgrade. The phases follow one another, so starting one ends the one before
+	*
+	* @param timeout Time the phase may take
+	* @param err Error to fail with when it takes longer
+	* @internal
+	*/
+	_startPhase(timeout, err) {
+		this._clearPhase();
+		this._phaseTimer = setTimeout(() => {
+			this._phaseTimer = false;
+			this._onError(err, "ETIMEDOUT", false, "CONN");
+		}, timeout);
+	}
+	/**
+	* Time the greeting or a STARTTLS upgrade may take: greetingTimeout, cut short by what is left
+	* of connectionTimeout
+	*
+	* @internal
+	*/
+	_remainingSetupTime() {
+		return Math.min(this.options.greetingTimeout || GREETING_TIMEOUT, Math.max((this._connectionDeadline || Infinity) - Date.now(), 1));
+	}
+	/** @internal */
+	_clearPhase() {
+		clearTimeout(this._phaseTimer);
+		this._phaseTimer = false;
+	}
+	/**
+	* Sends QUIT
+	*/
+	quit() {
+		this._sendCommand("QUIT");
+		this._responseActions.push(this.close);
+	}
+	/**
+	* Closes the connection to the server
+	*/
+	close() {
+		this._clearPhase();
+		this._responseActions = [];
+		if (this._closing) return;
+		this._closing = true;
+		const configuredCloseTimeout = this.options.socketCloseTimeout;
+		const socketCloseTimeout = typeof configuredCloseTimeout === "number" && Number.isFinite(configuredCloseTimeout) && configuredCloseTimeout >= 0 ? configuredCloseTimeout : CLOSE_TIMEOUT;
+		const closeMethod = this.stage === "init" || socketCloseTimeout === 0 ? "destroy" : "end";
+		this.logger.debug({ tnx: "smtp" }, "Closing connection to the server using \"%s\"", closeMethod);
+		const socket = this._socket;
+		if (this._currentDataStream) {
+			try {
+				this._currentDataStream.unpipe(this._socket);
+			} catch (_E) {}
+			this._currentDataStream = false;
+		}
+		if (this._pendingSend) {
+			const { stream, onStreamError } = this._pendingSend;
+			if (stream) {
+				stream.removeListener("error", onStreamError);
+				stream.on("error", TEARDOWN_NOOP);
+				stream.destroy();
+			}
+			this._pendingSend = false;
+		}
+		if (socket && !socket.destroyed) try {
+			socket.setTimeout(0);
+			socket.removeListener("data", this._onSocketData);
+			socket.removeListener("timeout", this._onSocketTimeout);
+			socket.removeListener("close", this._onSocketClose);
+			socket.removeListener("end", this._onSocketEnd);
+			socket.removeListener("error", this._onSocketError);
+			socket.removeListener("error", this._onConnectionSocketError);
+			socket.on("error", TEARDOWN_NOOP);
+			socket[closeMethod]();
+			if (closeMethod === "end") {
+				const closeTimer = setTimeout(() => socket.destroy(), socketCloseTimeout);
+				if (typeof closeTimer.unref === "function") closeTimer.unref();
+				socket.once("close", () => clearTimeout(closeTimer));
+			}
+		} catch (_E) {}
+		this._destroy();
+	}
+	/**
+	* Authenticate user
+	*/
+	login(authData, callback) {
+		const isDestroyedMessage = this._isDestroyedMessage("login");
+		if (isDestroyedMessage) return callback(this._formatError(isDestroyedMessage, "ECONNECTION", false, "API"));
+		this._auth = authData || {};
+		this._authMethod = (this._auth.method || "").toString().trim().toUpperCase() || false;
+		const canUseXOAuth2 = !!this._auth.oauth2 || this.customAuth.has("XOAUTH2");
+		if (!this._authMethod && this._auth.oauth2 && !this._auth.credentials) this._authMethod = "XOAUTH2";
+		else if (!this._authMethod || this._authMethod === "XOAUTH2" && !this._auth.oauth2) {
+			const supported = this._supportedAuth.find((method) => method !== "XOAUTH2" || canUseXOAuth2);
+			this._authMethod = (supported || "PLAIN").toUpperCase().trim();
+		}
+		if ((this._authMethod !== "XOAUTH2" || this.customAuth.has("XOAUTH2")) && (!this._auth.credentials || !this._auth.credentials.user || !this._auth.credentials.pass)) {
+			if (this._auth.user && this._auth.pass || this.customAuth.has(this._authMethod)) this._auth.credentials = {
+				user: this._auth.user,
+				pass: this._auth.pass,
+				options: this._auth.options
+			};
+			else return callback(this._formatError("Missing credentials for \"" + this._authMethod + "\"", "EAUTH", false, "API"));
+		}
+		if (this.customAuth.has(this._authMethod)) {
+			const handler = this.customAuth.get(this._authMethod);
+			let lastResponse;
+			let returned = false;
+			const resolve = () => {
+				if (returned) return;
+				returned = true;
+				this.logger.info({
+					tnx: "smtp",
+					username: this._auth.user,
+					action: "authenticated",
+					method: this._authMethod
+				}, "User %s authenticated", JSON.stringify(this._auth.user));
+				this.authenticated = true;
+				callback(null, true);
+			};
+			const reject = (err) => {
+				if (returned) return;
+				returned = true;
+				callback(this._formatError(err, "EAUTH", lastResponse, "AUTH " + this._authMethod));
+			};
+			const sendCommand = (cmd, done) => {
+				let promise;
+				if (!done) promise = new Promise((resolve, reject) => {
+					done = callbackPromise(resolve, reject);
+				});
+				this._responseActions.push((str) => {
+					lastResponse = str;
+					let codes = str.match(/^(\d+)(?:\s(\d+\.\d+\.\d+))?\s/);
+					let data = {
+						command: cmd,
+						response: str
+					};
+					if (codes) {
+						data.status = Number(codes[1]) || 0;
+						if (codes[2]) data.code = codes[2];
+						data.text = str.substr(codes[0].length);
+					} else {
+						data.text = str;
+						data.status = 0;
+					}
+					done(null, data);
+				});
+				setImmediate(() => this._sendCommand(cmd, maskAuthCommand(cmd)));
+				return promise;
+			};
+			const handlerResponse = handler({
+				auth: this._auth,
+				method: this._authMethod,
+				extensions: [].concat(this._supportedExtensions),
+				authMethods: [].concat(this._supportedAuth),
+				maxAllowedSize: this._maxAllowedSize || false,
+				sendCommand,
+				resolve,
+				reject
+			});
+			if (handlerResponse && typeof handlerResponse.catch === "function") handlerResponse.then(resolve).catch(reject);
+			return;
+		}
+		switch (this._authMethod) {
+			case "XOAUTH2":
+				this._handleXOauth2Token(false, callback);
+				return;
+			case "LOGIN":
+				this._responseActions.push((str) => {
+					this._actionAUTH_LOGIN_USER(str, callback);
+				});
+				this._sendCommand("AUTH LOGIN");
+				return;
+			case "PLAIN":
+				this._responseActions.push((str) => {
+					this._actionAUTHComplete(str, callback);
+				});
+				this._sendCommand("AUTH PLAIN " + Buffer.from("\0" + this._auth.credentials.user + "\0" + this._auth.credentials.pass, "utf-8").toString("base64"), "AUTH PLAIN " + Buffer.from("\0" + this._auth.credentials.user + "\0/* secret */", "utf-8").toString("base64"));
+				return;
+			case "CRAM-MD5":
+				this._responseActions.push((str) => {
+					this._actionAUTH_CRAM_MD5(str, callback);
+				});
+				this._sendCommand("AUTH CRAM-MD5");
+				return;
+		}
+		return callback(this._formatError("Unknown authentication method \"" + this._authMethod + "\"", "EAUTH", false, "API"));
+	}
+	/**
+	* Sends a message
+	*
+	* @param envelope Envelope object, {from: addr, to: [addr]}
+	* @param message String, Buffer or a Stream
+	* @param done Callback to return once sending is completed
+	*/
+	send(envelope, message, done) {
+		let returned = false;
+		const callback = (err, info) => {
+			if (returned) return;
+			returned = true;
+			if (this._pendingSend && this._pendingSend.callback === callback) this._pendingSend = false;
+			done(err, info);
+		};
+		if (!message) return callback(this._formatError("Empty message", "EMESSAGE", false, "API"));
+		const isDestroyedMessage = this._isDestroyedMessage("send message");
+		if (isDestroyedMessage) return callback(this._formatError(isDestroyedMessage, "ECONNECTION", false, "API"));
+		if (this._maxAllowedSize && envelope.size > this._maxAllowedSize) {
+			setImmediate(() => {
+				callback(this._formatError("Message size larger than allowed " + this._maxAllowedSize, "EMESSAGE", false, "MAIL FROM"));
+			});
+			return;
+		}
+		const pendingSend = {
+			callback,
+			stream: false,
+			onStreamError: (err) => callback(this._formatError(err, "ESTREAM", false, "API"))
+		};
+		if (typeof message.on === "function") {
+			pendingSend.stream = message;
+			pendingSend.stream.on("error", pendingSend.onStreamError);
+		}
+		this._pendingSend = pendingSend;
+		const startTime = Date.now();
+		this._setEnvelope(envelope, (err, info) => {
+			if (err) {
+				if (typeof message.destroy === "function") message.destroy();
+				return callback(err);
+			}
+			const envelopeTime = Date.now();
+			const stream = this._createSendStream((err, str) => {
+				if (err) return callback(err);
+				const result = info;
+				result.envelopeTime = envelopeTime - startTime;
+				result.messageTime = Date.now() - envelopeTime;
+				result.messageSize = stream.outByteCount;
+				result.response = str;
+				const serverMessageId = parseServerMessageId(result.response, this.options.host);
+				if (serverMessageId) result.serverMessageId = serverMessageId;
+				const rejectedErrors = this._envelope?.rejectedErrors;
+				if (!result.rejectedErrors && rejectedErrors && rejectedErrors.length) result.rejectedErrors = rejectedErrors;
+				return callback(null, result);
+			});
+			if (typeof message.pipe === "function") message.pipe(stream);
+			else {
+				stream.write(message);
+				stream.end();
+			}
+		});
+	}
+	/**
+	* Resets connection state
+	*
+	* @param callback Callback to return once connection is reset
+	*/
+	reset(callback) {
+		const isDestroyedMessage = this._isDestroyedMessage("reset");
+		if (isDestroyedMessage) return callback(this._formatError(isDestroyedMessage, "ECONNECTION", false, "API"));
+		this._sendCommand("RSET");
+		this._responseActions.push((str) => {
+			if (str.charAt(0) !== "2") return callback(this._formatError("Could not reset session state. response=" + str, "EPROTOCOL", str, "RSET"));
+			this._envelope = false;
+			return callback(null, true);
+		});
+	}
+	/**
+	* Connection listener that is run when the connection to
+	* the server is opened
+	*
+	* @event
+	* @internal
+	*/
+	_onConnect() {
+		const socket = this._socket;
+		this._clearPhase();
+		this.logger.info({
+			tnx: "network",
+			localAddress: socket.localAddress,
+			localPort: socket.localPort,
+			remoteAddress: socket.remoteAddress,
+			remotePort: socket.remotePort
+		}, "%s established to %s:%s", this.secure ? "Secure connection" : "Connection", socket.remoteAddress, socket.remotePort);
+		if (this._destroyed) {
+			this.close();
+			return;
+		}
+		this.stage = "connected";
+		socket.removeListener("data", this._onSocketData);
+		socket.removeListener("timeout", this._onSocketTimeout);
+		socket.removeListener("close", this._onSocketClose);
+		socket.removeListener("end", this._onSocketEnd);
+		socket.removeListener("error", this._onConnectionSocketError);
+		socket.removeListener("error", this._onSocketError);
+		socket.on("error", this._onSocketError);
+		socket.on("data", this._onSocketData);
+		socket.once("close", this._onSocketClose);
+		socket.once("end", this._onSocketEnd);
+		socket.setTimeout(this.options.socketTimeout || SOCKET_TIMEOUT);
+		socket.on("timeout", this._onSocketTimeout);
+		if (typeof socket.setKeepAlive === "function") socket.setKeepAlive(true, KEEPALIVE_DELAY);
+		if (typeof socket.setNoDelay === "function") socket.setNoDelay(true);
+		this._startPhase(this._remainingSetupTime(), timeoutError("Greeting never received", "GREETING_TIMEOUT"));
+		this._responseActions.push(this._actionGreeting);
+		socket.resume();
+	}
+	/**
+	* Ends the session after a 421 reply. The replies queued for commands sent along with the
+	* answered one are not going to come, so the message in flight is failed here
+	*
+	* @param str The 421 reply
+	* @internal
+	*/
+	_onServerClosing(str) {
+		if (this._destroyed) return;
+		const pendingSend = this._pendingSend;
+		const envelope = this._envelope;
+		this._responseActions = [];
+		this.close();
+		if (pendingSend) pendingSend.callback(envelope && envelope.mailError || this._formatError("Server closed the connection", "ECONNECTION", str, "CONN"));
+	}
+	/**
+	* 'data' listener for data coming from the server
+	*
+	* @event
+	* @param chunk Data chunk coming from the server
+	* @internal
+	*/
+	_onData(chunk) {
+		if (this._destroyed || !chunk || !chunk.length) return;
+		const maxResponseSize = this.options.maxResponseSize || MAX_RESPONSE_SIZE;
+		const data = chunk.toString("binary");
+		if (!data.includes("\n")) {
+			this._remainder += data;
+			if (this._remainder.length > maxResponseSize) return this._onResponseTooLarge();
+			return;
+		}
+		const lines = (this._remainder + data).split(/\r?\n/);
+		this._remainder = lines.pop();
+		for (let i = 0, len = lines.length; i < len; i++) {
+			if (this._responsePartial) this._responseQueue[this._responseQueue.length - 1] += "\n" + lines[i];
+			else this._responseQueue.push(lines[i]);
+			this._responsePartial = isPartialLine(lines[i]);
+			if (this._responsePartial && this._responseQueue[this._responseQueue.length - 1].length > maxResponseSize) return this._onResponseTooLarge();
+		}
+		if (this._remainder.length > maxResponseSize) return this._onResponseTooLarge();
+		if (this._responsePartial) return;
+		this._processResponse();
+	}
+	/**
+	* Drops a connection whose peer keeps extending a reply it never completes, releasing
+	* whatever was buffered for that reply
+	* @internal
+	*/
+	_onResponseTooLarge() {
+		this._remainder = "";
+		this._responseQueue = [];
+		this._responsePartial = false;
+		this._onError(/* @__PURE__ */ new Error("Server response exceeds maximum allowed size"), "EPROTOCOL", false, "CONN");
+	}
+	/**
+	* 'error' listener for the socket
+	*
+	* @event
+	* @param err Error object
+	* @param type Error name
+	* @param data Server response that triggered the error, false if there is none
+	* @param command SMTP command that was in flight
+	* @internal
+	*/
+	_onError(err, type, data, command) {
+		this._clearPhase();
+		if (this._destroyed) return;
+		err = this._formatError(err, type, data, command);
+		if (isTransientError(err)) this.logger.warn({
+			tnx: "smtp",
+			err
+		}, "%s", err.message);
+		else this.logger.error({
+			tnx: "smtp",
+			err
+		}, "%s", err.message);
+		const pendingSend = this._pendingSend;
+		this.emit("error", err);
+		this.close();
+		if (pendingSend) pendingSend.callback(err);
+	}
+	/** @internal */
+	_formatError(message, type, response, command) {
+		let err;
+		if (/Error\]$/i.test(Object.prototype.toString.call(message))) err = message;
+		else err = new Error(message);
+		if (type && type !== "Error" && err.code !== "ERR_ACCESS_DENIED") {
+			if (err.code && err.code !== type && !err.originalCode) err.originalCode = err.code;
+			err.code = type;
+		}
+		if (response) {
+			err.response = response;
+			err.message += ": " + response;
+		}
+		const responseCode = typeof response === "string" && Number((response.match(/^\d+/) || [])[0]) || false;
+		if (responseCode) {
+			err.responseCode = responseCode;
+			err.permanent = isPermanentResponseCode(responseCode);
+		}
+		if (command) err.command = command;
+		return err;
+	}
+	/**
+	* 'close' listener for the socket
+	*
+	* @event
+	* @internal
+	*/
+	_onClose() {
+		let serverResponse = false;
+		if (this._remainder && this._remainder.trim()) {
+			this.lastServerResponse = serverResponse = decodeServerResponse(this._remainder.trim());
+			if (this.options.debug || this.options.transactionLog) this.logger.debug({ tnx: "server" }, serverResponse);
+		}
+		this.logger.info({ tnx: "network" }, "Connection closed");
+		const failureResponse = typeof serverResponse === "string" && /^[45]\d{2}[ -]/.test(serverResponse) ? serverResponse : false;
+		if (this.upgrading && !this._destroyed) return this._onError(/* @__PURE__ */ new Error("Connection closed unexpectedly"), "ETLS", failureResponse, "CONN");
+		if (!failureResponse && this._responseActions[0] === this._actionGreeting && this._connectCallback && !this._destroyed) {
+			const connectCallback = this._connectCallback;
+			this._connectCallback = false;
+			const err = this._formatError(/* @__PURE__ */ new Error("Connection closed unexpectedly"), "ECONNECTION", false, "CONN");
+			this.logger.warn({ tnx: "network" }, err.message);
+			connectCallback(err);
+			this.close();
+			return;
+		}
+		if (!failureResponse && this.stage === "connected" && !this._responseActions.length && !this._pendingSend && !this._destroyed && !this._closing) {
+			this.logger.info({ tnx: "network" }, "Server closed the idle connection");
+			return this._destroy();
+		}
+		if (failureResponse || this._responseActions[0] !== this.close && !this._destroyed) return this._onError(/* @__PURE__ */ new Error("Connection closed unexpectedly"), "ECONNECTION", failureResponse, "CONN");
+		this._destroy();
+	}
+	/**
+	* 'end' listener for the socket
+	*
+	* @event
+	* @internal
+	*/
+	_onEnd() {
+		if (this._socket && !this._socket.destroyed) this._socket.end();
+	}
+	/**
+	* 'timeout' listener for the socket
+	*
+	* @event
+	* @internal
+	*/
+	_onTimeout() {
+		return this._onError(timeoutError("Timeout", "SOCKET_TIMEOUT"), "ETIMEDOUT", false, "CONN");
+	}
+	/**
+	* Destroys the client, emits 'end'
+	* @internal
+	*/
+	_destroy() {
+		if (this._destroyed) return;
+		this._destroyed = true;
+		this.destroyed = true;
+		this._clearPhase();
+		this.emit("end");
+	}
+	/**
+	* Upgrades the connection to TLS
+	*
+	* @param callback Callback function to run when the connection
+	*        has been secured
+	* @internal
+	*/
+	_upgradeConnection(callback) {
+		if (this._destroyed || this._closing) return;
+		const discarded = this._remainder.length + this._responseQueue.reduce((total, response) => total + response.length, 0);
+		if (discarded) this.logger.warn({
+			tnx: "smtp",
+			discarded
+		}, "Discarded %s bytes received in plaintext after the STARTTLS response", discarded);
+		this._plaintextEhlo = false;
+		this._remainder = "";
+		this._responseQueue = [];
+		this._responsePartial = false;
+		const socketPlain = this._socket;
+		socketPlain.removeListener("data", this._onSocketData);
+		socketPlain.removeListener("timeout", this._onSocketTimeout);
+		socketPlain.setTimeout(0);
+		const opts = Object.assign({
+			socket: socketPlain,
+			host: this.host
+		}, this.options.tls || {});
+		if (this.servername && !opts.servername) opts.servername = this.servername;
+		const removePlainSocketListeners = () => {
+			socketPlain.removeListener("close", this._onSocketClose);
+			socketPlain.removeListener("end", this._onSocketEnd);
+			socketPlain.removeListener("error", this._onSocketError);
+			socketPlain.removeListener("error", this._onConnectionSocketError);
+		};
+		this.upgrading = true;
+		this._startPhase(this._remainingSetupTime(), timeoutError("TLS handshake timed out", "UPGRADE_TIMEOUT"));
+		try {
+			this._socket = tls.connect(opts, () => {
+				this._clearPhase();
+				this.secure = true;
+				this.upgrading = false;
+				this._socket.on("data", this._onSocketData);
+				removePlainSocketListeners();
+				return callback(null, true);
+			});
+		} catch (err) {
+			this._clearPhase();
+			removePlainSocketListeners();
+			return callback(err);
+		}
+		this._socket.on("error", this._onSocketError);
+		this._socket.once("close", this._onSocketClose);
+		this._socket.once("end", this._onSocketEnd);
+		this._socket.setTimeout(this.options.socketTimeout || SOCKET_TIMEOUT);
+		this._socket.on("timeout", this._onSocketTimeout);
+		socketPlain.resume();
+	}
+	/**
+	* Processes queued responses from the server
+	* @internal
+	*/
+	_processResponse() {
+		if (!this._responseQueue.length) return false;
+		const raw = (this._responseQueue.shift() || "").toString();
+		if (!raw.trim()) {
+			setImmediate(() => this._processResponse());
+			return;
+		}
+		if (isPartialResponse(raw)) {
+			this._responseQueue.unshift(raw);
+			return;
+		}
+		const str = this.lastServerResponse = decodeServerResponse(raw);
+		if (this.options.debug || this.options.transactionLog) this.logger.debug({ tnx: "server" }, str.replace(/\r?\n$/, ""));
+		const action = this._responseActions.shift();
+		const closing = /^421[ -]/.test(str);
+		if (typeof action === "function") {
+			action.call(this, str);
+			if (closing) return this._onServerClosing(str);
+			setImmediate(() => this._processResponse());
+		} else if (closing && !this._pendingSend && this.stage === "connected") {
+			this.logger.info({ tnx: "smtp" }, "Server closed the idle connection: %s", str);
+			this.close();
+		} else return this._onError(/* @__PURE__ */ new Error("Unexpected Response"), "EPROTOCOL", str, "CONN");
+	}
+	/**
+	* Send a command to the server, append \r\n
+	*
+	* @param str String to be sent to the server
+	* @param logStr Optional string to be used for logging instead of the actual string
+	* @internal
+	*/
+	_sendCommand(str, logStr) {
+		if (this._destroyed) return;
+		const socket = this._socket;
+		if (socket.destroyed) return this.close();
+		if (this.options.debug || this.options.transactionLog) this.logger.debug({ tnx: "client" }, (logStr || str || "").toString().replace(/\r?\n$/, ""));
+		socket.write(Buffer.from(str + "\r\n", "utf-8"));
+	}
+	/**
+	* Initiates a new message by submitting envelope data, starting with
+	* MAIL FROM: command
+	*
+	* @param envelope Envelope object in the form of
+	*        {from:'...', to:['...']}
+	*        or
+	*        {from:{address:'...',name:'...'}, to:[address:'...',name:'...']}
+	* @param callback Callback to run once the envelope is processed
+	* @internal
+	*/
+	_setEnvelope(envelope, callback) {
+		const args = [];
+		let useSmtpUtf8 = false;
+		this._envelope = envelope || {};
+		this._envelope.from = (this._envelope.from && this._envelope.from.address || this._envelope.from || "").toString().trim();
+		this._envelope.to = [].concat(this._envelope.to || []).map((to) => (to && to.address || to || "").toString().trim());
+		if (!this._envelope.to.length) return callback(this._formatError("No recipients defined", "EENVELOPE", false, "API"));
+		if (this._envelope.from && /[\r\n<>]/.test(this._envelope.from)) return callback(this._formatError("Invalid sender " + JSON.stringify(this._envelope.from), "EENVELOPE", false, "API"));
+		if (/[\x80-\uFFFF]/.test(this._envelope.from)) useSmtpUtf8 = true;
+		for (let i = 0, len = this._envelope.to.length; i < len; i++) {
+			if (!this._envelope.to[i] || /[\r\n<>]/.test(this._envelope.to[i])) return callback(this._formatError("Invalid recipient " + JSON.stringify(this._envelope.to[i]), "EENVELOPE", false, "API"));
+			if (/[\x80-\uFFFF]/.test(this._envelope.to[i])) useSmtpUtf8 = true;
+		}
+		this._envelope.rcptQueue = [].concat(this._envelope.to || []);
+		this._envelope.rejected = [];
+		this._envelope.rejectedErrors = [];
+		this._envelope.accepted = [];
+		if (this._envelope.dsn) try {
+			this._envelope.dsn = this._setDsnEnvelope(this._envelope.dsn);
+		} catch (err) {
+			return callback(this._formatError("Invalid DSN " + err.message, "EENVELOPE", false, "API"));
+		}
+		if (this._envelope.requireTLSExtensionEnabled) {
+			if (!this.secure) return callback(this._formatError("REQUIRETLS can only be used over TLS connections (RFC 8689)", "EREQUIRETLS", false, "MAIL FROM"));
+			if (!this._supportedExtensions.includes("REQUIRETLS")) return callback(this._formatError("Server does not support REQUIRETLS extension (RFC 8689)", "EREQUIRETLS", false, "MAIL FROM"));
+		}
+		this._envelope.pipelined = this._supportedExtensions.includes("PIPELINING");
+		this._responseActions.push((str) => {
+			this._actionMAIL(str, callback);
+		});
+		if (useSmtpUtf8 && this._supportedExtensions.includes("SMTPUTF8")) {
+			args.push("SMTPUTF8");
+			this._usingSmtpUtf8 = true;
+		}
+		if (this._envelope.use8BitMime && this._supportedExtensions.includes("8BITMIME")) {
+			args.push("BODY=8BITMIME");
+			this._using8BitMime = true;
+		}
+		if (this._envelope.size && this._supportedExtensions.includes("SIZE")) {
+			const sizeValue = Number(this._envelope.size) || 0;
+			if (sizeValue > 0) args.push("SIZE=" + sizeValue);
+		}
+		if (this._envelope.dsn && this._supportedExtensions.includes("DSN")) {
+			if (this._envelope.dsn.ret) args.push("RET=" + encodeXText(this._envelope.dsn.ret));
+			if (this._envelope.dsn.envid) args.push("ENVID=" + encodeXText(this._envelope.dsn.envid));
+		}
+		if (this._envelope.requireTLSExtensionEnabled) args.push("REQUIRETLS");
+		const mailFrom = "MAIL FROM:<" + this._envelope.from + ">" + (args.length ? " " + args.join(" ") : "");
+		this._recipientQueue = [];
+		if (!this._envelope.pipelined) {
+			this._sendCommand(mailFrom);
+			return;
+		}
+		const socket = this._socket;
+		socket.cork();
+		this._sendCommand(mailFrom);
+		while (this._envelope.rcptQueue.length) this._sendRcpt(this._envelope.rcptQueue.shift(), callback);
+		this._responseActions.push((str) => {
+			this._actionDATA(str, callback);
+		});
+		this._sendCommand("DATA");
+		socket.uncork();
+	}
+	/**
+	* Sends RCPT TO for a recipient and queues the handler for the reply
+	*
+	* @param recipient Recipient address
+	* @param callback Callback to run once the envelope is processed
+	* @internal
+	*/
+	_sendRcpt(recipient, callback) {
+		this._recipientQueue.push(recipient);
+		this._responseActions.push((str) => {
+			this._actionRCPT(str, callback);
+		});
+		this._sendCommand("RCPT TO:<" + recipient + ">" + this._getDsnRcptToArgs());
+	}
+	/** @internal */
+	_setDsnEnvelope(params) {
+		let ret = (params.ret || params.return || "").toString().toUpperCase() || null;
+		if (ret) switch (ret) {
+			case "HDRS":
+			case "HEADERS":
+				ret = "HDRS";
+				break;
+			case "FULL":
+			case "BODY": ret = "FULL";
+		}
+		if (ret && !["FULL", "HDRS"].includes(ret)) throw new Error("ret: " + JSON.stringify(ret));
+		const envid = (params.envid || params.id || "").toString() || null;
+		let notify = params.notify || null;
+		if (notify) {
+			if (typeof notify === "string") notify = notify.split(",");
+			notify = notify.map((n) => n.trim().toUpperCase());
+			const validNotify = [
+				"NEVER",
+				"SUCCESS",
+				"FAILURE",
+				"DELAY"
+			];
+			if (notify.filter((n) => !validNotify.includes(n)).length || notify.length > 1 && notify.includes("NEVER")) throw new Error("notify: " + JSON.stringify(notify.join(",")));
+			notify = notify.join(",");
+		}
+		let orcpt = (params.recipient || params.orcpt || "").toString() || null;
+		if (orcpt && orcpt.indexOf(";") < 0) orcpt = "rfc822;" + orcpt;
+		return {
+			ret,
+			envid,
+			notify,
+			orcpt
+		};
+	}
+	/** @internal */
+	_getDsnRcptToArgs() {
+		const envelope = this._envelope;
+		const args = [];
+		if (envelope.dsn && this._supportedExtensions.includes("DSN")) {
+			if (envelope.dsn.notify) args.push("NOTIFY=" + encodeXText(envelope.dsn.notify));
+			if (envelope.dsn.orcpt) args.push("ORCPT=" + encodeXText(envelope.dsn.orcpt));
+		}
+		return args.length ? " " + args.join(" ") : "";
+	}
+	/** @internal */
+	_createSendStream(callback) {
+		const envelope = this._envelope;
+		const dataStream = new DataStream();
+		if (this.options.lmtp) envelope.accepted.forEach((recipient, i) => {
+			const final = i === envelope.accepted.length - 1;
+			this._responseActions.push((str) => {
+				this._actionLMTPStream(recipient, final, str, callback);
+			});
+		});
+		else this._responseActions.push((str) => {
+			this._actionSMTPStream(str, callback);
+		});
+		this._currentDataStream = dataStream;
+		dataStream.pipe(this._socket, { end: false });
+		if (this.options.debug) {
+			const logStream = new PassThrough();
+			logStream.on("readable", () => {
+				let chunk;
+				while (chunk = logStream.read()) this.logger.debug({ tnx: "message" }, chunk.toString("binary").replace(/\r?\n$/, ""));
+			});
+			dataStream.pipe(logStream);
+		}
+		dataStream.once("end", () => {
+			if (this._currentDataStream === dataStream) this._currentDataStream = false;
+			this.logger.info({
+				tnx: "message",
+				inByteCount: dataStream.inByteCount,
+				outByteCount: dataStream.outByteCount
+			}, "<%s bytes encoded mime message (source size %s bytes)>", dataStream.outByteCount, dataStream.inByteCount);
+		});
+		return dataStream;
+	}
+	/** ACTIONS **/
+	/**
+	* Will be run after the connection is created and the server sends
+	* a greeting. If the incoming message starts with 220 initiate
+	* SMTP session by sending EHLO command
+	*
+	* @param str Message from the server
+	* @internal
+	*/
+	_actionGreeting(str) {
+		this._clearPhase();
+		if (str.substr(0, 3) !== "220") {
+			this._onError(/* @__PURE__ */ new Error("Invalid greeting. response=" + str), "EPROTOCOL", str, "CONN");
+			return;
+		}
+		if (this.options.lmtp) {
+			this._responseActions.push(this._actionLHLO);
+			this._sendCommand("LHLO " + this.name);
+		} else {
+			this._responseActions.push(this._actionEHLO);
+			this._sendCommand("EHLO " + this.name);
+		}
+	}
+	/**
+	* Handles server response for LHLO command. If it yielded in
+	* error, emit 'error', otherwise treat this as an EHLO response
+	*
+	* @param str Message from the server
+	* @internal
+	*/
+	_actionLHLO(str) {
+		if (str.charAt(0) !== "2") {
+			this._onError(/* @__PURE__ */ new Error("Invalid LHLO. response=" + str), "EPROTOCOL", str, "LHLO");
+			return;
+		}
+		this._actionEHLO(str);
+	}
+	/**
+	* Handles server response for EHLO command. If it yielded in
+	* error, try HELO instead, otherwise initiate TLS negotiation
+	* if STARTTLS is supported by the server or move into the
+	* authentication phase.
+	*
+	* @param str Message from the server
+	* @internal
+	*/
+	_actionEHLO(str) {
+		if (str.substr(0, 3) === "421") {
+			this._onError(/* @__PURE__ */ new Error("Server terminates connection. response=" + str), "ECONNECTION", str, "EHLO");
+			return;
+		}
+		if (str.charAt(0) !== "2") {
+			if (this.options.requireTLS) {
+				this._onError(/* @__PURE__ */ new Error("EHLO failed but HELO does not support required STARTTLS. response=" + str), "ECONNECTION", str, "EHLO");
+				return;
+			}
+			this._responseActions.push(this._actionHELO);
+			this._sendCommand("HELO " + this.name);
+			return;
+		}
+		if (!this.secure && !this.options.ignoreTLS && (/[ -]STARTTLS\b/im.test(str) || this.options.requireTLS)) {
+			this._plaintextEhlo = str;
+			this._sendCommand("STARTTLS");
+			this._responseActions.push(this._actionSTARTTLS);
+			return;
+		}
+		this._parseEhloExtensions(str);
+		this.emit("connect");
+	}
+	/**
+	* Reads the extensions and the authentication mechanisms out of an EHLO response
+	*
+	* @param str EHLO response from the server
+	* @internal
+	*/
+	_parseEhloExtensions(str) {
+		let match;
+		this._ehloLines = str.split(/\r?\n/).map((line) => line.replace(/^\d+[ -]/, "").trim()).filter((line) => line).slice(1);
+		if (/[ -]SMTPUTF8\b/im.test(str)) this._supportedExtensions.push("SMTPUTF8");
+		if (/[ -]DSN\b/im.test(str)) this._supportedExtensions.push("DSN");
+		if (/[ -]8BITMIME\b/im.test(str)) this._supportedExtensions.push("8BITMIME");
+		if (/[ -]REQUIRETLS\b/im.test(str)) this._supportedExtensions.push("REQUIRETLS");
+		if (/[ -]PIPELINING\b/im.test(str)) this._supportedExtensions.push("PIPELINING");
+		if (/[ -]AUTH\b/i.test(str)) this.allowsAuth = true;
+		const authMechanisms = /* @__PURE__ */ new Set();
+		for (const line of this._ehloLines) {
+			const authMatch = /^AUTH[\s=](.*)/i.exec(line);
+			if (authMatch) for (const mechanism of authMatch[1].split(/[\s=]+/)) authMechanisms.add(mechanism.toUpperCase());
+		}
+		for (const mechanism of [
+			"PLAIN",
+			"LOGIN",
+			"CRAM-MD5",
+			"XOAUTH2"
+		]) if (authMechanisms.has(mechanism)) this._supportedAuth.push(mechanism);
+		if (match = str.match(/[ -]SIZE(?:[ \t]+(\d+))?/im)) {
+			this._supportedExtensions.push("SIZE");
+			this._maxAllowedSize = Number(match[1]) || 0;
+		}
+	}
+	/**
+	* Handles server response for HELO command. If it yielded in
+	* error, emit 'error', otherwise move into the authentication phase.
+	*
+	* @param str Message from the server
+	* @internal
+	*/
+	_actionHELO(str) {
+		if (str.charAt(0) !== "2") {
+			this._onError(/* @__PURE__ */ new Error("Invalid HELO. response=" + str), "EPROTOCOL", str, "HELO");
+			return;
+		}
+		this.allowsAuth = true;
+		this.emit("connect");
+	}
+	/**
+	* Handles server response for STARTTLS command. If there's an error
+	* try HELO instead, otherwise initiate TLS upgrade. If the upgrade
+	* succeedes restart the EHLO
+	*
+	* @param str Message from the server
+	* @internal
+	*/
+	_actionSTARTTLS(str) {
+		if (str.charAt(0) !== "2") {
+			if (this.options.opportunisticTLS) {
+				this.logger.info({ tnx: "smtp" }, "Failed STARTTLS upgrade, continuing unencrypted");
+				if (this._plaintextEhlo) {
+					this._parseEhloExtensions(this._plaintextEhlo);
+					this._plaintextEhlo = false;
+					this.allowsAuth = false;
+					this._supportedAuth = [];
+				}
+				this.emit("connect");
+				return;
+			}
+			this._onError(/* @__PURE__ */ new Error("Error upgrading connection with STARTTLS"), "ETLS", str, "STARTTLS");
+			return;
+		}
+		this._upgradeConnection((err, secured) => {
+			if (err) {
+				this._onError(/* @__PURE__ */ new Error("Error initiating TLS - " + (err.message || err)), "ETLS", false, "STARTTLS");
+				return;
+			}
+			this.logger.info({ tnx: "smtp" }, "Connection upgraded with STARTTLS");
+			if (secured) {
+				if (this.options.lmtp) {
+					this._responseActions.push(this._actionLHLO);
+					this._sendCommand("LHLO " + this.name);
+				} else {
+					this._responseActions.push(this._actionEHLO);
+					this._sendCommand("EHLO " + this.name);
+				}
+			} else this.emit("connect");
+		});
+	}
+	/**
+	* Handle the response for AUTH LOGIN command. We are expecting
+	* '334 VXNlcm5hbWU6' (base64 for 'Username:'). Data to be sent as
+	* response needs to be base64 encoded username. We do not need
+	* exact match but settle with 334 response in general as some
+	* hosts invalidly use a longer message than VXNlcm5hbWU6
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the authentication sequence completes
+	* @internal
+	*/
+	_actionAUTH_LOGIN_USER(str, callback) {
+		if (!/^334[ -]/.test(str)) {
+			callback(this._formatError("Invalid login sequence while waiting for \"334 VXNlcm5hbWU6\"", "EAUTH", str, "AUTH LOGIN"));
+			return;
+		}
+		this._responseActions.push((str) => {
+			this._actionAUTH_LOGIN_PASS(str, callback);
+		});
+		this._sendCommand(Buffer.from(this._auth.credentials.user + "", "utf-8").toString("base64"));
+	}
+	/**
+	* Handle the response for AUTH CRAM-MD5 command. We are expecting
+	* '334 <challenge string>'. Data to be sent as response needs to be
+	* base64 decoded challenge string, MD5 hashed using the password as
+	* a HMAC key, prefixed by the username and a space, and finally all
+	* base64 encoded again.
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the authentication sequence completes
+	* @internal
+	*/
+	_actionAUTH_CRAM_MD5(str, callback) {
+		const challengeMatch = str.match(/^334\s+(.+)$/);
+		if (!challengeMatch) return callback(this._formatError("Invalid login sequence while waiting for server challenge string", "EAUTH", str, "AUTH CRAM-MD5"));
+		const base64decoded = Buffer.from(challengeMatch[1], "base64").toString("ascii");
+		const hmacMD5 = crypto$1.createHmac("md5", this._auth.credentials.pass);
+		hmacMD5.update(base64decoded);
+		const prepended = this._auth.credentials.user + " " + hmacMD5.digest("hex");
+		this._responseActions.push((str) => {
+			this._actionAUTH_CRAM_MD5_PASS(str, callback);
+		});
+		this._sendCommand(Buffer.from(prepended).toString("base64"), Buffer.from(this._auth.credentials.user + " /* secret */").toString("base64"));
+	}
+	/**
+	* Handles the response to CRAM-MD5 authentication, if there's no error,
+	* the user can be considered logged in. Start waiting for a message to send
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the authentication sequence completes
+	* @internal
+	*/
+	_actionAUTH_CRAM_MD5_PASS(str, callback) {
+		if (!str.match(/^235\s+/)) return callback(this._formatError("Invalid login sequence while waiting for \"235\"", "EAUTH", str, "AUTH CRAM-MD5"));
+		this.logger.info({
+			tnx: "smtp",
+			username: this._auth.user,
+			action: "authenticated",
+			method: this._authMethod
+		}, "User %s authenticated", JSON.stringify(this._auth.user));
+		this.authenticated = true;
+		callback(null, true);
+	}
+	/**
+	* Handle the response for AUTH LOGIN command. We are expecting
+	* '334 UGFzc3dvcmQ6' (base64 for 'Password:'). Data to be sent as
+	* response needs to be base64 encoded password.
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the authentication sequence completes
+	* @internal
+	*/
+	_actionAUTH_LOGIN_PASS(str, callback) {
+		if (!/^334[ -]/.test(str)) return callback(this._formatError("Invalid login sequence while waiting for \"334 UGFzc3dvcmQ6\"", "EAUTH", str, "AUTH LOGIN"));
+		this._responseActions.push((str) => {
+			this._actionAUTHComplete(str, callback);
+		});
+		this._sendCommand(Buffer.from((this._auth.credentials.pass || "").toString(), "utf-8").toString("base64"), Buffer.from("/* secret */", "utf-8").toString("base64"));
+	}
+	/**
+	* Handles the response for authentication, if there's no error,
+	* the user can be considered logged in. Start waiting for a message to send
+	*
+	* @param str Message from the server
+	* @param isRetry True if this is a retry after a failed login, or the callback itself
+	* @param [callback] Callback to run once the authentication sequence completes
+	* @internal
+	*/
+	_actionAUTHComplete(str, isRetry, callback) {
+		if (!callback && typeof isRetry === "function") {
+			callback = isRetry;
+			isRetry = false;
+		}
+		if (str.substr(0, 3) === "334") {
+			this._responseActions.push((str) => {
+				if (isRetry || this._authMethod !== "XOAUTH2") this._actionAUTHComplete(str, true, callback);
+				else setImmediate(() => this._handleXOauth2Token(true, callback));
+			});
+			this._sendCommand("");
+			return;
+		}
+		if (str.charAt(0) !== "2") {
+			this.logger.info({
+				tnx: "smtp",
+				username: this._auth.user,
+				action: "authfail",
+				method: this._authMethod
+			}, "User %s failed to authenticate", JSON.stringify(this._auth.user));
+			return callback(this._formatError("Invalid login", "EAUTH", str, "AUTH " + this._authMethod));
+		}
+		this.logger.info({
+			tnx: "smtp",
+			username: this._auth.user,
+			action: "authenticated",
+			method: this._authMethod
+		}, "User %s authenticated", JSON.stringify(this._auth.user));
+		this.authenticated = true;
+		callback(null, true);
+	}
+	/**
+	* Handle response for a MAIL FROM: command
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the envelope is processed
+	* @internal
+	*/
+	_actionMAIL(str, callback) {
+		const envelope = this._envelope;
+		if (Number(str.charAt(0)) !== 2) {
+			const message = this._usingSmtpUtf8 && /^550 /.test(str) && /[\x80-\uFFFF]/.test(envelope.from) ? "Internationalized mailbox name not allowed" : "Mail command failed";
+			envelope.mailError = this._formatError(message, "EENVELOPE", str, "MAIL FROM");
+		}
+		this._advanceEnvelope(str, callback);
+	}
+	/**
+	* Handle response for a RCPT TO: command
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the envelope is processed
+	* @internal
+	*/
+	_actionRCPT(str, callback) {
+		const envelope = this._envelope;
+		let err;
+		const curRecipient = this._recipientQueue.shift();
+		if (Number(str.charAt(0)) !== 2) {
+			const message = this._usingSmtpUtf8 && /^553 /.test(str) && /[\x80-\uFFFF]/.test(curRecipient) ? "Internationalized mailbox name not allowed" : "Recipient command failed";
+			envelope.rejected.push(curRecipient);
+			err = this._formatError(message, "EENVELOPE", str, "RCPT TO");
+			err.recipient = curRecipient;
+			envelope.rejectedErrors.push(err);
+		} else envelope.accepted.push(curRecipient);
+		this._advanceEnvelope(str, callback);
+	}
+	/**
+	* Moves the envelope on after a reply to MAIL FROM or RCPT TO. A pipelined envelope sent every
+	* command at once and is decided by the reply to DATA. Otherwise the commands go one at a
+	* time: the next recipient, or once every reply is in, DATA or the error that ends the message
+	*
+	* @param str The reply that was handled
+	* @param callback Callback to run once the envelope is processed
+	* @internal
+	*/
+	_advanceEnvelope(str, callback) {
+		const envelope = this._envelope;
+		if (envelope.pipelined) return;
+		if (envelope.mailError) return callback(envelope.mailError);
+		if (envelope.rcptQueue.length) return this._sendRcpt(envelope.rcptQueue.shift(), callback);
+		if (this._recipientQueue.length) return;
+		const err = this._envelopeError(str);
+		if (err) return callback(err);
+		this._responseActions.push((str) => {
+			this._actionDATA(str, callback);
+		});
+		this._sendCommand("DATA");
+	}
+	/**
+	* Decides how the envelope went once every reply to MAIL FROM and RCPT TO is in. Called after
+	* the last RCPT TO reply, or with PIPELINING on the reply to the DATA command sent along
+	*
+	* @param str The reply being handled
+	* @returns The error to fail the message with, or null when DATA can go ahead
+	* @internal
+	*/
+	_envelopeError(str) {
+		const envelope = this._envelope;
+		if (envelope.mailError) return envelope.mailError;
+		if (envelope.accepted.length) return null;
+		const deferred = envelope.rejectedErrors.find((rejectedErr) => rejectedErr.responseCode && rejectedErr.responseCode < 500);
+		const lastRejected = envelope.rejectedErrors[envelope.rejectedErrors.length - 1];
+		const reply = deferred?.response ?? (envelope.pipelined && lastRejected ? lastRejected.response : str);
+		const err = this._formatError("Can't send mail - all recipients were rejected", "EENVELOPE", reply, "RCPT TO");
+		err.rejected = envelope.rejected;
+		err.rejectedErrors = envelope.rejectedErrors;
+		return err;
+	}
+	/**
+	* Handle response for a DATA command
+	*
+	* @param str Message from the server
+	* @param callback Callback to run once the envelope is processed
+	* @internal
+	*/
+	_actionDATA(str, callback) {
+		const envelope = this._envelope;
+		if (envelope.pipelined) {
+			const err = this._envelopeError(str);
+			if (err) {
+				if (/^3/.test(str)) {
+					if (envelope.mailError) {
+						this.close();
+						return callback(err);
+					}
+					this._responseActions.push(() => callback(err));
+					this._sendCommand(".");
+					return;
+				}
+				return callback(err);
+			}
+		}
+		if (!/^[23]/.test(str)) return callback(this._formatError("Data command failed", "EENVELOPE", str, "DATA"));
+		const response = {
+			accepted: envelope.accepted,
+			rejected: envelope.rejected
+		};
+		if (this._ehloLines && this._ehloLines.length) response.ehlo = this._ehloLines;
+		if (envelope.rejectedErrors.length) response.rejectedErrors = envelope.rejectedErrors;
+		callback(null, response);
+	}
+	/**
+	* Handle response for a DATA stream when using SMTP
+	* We expect a single response that defines if the sending succeeded or failed
+	*
+	* @param str Message from the server
+	* @param callback Callback to run with the final send result
+	* @internal
+	*/
+	_actionSMTPStream(str, callback) {
+		if (Number(str.charAt(0)) !== 2) return callback(this._formatError("Message failed", "EMESSAGE", str, "DATA"));
+		return callback(null, str);
+	}
+	/**
+	* Handle response for a DATA stream
+	* We expect a separate response for every recipient. All recipients can either
+	* succeed or fail separately
+	*
+	* @param recipient The recipient this response applies to
+	* @param final Is this the final recipient?
+	* @param str Message from the server
+	* @param callback Callback to run with the final send result
+	* @internal
+	*/
+	_actionLMTPStream(recipient, final, str, callback) {
+		const envelope = this._envelope;
+		let err;
+		if (Number(str.charAt(0)) !== 2) {
+			err = this._formatError("Message failed for recipient " + recipient, "EMESSAGE", str, "DATA");
+			err.recipient = recipient;
+			envelope.rejected.push(recipient);
+			envelope.rejectedErrors.push(err);
+			for (let i = 0, len = envelope.accepted.length; i < len; i++) if (envelope.accepted[i] === recipient) envelope.accepted.splice(i, 1);
+		}
+		if (final) return callback(null, str);
+	}
+	/** @internal */
+	_handleXOauth2Token(isRetry, callback) {
+		this._auth.oauth2.getToken(isRetry, (err, accessToken) => {
+			if (err) {
+				this.logger.info({
+					tnx: "smtp",
+					username: this._auth.user,
+					action: "authfail",
+					method: this._authMethod
+				}, "User %s failed to authenticate", JSON.stringify(this._auth.user));
+				return callback(this._formatError(err, "EAUTH", false, "AUTH XOAUTH2"));
+			}
+			this._responseActions.push((str) => {
+				this._actionAUTHComplete(str, isRetry, callback);
+			});
+			this._sendCommand("AUTH XOAUTH2 " + this._auth.oauth2.buildXOAuth2Token(accessToken), "AUTH XOAUTH2 " + this._auth.oauth2.buildXOAuth2Token("/* secret */"));
+		});
+	}
+	/**
+	*
+	* @param command
+	* @internal
+	*/
+	_isDestroyedMessage(command) {
+		if (this._destroyed) return "Cannot " + command + " - smtp connection is already destroyed.";
+		if (this._socket) {
+			if (this._socket.destroyed) return "Cannot " + command + " - smtp connection socket is already destroyed.";
+			if (!this._socket.writable) return "Cannot " + command + " - smtp connection socket is already half-closed.";
+		}
+	}
+	/** @internal */
+	_getHostname() {
+		let defaultHostname;
+		try {
+			defaultHostname = os.hostname() || "";
+		} catch (_err) {
+			defaultHostname = "localhost";
+		}
+		if (!defaultHostname || defaultHostname.indexOf(".") < 0) defaultHostname = "[127.0.0.1]";
+		if (defaultHostname.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) defaultHostname = "[" + defaultHostname + "]";
+		return defaultHostname;
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/xoauth2/index.js
+/**
+* XOAUTH2 access_token generator for Gmail.
+* Create client ID for web applications in Google API console to use it.
+* See Offline Access for receiving the needed refreshToken for an user
+* https://developers.google.com/accounts/docs/OAuth2WebServer#offline
+*
+* Usage for generating access tokens with a custom method using provisionCallback:
+* provisionCallback(user, renew, callback)
+*   * user is the username to get the token for
+*   * renew is a boolean that if true indicates that existing token failed and needs to be renewed
+*   * callback is the callback to run with (error, accessToken [, expires])
+*     * accessToken is a string
+*     * expires is an optional expire time in milliseconds
+* If provisionCallback is used, then Nodemailer does not try to attempt generating the token by itself
+*
+* @constructor
+* @param options Client information for token generation
+* @param options.user User e-mail address
+* @param options.clientId Client ID value
+* @param options.clientSecret Client secret value
+* @param options.refreshToken Refresh token for an user
+* @param options.accessUrl Endpoint for token generation, defaults to 'https://accounts.google.com/o/oauth2/token'
+* @param options.accessToken An existing valid accessToken
+* @param options.privateKey Private key for JSW
+* @param options.expires Optional Access Token expire time in ms
+* @param options.timeout Optional TTL for Access Token in seconds
+* @param options.provisionCallback Function to run when a new access token is required
+* @param options.tls Optional TLS options forwarded to the HTTPS token request. Defaults to strict cert validation; supply { rejectUnauthorized: false } only for self-hosted OAuth providers on private CAs.
+*/
+var XOAuth2 = class extends Stream {
+	constructor(options, logger) {
+		super();
+		this.options = options || {};
+		this.configError = false;
+		if (options && options.serviceClient) {
+			if (!options.privateKey || !options.user) {
+				const err = /* @__PURE__ */ new Error("Options \"privateKey\" and \"user\" are required for service account!");
+				err.code = EOAUTH2;
+				this.configError = err;
+			}
+			const serviceRequestTimeout = Math.min(Math.max(Number(this.options.serviceRequestTimeout) || 0, 0), 3600);
+			this.options.serviceRequestTimeout = serviceRequestTimeout || 300;
+		}
+		this.logger = getLogger({ logger }, { component: this.options.component || "OAuth2" });
+		this.provisionCallback = typeof this.options.provisionCallback === "function" ? this.options.provisionCallback : false;
+		this.options.accessUrl = this.options.accessUrl || "https://accounts.google.com/o/oauth2/token";
+		this.options.customHeaders = this.options.customHeaders || {};
+		this.options.customParams = this.options.customParams || {};
+		this.accessToken = this.options.accessToken || false;
+		if (this.options.expires && Number(this.options.expires)) this.expires = this.options.expires;
+		else {
+			const timeout = Math.max(Number(this.options.timeout) || 0, 0);
+			this.expires = timeout && Date.now() + timeout * 1e3 || 0;
+		}
+		this.renewing = false;
+		this.renewalQueue = [];
+	}
+	/**
+	* Returns or generates (if previous has expired) a XOAuth2 token
+	*
+	* @param renew If false then use cached access token (if available)
+	* @param callback Callback function with error object and token string
+	*/
+	getToken(renew, callback) {
+		const done = callback;
+		if (this.configError) return done(this.configError);
+		if (!renew && this.accessToken && (!this.expires || this.expires > Date.now())) {
+			this.logger.debug({
+				tnx: "OAUTH2",
+				user: this.options.user,
+				action: "reuse"
+			}, "Reusing existing access token for %s", this.options.user);
+			return callback(null, this.accessToken);
+		}
+		if (!this.provisionCallback && !this.options.refreshToken && !this.options.serviceClient) {
+			if (this.accessToken) {
+				this.logger.debug({
+					tnx: "OAUTH2",
+					user: this.options.user,
+					action: "reuse"
+				}, "Reusing existing access token (no refresh capability) for %s", this.options.user);
+				return callback(null, this.accessToken);
+			}
+			this.logger.error({
+				tnx: "OAUTH2",
+				user: this.options.user,
+				action: "renew"
+			}, "Cannot renew access token for %s: No refresh mechanism available", this.options.user);
+			const err = /* @__PURE__ */ new Error("Can't create new access token for user");
+			err.code = EOAUTH2;
+			return done(err);
+		}
+		if (this.renewing) {
+			this.renewalQueue.push({
+				renew,
+				callback: done
+			});
+			return;
+		}
+		this.renewing = true;
+		const generateCallback = (err, accessToken) => {
+			this.renewalQueue.forEach((item) => item.callback(err, accessToken));
+			this.renewalQueue = [];
+			this.renewing = false;
+			if (err) this.logger.error({
+				err,
+				tnx: "OAUTH2",
+				user: this.options.user,
+				action: "renew"
+			}, "Failed generating new Access Token for %s", this.options.user);
+			else this.logger.info({
+				tnx: "OAUTH2",
+				user: this.options.user,
+				action: "renew"
+			}, "Generated new Access Token for %s", this.options.user);
+			done(err, accessToken);
+		};
+		if (this.provisionCallback) this.provisionCallback(this.options.user, !!renew, (err, accessToken, expires) => {
+			if (!err && accessToken) {
+				this.accessToken = accessToken;
+				this.expires = expires || 0;
+			}
+			generateCallback(err, accessToken);
+		});
+		else this.generateToken(generateCallback);
+	}
+	/**
+	* Updates token values
+	*
+	* @param accessToken New access token
+	* @param timeout Access token lifetime in seconds
+	*
+	* Emits 'token': { user: User email-address, accessToken: the new accessToken, timeout: TTL in seconds}
+	*/
+	updateToken(accessToken, timeout) {
+		this.accessToken = accessToken;
+		timeout = Math.max(Number(timeout) || 0, 0);
+		this.expires = timeout && Date.now() + timeout * 1e3 || 0;
+		this.emit("token", {
+			user: this.options.user,
+			accessToken: accessToken || "",
+			expires: this.expires
+		});
+	}
+	/**
+	* Generates a new XOAuth2 token with the credentials provided at initialization
+	*
+	* @param callback Callback function with error object and token string
+	*/
+	generateToken(callback) {
+		const done = callback;
+		let urlOptions;
+		let loggedUrlOptions;
+		if (this.options.serviceClient) {
+			const iat = Math.floor(Date.now() / 1e3);
+			const tokenData = {
+				iss: this.options.serviceClient,
+				scope: this.options.scope || "https://mail.google.com/",
+				sub: this.options.user,
+				aud: this.options.accessUrl,
+				iat,
+				exp: iat + this.options.serviceRequestTimeout
+			};
+			let token;
+			try {
+				token = this.jwtSignRS256(tokenData);
+			} catch (_err) {
+				const err = /* @__PURE__ */ new Error("Can't generate token. Check your auth options");
+				err.code = EOAUTH2;
+				return done(err);
+			}
+			urlOptions = {
+				grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+				assertion: token
+			};
+			loggedUrlOptions = {
+				grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+				assertion: tokenData
+			};
+		} else {
+			if (!this.options.refreshToken) {
+				const err = /* @__PURE__ */ new Error("Can't create new access token for user");
+				err.code = EOAUTH2;
+				return done(err);
+			}
+			urlOptions = {
+				client_id: this.options.clientId || "",
+				client_secret: this.options.clientSecret || "",
+				refresh_token: this.options.refreshToken,
+				grant_type: "refresh_token"
+			};
+			loggedUrlOptions = {
+				client_id: this.options.clientId || "",
+				client_secret: (this.options.clientSecret || "").substr(0, 6) + "...",
+				refresh_token: (this.options.refreshToken || "").substr(0, 6) + "...",
+				grant_type: "refresh_token"
+			};
+		}
+		const customParams = this.options.customParams || {};
+		Object.assign(urlOptions, customParams);
+		for (const key of Object.keys(customParams)) {
+			const param = customParams[key];
+			loggedUrlOptions[key] = (param === void 0 || param === null ? "" : String(param)).substr(0, 6) + "...";
+		}
+		this.logger.debug({
+			tnx: "OAUTH2",
+			user: this.options.user,
+			action: "generate"
+		}, "Requesting token using: %s", JSON.stringify(loggedUrlOptions));
+		this.postRequest(this.options.accessUrl, urlOptions, this.options, (error, body) => {
+			let data;
+			if (error) return done(error);
+			try {
+				data = JSON.parse(body.toString());
+			} catch (E) {
+				return done(E);
+			}
+			if (!data || typeof data !== "object") {
+				this.logger.debug({
+					tnx: "OAUTH2",
+					user: this.options.user,
+					action: "post"
+				}, "Response: %s", (body || "").toString());
+				const err = /* @__PURE__ */ new Error("Invalid authentication response");
+				err.code = EOAUTH2;
+				return done(err);
+			}
+			const logData = Object.assign({}, data);
+			if (logData.access_token) logData.access_token = (logData.access_token || "").toString().substr(0, 6) + "...";
+			this.logger.debug({
+				tnx: "OAUTH2",
+				user: this.options.user,
+				action: "post"
+			}, "Response: %s", JSON.stringify(logData));
+			if (data.error) {
+				let errorMessage = data.error;
+				if (data.error_description) errorMessage += ": " + data.error_description;
+				if (data.error_uri) errorMessage += " (" + data.error_uri + ")";
+				const err = new Error(errorMessage);
+				err.code = EOAUTH2;
+				return done(err);
+			}
+			if (data.access_token) {
+				this.updateToken(data.access_token, data.expires_in);
+				return callback(null, this.accessToken);
+			}
+			const err = /* @__PURE__ */ new Error("No access token");
+			err.code = EOAUTH2;
+			return done(err);
+		});
+	}
+	/**
+	* Converts an access_token and user id into a base64 encoded XOAuth2 token
+	*
+	* @param [accessToken] Access token string
+	* @return Base64 encoded token for IMAP or SMTP login
+	*/
+	buildXOAuth2Token(accessToken) {
+		const authData = [
+			"user=" + (this.options.user || ""),
+			"auth=Bearer " + (accessToken || this.accessToken),
+			"",
+			""
+		];
+		return Buffer.from(authData.join(""), "utf-8").toString("base64");
+	}
+	/**
+	* Custom POST request handler.
+	* This is only needed to keep paths short in Windows, usually this module
+	* is a dependency of a dependency and if it tries to require something
+	* like the request module the paths get way too long to handle for Windows.
+	* As we do only a simple POST request we do not actually require complicated
+	* logic support (no redirects, no nothing) anyway.
+	*
+	* @param url Url to POST to
+	* @param payload Payload to POST
+	* @param params Client options, the customHeaders and tls values are used for the request
+	* @param callback Callback function with (err, buff)
+	*/
+	postRequest(url, payload, params, callback) {
+		let returned = false;
+		const chunks = [];
+		let chunklen = 0;
+		const fetchOptions = {
+			method: "post",
+			headers: params.customHeaders,
+			body: payload,
+			allowErrorResponse: true,
+			timeout: params.requestTimeout
+		};
+		if (/^https:/i.test(url)) fetchOptions.tls = Object.assign({ rejectUnauthorized: true }, params.tls || {});
+		const req = nmfetch(url, fetchOptions);
+		req.on("readable", () => {
+			let chunk;
+			while ((chunk = req.read()) !== null) {
+				chunks.push(chunk);
+				chunklen += chunk.length;
+			}
+		});
+		req.once("error", (err) => {
+			if (returned) return;
+			returned = true;
+			return callback(err);
+		});
+		req.once("end", () => {
+			if (returned) return;
+			returned = true;
+			return callback(null, Buffer.concat(chunks, chunklen));
+		});
+	}
+	/**
+	* Encodes a buffer or a string into Base64url format
+	*
+	* @param data The data to convert
+	* @return The encoded string
+	*/
+	toBase64URL(data) {
+		if (typeof data === "string") data = Buffer.from(data);
+		return data.toString("base64").replace(/[=]+/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+	}
+	/**
+	* Creates a JSON Web Token signed with RS256 (SHA256 + RSA)
+	*
+	* @param payload The payload to include in the generated token
+	* @return The generated and signed token
+	*/
+	jwtSignRS256(payload) {
+		const signedPayload = ["{\"alg\":\"RS256\",\"typ\":\"JWT\"}", JSON.stringify(payload)].map((val) => this.toBase64URL(val)).join(".");
+		const signature = crypto$1.createSign("RSA-SHA256").update(signedPayload).sign(this.options.privateKey);
+		return signedPayload + "." + this.toBase64URL(signature);
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-pool/pool-resource.js
+/**
+* Creates an element for the pool
+*
+* @constructor
+* @param pool SMTPPool instance
+*/
+var PoolResource = class extends EventEmitter {
+	constructor(pool) {
+		super();
+		this.pool = pool;
+		this.options = pool.options;
+		this.logger = this.pool.logger;
+		if (this.options.auth) switch ((this.options.auth.type || "").toString().toUpperCase()) {
+			case "OAUTH2": {
+				const oauth2 = new XOAuth2(this.options.auth, this.logger);
+				oauth2.provisionCallback = this.pool.mailer && this.pool.mailer.get("oauth2_provision_cb") || oauth2.provisionCallback;
+				this.auth = {
+					type: "OAUTH2",
+					user: this.options.auth.user,
+					oauth2,
+					method: "XOAUTH2"
+				};
+				oauth2.on("token", (token) => this.pool.mailer.emit("token", token));
+				oauth2.on("error", (err) => this._fail(err));
+				break;
+			}
+			default:
+				if (!this.options.auth.user && !this.options.auth.pass) break;
+				this.auth = {
+					type: (this.options.auth.type || "").toString().toUpperCase() || "LOGIN",
+					user: this.options.auth.user,
+					credentials: {
+						user: this.options.auth.user || "",
+						pass: this.options.auth.pass,
+						options: this.options.auth.options
+					},
+					method: (this.options.auth.method || "").trim().toUpperCase() || this.options.authMethod || false
+				};
+		}
+		this._connection = false;
+		this._connected = false;
+		this._closed = false;
+		this.messages = 0;
+		this.available = true;
+		this._failed = false;
+		this._sending = false;
+		this._idleTimer = false;
+	}
+	/**
+	* Emits 'error' for the first failure only. A dead resource can report the same failure more
+	* than once (the connection error, then the send callback), the pool handles it once
+	* @internal
+	*/
+	_fail(err) {
+		if (this._failed) return;
+		this._failed = true;
+		this.emit("error", err);
+	}
+	/**
+	* Initiates a connection to the SMTP server
+	*
+	* @param callback Callback function to run once the connection is established or failed
+	*/
+	connect(callback) {
+		const connectStartedAt = Date.now();
+		this.pool.getSocket(Object.assign({}, this.options, { connectStartedAt }), (err, socketOptions) => {
+			if (this._closed) {
+				socketOptions && socketOptions.connection?.destroy();
+				return;
+			}
+			if (err) {
+				this._fail(err);
+				return callback(err);
+			}
+			let returned = false;
+			let options = this.options;
+			if (socketOptions && socketOptions.connection) {
+				this.logger.info({
+					tnx: "proxy",
+					remoteAddress: socketOptions.connection.remoteAddress,
+					remotePort: socketOptions.connection.remotePort,
+					destHost: options.host || "",
+					destPort: options.port || "",
+					action: "connected"
+				}, "Using proxied socket from %s:%s to %s:%s", socketOptions.connection.remoteAddress, socketOptions.connection.remotePort, options.host || "", options.port || "");
+				options = Object.assign(assign(false, options), socketOptions);
+			}
+			this.connection = new SMTPConnection(options);
+			this.connection._connectStartedAt = connectStartedAt;
+			this.connection.on("error", (err) => {
+				if (this._closed || this._sending) return;
+				if (this._connected && isTransientError(err)) {
+					this.logger.info({
+						tnx: "pool",
+						cid: this.id
+					}, "Connection #%s was closed by the server: %s", this.id, err.message);
+					return;
+				}
+				this._fail(err);
+				if (returned || this._closed) return;
+				returned = true;
+				return callback(err);
+			});
+			this.connection.once("end", () => {
+				this.close();
+				returned = true;
+			});
+			this.connection.connect((err) => {
+				if (returned || this._closed) return;
+				if (err) {
+					returned = true;
+					return;
+				}
+				if (this.auth && (this.connection.allowsAuth || options.forceAuth)) this.connection.login(this.auth, (err) => {
+					if (returned || this._closed) return;
+					returned = true;
+					if (err) {
+						this.connection.close();
+						this._fail(err);
+						return callback(err);
+					}
+					this._connected = true;
+					callback(null, true);
+				});
+				else {
+					returned = true;
+					this._connected = true;
+					return callback(null, true);
+				}
+			});
+		});
+	}
+	/**
+	* Sends an e-mail to be sent using the selected settings
+	*
+	* @param mail Mail object
+	* @param callback Callback function
+	*/
+	send(mail, callback) {
+		if (this._closed) return;
+		if (!this._connected) return this.connect((err) => {
+			if (err) return callback(err);
+			return this.send(mail, callback);
+		});
+		const envelope = mail.message.getEnvelope();
+		const messageId = mail.message.messageId();
+		const recipients = [].concat(envelope.to || []);
+		if (recipients.length > 3) recipients.push("...and " + recipients.splice(2).length + " more");
+		this.logger.info({
+			tnx: "send",
+			messageId,
+			cid: this.id
+		}, "Sending message %s using #%s to <%s>", messageId, this.id, recipients.join(", "));
+		if (mail.data.dsn) envelope.dsn = mail.data.dsn;
+		if (mail.data.requireTLSExtensionEnabled) envelope.requireTLSExtensionEnabled = mail.data.requireTLSExtensionEnabled;
+		this._sending = true;
+		const reused = this.messages > 0;
+		const messageStream = mail.message.createReadStream();
+		this.connection.send(envelope, messageStream, (err, info) => {
+			if (mail.data.signal?.aborted) return;
+			this._sending = false;
+			this.messages++;
+			if (err) {
+				if (reused && messageStream.readableDidRead === false && isTransientError(err)) {
+					this.logger.info({
+						tnx: "pool",
+						cid: this.id,
+						messageId
+					}, "Connection #%s was closed by the server before message %s was sent: %s", this.id, messageId, err.message);
+					this.connection.close();
+					return;
+				}
+				if ((err.code === "EENVELOPE" || err.code === "EMESSAGE") && err.responseCode !== 421 && !this.connection._destroyed) {
+					this.connection.reset((resetErr) => {
+						if (resetErr) {
+							this.connection.close();
+							return;
+						}
+						this._release();
+					});
+					return callback(err);
+				}
+				this.connection.close();
+				this._fail(err);
+				return callback(err);
+			}
+			info.envelope = {
+				from: envelope.from,
+				to: envelope.to
+			};
+			info.messageId = messageId;
+			setImmediate(() => this._release());
+			callback(null, info);
+		});
+	}
+	/**
+	* Makes the connection available for the next message, or closes it once it has sent
+	* maxMessages messages
+	*
+	* @internal
+	*/
+	_release() {
+		if (this._closed) return;
+		if (this.messages >= this.options.maxMessages) {
+			const err = /* @__PURE__ */ new Error("Resource exhausted");
+			err.code = EMAXLIMIT;
+			this.connection.close();
+			this._fail(err);
+			return;
+		}
+		this.pool._checkRateLimit(() => {
+			if (this._closed) return;
+			this.available = true;
+			this._startIdleTimer();
+			this.emit("available");
+		});
+	}
+	/** @internal */
+	_startIdleTimer() {
+		if (!this.options.idleTimeout || this.options.idleTimeout < 0) return;
+		if (this._idleTimer && typeof this._idleTimer.refresh === "function") {
+			this._idleTimer.refresh();
+			return;
+		}
+		clearTimeout(this._idleTimer);
+		this._idleTimer = setTimeout(() => {
+			if (!this.available) return;
+			this.logger.debug({
+				tnx: "pool",
+				cid: this.id
+			}, "Closing connection #%s after it was idle for %sms", this.id, this.options.idleTimeout);
+			this.available = false;
+			this.connection.quit();
+		}, this.options.idleTimeout);
+		if (typeof this._idleTimer.unref === "function") this._idleTimer.unref();
+	}
+	/** @internal */
+	_stopIdleTimer() {
+		clearTimeout(this._idleTimer);
+		this._idleTimer = false;
+	}
+	/**
+	* Closes the connection
+	*/
+	close() {
+		if (this._closed) return;
+		this._closed = true;
+		this.available = false;
+		this._connected = false;
+		this._stopIdleTimer();
+		if (this.auth && this.auth.oauth2) this.auth.oauth2.removeAllListeners();
+		if (this.connection) this.connection.close();
+		this.emit("close");
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/well-known/services.js
+const services = {
+	"126": {
+		"description": "126 Mail (NetEase)",
+		"host": "smtp.126.com",
+		"port": 465,
+		"secure": true
+	},
+	"163": {
+		"description": "163 Mail (NetEase)",
+		"host": "smtp.163.com",
+		"port": 465,
+		"secure": true
+	},
+	"1und1": {
+		"description": "1&1 Mail (German hosting provider)",
+		"host": "smtp.1und1.de",
+		"port": 465,
+		"secure": true,
+		"authMethod": "LOGIN"
+	},
+	"Aliyun": {
+		"description": "Alibaba Cloud Mail",
+		"domains": ["aliyun.com"],
+		"host": "smtp.aliyun.com",
+		"port": 465,
+		"secure": true
+	},
+	"AliyunQiye": {
+		"description": "Alibaba Cloud Enterprise Mail",
+		"host": "smtp.qiye.aliyun.com",
+		"port": 465,
+		"secure": true
+	},
+	"AOL": {
+		"description": "AOL Mail",
+		"domains": ["aol.com"],
+		"host": "smtp.aol.com",
+		"port": 587
+	},
+	"Aruba": {
+		"description": "Aruba PEC (Italian email provider)",
+		"domains": ["aruba.it", "pec.aruba.it"],
+		"aliases": ["Aruba PEC"],
+		"host": "smtps.aruba.it",
+		"port": 465,
+		"secure": true,
+		"authMethod": "LOGIN"
+	},
+	"Bluewin": {
+		"description": "Bluewin (Swiss email provider)",
+		"host": "smtpauths.bluewin.ch",
+		"domains": ["bluewin.ch"],
+		"port": 465
+	},
+	"BOL": {
+		"description": "BOL Mail (Brazilian provider)",
+		"domains": ["bol.com.br"],
+		"host": "smtp.bol.com.br",
+		"port": 587,
+		"requireTLS": true
+	},
+	"DebugMail": {
+		"description": "DebugMail (email testing service)",
+		"host": "debugmail.io",
+		"port": 25
+	},
+	"Disroot": {
+		"description": "Disroot (privacy-focused provider)",
+		"domains": ["disroot.org"],
+		"host": "disroot.org",
+		"port": 587,
+		"secure": false,
+		"authMethod": "LOGIN"
+	},
+	"DynectEmail": {
+		"description": "Dyn Email Delivery",
+		"aliases": ["Dynect"],
+		"host": "smtp.dynect.net",
+		"port": 25
+	},
+	"ElasticEmail": {
+		"description": "Elastic Email",
+		"aliases": ["Elastic Email"],
+		"host": "smtp.elasticemail.com",
+		"port": 465,
+		"secure": true
+	},
+	"Ethereal": {
+		"description": "Ethereal Email (email testing service)",
+		"aliases": ["ethereal.email"],
+		"host": "smtp.ethereal.email",
+		"port": 587
+	},
+	"FastMail": {
+		"description": "FastMail",
+		"domains": ["fastmail.com", "fastmail.fm"],
+		"host": "smtp.fastmail.com",
+		"port": 465,
+		"secure": true
+	},
+	"Feishu Mail": {
+		"description": "Feishu Mail (Lark)",
+		"aliases": ["Feishu", "FeishuMail"],
+		"domains": ["www.feishu.cn"],
+		"host": "smtp.feishu.cn",
+		"port": 465,
+		"secure": true
+	},
+	"Forward Email": {
+		"description": "Forward Email (email forwarding service)",
+		"aliases": ["FE", "ForwardEmail"],
+		"domains": ["forwardemail.net"],
+		"host": "smtp.forwardemail.net",
+		"port": 465,
+		"secure": true
+	},
+	"GandiMail": {
+		"description": "Gandi Mail",
+		"aliases": ["Gandi", "Gandi Mail"],
+		"host": "mail.gandi.net",
+		"port": 587
+	},
+	"Gmail": {
+		"description": "Gmail",
+		"aliases": ["Google Mail"],
+		"domains": ["gmail.com", "googlemail.com"],
+		"host": "smtp.gmail.com",
+		"port": 465,
+		"secure": true
+	},
+	"GmailWorkspace": {
+		"description": "Gmail Workspace",
+		"aliases": ["Google Workspace Mail"],
+		"host": "smtp-relay.gmail.com",
+		"port": 465,
+		"secure": true
+	},
+	"GMX": {
+		"description": "GMX Mail",
+		"domains": [
+			"gmx.com",
+			"gmx.net",
+			"gmx.de"
+		],
+		"host": "mail.gmx.com",
+		"port": 587
+	},
+	"Godaddy": {
+		"description": "GoDaddy Email (US)",
+		"host": "smtpout.secureserver.net",
+		"port": 25
+	},
+	"GodaddyAsia": {
+		"description": "GoDaddy Email (Asia)",
+		"host": "smtp.asia.secureserver.net",
+		"port": 25
+	},
+	"GodaddyEurope": {
+		"description": "GoDaddy Email (Europe)",
+		"host": "smtp.europe.secureserver.net",
+		"port": 25
+	},
+	"Groundmail": {
+		"description": "Groundmail",
+		"host": "smtp.groundmail.dev",
+		"port": 587,
+		"secure": false,
+		"requireTLS": true
+	},
+	"hot.ee": {
+		"description": "Hot.ee (Estonian email provider)",
+		"host": "mail.hot.ee"
+	},
+	"Hotmail": {
+		"description": "Outlook.com / Hotmail",
+		"aliases": [
+			"Outlook",
+			"Outlook.com",
+			"Hotmail.com"
+		],
+		"domains": ["hotmail.com", "outlook.com"],
+		"host": "smtp-mail.outlook.com",
+		"port": 587
+	},
+	"iCloud": {
+		"description": "iCloud Mail",
+		"aliases": ["Me", "Mac"],
+		"domains": [
+			"icloud.com",
+			"me.com",
+			"mac.com"
+		],
+		"host": "smtp.mail.me.com",
+		"port": 587
+	},
+	"Infomaniak": {
+		"description": "Infomaniak Mail (Swiss hosting provider)",
+		"host": "mail.infomaniak.com",
+		"domains": [
+			"ik.me",
+			"ikmail.com",
+			"etik.com"
+		],
+		"port": 587
+	},
+	"KolabNow": {
+		"description": "KolabNow (secure email service)",
+		"domains": ["kolabnow.com"],
+		"aliases": ["Kolab"],
+		"host": "smtp.kolabnow.com",
+		"port": 465,
+		"secure": true,
+		"authMethod": "LOGIN"
+	},
+	"Loopia": {
+		"description": "Loopia (Swedish hosting provider)",
+		"host": "mailcluster.loopia.se",
+		"port": 465
+	},
+	"Loops": {
+		"description": "Loops",
+		"host": "smtp.loops.so",
+		"port": 587
+	},
+	"mail.ee": {
+		"description": "Mail.ee (Estonian email provider)",
+		"host": "smtp.mail.ee"
+	},
+	"Mail.ru": {
+		"description": "Mail.ru",
+		"host": "smtp.mail.ru",
+		"port": 465,
+		"secure": true
+	},
+	"Mailcatch.app": {
+		"description": "Mailcatch (email testing service)",
+		"host": "sandbox-smtp.mailcatch.app",
+		"port": 2525
+	},
+	"Maildev": {
+		"description": "MailDev (local email testing)",
+		"port": 1025,
+		"ignoreTLS": true
+	},
+	"MailerSend": {
+		"description": "MailerSend",
+		"host": "smtp.mailersend.net",
+		"port": 587
+	},
+	"Mailgun": {
+		"description": "Mailgun",
+		"host": "smtp.mailgun.org",
+		"port": 465,
+		"secure": true
+	},
+	"Mailjet": {
+		"description": "Mailjet",
+		"host": "in.mailjet.com",
+		"port": 587
+	},
+	"Mailosaur": {
+		"description": "Mailosaur (email testing service)",
+		"host": "mailosaur.io",
+		"port": 25
+	},
+	"MailSenpai": {
+		"description": "MailSenpai (SMTP Senpai, EU)",
+		"host": "relay.mailsenpai.com",
+		"port": 2525,
+		"secure": false
+	},
+	"Mailtrap": {
+		"description": "Mailtrap",
+		"host": "live.smtp.mailtrap.io",
+		"port": 587
+	},
+	"Mandrill": {
+		"description": "Mandrill (by Mailchimp)",
+		"host": "smtp.mandrillapp.com",
+		"port": 587
+	},
+	"Naver": {
+		"description": "Naver Mail (Korean email provider)",
+		"host": "smtp.naver.com",
+		"port": 587
+	},
+	"OhMySMTP": {
+		"description": "OhMySMTP (email delivery service)",
+		"host": "smtp.ohmysmtp.com",
+		"port": 587,
+		"secure": false
+	},
+	"One": {
+		"description": "One.com Email",
+		"host": "send.one.com",
+		"port": 465,
+		"secure": true
+	},
+	"OpenMailBox": {
+		"description": "OpenMailBox",
+		"aliases": ["OMB", "openmailbox.org"],
+		"host": "smtp.openmailbox.org",
+		"port": 465,
+		"secure": true
+	},
+	"Outlook365": {
+		"description": "Microsoft 365 / Office 365",
+		"host": "smtp.office365.com",
+		"port": 587,
+		"secure": false
+	},
+	"Oveyon": {
+		"description": "Oveyon",
+		"host": "smtp.oveyon.com",
+		"port": 587,
+		"secure": false,
+		"requireTLS": true
+	},
+	"Postmark": {
+		"description": "Postmark",
+		"aliases": ["PostmarkApp"],
+		"host": "smtp.postmarkapp.com",
+		"port": 2525
+	},
+	"Proton": {
+		"description": "Proton Mail",
+		"aliases": [
+			"ProtonMail",
+			"Proton.me",
+			"Protonmail.com",
+			"Protonmail.ch"
+		],
+		"domains": [
+			"proton.me",
+			"protonmail.com",
+			"pm.me",
+			"protonmail.ch"
+		],
+		"host": "smtp.protonmail.ch",
+		"port": 587,
+		"requireTLS": true
+	},
+	"qiye.aliyun": {
+		"description": "Alibaba Mail Enterprise Edition",
+		"host": "smtp.mxhichina.com",
+		"port": "465",
+		"secure": true
+	},
+	"QQ": {
+		"description": "QQ Mail",
+		"domains": ["qq.com"],
+		"host": "smtp.qq.com",
+		"port": 465,
+		"secure": true
+	},
+	"QQex": {
+		"description": "QQ Enterprise Mail",
+		"aliases": ["QQ Enterprise"],
+		"domains": ["exmail.qq.com"],
+		"host": "smtp.exmail.qq.com",
+		"port": 465,
+		"secure": true
+	},
+	"Resend": {
+		"description": "Resend",
+		"host": "smtp.resend.com",
+		"port": 465,
+		"secure": true
+	},
+	"Runbox": {
+		"description": "Runbox (Norwegian email provider)",
+		"domains": ["runbox.com"],
+		"host": "smtp.runbox.com",
+		"port": 465,
+		"secure": true
+	},
+	"SendCloud": {
+		"description": "SendCloud (Chinese email delivery)",
+		"host": "smtp.sendcloud.net",
+		"port": 2525
+	},
+	"SendGrid": {
+		"description": "SendGrid",
+		"host": "smtp.sendgrid.net",
+		"port": 587
+	},
+	"SendinBlue": {
+		"description": "Brevo (formerly Sendinblue)",
+		"aliases": ["Brevo"],
+		"host": "smtp-relay.brevo.com",
+		"port": 587
+	},
+	"Sendora": {
+		"description": "Sendora",
+		"host": "smtp.sendora.se",
+		"port": 465,
+		"secure": true
+	},
+	"SendPulse": {
+		"description": "SendPulse",
+		"host": "smtp-pulse.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES": {
+		"description": "AWS SES US East (N. Virginia)",
+		"host": "email-smtp.us-east-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-AP-NORTHEAST-1": {
+		"description": "AWS SES Asia Pacific (Tokyo)",
+		"host": "email-smtp.ap-northeast-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-AP-NORTHEAST-2": {
+		"description": "AWS SES Asia Pacific (Seoul)",
+		"host": "email-smtp.ap-northeast-2.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-AP-NORTHEAST-3": {
+		"description": "AWS SES Asia Pacific (Osaka)",
+		"host": "email-smtp.ap-northeast-3.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-AP-SOUTH-1": {
+		"description": "AWS SES Asia Pacific (Mumbai)",
+		"host": "email-smtp.ap-south-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-AP-SOUTHEAST-1": {
+		"description": "AWS SES Asia Pacific (Singapore)",
+		"host": "email-smtp.ap-southeast-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-AP-SOUTHEAST-2": {
+		"description": "AWS SES Asia Pacific (Sydney)",
+		"host": "email-smtp.ap-southeast-2.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-CA-CENTRAL-1": {
+		"description": "AWS SES Canada (Central)",
+		"host": "email-smtp.ca-central-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-EU-CENTRAL-1": {
+		"description": "AWS SES Europe (Frankfurt)",
+		"host": "email-smtp.eu-central-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-EU-NORTH-1": {
+		"description": "AWS SES Europe (Stockholm)",
+		"host": "email-smtp.eu-north-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-EU-WEST-1": {
+		"description": "AWS SES Europe (Ireland)",
+		"host": "email-smtp.eu-west-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-EU-WEST-2": {
+		"description": "AWS SES Europe (London)",
+		"host": "email-smtp.eu-west-2.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-EU-WEST-3": {
+		"description": "AWS SES Europe (Paris)",
+		"host": "email-smtp.eu-west-3.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-SA-EAST-1": {
+		"description": "AWS SES South America (São Paulo)",
+		"host": "email-smtp.sa-east-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-US-EAST-1": {
+		"description": "AWS SES US East (N. Virginia)",
+		"host": "email-smtp.us-east-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-US-EAST-2": {
+		"description": "AWS SES US East (Ohio)",
+		"host": "email-smtp.us-east-2.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-US-GOV-EAST-1": {
+		"description": "AWS SES GovCloud (US-East)",
+		"host": "email-smtp.us-gov-east-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-US-GOV-WEST-1": {
+		"description": "AWS SES GovCloud (US-West)",
+		"host": "email-smtp.us-gov-west-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-US-WEST-1": {
+		"description": "AWS SES US West (N. California)",
+		"host": "email-smtp.us-west-1.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"SES-US-WEST-2": {
+		"description": "AWS SES US West (Oregon)",
+		"host": "email-smtp.us-west-2.amazonaws.com",
+		"port": 465,
+		"secure": true
+	},
+	"Seznam": {
+		"description": "Seznam Email (Czech email provider)",
+		"aliases": ["Seznam Email"],
+		"domains": [
+			"seznam.cz",
+			"email.cz",
+			"post.cz",
+			"spoluzaci.cz"
+		],
+		"host": "smtp.seznam.cz",
+		"port": 465,
+		"secure": true
+	},
+	"SMTP2GO": {
+		"description": "SMTP2GO",
+		"host": "mail.smtp2go.com",
+		"port": 2525
+	},
+	"SpacePost": {
+		"description": "SpacePost",
+		"host": "smtp.spacepost.dev",
+		"port": 25976,
+		"secure": false,
+		"requireTLS": true
+	},
+	"Sparkpost": {
+		"description": "SparkPost",
+		"aliases": ["SparkPost", "SparkPost Mail"],
+		"domains": ["sparkpost.com"],
+		"host": "smtp.sparkpostmail.com",
+		"port": 587,
+		"secure": false
+	},
+	"Tipimail": {
+		"description": "Tipimail (email delivery service)",
+		"host": "smtp.tipimail.com",
+		"port": 587
+	},
+	"TurboSMTP": {
+		"description": "TurboSMTP",
+		"host": "pro.turbo-smtp.com",
+		"port": 465,
+		"secure": true
+	},
+	"TurboSMTP-EU": {
+		"description": "TurboSMTP (EU region)",
+		"host": "pro.eu.turbo-smtp.com",
+		"port": 465,
+		"secure": true
+	},
+	"Tutanota": {
+		"description": "Tutanota (Tuta Mail)",
+		"domains": [
+			"tutanota.com",
+			"tuta.com",
+			"tutanota.de",
+			"tuta.io"
+		],
+		"host": "smtp.tutanota.com",
+		"port": 465,
+		"secure": true
+	},
+	"Yahoo": {
+		"description": "Yahoo Mail",
+		"domains": ["yahoo.com"],
+		"host": "smtp.mail.yahoo.com",
+		"port": 465,
+		"secure": true
+	},
+	"Yandex": {
+		"description": "Yandex Mail",
+		"domains": ["yandex.ru"],
+		"host": "smtp.yandex.ru",
+		"port": 465,
+		"secure": true
+	},
+	"Zimbra": {
+		"description": "Zimbra Mail Server",
+		"aliases": ["Zimbra Collaboration"],
+		"host": "smtp.zimbra.com",
+		"port": 587,
+		"requireTLS": true
+	},
+	"Zoho": {
+		"description": "Zoho Mail",
+		"host": "smtp.zoho.com",
+		"port": 465,
+		"secure": true,
+		"authMethod": "LOGIN"
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/well-known/index.js
+const normalized = {};
+Object.keys(services).forEach((key) => {
+	const service = services[key];
+	const normalizedService = normalizeService(service);
+	normalized[normalizeKey(key)] = normalizedService;
+	[].concat(service.aliases || []).forEach((alias) => {
+		normalized[normalizeKey(alias)] = normalizedService;
+	});
+	[].concat(service.domains || []).forEach((domain) => {
+		normalized[normalizeKey(domain)] = normalizedService;
+	});
+});
+function normalizeKey(key) {
+	return key.replace(/[^a-zA-Z0-9.-]/g, "").toLowerCase();
+}
+function normalizeService(service) {
+	const response = {};
+	Object.keys(service).forEach((key) => {
+		if (!["domains", "aliases"].includes(key)) response[key] = service[key];
+	});
+	return response;
+}
+/**
+* Resolves SMTP config for given key. Key can be a name (like 'Gmail'), alias (like 'Google Mail') or
+* an email address (like 'test@googlemail.com').
+*
+* @param key Service name, alias or an email address
+* @returns SMTP config or false if not found
+*/
+function wellKnown(key) {
+	key = normalizeKey(key.split("@").pop());
+	return normalized[key] || false;
+}
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-pool/index.js
+/** First delay before a requeued message is retried, doubled on every further requeue */
+const REQUEUE_BASE_DELAY = 50;
+/** Upper bound for the requeue delay */
+const REQUEUE_MAX_DELAY = 2e3;
+/**
+* Creates a SMTP pool transport object for Nodemailer
+*
+* @constructor
+* @param options SMTP Connection options
+*/
+var SMTPPool = class extends EventEmitter {
+	constructor(options) {
+		super();
+		this.supportsAbortSignal = true;
+		options = options || {};
+		if (typeof options === "string") options = { url: options };
+		let urlData;
+		let service = options.service;
+		if (typeof options.getSocket === "function") this.getSocket = options.getSocket;
+		if (options.url) {
+			urlData = parseConnectionUrl(options.url);
+			service = service || urlData.service;
+		}
+		this.options = assign(false, options, urlData, service && wellKnown(service));
+		this.options.maxConnections = this.options.maxConnections || 5;
+		this.options.maxMessages = this.options.maxMessages || 100;
+		this.options.maxRequeues = typeof this.options.maxRequeues === "number" ? this.options.maxRequeues : 5;
+		this.options.idleTimeout = typeof this.options.idleTimeout === "number" ? this.options.idleTimeout : 24e4;
+		this.logger = getLogger(this.options, { component: this.options.component || "smtp-pool" });
+		this.name = "SMTP (pool)";
+		this.version = "10.6.1[client:10.6.1]";
+		this._rateLimit = {
+			counter: 0,
+			timeout: null,
+			waiting: [],
+			checkpoint: false,
+			delta: Number(this.options.rateDelta) || 1e3,
+			limit: Number(this.options.rateLimit) || 0
+		};
+		this._closed = false;
+		this._queue = [];
+		this._connections = [];
+		this._connectionCounter = 0;
+		this._pending = 0;
+		this.idling = true;
+		setImmediate(() => {
+			if (this.idling) this.emit("idle");
+		});
+	}
+	/**
+	* Placeholder function for creating proxy sockets. This method immediatelly returns
+	* without a socket
+	*
+	* @param options Connection options
+	* @param callback Callback function to run with the socket keys
+	*/
+	getSocket(options, callback) {
+		setImmediate(() => callback(null, false));
+	}
+	/**
+	* Queues an e-mail to be sent using the selected settings
+	*
+	* @param mail Mail object
+	* @param callback Callback function
+	*/
+	send(mail, callback) {
+		if (this._closed) {
+			const err = /* @__PURE__ */ new Error("Connection pool was closed");
+			err.code = ECONNECTION;
+			setImmediate(() => callback(err));
+			return false;
+		}
+		let counted = true;
+		let detachSignal;
+		this._pending++;
+		const entry = {
+			mail,
+			requeueAttempts: 0,
+			callback: (err, info) => {
+				if (!counted) return;
+				counted = false;
+				this._pending--;
+				detachSignal?.();
+				entry.resource = void 0;
+				callback(err, info);
+			}
+		};
+		this._queue.push(entry);
+		const signal = mail.data.signal;
+		if (signal) {
+			detachSignal = this._watchAbortSignal(entry, signal, () => counted);
+			if (signal.aborted) return true;
+		}
+		if (this.idling && this._queue.length >= this.options.maxConnections) this.idling = false;
+		setImmediate(() => this._processMessages());
+		return true;
+	}
+	/**
+	* Fails a queued or assigned entry when its signal aborts: removes it from the queue, or
+	* closes the connection delivering it, so other deliveries in the pool can continue.
+	* Returns a function that removes the listener.
+	* @internal
+	*/
+	_watchAbortSignal(entry, signal, isPending) {
+		const onAbort = () => {
+			if (!isPending()) return;
+			const index = this._queue.indexOf(entry);
+			if (index !== -1) this._queue.splice(index, 1);
+			const resource = entry.resource;
+			if (resource && resource.queueEntry === entry) {
+				resource.queueEntry = false;
+				resource.close();
+			}
+			try {
+				entry.callback(createAbortError(signal));
+			} finally {
+				setImmediate(() => this._processMessages());
+			}
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		if (signal.aborted) setImmediate(onAbort);
+		return () => signal.removeEventListener("abort", onAbort);
+	}
+	/**
+	* Closes the pool. Idle connections are closed at once and a connection in the middle of a
+	* delivery finishes it first, unless `force` is set: then it is closed too and its message
+	* fails. `force` is for a caller that has given up on a delivery, such as one a server is
+	* stalling by trickling its replies, which no socket timeout notices.
+	*
+	* @param options.force - Also close connections that are delivering a message
+	*/
+	close(options) {
+		let connection;
+		const len = this._connections.length;
+		this._closed = true;
+		this._clearRateLimit();
+		if (!len && !this._queue.length) return;
+		const force = !!options?.force;
+		for (let i = len - 1; i >= 0; i--) if (this._connections[i] && (force || this._connections[i].available)) {
+			connection = this._connections[i];
+			connection.close();
+			this.logger.info({
+				tnx: "connection",
+				cid: connection.id,
+				action: "removed"
+			}, "Connection #%s removed", connection.id);
+		}
+		if (len && !this._connections.length) this.logger.debug({ tnx: "connection" }, "All connections removed");
+		if (!this._queue.length) return;
+		const invokeCallbacks = () => {
+			if (!this._queue.length) {
+				this.logger.debug({ tnx: "connection" }, "Pending queue entries cleared");
+				return;
+			}
+			const entry = this._queue.shift();
+			if (entry && typeof entry.callback === "function") try {
+				entry.callback(/* @__PURE__ */ new Error("Connection pool was closed"));
+			} catch (E) {
+				this.logger.error({
+					err: E,
+					tnx: "callback"
+				}, "Callback error: %s", E.message);
+			}
+			setImmediate(invokeCallbacks);
+		};
+		setImmediate(invokeCallbacks);
+	}
+	/**
+	* Check the queue and available connections. If there is a message to be sent and there is
+	* an available connection, then use this connection to send the mail
+	* @internal
+	*/
+	_processMessages() {
+		if (this._closed) return;
+		if (!this._queue.length) {
+			if (!this.idling) {
+				this.idling = true;
+				this.emit("idle");
+			}
+			return;
+		}
+		let connection = this._connections.find((c) => c.available);
+		if (!connection && this._connections.length < this.options.maxConnections) connection = this._createConnection();
+		if (!connection) {
+			this.idling = false;
+			return;
+		}
+		if (!this.idling && this._queue.length < this.options.maxConnections) {
+			this.idling = true;
+			this.emit("idle");
+		}
+		const entry = connection.queueEntry = this._queue.shift();
+		entry.resource = connection;
+		entry.messageId = (connection.queueEntry.mail.message.getHeader("message-id") || "").replace(/[<>\s]/g, "");
+		connection.available = false;
+		this.logger.debug({
+			tnx: "pool",
+			cid: connection.id,
+			messageId: entry.messageId,
+			action: "assign"
+		}, "Assigned message <%s> to #%s (%s)", entry.messageId, connection.id, connection.messages + 1);
+		if (this._rateLimit.limit) {
+			this._rateLimit.counter++;
+			if (!this._rateLimit.checkpoint) this._rateLimit.checkpoint = Date.now();
+		}
+		connection.send(entry.mail, (err, info) => {
+			if (entry === connection.queueEntry) {
+				try {
+					entry.callback(err, info);
+				} catch (E) {
+					this.logger.error({
+						err: E,
+						tnx: "callback",
+						cid: connection.id
+					}, "Callback error for #%s: %s", connection.id, E.message);
+				}
+				connection.queueEntry = false;
+			}
+		});
+	}
+	/**
+	* Creates a new pool resource
+	* @internal
+	*/
+	_createConnection() {
+		const connection = new PoolResource(this);
+		connection.id = ++this._connectionCounter;
+		this.logger.info({
+			tnx: "pool",
+			cid: connection.id,
+			action: "conection"
+		}, "Created new pool resource #%s", connection.id);
+		connection.on("available", () => {
+			this.logger.debug({
+				tnx: "connection",
+				cid: connection.id,
+				action: "available"
+			}, "Connection #%s became available", connection.id);
+			if (this._closed) this.close();
+			else this._processMessages();
+		});
+		connection.once("error", (err) => {
+			if (err.code !== "EMAXLIMIT") this.logger.warn({
+				err,
+				tnx: "pool",
+				cid: connection.id
+			}, "Pool Error for #%s: %s", connection.id, err.message);
+			else this.logger.debug({
+				tnx: "pool",
+				cid: connection.id,
+				action: "maxlimit"
+			}, "Max messages limit exchausted for #%s", connection.id);
+			if (connection.queueEntry) {
+				try {
+					connection.queueEntry.callback(err);
+				} catch (E) {
+					this.logger.error({
+						err: E,
+						tnx: "callback",
+						cid: connection.id
+					}, "Callback error for #%s: %s", connection.id, E.message);
+				}
+				connection.queueEntry = false;
+			}
+			this._removeConnection(connection);
+			this._continueProcessing();
+		});
+		connection.once("close", () => {
+			this.logger.info({
+				tnx: "connection",
+				cid: connection.id,
+				action: "closed"
+			}, "Connection #%s was closed", connection.id);
+			this._removeConnection(connection);
+			if (connection.queueEntry) setTimeout(() => {
+				let delay = 0;
+				if (connection.queueEntry) {
+					if (!this._closed && this._shouldRequeuOnConnectionClose(connection.queueEntry)) delay = this._requeueEntryOnConnectionClose(connection);
+					else this._failDeliveryOnConnectionClose(connection);
+				}
+				if (delay) setTimeout(() => this._continueProcessing(), delay);
+				else this._continueProcessing();
+			}, 50);
+			else {
+				if (!this._closed && this.idling && !this._connections.length) this.emit("clear");
+				this._continueProcessing();
+			}
+		});
+		this._connections.push(connection);
+		return connection;
+	}
+	/** @internal */
+	_shouldRequeuOnConnectionClose(queueEntry) {
+		if (this.options.maxRequeues < 0) return true;
+		return queueEntry.requeueAttempts < this.options.maxRequeues;
+	}
+	/** @internal */
+	_failDeliveryOnConnectionClose(connection) {
+		if (connection.queueEntry && connection.queueEntry.callback) {
+			try {
+				const err = /* @__PURE__ */ new Error("Reached maximum number of retries after connection was closed");
+				err.code = ECONNECTION;
+				connection.queueEntry.callback(err);
+			} catch (E) {
+				this.logger.error({
+					err: E,
+					tnx: "callback",
+					messageId: connection.queueEntry.messageId,
+					cid: connection.id
+				}, "Callback error for #%s: %s", connection.id, E.message);
+			}
+			connection.queueEntry = false;
+		}
+	}
+	/** @internal */
+	_requeueEntryOnConnectionClose(connection) {
+		const delay = Math.min(REQUEUE_BASE_DELAY * 2 ** connection.queueEntry.requeueAttempts, REQUEUE_MAX_DELAY);
+		connection.queueEntry.requeueAttempts += 1;
+		this.logger.debug({
+			tnx: "pool",
+			cid: connection.id,
+			messageId: connection.queueEntry.messageId,
+			action: "requeue"
+		}, "Re-queued message <%s> for #%s. Attempt: #%s", connection.queueEntry.messageId, connection.id, connection.queueEntry.requeueAttempts);
+		connection.queueEntry.resource = void 0;
+		this._queue.unshift(connection.queueEntry);
+		connection.queueEntry = false;
+		return delay;
+	}
+	/**
+	* Continue to process message if the pool hasn't closed
+	* @internal
+	*/
+	_continueProcessing() {
+		if (this._closed) this.close();
+		else setTimeout(() => this._processMessages(), 100);
+	}
+	/**
+	* Remove resource from pool
+	*
+	* @param connection The PoolResource to remove
+	* @internal
+	*/
+	_removeConnection(connection) {
+		const index = this._connections.indexOf(connection);
+		if (index !== -1) this._connections.splice(index, 1);
+	}
+	/**
+	* Checks if connections have hit current rate limit and if so, queues the availability callback
+	*
+	* @param callback Callback function to run once rate limiter has been cleared
+	* @internal
+	*/
+	_checkRateLimit(callback) {
+		if (!this._rateLimit.limit) return callback();
+		const now = Date.now();
+		if (this._rateLimit.counter < this._rateLimit.limit) return callback();
+		this._rateLimit.waiting.push(callback);
+		if (this._rateLimit.checkpoint <= now - this._rateLimit.delta) return this._clearRateLimit();
+		if (!this._rateLimit.timeout) {
+			this._rateLimit.timeout = setTimeout(() => this._clearRateLimit(), this._rateLimit.delta - (now - this._rateLimit.checkpoint));
+			this._rateLimit.checkpoint = now;
+		}
+	}
+	/**
+	* Clears current rate limit limitation and runs paused callback
+	* @internal
+	*/
+	_clearRateLimit() {
+		clearTimeout(this._rateLimit.timeout);
+		this._rateLimit.timeout = null;
+		this._rateLimit.counter = 0;
+		this._rateLimit.checkpoint = false;
+		while (this._rateLimit.waiting.length) {
+			const cb = this._rateLimit.waiting.shift();
+			setImmediate(cb);
+		}
+	}
+	/**
+	* Returns true if there are free slots in the queue
+	*/
+	isIdle() {
+		return this.idling;
+	}
+	/**
+	* Counts the messages the pool has not finished with yet: the ones waiting in the queue
+	* plus the ones a connection is transmitting right now. isIdle() only tells whether the
+	* pool can take another message, it is already true while a message is still being sent,
+	* so use this to check that nothing would be lost by closing the pool. A message that is
+	* re-queued after its connection dropped is counted until its callback runs, also while it waits to be put back on the queue, and
+	* it is no longer counted by the time its callback runs.
+	*
+	* @returns Number of queued and in-flight messages
+	*/
+	pendingCount() {
+		return this._pending;
+	}
+	verify(callback) {
+		let promise;
+		if (!callback) promise = new Promise((resolve, reject) => {
+			callback = callbackPromise(resolve, reject);
+		});
+		const done = callback;
+		const auth = new PoolResource(this).auth;
+		const connectStartedAt = Date.now();
+		this.getSocket(Object.assign({}, this.options, { connectStartedAt }), (err, socketOptions) => {
+			if (err) return done(err);
+			let options = this.options;
+			if (socketOptions && socketOptions.connection) {
+				this.logger.info({
+					tnx: "proxy",
+					remoteAddress: socketOptions.connection.remoteAddress,
+					remotePort: socketOptions.connection.remotePort,
+					destHost: options.host || "",
+					destPort: options.port || "",
+					action: "connected"
+				}, "Using proxied socket from %s:%s to %s:%s", socketOptions.connection.remoteAddress, socketOptions.connection.remotePort, options.host || "", options.port || "");
+				options = Object.assign(assign(false, options), socketOptions);
+			}
+			const connection = new SMTPConnection(options);
+			connection._connectStartedAt = connectStartedAt;
+			let returned = false;
+			connection.once("error", (err) => {
+				if (returned) return;
+				returned = true;
+				connection.close();
+				return done(err);
+			});
+			connection.once("end", () => {
+				if (returned) return;
+				returned = true;
+				return done(/* @__PURE__ */ new Error("Connection closed"));
+			});
+			const finalize = () => {
+				if (returned) return;
+				returned = true;
+				connection.quit();
+				return done(null, true);
+			};
+			connection.connect((err) => {
+				if (returned) return;
+				if (err) {
+					returned = true;
+					connection.close();
+					return done(err);
+				}
+				if (auth && (connection.allowsAuth || options.forceAuth)) connection.login(auth, (err) => {
+					if (returned) return;
+					if (err) {
+						returned = true;
+						connection.close();
+						return done(err);
+					}
+					finalize();
+				});
+				else if (!auth && connection.allowsAuth && options.forceAuth) {
+					const err = /* @__PURE__ */ new Error("Authentication info was not provided");
+					err.code = ENOAUTH;
+					returned = true;
+					connection.close();
+					return done(err);
+				} else finalize();
+			});
+		});
+		return promise;
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/smtp-transport/index.js
+const MESSAGE_AUTH_KEYS = [
+	"type",
+	"user",
+	"pass",
+	"accessToken",
+	"refreshToken",
+	"expires"
+];
+/**
+* Creates a SMTP transport object for Nodemailer
+*
+* @constructor
+* @param options Connection options
+*/
+var SMTPTransport = class extends EventEmitter {
+	constructor(options) {
+		super();
+		this.supportsAbortSignal = true;
+		options = options || {};
+		if (typeof options === "string") options = { url: options };
+		let urlData;
+		let service = options.service;
+		if (typeof options.getSocket === "function") this.getSocket = options.getSocket;
+		if (options.url) {
+			urlData = parseConnectionUrl(options.url);
+			service = service || urlData.service;
+		}
+		this.options = assign(false, options, urlData, service && wellKnown(service));
+		this.logger = getLogger(this.options, { component: this.options.component || "smtp-transport" });
+		this.name = "SMTP";
+		this.version = "10.6.1[client:10.6.1]";
+		if (this.options.auth) this.auth = this.getAuth({});
+	}
+	/**
+	* Placeholder function for creating proxy sockets. This method immediatelly returns
+	* without a socket
+	*
+	* @param options Connection options
+	* @param callback Callback function to run with the socket keys
+	*/
+	getSocket(options, callback) {
+		setImmediate(() => callback(null, false));
+	}
+	getAuth(authOpts) {
+		if (!authOpts) {
+			if (this.auth && this.auth.oauth2 && this.mailer) this.auth.oauth2.provisionCallback = this.mailer.get("oauth2_provision_cb") || this.auth.oauth2.provisionCallback;
+			return this.auth;
+		}
+		const authData = Object.assign({}, this.options.auth && typeof this.options.auth === "object" ? this.options.auth : {});
+		if (typeof authOpts === "object") copyOwnKeys(authData, authOpts, (key) => !MESSAGE_AUTH_KEYS.includes(key));
+		if (Object.keys(authData).length === 0) return false;
+		switch ((authData.type || "").toString().toUpperCase()) {
+			case "OAUTH2": {
+				if (!authData.service && !authData.user) return false;
+				const oauth2 = new XOAuth2(authData, this.logger);
+				oauth2.provisionCallback = this.mailer && this.mailer.get("oauth2_provision_cb") || oauth2.provisionCallback;
+				oauth2.on("token", (token) => this.mailer.emit("token", token));
+				oauth2.on("error", (err) => this.emit("error", err));
+				return {
+					type: "OAUTH2",
+					user: authData.user,
+					oauth2,
+					method: "XOAUTH2"
+				};
+			}
+			default: return {
+				type: (authData.type || "").toString().toUpperCase() || "LOGIN",
+				user: authData.user,
+				credentials: {
+					user: authData.user || "",
+					pass: authData.pass,
+					options: authData.options
+				},
+				method: (authData.method || "").trim().toUpperCase() || this.options.authMethod || false
+			};
+		}
+	}
+	/**
+	* Sends an e-mail using the selected settings
+	*
+	* @param mail Mail object
+	* @param callback Callback function
+	*/
+	send(mail, callback) {
+		const signal = mail.data.signal;
+		let returned = false;
+		let connection;
+		let perCallAuth;
+		const cleanupPerCallAuth = () => {
+			if (perCallAuth && perCallAuth !== this.auth && perCallAuth.oauth2) perCallAuth.oauth2.removeAllListeners();
+			perCallAuth = null;
+		};
+		const finish = (err, info) => {
+			if (returned) return;
+			returned = true;
+			signal?.removeEventListener("abort", onAbort);
+			cleanupPerCallAuth();
+			connection?.close();
+			callback(err, info);
+		};
+		function onAbort() {
+			finish(createAbortError(signal));
+		}
+		if (signal) {
+			signal.addEventListener("abort", onAbort, { once: true });
+			if (signal.aborted) {
+				setImmediate(onAbort);
+				return;
+			}
+		}
+		const connectStartedAt = Date.now();
+		this.getSocket(Object.assign({}, this.options, { connectStartedAt }), (err, socketOptions) => {
+			if (returned) {
+				socketOptions && socketOptions.connection?.destroy();
+				return;
+			}
+			if (err) return finish(err);
+			let options = this.options;
+			if (socketOptions && socketOptions.connection) {
+				this.logger.info({
+					tnx: "proxy",
+					remoteAddress: socketOptions.connection.remoteAddress,
+					remotePort: socketOptions.connection.remotePort,
+					destHost: options.host || "",
+					destPort: options.port || "",
+					action: "connected"
+				}, "Using proxied socket from %s:%s to %s:%s", socketOptions.connection.remoteAddress, socketOptions.connection.remotePort, options.host || "", options.port || "");
+				options = Object.assign(assign(false, options), socketOptions);
+			}
+			const smtp = connection = new SMTPConnection(options);
+			smtp._connectStartedAt = connectStartedAt;
+			smtp.once("error", (err) => finish(err));
+			const sendMessage = () => {
+				const envelope = mail.message.getEnvelope();
+				const messageId = mail.message.messageId();
+				const recipients = [].concat(envelope.to || []);
+				if (recipients.length > 3) recipients.push("...and " + recipients.splice(2).length + " more");
+				if (mail.data.dsn) envelope.dsn = mail.data.dsn;
+				if (mail.data.requireTLSExtensionEnabled) envelope.requireTLSExtensionEnabled = mail.data.requireTLSExtensionEnabled;
+				this.logger.info({
+					tnx: "send",
+					messageId
+				}, "Sending message %s to <%s>", messageId, recipients.join(", "));
+				smtp.send(envelope, mail.message.createReadStream(), (err, info) => {
+					if (returned) return;
+					if (err) {
+						this.logger.error({
+							err,
+							tnx: "send"
+						}, "Send error for %s: %s", messageId, err.message);
+						return finish(err);
+					}
+					info.envelope = {
+						from: envelope.from,
+						to: envelope.to
+					};
+					info.messageId = messageId;
+					try {
+						return finish(null, info);
+					} catch (E) {
+						this.logger.error({
+							err: E,
+							tnx: "callback"
+						}, "Callback error for %s: %s", messageId, E.message);
+					}
+				});
+			};
+			smtp.connect((err) => {
+				if (returned) return;
+				if (err) return finish(err);
+				perCallAuth = this.getAuth(mail.data.auth);
+				if (perCallAuth && (smtp.allowsAuth || options.forceAuth)) smtp.login(perCallAuth, (err) => {
+					cleanupPerCallAuth();
+					if (returned) return;
+					if (err) return finish(err);
+					sendMessage();
+				});
+				else sendMessage();
+			});
+		});
+	}
+	verify(callback) {
+		let promise;
+		if (!callback) promise = new Promise((resolve, reject) => {
+			callback = callbackPromise(resolve, reject);
+		});
+		const done = callback;
+		const connectStartedAt = Date.now();
+		this.getSocket(Object.assign({}, this.options, { connectStartedAt }), (err, socketOptions) => {
+			if (err) return done(err);
+			let options = this.options;
+			if (socketOptions && socketOptions.connection) {
+				this.logger.info({
+					tnx: "proxy",
+					remoteAddress: socketOptions.connection.remoteAddress,
+					remotePort: socketOptions.connection.remotePort,
+					destHost: options.host || "",
+					destPort: options.port || "",
+					action: "connected"
+				}, "Using proxied socket from %s:%s to %s:%s", socketOptions.connection.remoteAddress, socketOptions.connection.remotePort, options.host || "", options.port || "");
+				options = Object.assign(assign(false, options), socketOptions);
+			}
+			const connection = new SMTPConnection(options);
+			connection._connectStartedAt = connectStartedAt;
+			let returned = false;
+			let perCallAuth;
+			const cleanupPerCallAuth = () => {
+				if (perCallAuth && perCallAuth !== this.auth && perCallAuth.oauth2) perCallAuth.oauth2.removeAllListeners();
+				perCallAuth = null;
+			};
+			connection.once("error", (err) => {
+				if (returned) return;
+				returned = true;
+				cleanupPerCallAuth();
+				connection.close();
+				return done(err);
+			});
+			connection.once("end", () => {
+				if (returned) return;
+				returned = true;
+				cleanupPerCallAuth();
+				return done(/* @__PURE__ */ new Error("Connection closed"));
+			});
+			const finalize = () => {
+				if (returned) return;
+				returned = true;
+				cleanupPerCallAuth();
+				connection.quit();
+				return done(null, true);
+			};
+			connection.connect((err) => {
+				if (returned) return;
+				if (err) {
+					returned = true;
+					connection.close();
+					return done(err);
+				}
+				perCallAuth = this.getAuth({});
+				if (perCallAuth && (connection.allowsAuth || options.forceAuth)) connection.login(perCallAuth, (err) => {
+					cleanupPerCallAuth();
+					if (returned) return;
+					if (err) {
+						returned = true;
+						connection.close();
+						return done(err);
+					}
+					finalize();
+				});
+				else if (!perCallAuth && connection.allowsAuth && options.forceAuth) {
+					const err = /* @__PURE__ */ new Error("Authentication info was not provided");
+					err.code = ENOAUTH;
+					returned = true;
+					cleanupPerCallAuth();
+					connection.close();
+					return done(err);
+				} else finalize();
+			});
+		});
+		return promise;
+	}
+	/**
+	* Releases resources
+	*/
+	close() {
+		if (this.auth && this.auth.oauth2) this.auth.oauth2.removeAllListeners();
+		this.emit("close");
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/sendmail-transport/index.js
+const STDIN_ERROR_EXIT_WAIT = 1e3;
+/**
+* Generates a Transport object for Sendmail
+*
+* Possible options can be the following:
+*
+*  * **path** optional path to sendmail binary
+*  * **newline** either 'windows' or 'unix'
+*  * **args** an array of arguments for the sendmail binary
+*
+* @constructor
+* @param optional config parameter for Sendmail
+*/
+var SendmailTransport = class {
+	constructor(options) {
+		options = options || {};
+		this._spawn = spawn;
+		this.options = options;
+		this.name = "Sendmail";
+		this.version = version;
+		this.path = "sendmail";
+		this.args = false;
+		this.logger = getLogger(this.options, { component: this.options.component || "sendmail" });
+		if (typeof options === "string") this.path = options;
+		else if (typeof options === "object") {
+			if (options.path) this.path = options.path;
+			if (Array.isArray(options.args)) this.args = options.args;
+		}
+		this.winbreak = [
+			"win",
+			"windows",
+			"dos",
+			"\r\n"
+		].includes((options.newline || "").toString().toLowerCase());
+	}
+	/**
+	* <p>Compiles a mailcomposer message and forwards it to handler that sends it.</p>
+	*
+	* @param mail MailComposer object
+	* @param done Callback function to run when the sending is completed
+	*/
+	send(mail, done) {
+		mail.message.keepBcc = true;
+		const envelope = mail.message.getEnvelope();
+		const messageId = mail.message.messageId();
+		let returned;
+		if ([].concat(envelope.from || []).concat(envelope.to || []).some((addr) => /^"?-/.test(addr))) {
+			const err = /* @__PURE__ */ new Error("Can not send mail. Invalid envelope addresses.");
+			err.code = ESENDMAIL;
+			return done(err);
+		}
+		const args = this.args ? ["-i"].concat(this.args).concat(envelope.to) : ["-i"].concat(envelope.from ? ["-f", envelope.from] : []).concat(envelope.to);
+		const callback = (err) => {
+			if (returned) return;
+			returned = true;
+			if (typeof done === "function") {
+				if (err) return done(err);
+				return done(null, {
+					envelope,
+					messageId,
+					response: "Messages queued for delivery"
+				});
+			}
+		};
+		let sendmail;
+		try {
+			sendmail = this._spawn(this.path, args);
+		} catch (E) {
+			this.logger.error({
+				err: E,
+				tnx: "spawn",
+				messageId
+			}, "Error occurred while spawning sendmail. %s", E.message);
+			return callback(E);
+		}
+		if (sendmail) {
+			let stream;
+			const messageWritten = () => !!stream && stream.readableEnded;
+			let stdinError = null;
+			const release = () => {
+				if (stream && !messageWritten()) stream.destroy();
+			};
+			const fail = (err) => {
+				release();
+				callback(err);
+			};
+			sendmail.on("error", (err) => {
+				this.logger.error({
+					err,
+					tnx: "spawn",
+					messageId
+				}, "Error occurred when sending message %s. %s", messageId, err.message);
+				fail(err);
+			});
+			const onExit = (code, signal) => {
+				let err = null;
+				if (code) err = /* @__PURE__ */ new Error(code === 127 ? "Sendmail command not found, process exited with code " + code : "Sendmail exited with code " + code);
+				else if (signal) err = /* @__PURE__ */ new Error("Sendmail was terminated by " + signal);
+				else if (!messageWritten()) err = /* @__PURE__ */ new Error("Sendmail exited before the message was written");
+				else if (stdinError) err = stdinError;
+				if (!err) return callback();
+				err.code = err.code || "ESENDMAIL";
+				this.logger.error({
+					err,
+					tnx: "stdin",
+					messageId
+				}, "Error sending message %s to sendmail. %s", messageId, err.message);
+				fail(err);
+			};
+			sendmail.once("exit", onExit);
+			sendmail.once("close", onExit);
+			sendmail.stdin.on("error", (err) => {
+				this.logger.error({
+					err,
+					tnx: "stdin",
+					messageId
+				}, "Error occurred when piping message %s to sendmail. %s", messageId, err.message);
+				if (stdinError) return;
+				stdinError = err;
+				release();
+				const exitTimer = setTimeout(() => fail(err), STDIN_ERROR_EXIT_WAIT);
+				sendmail.once("exit", () => clearTimeout(exitTimer));
+			});
+			const recipients = [].concat(envelope.to || []);
+			if (recipients.length > 3) recipients.push("...and " + recipients.splice(2).length + " more");
+			this.logger.info({
+				tnx: "send",
+				messageId
+			}, "Sending message %s to <%s>", messageId, recipients.join(", "));
+			const sourceStream = mail.message.createReadStream();
+			stream = sourceStream;
+			if (this.options.newline) stream = pipeline(sourceStream, this.winbreak ? new LeWindows() : new LeUnix(), () => false);
+			stream.once("error", (err) => {
+				this.logger.error({
+					err,
+					tnx: "stdin",
+					messageId
+				}, "Error occurred when generating message %s. %s", messageId, err.message);
+				sendmail.kill("SIGINT");
+				callback(err);
+			});
+			stream.pipe(sendmail.stdin);
+		} else {
+			const err = /* @__PURE__ */ new Error("sendmail was not found");
+			err.code = ESENDMAIL;
+			return callback(err);
+		}
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/stream-transport/index.js
+/**
+* Generates a Transport object for streaming
+*
+* Possible options can be the following:
+*
+*  * **buffer** if true, then returns the message as a Buffer object instead of a stream
+*  * **newline** either 'windows' or 'unix'
+*
+* @constructor
+* @param optional config parameter
+*/
+var StreamTransport = class {
+	constructor(options) {
+		options = options || {};
+		this.options = options;
+		this.name = "StreamTransport";
+		this.version = version;
+		this.logger = getLogger(this.options, { component: this.options.component || "stream-transport" });
+		this.winbreak = [
+			"win",
+			"windows",
+			"dos",
+			"\r\n"
+		].includes((options.newline || "").toString().toLowerCase());
+	}
+	/**
+	* Compiles a mailcomposer message and forwards it to handler that sends it
+	*
+	* @param mail MailComposer object
+	* @param done Callback function to run when the sending is completed
+	*/
+	send(mail, done) {
+		mail.message.keepBcc = true;
+		const envelope = mail.message.getEnvelope();
+		const messageId = mail.message.messageId();
+		const recipients = [].concat(envelope.to || []);
+		if (recipients.length > 3) recipients.push("...and " + recipients.splice(2).length + " more");
+		this.logger.info({
+			tnx: "send",
+			messageId
+		}, "Sending message %s to <%s> using %s line breaks", messageId, recipients.join(", "), this.winbreak ? "<CR><LF>" : "<LF>");
+		setImmediate(() => {
+			let stream;
+			try {
+				stream = mail.message.createReadStream();
+				if (this.options.newline) {
+					const sourceStream = stream;
+					stream = sourceStream.pipe(this.winbreak ? new LeWindows() : new LeUnix());
+					sourceStream.once("error", (err) => stream.emit("error", err));
+				}
+			} catch (E) {
+				this.logger.error({
+					err: E,
+					tnx: "send",
+					messageId
+				}, "Creating send stream failed for %s. %s", messageId, E.message);
+				return done(E);
+			}
+			if (!this.options.buffer) {
+				stream.once("error", (err) => {
+					this.logger.error({
+						err,
+						tnx: "send",
+						messageId
+					}, "Failed creating message for %s. %s", messageId, err.message);
+				});
+				return done(null, {
+					envelope,
+					messageId,
+					message: stream
+				});
+			}
+			const chunks = [];
+			let chunklen = 0;
+			stream.on("readable", () => {
+				let chunk;
+				while ((chunk = stream.read()) !== null) {
+					chunks.push(chunk);
+					chunklen += chunk.length;
+				}
+			});
+			stream.once("error", (err) => {
+				this.logger.error({
+					err,
+					tnx: "send",
+					messageId
+				}, "Failed creating message for %s. %s", messageId, err.message);
+				return done(err);
+			});
+			stream.on("end", () => done(null, {
+				envelope,
+				messageId,
+				message: Buffer.concat(chunks, chunklen)
+			}));
+		});
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/json-transport/index.js
+/**
+* Generates a Transport object to generate JSON output
+*
+* @constructor
+* @param optional config parameter
+*/
+var JSONTransport = class {
+	constructor(options) {
+		options = options || {};
+		this.options = options;
+		this.name = "JSONTransport";
+		this.version = version;
+		this.logger = getLogger(this.options, { component: this.options.component || "json-transport" });
+	}
+	/**
+	* <p>Compiles a mailcomposer message and forwards it to handler that sends it.</p>
+	*
+	* @param mail MailComposer object
+	* @param done Callback function to run when the sending is completed
+	*/
+	send(mail, done) {
+		mail.message.keepBcc = true;
+		const envelope = mail.message.getEnvelope();
+		const messageId = mail.message.messageId();
+		const recipients = [].concat(envelope.to || []);
+		if (recipients.length > 3) recipients.push("...and " + recipients.splice(2).length + " more");
+		this.logger.info({
+			tnx: "send",
+			messageId
+		}, "Composing JSON structure of %s to <%s>", messageId, recipients.join(", "));
+		setImmediate(() => {
+			mail.normalize((err, data) => {
+				if (err) {
+					this.logger.error({
+						err,
+						tnx: "send",
+						messageId
+					}, "Failed building JSON structure for %s. %s", messageId, err.message);
+					return done(err);
+				}
+				delete data.envelope;
+				delete data.normalizedHeaders;
+				delete data.signal;
+				return done(null, {
+					envelope,
+					messageId,
+					message: this.options.skipEncoding ? data : JSON.stringify(data)
+				});
+			});
+		});
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/ses-transport/index.js
+/**
+* Tags AWS SDK rejections that carry no `code` property (SDK v3 errors only
+* have a `name`) with the generic SES transport error code, keeping the
+* original error object intact
+*/
+function tagSesError(err) {
+	if (err && typeof err === "object" && !err.code) err.code = ESES;
+	return err;
+}
+/**
+* Generates a Transport object for AWS SES
+*
+* @constructor
+* @param optional config parameter
+*/
+var SESTransport = class extends EventEmitter$1 {
+	constructor(options) {
+		super();
+		if (!options || !options.SES || !options.SES.sesClient) {
+			const error = /* @__PURE__ */ new Error("Missing SES configuration, expecting { sesClient, SendEmailCommand } from @aws-sdk/client-sesv2, see https://nodemailer.com/transports/ses/");
+			error.code = ECONFIG;
+			throw error;
+		}
+		this.options = options;
+		this.ses = this.options.SES;
+		this.name = "SESTransport";
+		this.version = version;
+		this.logger = getLogger(this.options, { component: this.options.component || "ses-transport" });
+	}
+	getRegion(cb) {
+		if (this.ses.sesClient.config && typeof this.ses.sesClient.config.region === "function") {
+			this.ses.sesClient.config.region().then((region) => cb(null, region), (err) => cb(err));
+			return;
+		}
+		return cb(null, false);
+	}
+	/**
+	* Compiles a mailcomposer message and forwards it to SES
+	*
+	* @param mail MailComposer object
+	* @param callback Callback function to run when the sending is completed
+	*/
+	send(mail, callback) {
+		let fromHeader = mail.message._headers.find((header) => /^from$/i.test(header.key));
+		if (fromHeader) {
+			const mimeNode = new MimeNode("text/plain");
+			fromHeader = mimeNode._convertAddresses(mimeNode._parseAddresses(fromHeader.value));
+		}
+		const envelope = mail.message.getEnvelope();
+		const messageId = mail.message.messageId();
+		const recipients = [].concat(envelope.to || []);
+		if (recipients.length > 3) recipients.push("...and " + recipients.splice(2).length + " more");
+		this.logger.info({
+			tnx: "send",
+			messageId
+		}, "Sending message %s to <%s>", messageId, recipients.join(", "));
+		const getRawMessage = (next) => {
+			if (!mail.data._dkim) mail.data._dkim = {};
+			if (mail.data._dkim.skipFields && typeof mail.data._dkim.skipFields === "string") mail.data._dkim.skipFields += ":date:message-id";
+			else mail.data._dkim.skipFields = "date:message-id";
+			const sourceStream = mail.message.createReadStream();
+			const stream = sourceStream.pipe(new LeWindows());
+			const chunks = [];
+			let chunklen = 0;
+			stream.on("readable", () => {
+				let chunk;
+				while ((chunk = stream.read()) !== null) {
+					chunks.push(chunk);
+					chunklen += chunk.length;
+				}
+			});
+			sourceStream.once("error", (err) => stream.emit("error", err));
+			stream.once("error", (err) => next(err));
+			stream.once("end", () => next(null, Buffer.concat(chunks, chunklen)));
+		};
+		setImmediate(() => getRawMessage((err, raw) => {
+			if (err) {
+				this.logger.error({
+					err,
+					tnx: "send",
+					messageId
+				}, "Failed creating message for %s. %s", messageId, err.message);
+				return callback(err);
+			}
+			const sesMessage = copyOwnKeys({
+				Content: { Raw: { Data: raw } },
+				FromEmailAddress: fromHeader || envelope.from,
+				Destination: { ToAddresses: envelope.to }
+			}, mail.data.ses);
+			this.getRegion((err, region) => {
+				if (err || !region) region = "us-east-1";
+				let sendPromise;
+				try {
+					const command = new this.ses.SendEmailCommand(sesMessage);
+					sendPromise = this.ses.sesClient.send(command);
+				} catch (err) {
+					tagSesError(err);
+					this.logger.error({
+						err,
+						tnx: "send"
+					}, "Send error for %s: %s", messageId, err.message);
+					setImmediate(() => callback(err));
+					return;
+				}
+				sendPromise.then((data) => {
+					if (region === "us-east-1") region = "email";
+					const info = {
+						envelope: {
+							from: envelope.from,
+							to: envelope.to
+						},
+						messageId: "<" + data.MessageId + (!/@/.test(data.MessageId) ? "@" + region + ".amazonses.com" : "") + ">",
+						response: data.MessageId,
+						raw
+					};
+					setImmediate(() => callback(null, info));
+				}).catch((err) => {
+					tagSesError(err);
+					this.logger.error({
+						err,
+						tnx: "send"
+					}, "Send error for %s: %s", messageId, err.message);
+					setImmediate(() => callback(err));
+				});
+			});
+		}));
+	}
+	verify(callback) {
+		let promise;
+		if (!callback) promise = new Promise((resolve, reject) => {
+			callback = callbackPromise(resolve, reject);
+		});
+		const done = callback;
+		const cb = (err) => {
+			if (err && !["InvalidParameterValue", "MessageRejected"].includes(err.code || err.Code || err.name)) return done(tagSesError(err));
+			return done(null, true);
+		};
+		const sesMessage = {
+			Content: { Raw: { Data: Buffer.from("From: <invalid@invalid>\r\nTo: <invalid@invalid>\r\n Subject: Invalid\r\n\r\nInvalid") } },
+			FromEmailAddress: "invalid@invalid",
+			Destination: { ToAddresses: ["invalid@invalid"] }
+		};
+		this.getRegion(() => {
+			let sendPromise;
+			try {
+				const command = new this.ses.SendEmailCommand(sesMessage);
+				sendPromise = this.ses.sesClient.send(command);
+			} catch (err) {
+				setImmediate(() => cb(err));
+				return;
+			}
+			sendPromise.then(() => setImmediate(() => cb(null))).catch((err) => setImmediate(() => cb(err)));
+		});
+		return promise;
+	}
+};
+//#endregion
+//#region node_modules/nodemailer/dist/esm/nodemailer.js
+const etherealApi = () => (process.env.ETHEREAL_API || "https://api.nodemailer.com").replace(/\/+$/, "");
+const etherealWeb = () => (process.env.ETHEREAL_WEB || "https://ethereal.email").replace(/\/+$/, "");
+const etherealApiKey = () => (process.env.ETHEREAL_API_KEY || "").replace(/\s*/g, "") || null;
+const etherealCache = () => [
+	"true",
+	"yes",
+	"y",
+	"1"
+].includes((process.env.ETHEREAL_CACHE || "yes").toString().trim().toLowerCase());
+let testAccount = false;
+function createTransport(transporter, defaults) {
+	let options;
+	if (typeof transporter === "object" && typeof transporter.send !== "function" || typeof transporter === "string" && /^(smtps?|direct):/i.test(transporter)) {
+		const urlConfig = typeof transporter === "string" ? transporter : transporter.url;
+		if (urlConfig) {
+			const parsed = parseConnectionUrl(urlConfig);
+			options = typeof transporter === "object" ? assign(false, copyOwnKeys({}, transporter, (key) => key === "url"), parsed) : parsed;
+		} else options = transporter;
+		if (options.pool) transporter = new SMTPPool(options);
+		else if (options.sendmail) transporter = new SendmailTransport(options);
+		else if (options.streamTransport) transporter = new StreamTransport(options);
+		else if (options.jsonTransport) transporter = new JSONTransport(options);
+		else if (options.SES) {
+			const ses = options.SES;
+			if (ses.ses && ses.aws) {
+				const error = /* @__PURE__ */ new Error("Using legacy SES configuration, expecting @aws-sdk/client-sesv2, see https://nodemailer.com/transports/ses/");
+				error.code = ECONFIG;
+				throw error;
+			}
+			transporter = new SESTransport(options);
+		} else transporter = new SMTPTransport(options);
+	}
+	return new Mail(transporter, options, defaults);
+}
+function createTestAccount(apiUrl, callback) {
+	let promise;
+	if (!callback && typeof apiUrl === "function") {
+		callback = apiUrl;
+		apiUrl = false;
+	}
+	if (!callback) promise = new Promise((resolve, reject) => {
+		callback = callbackPromise(resolve, reject);
+	});
+	const done = callback;
+	if (etherealCache() && testAccount) {
+		setImmediate(() => done(null, testAccount));
+		return promise;
+	}
+	apiUrl = apiUrl || etherealApi();
+	const chunks = [];
+	let chunklen = 0;
+	const requestHeaders = {};
+	const requestBody = {
+		requestor: name,
+		version
+	};
+	const apiKey = etherealApiKey();
+	if (apiKey) requestHeaders.Authorization = "Bearer " + apiKey;
+	const fetchOptions = {
+		contentType: "application/json",
+		method: "POST",
+		headers: requestHeaders,
+		body: Buffer.from(JSON.stringify(requestBody))
+	};
+	if (/^https:/i.test(apiUrl)) fetchOptions.tls = { rejectUnauthorized: true };
+	const req = nmfetch(apiUrl + "/user", fetchOptions);
+	req.on("readable", () => {
+		let chunk;
+		while ((chunk = req.read()) !== null) {
+			chunks.push(chunk);
+			chunklen += chunk.length;
+		}
+	});
+	req.once("error", (err) => done(err));
+	req.once("end", () => {
+		const res = Buffer.concat(chunks, chunklen);
+		let data;
+		try {
+			data = JSON.parse(res.toString());
+		} catch (E) {
+			return done(E);
+		}
+		if (data.status !== "success" || data.error) return done(new Error(data.error || "Request failed"));
+		delete data.status;
+		testAccount = data;
+		done(null, testAccount);
+	});
+	return promise;
+}
+/**
+* Resolves the Ethereal web URL for a message sent through an Ethereal test account
+*
+* @param info Result object of sendMail()
+* @returns URL of the message in the Ethereal web interface, or false if the response does not carry one
+*/
+function getTestMessageUrl(info) {
+	if (!info || !info.response) return false;
+	const infoProps = /* @__PURE__ */ new Map();
+	const response = info.response.toString();
+	if (response.length > 2 && response.charAt(response.length - 1) === "]") {
+		const open = response.indexOf("[", response.lastIndexOf("]", response.length - 2) + 1);
+		if (open >= 0 && open < response.length - 2) response.substring(open + 1, response.length - 1).replace(/\b([A-Z0-9]+)=([^\s]+)/g, (m, key, value) => {
+			infoProps.set(key, value);
+			return m;
+		});
+	}
+	if (infoProps.has("STATUS") && infoProps.has("MSGID")) return (testAccount && testAccount.web || etherealWeb()) + "/message/" + infoProps.get("MSGID");
+	return false;
+}
+const nodemailer = {
+	createTransport,
+	createTestAccount,
+	getTestMessageUrl
+};
+//#endregion
+//#region server/mailer.ts
+const SYNTHETIC_DOMAINS = /* @__PURE__ */ new Set([
+	"example.com",
+	"example.org",
+	"example.net",
+	"test.com",
+	"test.org",
+	"email.com",
+	"motorly.com",
+	"motorly.io",
+	"motorly-test.io",
+	"stress-test.org",
+	"adversarial.com",
+	"attacker.org",
+	"vipclient.com",
+	"techventure.io",
+	"atelier.fr",
+	"cyberdyne.org",
+	"executive.com",
+	"amazon.com",
+	"gamil.com",
+	"pitstopcarhire.com"
+]);
+const SYNTHETIC_EXACT_EMAILS = /* @__PURE__ */ new Set([
+	"test@gmail.com",
+	"customer@example.com",
+	"admin@motorly.com",
+	"concierge@motorly.com"
+]);
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function parseEmailList(input) {
+	if (!input) return [];
+	const rawList = Array.isArray(input) ? input : String(input).split(/[,\n;]+/);
+	const seen = /* @__PURE__ */ new Set();
+	const result = [];
+	for (const item of rawList) {
+		const clean = String(item || "").trim();
+		const lower = clean.toLowerCase();
+		if (clean && EMAIL_REGEX.test(clean) && !seen.has(lower)) {
+			seen.add(lower);
+			result.push(clean);
+		}
+	}
+	return result;
+}
+function isSyntheticEmail(email) {
+	const lower = String(email || "").trim().toLowerCase();
+	if (!lower || !EMAIL_REGEX.test(lower)) return true;
+	if (SYNTHETIC_EXACT_EMAILS.has(lower)) return true;
+	const domain = lower.split("@")[1] || "";
+	return SYNTHETIC_DOMAINS.has(domain);
+}
+function getSmtpConfig() {
+	const host = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
+	const port = Number(process.env.SMTP_PORT || 587);
+	const secure = process.env.SMTP_SECURE === "true" || port === 465;
+	const user = (process.env.SMTP_USER || "").trim();
+	const pass = (process.env.SMTP_PASS || "").replace(/\s+/g, "").trim();
+	return {
+		host,
+		port,
+		secure,
+		user,
+		pass,
+		fromName: (process.env.SMTP_FROM_NAME || "Pit Stop Car Hire").trim(),
+		defaultAdminEmail: (process.env.ADMIN_NOTIFICATION_EMAIL || user || "pitstopcarhire@gmail.com").trim(),
+		configured: Boolean(host && user && pass)
+	};
+}
+let cachedTransporter = null;
+let cachedTransporterKey = "";
+function getTransporter() {
+	const cfg = getSmtpConfig();
+	if (!cfg.configured) return null;
+	const key = `${cfg.host}:${cfg.port}:${cfg.secure}:${cfg.user}:${cfg.pass}`;
+	if (cachedTransporter && cachedTransporterKey === key) return cachedTransporter;
+	cachedTransporter = nodemailer.createTransport({
+		host: cfg.host,
+		port: cfg.port,
+		secure: cfg.secure,
+		auth: {
+			user: cfg.user,
+			pass: cfg.pass
+		}
+	});
+	cachedTransporterKey = key;
+	return cachedTransporter;
+}
+async function verifySmtpConnection() {
+	const cfg = getSmtpConfig();
+	const transporter = getTransporter();
+	if (!transporter) return {
+		configured: false,
+		verified: false,
+		user: cfg.user,
+		host: cfg.host,
+		port: cfg.port,
+		error: "SMTP_USER or SMTP_PASS is not configured."
+	};
+	try {
+		await transporter.verify();
+		return {
+			configured: true,
+			verified: true,
+			user: cfg.user,
+			host: cfg.host,
+			port: cfg.port
+		};
+	} catch (err) {
+		return {
+			configured: true,
+			verified: false,
+			user: cfg.user,
+			host: cfg.host,
+			port: cfg.port,
+			error: err?.message || "SMTP verification failed."
+		};
+	}
+}
+async function sendEmail(options) {
+	const cfg = getSmtpConfig();
+	const allRecipients = parseEmailList(options.to);
+	const recipients = options.allowTestDomains ? allRecipients : allRecipients.filter((addr) => !isSyntheticEmail(addr));
+	if (recipients.length === 0) return {
+		sent: false,
+		skipped: true,
+		reason: allRecipients.length > 0 ? "Skipped synthetic/test recipient address." : "No valid recipient email address provided.",
+		recipients: []
+	};
+	if (!getTransporter()) return {
+		sent: false,
+		skipped: true,
+		reason: "SMTP credentials not configured.",
+		recipients
+	};
+	const ccList = parseEmailList(options.cc).filter((addr) => options.allowTestDomains || !isSyntheticEmail(addr));
+	const mailPayload = {
+		from: `"${cfg.fromName}" <${cfg.user}>`,
+		to: recipients.join(", "),
+		...ccList.length > 0 ? { cc: ccList.join(", ") } : {},
+		...options.replyTo && EMAIL_REGEX.test(options.replyTo.trim()) ? { replyTo: options.replyTo.trim() } : {},
+		subject: options.subject,
+		text: options.text,
+		html: options.html
+	};
+	for (let attempt = 1; attempt <= 2; attempt++) try {
+		const activeTransporter = getTransporter();
+		if (!activeTransporter) break;
+		const info = await activeTransporter.sendMail(mailPayload);
+		console.log(`[Email Sent] "${options.subject}" -> ${recipients.join(", ")} (${info.messageId})`);
+		return {
+			sent: true,
+			messageId: info.messageId,
+			recipients
+		};
+	} catch (err) {
+		const msg = String(err?.message || err || "");
+		const transient = /ECONNRESET|ETIMEDOUT|EPIPE|ESOCKET|ECONNECTION|Connection unexpectedly closed/i.test(msg);
+		if (attempt === 1 && transient) {
+			cachedTransporter = null;
+			cachedTransporterKey = "";
+			await new Promise((r) => setTimeout(r, 350));
+			continue;
+		}
+		console.error(`[Email Error] "${options.subject}" -> ${recipients.join(", ")}:`, msg);
+		return {
+			sent: false,
+			recipients,
+			error: msg || "Failed to send email."
+		};
+	}
+	return {
+		sent: false,
+		recipients,
+		error: "Failed to send email."
+	};
+}
+function escapeHtml(value) {
+	return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function renderEmailShell(params) {
+	const badgeColor = params.badgeColor || "#F97316";
+	const rowsHtml = (params.rows || []).map((r) => `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid #ece7df;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;width:38%;">${escapeHtml(r.label)}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid #ece7df;font-size:14px;font-weight:600;color:#17191C;">${escapeHtml(r.value)}</td>
+        </tr>`).join("");
+	return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#FAF7F2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#17191C;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FAF7F2;padding:28px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e7e1d7;box-shadow:0 6px 24px rgba(23,25,28,0.06);">
+          <tr>
+            <td style="background:#17191C;padding:22px 28px;">
+              <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#F97316;">PIT STOP CAR HIRE &bull; MALTA &amp; GOZO</div>
+              <div style="margin-top:8px;display:inline-block;padding:4px 10px;border-radius:999px;background:${badgeColor};color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(params.badge)}</div>
+              <h1 style="margin:12px 0 0;font-size:22px;line-height:1.3;font-weight:800;color:#ffffff;">${escapeHtml(params.title)}</h1>
+              ${params.subtitle ? `<p style="margin:6px 0 0;font-size:13px;line-height:1.5;color:#d6d3cd;">${escapeHtml(params.subtitle)}</p>` : ""}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 28px;">
+              ${rowsHtml ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #ece7df;border-radius:12px;overflow:hidden;border-collapse:collapse;">${rowsHtml}</table>` : ""}
+              ${params.note ? `<div style="margin-top:18px;padding:14px 16px;border-radius:10px;background:#FAF7F2;border-left:4px solid ${badgeColor};font-size:13px;line-height:1.55;color:#374151;">${escapeHtml(params.note)}</div>` : ""}
+              ${params.ctaLabel && params.ctaUrl ? `<div style="margin-top:22px;text-align:center;"><a href="${escapeHtml(params.ctaUrl)}" style="display:inline-block;padding:12px 24px;border-radius:10px;background:#F97316;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;">${escapeHtml(params.ctaLabel)}</a></div>` : ""}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px;background:#FAF7F2;border-top:1px solid #ece7df;font-size:11px;line-height:1.5;color:#6b7280;">
+              ${escapeHtml(params.footerNote || "Pit Stop Car Hire • 36 Triq IL-Kbira, Mgarr, Malta • Tel: +356 9982 7192 / +356 9980 4255")}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+//#endregion
+//#region server/notifications.ts
+const recentDispatchCache = /* @__PURE__ */ new Map();
+const DEDUPE_TTL_MS = 6e4;
+function wasRecentlyDispatched(key) {
+	const now = Date.now();
+	for (const [k, ts] of recentDispatchCache.entries()) if (now - ts > DEDUPE_TTL_MS) recentDispatchCache.delete(k);
+	const prev = recentDispatchCache.get(key);
+	if (prev && now - prev < DEDUPE_TTL_MS) return true;
+	recentDispatchCache.set(key, now);
+	return false;
+}
+async function getAdminNotificationConfig(db) {
+	const cfg = getSmtpConfig();
+	let contactEmail = cfg.defaultAdminEmail;
+	let hasContactEmail = false;
+	let additionalRaw = "";
+	let hubAddress = "36 Triq IL-Kbira, Mgarr, Malta";
+	let contactPhone = "+356 9982 7192";
+	try {
+		const rows = await db.prepare("SELECT key, value FROM system_settings").all();
+		for (const r of rows || []) {
+			if (r.key === "contact_email" && r.value) {
+				contactEmail = String(r.value).trim();
+				hasContactEmail = true;
+			}
+			if (r.key === "company_email" && r.value && !hasContactEmail) contactEmail = String(r.value).trim();
+			if (r.key === "admin_notification_emails" && r.value) additionalRaw = String(r.value);
+			if (r.key === "hub_address" && r.value) hubAddress = String(r.value);
+			if (r.key === "contact_phone" && r.value) contactPhone = String(r.value);
+			if (r.key === "company_phone" && r.value && !contactPhone) contactPhone = String(r.value);
+		}
+	} catch {}
+	const envExtra = parseEmailList(process.env.ADMIN_NOTIFICATION_EMAIL);
+	const additionalEmails = parseEmailList(additionalRaw);
+	const primaryList = parseEmailList(contactEmail).filter((e) => !isSyntheticEmail(e));
+	const combined = parseEmailList([
+		...primaryList,
+		...additionalEmails,
+		...envExtra,
+		...primaryList.length === 0 && additionalEmails.length === 0 ? [cfg.defaultAdminEmail] : []
+	]).filter((e) => !isSyntheticEmail(e));
+	return {
+		primaryEmail: primaryList[0] || cfg.defaultAdminEmail,
+		additionalEmails,
+		allRecipients: combined,
+		hubAddress,
+		contactPhone
+	};
+}
+async function resolveVehicleLabel(db, matchedCarId, fallbackCategory) {
+	if (matchedCarId) try {
+		const car = await db.prepare("SELECT name, year FROM vehicles WHERE id = ?").get(matchedCarId);
+		if (car?.name) return car.year ? `${car.name} (${car.year})` : car.name;
+	} catch {}
+	return fallbackCategory ? `${fallbackCategory} (Pending Assignment)` : "Assigned Fleet Vehicle";
+}
+function customerFullName(booking) {
+	return `${booking.customer_first_name || booking.customer?.firstName || ""} ${booking.customer_last_name || booking.customer?.lastName || ""}`.trim() || "Valued Customer";
+}
+function customerEmailOf(booking) {
+	return String(booking.customer_email || booking.customer?.email || "").trim();
+}
+async function notifyBookingCreated(db, booking, originUrl) {
+	const bookingId = String(booking.id || "");
+	const customerEmail = customerEmailOf(booking);
+	const adminCfg = await getAdminNotificationConfig(db);
+	if (wasRecentlyDispatched(`new_booking:${bookingId}`)) return {
+		customer: {
+			sent: false,
+			skipped: true,
+			reason: "Already dispatched.",
+			recipients: []
+		},
+		admin: {
+			sent: false,
+			skipped: true,
+			reason: "Already dispatched.",
+			recipients: []
+		}
+	};
+	if (isSyntheticEmail(customerEmail)) return {
+		customer: {
+			sent: false,
+			skipped: true,
+			reason: "Synthetic test email.",
+			recipients: []
+		},
+		admin: {
+			sent: false,
+			skipped: true,
+			reason: "Synthetic test booking.",
+			recipients: []
+		}
+	};
+	const name = customerFullName(booking);
+	const vehicle = await resolveVehicleLabel(db, booking.matched_car_id, booking.requested_category);
+	const total = Number(booking.total_amount || 0).toFixed(2);
+	const pickupDate = booking.pickup_date || "TBD";
+	const returnDate = booking.return_date || "TBD";
+	const pickupLocation = booking.pickup_location || adminCfg.hubAddress;
+	const adminLink = `${(originUrl || process.env.APP_URL || "https://motorly-ten.vercel.app").replace(/\/$/, "")}/admin?bookingId=${encodeURIComponent(bookingId)}`;
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Status",
+			value: booking.status || "Pending Approval"
+		},
+		{
+			label: "Vehicle",
+			value: vehicle
+		},
+		{
+			label: "Pickup",
+			value: pickupDate
+		},
+		{
+			label: "Return",
+			value: returnDate
+		},
+		{
+			label: "Location",
+			value: pickupLocation
+		},
+		{
+			label: "Trip Purpose",
+			value: booking.trip_reason || "Travel & Leisure"
+		},
+		{
+			label: "Total Amount",
+			value: `€${total}`
+		}
+	];
+	const customerRes = await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Booking Request Received (${bookingId})`,
+		text: `Hello ${name},\n\nThank you for reserving with Pit Stop Car Hire.\nBooking ID: ${bookingId}\nVehicle: ${vehicle}\nPickup: ${pickupDate}\nReturn: ${returnDate}\nLocation: ${pickupLocation}\nTotal: €${total}\n\nOur dispatch team is reviewing your reservation and will confirm shortly.\nQuestions? Call ${adminCfg.contactPhone} or reply to ${adminCfg.primaryEmail}.`,
+		html: renderEmailShell({
+			badge: "Booking Received",
+			title: `Thank you, ${name}!`,
+			subtitle: `Your reservation ${bookingId} has been received by Pit Stop Car Hire.`,
+			rows,
+			note: "A refundable €200 security deposit pre-authorization applies at key handover. You will receive another confirmation email once our fleet manager approves your booking."
+		})
+	});
+	const adminRows = [
+		...rows,
+		{
+			label: "Customer",
+			value: name
+		},
+		{
+			label: "Customer Email",
+			value: customerEmail
+		},
+		{
+			label: "Customer Phone",
+			value: booking.customer_phone || "Not provided"
+		}
+	];
+	return {
+		customer: customerRes,
+		admin: await sendEmail({
+			to: adminCfg.allRecipients,
+			replyTo: customerEmail,
+			subject: `[ADMIN ALERT] New Booking ${bookingId} – ${vehicle} (€${total})`,
+			text: `New booking request ${bookingId}\nCustomer: ${name} (${customerEmail}, ${booking.customer_phone || "No phone"})\nVehicle: ${vehicle}\nPickup: ${pickupDate}\nReturn: ${returnDate}\nLocation: ${pickupLocation}\nTotal: €${total}\nReview: ${adminLink}`,
+			html: renderEmailShell({
+				badge: "New Booking Alert",
+				badgeColor: "#DC2626",
+				title: `New Reservation: ${bookingId}`,
+				subtitle: `${name} requested ${vehicle} for €${total}.`,
+				rows: adminRows,
+				ctaLabel: "Review & Approve in Admin Console",
+				ctaUrl: adminLink
+			})
+		})
+	};
+}
+async function notifyBookingApproved(db, booking) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const vehicle = await resolveVehicleLabel(db, booking.matched_car_id, booking.requested_category);
+	const total = Number(booking.total_amount || 0).toFixed(2);
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Status",
+			value: booking.status || "Assigned & Approved"
+		},
+		{
+			label: "Vehicle",
+			value: vehicle
+		},
+		{
+			label: "Pickup",
+			value: booking.pickup_date || "TBD"
+		},
+		{
+			label: "Return",
+			value: booking.return_date || "TBD"
+		},
+		{
+			label: "Pickup Hub",
+			value: booking.pickup_location || adminCfg.hubAddress
+		},
+		{
+			label: "Total Amount",
+			value: `€${total}`
+		}
+	];
+	await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Booking Approved (${bookingId})`,
+		text: `Hello ${name},\n\nGreat news! Your booking ${bookingId} for ${vehicle} has been approved.\nPickup: ${booking.pickup_date}\nLocation: ${booking.pickup_location || adminCfg.hubAddress}\nTotal: €${total}\n\nPlease bring your valid driver's license and ID at pickup.`,
+		html: renderEmailShell({
+			badge: "Approved & Confirmed",
+			badgeColor: "#16A34A",
+			title: `Booking ${bookingId} Confirmed`,
+			subtitle: `Your ${vehicle} is approved and scheduled for pickup.`,
+			rows,
+			note: "Please present your valid driver's license and government ID at key handover. Call +356 9982 7192 if you need delivery assistance."
+		})
+	});
+	await sendEmail({
+		to: adminCfg.allRecipients,
+		subject: `[ADMIN LOG] Booking Approved – ${bookingId} (${name})`,
+		text: `Booking ${bookingId} for ${name} (${customerEmail}) has been approved. Vehicle: ${vehicle}.`,
+		html: renderEmailShell({
+			badge: "Admin Log: Approved",
+			badgeColor: "#16A34A",
+			title: `Booking ${bookingId} Approved`,
+			subtitle: `Customer ${name} (${customerEmail}) has been notified.`,
+			rows
+		})
+	});
+}
+async function notifyBookingDeclined(db, booking) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const vehicle = await resolveVehicleLabel(db, booking.matched_car_id, booking.requested_category);
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Status",
+			value: "Declined / Cancelled"
+		},
+		{
+			label: "Vehicle",
+			value: vehicle
+		},
+		{
+			label: "Requested Dates",
+			value: `${booking.pickup_date || ""} – ${booking.return_date || ""}`
+		}
+	];
+	await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Reservation Update (${bookingId})`,
+		text: `Hello ${name},\n\nUnfortunately, reservation ${bookingId} (${vehicle}) could not be accommodated for the requested dates. Please contact us at ${adminCfg.contactPhone} or ${adminCfg.primaryEmail} to arrange an alternative vehicle.`,
+		html: renderEmailShell({
+			badge: "Reservation Update",
+			badgeColor: "#DC2626",
+			title: `Update on Booking ${bookingId}`,
+			subtitle: "Your requested reservation could not be confirmed.",
+			rows,
+			note: `No rental charge has been applied. Please reach out to us at ${adminCfg.contactPhone} or reply to this email for alternative vehicles.`
+		})
+	});
+	await sendEmail({
+		to: adminCfg.allRecipients,
+		subject: `[ADMIN LOG] Booking Declined – ${bookingId}`,
+		text: `Booking ${bookingId} for ${name} (${customerEmail}) was declined.`,
+		html: renderEmailShell({
+			badge: "Admin Log: Declined",
+			badgeColor: "#DC2626",
+			title: `Booking ${bookingId} Declined`,
+			subtitle: `Customer ${name} (${customerEmail}) has been notified.`,
+			rows
+		})
+	});
+}
+async function notifyKeysHandedOver(db, booking, checklist) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const vehicle = await resolveVehicleLabel(db, booking.matched_car_id, booking.requested_category);
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Vehicle",
+			value: vehicle
+		},
+		{
+			label: "Odometer Out",
+			value: `${checklist.odometerOut} ${checklist.odometerUnit}`
+		},
+		{
+			label: "Fuel Level Out",
+			value: checklist.fuelOut
+		},
+		{
+			label: "Return Due",
+			value: booking.return_date || "TBD"
+		},
+		{
+			label: "Handled By",
+			value: checklist.staffSign
+		}
+	];
+	await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Keys Handed Over (${bookingId})`,
+		text: `Hello ${name},\n\nKeys have been handed over for ${bookingId} (${vehicle}).\nOdometer Out: ${checklist.odometerOut} ${checklist.odometerUnit}\nFuel Out: ${checklist.fuelOut}\nReturn Due: ${booking.return_date}\n\nHave a safe trip across Malta & Gozo!`,
+		html: renderEmailShell({
+			badge: "Checked Out • On Road",
+			badgeColor: "#2563EB",
+			title: `Enjoy Your Drive, ${name}!`,
+			subtitle: `Your rental for ${vehicle} is now active.`,
+			rows,
+			note: "If your rental will be extended, please advise us in advance via the app or by calling +356 9982 7192 (Clause 14)."
+		})
+	});
+	await sendEmail({
+		to: adminCfg.allRecipients,
+		subject: `[ADMIN LOG] Keys Handed Over – ${bookingId} (${vehicle})`,
+		text: `Keys handed over for ${bookingId} to ${name}. Odometer: ${checklist.odometerOut} ${checklist.odometerUnit}, Fuel: ${checklist.fuelOut}.`,
+		html: renderEmailShell({
+			badge: "Admin Log: Key Handover",
+			badgeColor: "#2563EB",
+			title: `Vehicle Checked Out (${bookingId})`,
+			subtitle: `${vehicle} handed over to ${name}.`,
+			rows
+		})
+	});
+}
+async function notifyExtensionRequested(db, booking, extRequest) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const vehicle = await resolveVehicleLabel(db, booking.matched_car_id, booking.requested_category);
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Customer",
+			value: `${name} (${customerEmail})`
+		},
+		{
+			label: "Vehicle",
+			value: vehicle
+		},
+		{
+			label: "Extra Duration",
+			value: `+${extRequest.extraDuration} ${extRequest.unit}`
+		},
+		{
+			label: "Current Return",
+			value: booking.return_date || "TBD"
+		},
+		{
+			label: "Notes",
+			value: extRequest.customerNotes
+		}
+	];
+	await sendEmail({
+		to: adminCfg.allRecipients,
+		replyTo: customerEmail,
+		subject: `[ADMIN ALERT] Extension Requested – ${bookingId} (+${extRequest.extraDuration} ${extRequest.unit})`,
+		text: `${name} requested a +${extRequest.extraDuration} ${extRequest.unit} extension for ${bookingId} (${vehicle}). Notes: ${extRequest.customerNotes}`,
+		html: renderEmailShell({
+			badge: "Extension Request",
+			badgeColor: "#D97706",
+			title: `Extension Requested: ${bookingId}`,
+			subtitle: `${name} requested +${extRequest.extraDuration} ${extRequest.unit}.`,
+			rows,
+			note: "Open the Admin Console to send a rate quotation for this extension."
+		})
+	});
+}
+async function notifyExtensionQuoted(db, booking, quote) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Requested Extension",
+			value: `+${quote.durationValue} ${quote.durationUnit}`
+		},
+		{
+			label: "Quoted Cost",
+			value: `€${Number(quote.totalQuotedAmount).toFixed(2)}`
+		},
+		{
+			label: "Manager Notes",
+			value: quote.adminNotes
+		}
+	];
+	await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Extension Quote Ready (${bookingId})`,
+		text: `Hello ${name},\n\nYour rental extension quote for ${bookingId} (+${quote.durationValue} ${quote.durationUnit}) is €${Number(quote.totalQuotedAmount).toFixed(2)}.\nPlease open My Bookings in the app to approve or decline.`,
+		html: renderEmailShell({
+			badge: "Extension Quoted",
+			badgeColor: "#D97706",
+			title: `Extension Quote for ${bookingId}`,
+			subtitle: "Review and approve your extension quote in My Bookings.",
+			rows
+		})
+	});
+}
+async function notifyExtensionOutcome(db, booking, outcome, details) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const isApproved = outcome === "Approved";
+	const rows = isApproved ? [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Extension Status",
+			value: "Approved"
+		},
+		{
+			label: "Additional Cost",
+			value: `€${Number(details.additionalCost || 0).toFixed(2)}`
+		},
+		{
+			label: "New Return Date",
+			value: details.newReturnDate || booking.return_date || ""
+		},
+		{
+			label: "Updated Total",
+			value: `€${Number(details.newTotal || booking.total_amount || 0).toFixed(2)}`
+		}
+	] : [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Extension Status",
+			value: `Declined (${details.actor || "customer"})`
+		},
+		{
+			label: "Original Return Date",
+			value: booking.return_date || ""
+		}
+	];
+	await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Extension ${outcome} (${bookingId})`,
+		text: isApproved ? `Hello ${name},\n\nYour extension for ${bookingId} is approved. New return date: ${details.newReturnDate}. Updated total: €${Number(details.newTotal || 0).toFixed(2)}.` : `Hello ${name},\n\nThe extension quotation for ${bookingId} was declined. Original return date remains ${booking.return_date}.`,
+		html: renderEmailShell({
+			badge: `Extension ${outcome}`,
+			badgeColor: isApproved ? "#16A34A" : "#6B7280",
+			title: `Extension ${outcome} (${bookingId})`,
+			rows
+		})
+	});
+	await sendEmail({
+		to: adminCfg.allRecipients,
+		subject: `[ADMIN LOG] Extension ${outcome} – ${bookingId}`,
+		text: `Extension for ${bookingId} (${name}) was ${outcome.toLowerCase()}.`,
+		html: renderEmailShell({
+			badge: `Admin: Extension ${outcome}`,
+			badgeColor: isApproved ? "#16A34A" : "#6B7280",
+			title: `Extension ${outcome}: ${bookingId}`,
+			subtitle: `Customer: ${name} (${customerEmail})`,
+			rows
+		})
+	});
+}
+async function notifyReturnInspectionCompleted(db, booking, checklistIn, newTotal) {
+	const customerEmail = customerEmailOf(booking);
+	if (isSyntheticEmail(customerEmail)) return;
+	const adminCfg = await getAdminNotificationConfig(db);
+	const bookingId = String(booking.id || "");
+	const name = customerFullName(booking);
+	const vehicle = await resolveVehicleLabel(db, booking.matched_car_id, booking.requested_category);
+	const rows = [
+		{
+			label: "Booking ID",
+			value: bookingId
+		},
+		{
+			label: "Vehicle",
+			value: vehicle
+		},
+		{
+			label: "Odometer In",
+			value: String(checklistIn.odometerIn)
+		},
+		{
+			label: "Fuel Level In",
+			value: checklistIn.fuelIn
+		},
+		{
+			label: "Inspection Result",
+			value: checklistIn.damageFound ? `Damage Reported (${checklistIn.damageSeverity || "Minor"} - ${checklistIn.damageLocation || "Exterior"})` : "Passed Clean (0 Damage)"
+		},
+		...checklistIn.damageFee > 0 ? [{
+			label: "Damage / Cleaning Fee",
+			value: `€${checklistIn.damageFee.toFixed(2)}`
+		}] : [],
+		{
+			label: "Final Total",
+			value: `€${newTotal.toFixed(2)}`
+		}
+	];
+	await sendEmail({
+		to: customerEmail,
+		replyTo: adminCfg.primaryEmail,
+		subject: `Pit Stop Car Hire – Return Receipt & Inspection Summary (${bookingId})`,
+		text: `Hello ${name},\n\nThank you for returning ${vehicle} (${bookingId}).\nInspection: ${checklistIn.damageFound ? "Damage reported" : "Passed clean"}\nFinal Total: €${newTotal.toFixed(2)}\n\nWe appreciate your business!`,
+		html: renderEmailShell({
+			badge: "Trip Completed",
+			badgeColor: checklistIn.damageFound ? "#D97706" : "#16A34A",
+			title: `Return Receipt: ${bookingId}`,
+			subtitle: `Thank you for riding with Pit Stop Car Hire, ${name}.`,
+			rows,
+			note: checklistIn.damageNotes || void 0
+		})
+	});
+	await sendEmail({
+		to: adminCfg.allRecipients,
+		subject: `[ADMIN LOG] Return Inspection ${checklistIn.damageFound ? "⚠️ DAMAGE" : "Completed"} – ${bookingId}`,
+		text: `Return inspection finalized for ${bookingId} (${vehicle}, ${name}). Final total: €${newTotal.toFixed(2)}.`,
+		html: renderEmailShell({
+			badge: checklistIn.damageFound ? "Admin: Damage Reported" : "Admin: Return Completed",
+			badgeColor: checklistIn.damageFound ? "#DC2626" : "#16A34A",
+			title: `Return Finalized (${bookingId})`,
+			subtitle: `Customer: ${name} (${customerEmail})`,
+			rows,
+			note: checklistIn.damageNotes || void 0
+		})
+	});
+}
+async function sendContactInquiryEmails(db, payload) {
+	const adminCfg = await getAdminNotificationConfig(db);
+	const rows = [
+		{
+			label: "From",
+			value: payload.name
+		},
+		{
+			label: "Email",
+			value: payload.email
+		},
+		{
+			label: "Phone",
+			value: payload.phone || "Not provided"
+		},
+		{
+			label: "Preferred Dates",
+			value: payload.dates || "Flexible"
+		},
+		{
+			label: "Preferred Vehicle",
+			value: payload.preferredVehicle || "Any available"
+		}
+	];
+	return {
+		admin: await sendEmail({
+			to: adminCfg.allRecipients,
+			replyTo: payload.email,
+			subject: `[PIT STOP INQUIRY] Message from ${payload.name}`,
+			text: `New rental inquiry from ${payload.name} (${payload.email}, ${payload.phone || "No phone"})\nDates: ${payload.dates || "Flexible"}\nVehicle: ${payload.preferredVehicle || "Any"}\n\nMessage:\n${payload.message}`,
+			html: renderEmailShell({
+				badge: "Customer Inquiry",
+				title: `New Inquiry from ${payload.name}`,
+				subtitle: "Submitted via Pit Stop Car Hire Contact Form.",
+				rows,
+				note: payload.message
+			})
+		}),
+		customer: await sendEmail({
+			to: payload.email,
+			replyTo: adminCfg.primaryEmail,
+			subject: "Pit Stop Car Hire – We Received Your Inquiry",
+			text: `Hello ${payload.name},\n\nThank you for contacting Pit Stop Car Hire. We have received your inquiry and will reply shortly.\nFor urgent requests, call ${adminCfg.contactPhone}.`,
+			html: renderEmailShell({
+				badge: "Inquiry Received",
+				badgeColor: "#16A34A",
+				title: `Thanks for reaching out, ${payload.name}!`,
+				subtitle: "Our Mgarr operations team has received your message.",
+				rows,
+				note: `Your message: "${payload.message}"`
+			})
+		})
+	};
+}
+//#endregion
 //#region server/index.ts
 try {
 	if (typeof process.loadEnvFile === "function") {
@@ -41753,6 +55556,7 @@ app.post("/api/auth/google-admin-login", async (req, res) => {
 	});
 	let isAuthorized = [
 		"nanikoushik96@gmail.com",
+		"pitstopcarhire@gmail.com",
 		"admin@pitstopcarhire.com",
 		process.env.ADMIN_GMAIL?.toLowerCase(),
 		process.env.ADMIN_EMAIL?.toLowerCase()
@@ -42557,6 +56361,12 @@ app.post("/api/bookings", optionalAuth, async (req, res) => {
         `).run(id, b.customer?.firstName || "Guest", b.customer?.lastName || "Customer", (b.customer?.email || "customer@example.com").trim().toLowerCase(), b.customer?.phone || "+356 99827192", b.driver?.dateOfBirth || null, b.driver?.licenseNumber || null, b.driver?.licenseState || null, b.driver?.licenseExpiry || null, b.driver?.licensePhotoFront || b.driver?.licenseFileName || "dl_front_default.jpg", b.driver?.licensePhotoBack || b.driver?.licenseBackFileName || "dl_back_default.jpg", b.driver?.selfieFileName || null, b.pickupLocation && !b.pickupLocation.includes("Miami") ? b.pickupLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", b.returnLocation && !b.returnLocation.includes("Miami") ? b.returnLocation : cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta", pickupDate, returnDate, b.requestedCategory || "Sedan", matchedCarId, status, Number(b.totalAmount) || 0, createdAtValue, validUserId, b.notes || (b.tripReason ? `Trip Purpose: ${b.tripReason}` : null), validPromoCode, b.tripReason || b.trip_reason || "Travel & Leisure", b.deliveryType || "garage", b.deliveryLocationCustom || null, Number(b.deliveryFee) || 0, b.returnType || "garage", b.returnLocationCustom || null, Number(b.returnFee) || 0, b.optionalServices ? JSON.stringify(b.optionalServices) : null, Number(b.optionalServicesCost) || 0, Number(b.securityDeposit) || 700, b.remarks || null, b.clientSignature || null, b.conditionPins && b.conditionPins.length > 0 ? JSON.stringify(b.conditionPins) : null, b.conditionPhotos && b.conditionPhotos.length > 0 ? JSON.stringify(b.conditionPhotos) : null, b.deliveryCoordinates ? JSON.stringify(b.deliveryCoordinates) : null, b.returnCoordinates ? JSON.stringify(b.returnCoordinates) : null);
 			return await tx.prepare("SELECT * FROM bookings WHERE id = ?").get(id);
 		});
+		try {
+			const origin = req.headers.origin || (req.headers.host ? `http://${req.headers.host}` : void 0);
+			await notifyBookingCreated(db, createdRow, origin);
+		} catch (mailErr) {
+			console.warn("[Booking Created Email Non-Fatal]", mailErr?.message);
+		}
 		return res.status(201).json(formatBookingRow(createdRow));
 	} catch (err) {
 		if (err.statusCode) return res.status(err.statusCode).json({
@@ -42684,6 +56494,11 @@ const handleManagerApproval = async (req, res) => {
     WHERE id = ?
   `).run(nowIso, newStatus, matchedCarId, bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyBookingApproved(db, updatedBooking);
+	} catch (mailErr) {
+		console.warn("[Booking Approved Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Reservation ${bookingId} accepted by fleet manager.${matchedCarId ? " Vehicle assigned and ready for pickup!" : " Please assign a vehicle."}`,
@@ -42707,6 +56522,11 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
   `).run(bookingId);
 	if (booking.matched_car_id) await db.prepare("UPDATE vehicles SET status = 'Available' WHERE id = ?").run(booking.matched_car_id).catch(() => {});
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyBookingDeclined(db, updatedBooking);
+	} catch (mailErr) {
+		console.warn("[Booking Declined Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Reservation request ${bookingId} was declined by manager.`,
@@ -42755,6 +56575,11 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
   `).run(nowIso, JSON.stringify(checklistObj), checklistObj.odometerOut, checklistObj.fuelOut, photosJson, pinsJson, notesText, bookingId);
 	if (booking.matched_car_id) await db.prepare("UPDATE vehicles SET status = 'Rented', current_odometer = ? WHERE id = ?").run(checklistObj.odometerOut, booking.matched_car_id);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyKeysHandedOver(db, updatedBooking, checklistObj);
+	} catch (mailErr) {
+		console.warn("[Handover Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Keys handed over for ${bookingId}! Official rental clock started at ${nowIso}.`,
@@ -42789,6 +56614,11 @@ app.post("/api/bookings/:id/request-extension", requireAuth, async (req, res) =>
     WHERE id = ?
   `).run(JSON.stringify(extRequest), bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyExtensionRequested(db, updatedBooking, extRequest);
+	} catch (mailErr) {
+		console.warn("[Extension Request Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Extension request for +${durationNum} ${unitStr} submitted. Awaiting manager quotation.`,
@@ -42820,6 +56650,11 @@ app.post("/api/bookings/:id/quote-extension", requireAdmin, async (req, res) => 
     WHERE id = ?
   `).run(JSON.stringify(quoteObj), bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyExtensionQuoted(db, updatedBooking, quoteObj);
+	} catch (mailErr) {
+		console.warn("[Extension Quote Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Quotation of $${quoteObj.totalQuotedAmount} sent to customer for approval.`,
@@ -42880,6 +56715,15 @@ app.post("/api/bookings/:id/approve-extension", optionalAuth, async (req, res) =
     WHERE id = ?
   `).run(newReturnDateStr, newTotal, updatedNotes, bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyExtensionOutcome(db, updatedBooking, "Approved", {
+			additionalCost,
+			newReturnDate: newReturnDateStr,
+			newTotal
+		});
+	} catch (mailErr) {
+		console.warn("[Extension Approved Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Extension approved! €${additionalCost.toFixed(2)} added to rental bill. New return date: ${newReturnDateStr}. New total: €${newTotal.toFixed(2)}.`,
@@ -42901,7 +56745,8 @@ app.post("/api/bookings/:id/decline-extension", optionalAuth, async (req, res) =
 		const bodyEmail = req.body && req.body.email ? String(req.body.email).trim().toLowerCase() : "";
 		if (!(!user.email || !booking.customer_email || booking.user_id && booking.user_id === user.userId || booking.customer_email && booking.customer_email.trim().toLowerCase() === user.email.trim().toLowerCase() || bodyEmail && booking.customer_email && booking.customer_email.trim().toLowerCase() === bodyEmail || phoneMatches) && !isDeclinable) return res.status(403).json({ error: "Access denied. You do not have permission to decline this extension." });
 	}
-	const declineNote = `Extension quotation declined by ${user?.role === "admin" ? "manager" : "customer"}.`;
+	const declineActor = user?.role === "admin" ? "manager" : "customer";
+	const declineNote = `Extension quotation declined by ${declineActor}.`;
 	const updatedNotes = `${booking.notes ? booking.notes + " | " : ""}${declineNote}`;
 	await db.prepare(`
     UPDATE bookings SET
@@ -42910,6 +56755,11 @@ app.post("/api/bookings/:id/decline-extension", optionalAuth, async (req, res) =
     WHERE id = ?
   `).run(updatedNotes, bookingId);
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyExtensionOutcome(db, updatedBooking, "Declined", { actor: declineActor });
+	} catch (mailErr) {
+		console.warn("[Extension Declined Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: "Extension declined.",
@@ -42968,6 +56818,11 @@ app.post("/api/bookings/:id/return-inspection", requireAdmin, async (req, res) =
 		await db.prepare("UPDATE vehicles SET status = ?, current_odometer = ? WHERE id = ?").run(nextCarStatus, checklistInObj.odometerIn, booking.matched_car_id);
 	}
 	const updatedBooking = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId);
+	try {
+		await notifyReturnInspectionCompleted(db, updatedBooking, checklistInObj, newTotal);
+	} catch (mailErr) {
+		console.warn("[Return Inspection Email Non-Fatal]", mailErr?.message);
+	}
 	return res.json({
 		success: true,
 		message: `Inspection passed! Ride completed and booking ${bookingId} finalized.`,
@@ -43479,12 +57334,14 @@ app.post("/api/upload", async (req, res) => {
 	});
 });
 app.get("/api/settings", async (_req, res) => {
+	const defaultAdminEmail = getSmtpConfig().defaultAdminEmail;
 	try {
 		const rows = await db.prepare("SELECT key, value FROM system_settings").all() || [];
 		const settings = {
 			reviews_enabled: true,
 			contact_phone: "+356 99827192 / +356 99804255",
-			contact_email: "rentals@pitstopcarhire.com",
+			contact_email: defaultAdminEmail,
+			admin_notification_emails: "",
 			admin_name: "Pit Stop Operations Director",
 			hub_address: "36 Triq Il-Kbira, Mgarr, Malta",
 			google_maps_url: "https://maps.google.com/?q=36+Triq+Il-Kbira+Mgarr+Malta",
@@ -43503,7 +57360,8 @@ app.get("/api/settings", async (_req, res) => {
 			settings: {
 				reviews_enabled: true,
 				contact_phone: "+356 99827192 / +356 99804255",
-				contact_email: "rentals@pitstopcarhire.com",
+				contact_email: defaultAdminEmail,
+				admin_notification_emails: "",
 				admin_name: "Pit Stop Operations Director",
 				hub_address: "36 Triq Il-Kbira, Mgarr, Malta"
 			}
@@ -43602,26 +57460,152 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
 });
 app.post("/api/dispatch/booking-notification", async (req, res) => {
 	try {
-		const { bookingId, carName, customerName, customerPhone, totalAmount, templateText } = req.body;
-		console.log(`[DISPATCH SYSTEM] Direct Booking Alert for #${bookingId}:`, {
+		const { bookingId, carName, customerName, customerEmail, customerPhone, totalAmount } = req.body || {};
+		const adminCfg = await getAdminNotificationConfig(db);
+		let bookingRow = null;
+		if (bookingId) bookingRow = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId).catch(() => null);
+		const origin = req.headers.origin || (req.headers.host ? `http://${req.headers.host}` : void 0);
+		const dispatchResult = bookingRow ? await notifyBookingCreated(db, bookingRow, origin) : await notifyBookingCreated(db, {
+			id: bookingId || `MTR-${Date.now()}`,
+			customer_first_name: customerName || "Customer",
+			customer_last_name: "",
+			customer_email: customerEmail || "",
+			customer_phone: customerPhone || "",
+			requested_category: carName || "Vehicle",
+			total_amount: Number(totalAmount) || 0,
+			status: "Pending Assignment"
+		}, origin);
+		console.log(`[DISPATCH SYSTEM] Booking Alert for #${bookingId}:`, {
 			vehicle: carName,
 			customer: customerName,
 			phone: customerPhone,
 			amount: totalAmount,
-			targetWhatsApp: "7780740223",
-			targetEmail: "nanikoushik96@gmail.com",
+			targetWhatsApp: adminCfg.contactPhone,
+			targetEmails: adminCfg.allRecipients,
+			emailResult: dispatchResult,
 			timestamp: (/* @__PURE__ */ new Date()).toISOString()
 		});
 		return res.json({
 			success: true,
 			dispatched: true,
-			channels: ["WhatsApp (+1 778-074-0223)", "Email (nanikoushik96@gmail.com)"],
-			bookingId
+			emailSent: Boolean(dispatchResult.admin.sent || dispatchResult.customer.sent),
+			channels: [`WhatsApp (${adminCfg.contactPhone})`, ...adminCfg.allRecipients.map((e) => `Email (${e})`)],
+			bookingId,
+			emailResult: dispatchResult
 		});
 	} catch (err) {
 		return res.status(500).json({
 			success: false,
 			error: err?.message || "Dispatch failed"
+		});
+	}
+});
+app.get("/api/admin/email-status", requireAdmin, async (_req, res) => {
+	try {
+		const [smtp, adminCfg] = await Promise.all([verifySmtpConnection(), getAdminNotificationConfig(db)]);
+		return res.json({
+			success: true,
+			smtp,
+			adminRecipients: adminCfg.allRecipients,
+			primaryEmail: adminCfg.primaryEmail,
+			additionalEmails: adminCfg.additionalEmails
+		});
+	} catch (err) {
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to check email status."
+		});
+	}
+});
+app.post("/api/admin/test-email", requireAdmin, async (req, res) => {
+	try {
+		const { to, subject, message } = req.body || {};
+		const adminCfg = await getAdminNotificationConfig(db);
+		const requestedRecipients = parseEmailList(to);
+		const recipients = requestedRecipients.length > 0 ? requestedRecipients : adminCfg.allRecipients;
+		if (recipients.length === 0) return res.status(400).json({
+			success: false,
+			error: "No valid recipient email address configured."
+		});
+		const emailSubject = subject || "Pit Stop Car Hire – Admin SMTP Live Verification";
+		const bodyNote = message || "This test email confirms that automated Gmail SMTP notifications (customer confirmations & admin alerts) are active and delivering properly.";
+		const result = await sendEmail({
+			to: recipients,
+			replyTo: adminCfg.primaryEmail,
+			subject: emailSubject,
+			text: `${emailSubject}\n\n${bodyNote}\n\nConfigured Admin Recipients: ${adminCfg.allRecipients.join(", ")}\nTimestamp: ${(/* @__PURE__ */ new Date()).toISOString()}`,
+			html: renderEmailShell({
+				badge: "SMTP Live Test",
+				badgeColor: "#16A34A",
+				title: "Pit Stop Email Dispatch Active",
+				subtitle: "Verified from the Admin Operations Console.",
+				rows: [
+					{
+						label: "SMTP Sender",
+						value: getSmtpConfig().user || "Not set"
+					},
+					{
+						label: "Recipients",
+						value: recipients.join(", ")
+					},
+					{
+						label: "Admin Alert List",
+						value: adminCfg.allRecipients.join(", ")
+					},
+					{
+						label: "Verified At",
+						value: (/* @__PURE__ */ new Date()).toISOString()
+					}
+				],
+				note: bodyNote
+			})
+		});
+		if (!result.sent) return res.status(result.skipped ? 400 : 502).json({
+			success: false,
+			error: result.error || result.reason || "Failed to send test email.",
+			result
+		});
+		return res.json({
+			success: true,
+			message: `Test email delivered to ${result.recipients.join(", ")}`,
+			sentTo: result.recipients,
+			messageId: result.messageId
+		});
+	} catch (err) {
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to send test email."
+		});
+	}
+});
+app.post("/api/contact", async (req, res) => {
+	try {
+		const { name, email, phone, dates, preferredVehicle, message } = req.body || {};
+		const cleanName = String(name || "").trim();
+		const cleanEmail = String(email || "").trim();
+		const cleanMessage = String(message || "").trim();
+		if (!cleanName || !cleanEmail || !cleanMessage) return res.status(400).json({
+			success: false,
+			error: "Name, email, and message are required."
+		});
+		const result = await sendContactInquiryEmails(db, {
+			name: cleanName,
+			email: cleanEmail,
+			phone: phone ? String(phone).trim() : "",
+			dates: dates ? String(dates).trim() : "",
+			preferredVehicle: preferredVehicle ? String(preferredVehicle).trim() : "",
+			message: cleanMessage
+		});
+		return res.json({
+			success: true,
+			adminNotified: result.admin.sent,
+			customerAcknowledged: result.customer.sent,
+			message: result.admin.sent ? "Inquiry sent! A confirmation copy has been emailed to you." : "Inquiry recorded."
+		});
+	} catch (err) {
+		return res.status(500).json({
+			success: false,
+			error: err?.message || "Failed to send contact inquiry."
 		});
 	}
 });

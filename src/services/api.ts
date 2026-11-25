@@ -1060,6 +1060,7 @@ class ApiService {
     reviews_enabled?: boolean
     contact_phone?: string
     contact_email?: string
+    admin_notification_emails?: string
     admin_name?: string
     hub_address?: string
     google_maps_url?: string
@@ -1073,7 +1074,8 @@ class ApiService {
         data.settings || {
           reviews_enabled: true,
           contact_phone: "+356 9982 7192",
-          contact_email: "rentals@pitstopcarhire.com",
+          contact_email: "pitstopcarhire@gmail.com",
+          admin_notification_emails: "",
           admin_name: "Pit Stop Station Manager",
           hub_address: "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
           google_maps_url: "",
@@ -1083,7 +1085,8 @@ class ApiService {
       return {
         reviews_enabled: true,
         contact_phone: "+356 9982 7192",
-        contact_email: "rentals@pitstopcarhire.com",
+        contact_email: "pitstopcarhire@gmail.com",
+        admin_notification_emails: "",
         admin_name: "Pit Stop Station Manager",
         hub_address: "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
         google_maps_url: "",
@@ -1150,6 +1153,84 @@ class ApiService {
       }
     } catch (err: any) {
       return { success: false, message: err?.message || "Failed to sync hub." }
+    }
+  }
+
+  async getAdminEmailStatus(): Promise<{
+    success: boolean
+    smtp?: {
+      configured: boolean
+      verified: boolean
+      user: string
+      host: string
+      port: number
+      error?: string
+    }
+    adminRecipients?: string[]
+    primaryEmail?: string
+    additionalEmails?: string[]
+    error?: string
+  }> {
+    try {
+      const res = await this.request("/admin/email-status", {}, "admin")
+      return await this.safeJson(res, { success: false })
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to check email status." }
+    }
+  }
+
+  async sendAdminTestEmail(payload?: {
+    to?: string
+    subject?: string
+    message?: string
+  }): Promise<{
+    success: boolean
+    message?: string
+    sentTo?: string[]
+    messageId?: string
+    error?: string
+  }> {
+    try {
+      const res = await this.request(
+        "/admin/test-email",
+        {
+          method: "POST",
+          body: JSON.stringify(payload || {}),
+        },
+        "admin",
+      )
+      return await this.safeJson(res, { success: false })
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to send test email." }
+    }
+  }
+
+  async submitContactInquiry(payload: {
+    name: string
+    email: string
+    phone?: string
+    dates?: string
+    preferredVehicle?: string
+    message: string
+  }): Promise<{
+    success: boolean
+    adminNotified?: boolean
+    customerAcknowledged?: boolean
+    message?: string
+    error?: string
+  }> {
+    try {
+      const res = await this.request(
+        "/contact",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+        undefined,
+      )
+      return await this.safeJson(res, { success: false })
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to send inquiry." }
     }
   }
 

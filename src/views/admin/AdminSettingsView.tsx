@@ -26,12 +26,18 @@ export default function AdminSettingsView({
 }: AdminSettingsViewProps) {
   const [companyName, setCompanyName] = useState("Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)")
   const [phone, setPhone] = useState("+1 (555) 019-9922")
-  const [email, setEmail] = useState("rentals@pitstopcarhire.com")
+  const [email, setEmail] = useState("pitstopcarhire@gmail.com")
+  const [adminNotificationEmails, setAdminNotificationEmails] = useState("")
   const [address, setAddress] = useState("4200 NW 21st St, Miami, FL 33142")
   const [lat, setLat] = useState(25.7959)
   const [lng, setLng] = useState(-80.287)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false)
+  const [testEmailFeedback, setTestEmailFeedback] = useState<{
+    ok: boolean
+    text: string
+  } | null>(null)
 
   // Security & Password Management State
   const [currentPassword, setCurrentPassword] = useState("")
@@ -50,8 +56,15 @@ export default function AdminSettingsView({
         const data = await api.getSettings()
         if (mounted && data) {
           if (data.company_name) setCompanyName(data.company_name)
-          if (data.company_phone) setPhone(data.company_phone)
-          if (data.company_email) setEmail(data.company_email)
+          if (data.company_phone || data.contact_phone) {
+            setPhone(data.company_phone || data.contact_phone || "")
+          }
+          if (data.contact_email || data.company_email) {
+            setEmail(data.contact_email || data.company_email || "")
+          }
+          if (data.admin_notification_emails !== undefined) {
+            setAdminNotificationEmails(String(data.admin_notification_emails || ""))
+          }
           if (data.hub_address) setAddress(data.hub_address)
           if (data.hub_lat) setLat(Number(data.hub_lat))
           if (data.hub_lng) setLng(Number(data.hub_lng))
@@ -75,7 +88,10 @@ export default function AdminSettingsView({
       await api.updateSettingsBatch({
         company_name: companyName,
         company_phone: phone,
+        contact_phone: phone,
         company_email: email,
+        contact_email: email,
+        admin_notification_emails: adminNotificationEmails,
         hub_address: address,
         hub_lat: lat,
         hub_lng: lng,
@@ -86,6 +102,36 @@ export default function AdminSettingsView({
       alert("Failed to save settings: " + (err?.message || "Unknown error"))
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleSendLiveTestEmail = async () => {
+    setIsSendingTestEmail(true)
+    setTestEmailFeedback(null)
+    try {
+      const targetList = [email, adminNotificationEmails]
+        .filter(Boolean)
+        .join(", ")
+      const res = await api.sendAdminTestEmail({
+        to: targetList || undefined,
+      })
+      if (res.success) {
+        const msg =
+          res.message ||
+          `Live test email sent to ${(res.sentTo || []).join(", ")}`
+        setTestEmailFeedback({ ok: true, text: msg })
+        onShowToast(msg)
+      } else {
+        const err = res.error || "Failed to send live SMTP test email."
+        setTestEmailFeedback({ ok: false, text: err })
+        onShowToast(err)
+      }
+    } catch {
+      const err = "Network error sending test email."
+      setTestEmailFeedback({ ok: false, text: err })
+      onShowToast(err)
+    } finally {
+      setIsSendingTestEmail(false)
     }
   }
 
@@ -184,14 +230,53 @@ export default function AdminSettingsView({
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                Official Support Email
+                Primary Admin Dispatch &amp; Support Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
+                placeholder="pitstopcarhire@gmail.com"
+                className="w-full h-9 px-3 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
               />
+              <p className="text-[11px] text-stone-500 mt-1">
+                Receives automated booking requests, extension alerts, return inspection summaries, and contact inquiries.
+              </p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                Additional Admin Alert Emails (Optional)
+              </label>
+              <input
+                type="text"
+                value={adminNotificationEmails}
+                onChange={(e) => setAdminNotificationEmails(e.target.value)}
+                placeholder="manager2@gmail.com, ops@gmail.com"
+                className="w-full h-9 px-3 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
+              />
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSendLiveTestEmail}
+                  disabled={isSendingTestEmail}
+                  className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <MailIcon size={13} />
+                  <span>
+                    {isSendingTestEmail ? "Sending SMTP Test..." : "Send Live SMTP Test"}
+                  </span>
+                </button>
+                {testEmailFeedback && (
+                  <span
+                    className={`text-xs font-semibold ${
+                      testEmailFeedback.ok ? "text-emerald-700" : "text-red-600"
+                    }`}
+                  >
+                    {testEmailFeedback.text}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

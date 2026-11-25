@@ -6,6 +6,25 @@ import { fileURLToPath } from "node:url"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { db, initDatabase, DbExecutor } from "./db.ts"
+import {
+  getSmtpConfig,
+  parseEmailList,
+  renderEmailShell,
+  sendEmail,
+  verifySmtpConnection,
+} from "./mailer.ts"
+import {
+  getAdminNotificationConfig,
+  notifyBookingApproved,
+  notifyBookingCreated,
+  notifyBookingDeclined,
+  notifyExtensionOutcome,
+  notifyExtensionQuoted,
+  notifyExtensionRequested,
+  notifyKeysHandedOver,
+  notifyReturnInspectionCompleted,
+  sendContactInquiryEmails,
+} from "./notifications.ts"
 
 // Load local environment files if present
 try {
@@ -1101,6 +1120,7 @@ app.post("/api/auth/google-admin-login", async (req, res) => {
   // Whitelisted authorized administrator accounts
   const authorizedGmails = [
     "nanikoushik96@gmail.com",
+    "pitstopcarhire@gmail.com",
     "admin@pitstopcarhire.com",
     process.env.ADMIN_GMAIL?.toLowerCase(),
     process.env.ADMIN_EMAIL?.toLowerCase(),
@@ -2697,6 +2717,15 @@ app.post(
         },
       )
 
+      try {
+        const origin =
+          (req.headers.origin as string) ||
+          (req.headers.host ? `http://${req.headers.host}` : undefined)
+        await notifyBookingCreated(db, createdRow, origin)
+      } catch (mailErr: any) {
+        console.warn("[Booking Created Email Non-Fatal]", mailErr?.message)
+      }
+
       return res.status(201).json(formatBookingRow(createdRow))
     } catch (err: any) {
       if (err.statusCode) {
@@ -2960,6 +2989,12 @@ const handleManagerApproval = async (
     .prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
 
+  try {
+    await notifyBookingApproved(db, updatedBooking)
+  } catch (mailErr: any) {
+    console.warn("[Booking Approved Email Non-Fatal]", mailErr?.message)
+  }
+
   return res.json({
     success: true,
     message: `Reservation ${bookingId} accepted by fleet manager.${
@@ -3017,6 +3052,11 @@ app.post("/api/bookings/:id/decline", requireAdmin, async (req, res) => {
   const updatedBooking = await db
     .prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
+  try {
+    await notifyBookingDeclined(db, updatedBooking)
+  } catch (mailErr: any) {
+    console.warn("[Booking Declined Email Non-Fatal]", mailErr?.message)
+  }
   return res.json({
     success: true,
     message: `Reservation request ${bookingId} was declined by manager.`,
@@ -3133,6 +3173,11 @@ app.post("/api/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
   const updatedBooking = await db
     .prepare("SELECT * FROM bookings WHERE id = ?")
     .get(bookingId)
+  try {
+    await notifyKeysHandedOver(db, updatedBooking, checklistObj)
+  } catch (mailErr: any) {
+    console.warn("[Handover Email Non-Fatal]", mailErr?.message)
+  }
   return res.json({
     success: true,
     message: `Keys handed over for ${bookingId}! Official rental clock started at ${nowIso}.`,
@@ -3207,6 +3252,11 @@ app.post(
     const updatedBooking = await db
       .prepare("SELECT * FROM bookings WHERE id = ?")
       .get(bookingId)
+    try {
+      await notifyExtensionRequested(db, updatedBooking, extRequest)
+    } catch (mailErr: any) {
+      console.warn("[Extension Request Email Non-Fatal]", mailErr?.message)
+    }
     return res.json({
       success: true,
       message: `Extension request for +${durationNum} ${unitStr} submitted. Awaiting manager quotation.`,
@@ -3258,6 +3308,11 @@ app.post(
     const updatedBooking = await db
       .prepare("SELECT * FROM bookings WHERE id = ?")
       .get(bookingId)
+    try {
+      await notifyExtensionQuoted(db, updatedBooking, quoteObj)
+    } catch (mailErr: any) {
+      console.warn("[Extension Quote Email Non-Fatal]", mailErr?.message)
+    }
     return res.json({
       success: true,
       message: `Quotation of $${quoteObj.totalQuotedAmount} sent to customer for approval.`,
@@ -3384,6 +3439,15 @@ app.post(
     const updatedBooking = await db
       .prepare("SELECT * FROM bookings WHERE id = ?")
       .get(bookingId)
+    try {
+      await notifyExtensionOutcome(db, updatedBooking, "Approved", {
+        additionalCost,
+        newReturnDate: newReturnDateStr,
+        newTotal,
+      })
+    } catch (mailErr: any) {
+      console.warn("[Extension Approved Email Non-Fatal]", mailErr?.message)
+    }
     return res.json({
       success: true,
       message: `Extension approved! €${additionalCost.toFixed(2)} added to rental bill. New return date: ${newReturnDateStr}. New total: €${newTotal.toFixed(2)}.`,
@@ -3468,6 +3532,13 @@ app.post(
     const updatedBooking = await db
       .prepare("SELECT * FROM bookings WHERE id = ?")
       .get(bookingId)
+    try {
+      await notifyExtensionOutcome(db, updatedBooking, "Declined", {
+        actor: declineActor,
+      })
+    } catch (mailErr: any) {
+      console.warn("[Extension Declined Email Non-Fatal]", mailErr?.message)
+    }
     return res.json({
       success: true,
       message: "Extension declined.",
@@ -3591,6 +3662,16 @@ app.post(
     const updatedBooking = await db
       .prepare("SELECT * FROM bookings WHERE id = ?")
       .get(bookingId)
+    try {
+      await notifyReturnInspectionCompleted(
+        db,
+        updatedBooking,
+        checklistInObj,
+        newTotal,
+      )
+    } catch (mailErr: any) {
+      console.warn("[Return Inspection Email Non-Fatal]", mailErr?.message)
+    }
     return res.json({
       success: true,
       message: `Inspection passed! Ride completed and booking ${bookingId} finalized.`,
@@ -4511,6 +4592,7 @@ app.post("/api/upload", async (req, res) => {
    ========================================== */
 
 app.get("/api/settings", async (_req, res) => {
+  const defaultAdminEmail = getSmtpConfig().defaultAdminEmail
   try {
     const rows =
       (await db
@@ -4519,7 +4601,8 @@ app.get("/api/settings", async (_req, res) => {
     const settings: Record<string, any> = {
       reviews_enabled: true,
       contact_phone: "+356 99827192 / +356 99804255",
-      contact_email: "rentals@pitstopcarhire.com",
+      contact_email: defaultAdminEmail,
+      admin_notification_emails: "",
       admin_name: "Pit Stop Operations Director",
       hub_address: "36 Triq Il-Kbira, Mgarr, Malta",
       google_maps_url: "https://maps.google.com/?q=36+Triq+Il-Kbira+Mgarr+Malta",
@@ -4541,7 +4624,8 @@ app.get("/api/settings", async (_req, res) => {
       settings: {
         reviews_enabled: true,
         contact_phone: "+356 99827192 / +356 99804255",
-        contact_email: "rentals@pitstopcarhire.com",
+        contact_email: defaultAdminEmail,
+        admin_notification_emails: "",
         admin_name: "Pit Stop Operations Director",
         hub_address: "36 Triq Il-Kbira, Mgarr, Malta",
       },
@@ -4759,39 +4843,209 @@ app.post("/api/settings/sync-hub", requireAdmin, async (req, res) => {
   }
 })
 
-// Simultaneous Dispatch Notification Endpoint (Zero Childish Friction)
+// Simultaneous Dispatch Notification Endpoint
 app.post("/api/dispatch/booking-notification", async (req, res) => {
   try {
     const {
       bookingId,
       carName,
       customerName,
+      customerEmail,
       customerPhone,
       totalAmount,
-      templateText,
-    } = req.body
-    console.log(`[DISPATCH SYSTEM] Direct Booking Alert for #${bookingId}:`, {
+    } = req.body || {}
+
+    const adminCfg = await getAdminNotificationConfig(db)
+    let bookingRow: any = null
+    if (bookingId) {
+      bookingRow = await db
+        .prepare("SELECT * FROM bookings WHERE id = ?")
+        .get(bookingId)
+        .catch(() => null)
+    }
+
+    const origin =
+      (req.headers.origin as string) ||
+      (req.headers.host ? `http://${req.headers.host}` : undefined)
+
+    const dispatchResult = bookingRow
+      ? await notifyBookingCreated(db, bookingRow, origin)
+      : await notifyBookingCreated(
+          db,
+          {
+            id: bookingId || `MTR-${Date.now()}`,
+            customer_first_name: customerName || "Customer",
+            customer_last_name: "",
+            customer_email: customerEmail || "",
+            customer_phone: customerPhone || "",
+            requested_category: carName || "Vehicle",
+            total_amount: Number(totalAmount) || 0,
+            status: "Pending Assignment",
+          },
+          origin,
+        )
+
+    console.log(`[DISPATCH SYSTEM] Booking Alert for #${bookingId}:`, {
       vehicle: carName,
       customer: customerName,
       phone: customerPhone,
       amount: totalAmount,
-      targetWhatsApp: "7780740223",
-      targetEmail: "nanikoushik96@gmail.com",
+      targetWhatsApp: adminCfg.contactPhone,
+      targetEmails: adminCfg.allRecipients,
+      emailResult: dispatchResult,
       timestamp: new Date().toISOString(),
     })
+
     return res.json({
       success: true,
       dispatched: true,
+      emailSent: Boolean(dispatchResult.admin.sent || dispatchResult.customer.sent),
       channels: [
-        "WhatsApp (+1 778-074-0223)",
-        "Email (nanikoushik96@gmail.com)",
+        `WhatsApp (${adminCfg.contactPhone})`,
+        ...adminCfg.allRecipients.map((e) => `Email (${e})`),
       ],
       bookingId,
+      emailResult: dispatchResult,
     })
   } catch (err: any) {
     return res
       .status(500)
       .json({ success: false, error: err?.message || "Dispatch failed" })
+  }
+})
+
+// Admin Email Status & Diagnostics
+app.get("/api/admin/email-status", requireAdmin, async (_req, res) => {
+  try {
+    const [smtp, adminCfg] = await Promise.all([
+      verifySmtpConnection(),
+      getAdminNotificationConfig(db),
+    ])
+    return res.json({
+      success: true,
+      smtp,
+      adminRecipients: adminCfg.allRecipients,
+      primaryEmail: adminCfg.primaryEmail,
+      additionalEmails: adminCfg.additionalEmails,
+    })
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to check email status.",
+    })
+  }
+})
+
+// Admin Live SMTP Test Email Endpoint
+app.post("/api/admin/test-email", requireAdmin, async (req, res) => {
+  try {
+    const { to, subject, message } = req.body || {}
+    const adminCfg = await getAdminNotificationConfig(db)
+    const requestedRecipients = parseEmailList(to)
+    const recipients =
+      requestedRecipients.length > 0
+        ? requestedRecipients
+        : adminCfg.allRecipients
+
+    if (recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No valid recipient email address configured.",
+      })
+    }
+
+    const emailSubject =
+      subject || "Pit Stop Car Hire – Admin SMTP Live Verification"
+    const bodyNote =
+      message ||
+      "This test email confirms that automated Gmail SMTP notifications (customer confirmations & admin alerts) are active and delivering properly."
+
+    const result = await sendEmail({
+      to: recipients,
+      replyTo: adminCfg.primaryEmail,
+      subject: emailSubject,
+      text: `${emailSubject}\n\n${bodyNote}\n\nConfigured Admin Recipients: ${adminCfg.allRecipients.join(", ")}\nTimestamp: ${new Date().toISOString()}`,
+      html: renderEmailShell({
+        badge: "SMTP Live Test",
+        badgeColor: "#16A34A",
+        title: "Pit Stop Email Dispatch Active",
+        subtitle: "Verified from the Admin Operations Console.",
+        rows: [
+          { label: "SMTP Sender", value: getSmtpConfig().user || "Not set" },
+          { label: "Recipients", value: recipients.join(", ") },
+          {
+            label: "Admin Alert List",
+            value: adminCfg.allRecipients.join(", "),
+          },
+          { label: "Verified At", value: new Date().toISOString() },
+        ],
+        note: bodyNote,
+      }),
+    })
+
+    if (!result.sent) {
+      return res.status(result.skipped ? 400 : 502).json({
+        success: false,
+        error:
+          result.error ||
+          result.reason ||
+          "Failed to send test email.",
+        result,
+      })
+    }
+
+    return res.json({
+      success: true,
+      message: `Test email delivered to ${result.recipients.join(", ")}`,
+      sentTo: result.recipients,
+      messageId: result.messageId,
+    })
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to send test email.",
+    })
+  }
+})
+
+// Customer Contact & Rental Inquiry Endpoint (Sends Email to Admin + Auto-Reply to Customer)
+app.post("/api/contact", async (req, res) => {
+  try {
+    const { name, email, phone, dates, preferredVehicle, message } =
+      req.body || {}
+    const cleanName = String(name || "").trim()
+    const cleanEmail = String(email || "").trim()
+    const cleanMessage = String(message || "").trim()
+
+    if (!cleanName || !cleanEmail || !cleanMessage) {
+      return res.status(400).json({
+        success: false,
+        error: "Name, email, and message are required.",
+      })
+    }
+
+    const result = await sendContactInquiryEmails(db, {
+      name: cleanName,
+      email: cleanEmail,
+      phone: phone ? String(phone).trim() : "",
+      dates: dates ? String(dates).trim() : "",
+      preferredVehicle: preferredVehicle ? String(preferredVehicle).trim() : "",
+      message: cleanMessage,
+    })
+
+    return res.json({
+      success: true,
+      adminNotified: result.admin.sent,
+      customerAcknowledged: result.customer.sent,
+      message: result.admin.sent
+        ? "Inquiry sent! A confirmation copy has been emailed to you."
+        : "Inquiry recorded.",
+    })
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to send contact inquiry.",
+    })
   }
 })
 
