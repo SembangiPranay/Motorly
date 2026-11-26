@@ -16,7 +16,7 @@ test.describe("Real Human End-to-End Walkthrough & Screenshot Audit Suite", () =
       const adminLoginRes = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "admin@motorly.com", password: "0709" }),
+        body: JSON.stringify({ email: "admin@pitstopcarhire.com", password: "0709" }),
       })
       const adminData = await adminLoginRes.json()
       if (adminData.token) {
@@ -74,7 +74,7 @@ test.describe("Real Human End-to-End Walkthrough & Screenshot Audit Suite", () =
     await page.waitForTimeout(1000)
 
     // Verify Header Brand & Navigation elements
-    await expect(page.locator("text=MOTORLY").first()).toBeVisible()
+    await expect(page.getByText(/Pit Stop/i).or(page.getByAltText(/Pit Stop/i)).first()).toBeVisible()
     await expect(page.locator("nav button:has-text('Home')").first()).toBeVisible()
     await expect(page.locator("nav button:has-text('Fleet & Cars')").first()).toBeVisible()
     await expect(page.locator("nav button:has-text('Compare')").first()).toBeVisible()
@@ -395,7 +395,7 @@ test.describe("Real Human End-to-End Walkthrough & Screenshot Audit Suite", () =
       await invoiceBtn.click()
       await page.waitForTimeout(800)
 
-      await expect(page.locator("text=MOTORLY").or(page.locator("text=INVOICE")).first()).toBeVisible()
+      await expect(page.getByText(/PIT STOP/i).or(page.locator("text=INVOICE")).first()).toBeVisible()
 
       await page.screenshot({
         path: path.join(SCREENSHOT_DIR, "17_official_invoice_modal.png"),
@@ -573,7 +573,7 @@ test.describe("Real Human End-to-End Walkthrough & Screenshot Audit Suite", () =
     await page.goto("http://localhost:3000/?view=about")
     await page.waitForTimeout(1000)
 
-    await expect(page.locator("text=One Owner. One Garage.").or(page.locator("text=About MOTORLY")).first()).toBeVisible({ timeout: 10000 })
+    await expect(page.locator("text=One Owner. One Garage.").or(page.locator("text=About Pit Stop Car Hire")).first()).toBeVisible({ timeout: 10000 })
 
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "26_about_garage_page.png"),

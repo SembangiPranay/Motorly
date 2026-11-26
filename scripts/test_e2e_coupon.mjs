@@ -63,7 +63,7 @@ async function runTests() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: "admin@motorly.com",
+        email: "admin@pitstopcarhire.com",
         password: process.env.ADMIN_PASSWORD || "0709",
       }),
     })
@@ -159,8 +159,8 @@ async function runTests() {
           licenseExpiry: "2029-12-31",
           dateOfBirth: "1990-05-15",
         },
-        pickupLocation: "MOTORLY European Atelier Hub",
-        returnLocation: "MOTORLY European Atelier Hub",
+        pickupLocation: "Pit Stop Car Hire Mgarr Hub",
+        returnLocation: "Pit Stop Car Hire Mgarr Hub",
         pickupDate: "2026-11-10 10:00",
         returnDate: "2026-11-15 10:00",
         totalAmount: 375.0, // 500 - 25% ($125) = 375

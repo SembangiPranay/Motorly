@@ -4,7 +4,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from tests.selenium.core.base_page import BasePage
 
 class FleetPage(BasePage):
-    """Page object for the DriveRent Fleet Catalog view."""
+    """Page object for the Pit Stop Car Hire Fleet Catalog view."""
 
     # Locators
     SEARCH_INPUT = (By.CSS_SELECTOR, 'input[placeholder*="Search"]')

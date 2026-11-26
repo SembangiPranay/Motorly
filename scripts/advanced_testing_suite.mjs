@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken"
 
 const API_BASE = "http://localhost:3001/api"
 const JWT_SECRET =
-  process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-prod"
+  process.env.JWT_SECRET || "pitstop-fleet-jwt-secret-secure-key-2026-prod"
 
 // Direct Supabase Pool for independent database verification
 const supabasePool = new pg.Pool({
@@ -39,8 +39,8 @@ async function runAdvancedTestingSuite() {
   console.log("   Database: Supabase PostgreSQL")
 
   const timestamp = Date.now()
-  const customerA_Email = `alice.${timestamp}@motorly-test.io`
-  const customerB_Email = `bob.${timestamp}@motorly-test.io`
+  const customerA_Email = `alice.${timestamp}@pitstop-test.io`
+  const customerB_Email = `bob.${timestamp}@pitstop-test.io`
   const password = `TestPass@${timestamp}!`
 
   let tokenA = null
@@ -373,7 +373,7 @@ async function runAdvancedTestingSuite() {
         customer: {
           firstName: "Guest",
           lastName: "User",
-          email: "guest@motorly.io",
+          email: "guest@pitstopcarhire.io",
           phone: "+15550199",
         },
         pickupLocation: "Miami Central Hub",

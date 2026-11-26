@@ -1,4 +1,4 @@
-# DriveRent (MOTORLY Fleet) — Comprehensive Visual & Functional Audit Report
+# Pit Stop Car Hire — Comprehensive Visual & Functional Audit Report
 
 **Report Identifier:** `AUDIT-REPORT-DRIVERENT-2026-10-24-FINAL`  
 **Author:** Teamwork Autonomous Testing & Verification Fleet (`teamwork_preview_worker_m4`)  
@@ -24,7 +24,7 @@
 
 ## 1. Executive Summary
 
-This comprehensive audit report delivers the authoritative evaluation of the **DriveRent** (branded as **MOTORLY Fleet**) car rental and fleet management platform. The audit was conducted across both frontend presentation layers and backend operational workflows to verify full compliance with **Requirements R1, R2, and R3** specified in `ORIGINAL_REQUEST.md`.
+This comprehensive audit report delivers the authoritative evaluation of the **Pit Stop Car Hire** car rental and fleet management platform. The audit was conducted across both frontend presentation layers and backend operational workflows to verify full compliance with **Requirements R1, R2, and R3** specified in `ORIGINAL_REQUEST.md`.
 
 Testing was executed against live, production-configured instances of the application:
 - **Frontend SPA**: React 19, TypeScript, and Tailwind CSS v4 served by Vite 8 on port `8443`
@@ -135,7 +135,7 @@ Under **Requirement R2**, the automated test suite `scripts/e2e_operational_life
   ```json
   {
     "status": "ok",
-    "service": "MOTORLY Fleet API",
+    "service": "PIT STOP CAR HIRE API",
     "supabase": true,
     "timestamp": "2026-10-24T05:12:00.000Z"
   }
@@ -151,7 +151,7 @@ Under **Requirement R2**, the automated test suite `scripts/e2e_operational_life
   7. `maintenance_logs`
 
 #### Stage 2: Customer Account Creation, Bcrypt Hashing & JWT Authentication
-- **Account Registration (`POST /api/auth/register`)**: Created test customer `Victoria Chase` (`victoria.chase.<timestamp>@motorly-fleet.com`) with driver license `FL-DL-883921`.
+- **Account Registration (`POST /api/auth/register`)**: Created test customer `Victoria Chase` (`victoria.chase.<timestamp>@pitstop-fleet.com`) with driver license `FL-DL-883921`.
 - **Bcrypt Password Hash Invariant**: Direct query on Supabase `users` table verified that the password is never stored in plaintext. Hash is stored in modular crypt format `$2b$10$...` (10 rounds of salt). Cryptographic execution of `bcrypt.compare()` against the database hash returned `true`.
 - **JWT Cryptographic Verification**: Inspected JWT token issued by Express using HMAC-SHA256 (`HS256`). Confirmed decoded claims `{ userId, role: "customer", email }` and calculated expiration window of exactly 7 days (604,800 seconds).
 - **Authentication Handshake**: `POST /api/auth/customer-login` authenticated against the live hash, and `GET /api/auth/customer-me` with Bearer token verified active profile introspection.
@@ -224,7 +224,7 @@ Under **Requirement R2**, the automated test suite `scripts/e2e_operational_life
 
 #### Stage 10: Customer Self-Service Portal & Multi-Tenant Isolation
 - **Trip History**: Customer accessed `GET /api/users/bookings?email=victoria.chase...` with Bearer token. Verified completed booking appears in customer dashboard with full inspection certificate.
-- **Multi-Tenant Isolation**: Attempting to query another user's email (`admin@motorly.com`) with customer's token returned only the customer's own records, preventing horizontal data leakage.
+- **Multi-Tenant Isolation**: Attempting to query another user's email (`admin@pitstopcarhire.com`) with customer's token returned only the customer's own records, preventing horizontal data leakage.
 
 ---
 
@@ -464,4 +464,4 @@ Run finished with exit code: 0
 
 **Sign-off Authority:** Teamwork Quality Assurance & Audit Sentinel  
 **Certification Status:** 🏆 **APPROVED — PRODUCTION READY**  
-**Verdict:** The DriveRent (MOTORLY Fleet) application demonstrates exemplary engineering quality, rock-solid database integrity, complete visual polish, and robust operational resilience across both customer and fleet management lifecycles.
+**Verdict:** The Pit Stop Car Hire application demonstrates exemplary engineering quality, rock-solid database integrity, complete visual polish, and robust operational resilience across both customer and fleet management lifecycles.

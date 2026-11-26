@@ -1,4 +1,5 @@
 import { Router } from "express"
+import crypto from "node:crypto"
 import bcrypt from "bcryptjs"
 import { OAuth2Client } from "google-auth-library"
 import { db } from "../db.ts"
@@ -15,7 +16,9 @@ import {
   clearLoginAttempts,
 } from "../login-rate-limit.ts"
 import { formatUserRow } from "../serializers.ts"
-import { ADMIN_PASSWORD, ADMIN_PASSWORD_HASH, isProduction } from "../config.ts"
+import { ADMIN_PASSWORD, ADMIN_PASSWORD_HASH, getAppOrigin, isProduction } from "../config.ts"
+import { getSmtpConfig } from "../mailer.ts"
+import { sendPasswordResetEmail } from "../notifications.ts"
 
 const router = Router()
 
@@ -236,7 +239,9 @@ router.post("/auth/register", async (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase()
-  const existingUser = await db.prepare("SELECT id FROM users WHERE email = ?").get(normalizedEmail)
+  const existingUser = await db
+    .prepare("SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1")
+    .get(normalizedEmail)
   if (existingUser) {
     return res.status(409).json({
       success: false,
@@ -299,9 +304,11 @@ router.post("/auth/customer-login", async (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase()
-  const user = (await db.prepare("SELECT * FROM users WHERE email = ?").get(normalizedEmail)) as any
+  const user = (await db
+    .prepare("SELECT * FROM users WHERE LOWER(email) = ? LIMIT 1")
+    .get(normalizedEmail)) as any
 
-  if (!user || user.role !== "customer") {
+  if (!user) {
     return res.status(401).json({ success: false, message: "Invalid email or password." })
   }
 
@@ -321,11 +328,12 @@ router.post("/auth/customer-login", async (req, res) => {
     return res.status(401).json({ success: false, message: "Invalid email or password." })
   }
 
+  // Always scope customer portal sign-in tokens to the customer role (never elevate to admin session)
   const userPayload: JwtUserPayload = {
     userId: user.id,
     email: user.email,
     name: user.name,
-    role: user.role || "customer",
+    role: "customer",
     vipTier: user.vip_tier || "Standard",
   }
 
@@ -385,6 +393,132 @@ router.post("/auth/customer-logout", async (req, res) => {
     await db.prepare("DELETE FROM customer_sessions WHERE token = ?").run(token)
   }
   return res.json({ success: true, message: "Logged out." })
+})
+
+// Forgot Password - send real one-time token & reset link via SMTP
+router.post("/auth/forgot-password", async (req, res) => {
+  const rawEmail = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : ""
+  if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter a valid email address.",
+    })
+  }
+
+  const smtpCfg = getSmtpConfig()
+  if (!smtpCfg.configured) {
+    return res.status(503).json({
+      success: false,
+      message: "Password reset email service is not configured yet. Please contact garage support.",
+    })
+  }
+
+  const user = (await db
+    .prepare("SELECT id, email, name FROM users WHERE LOWER(email) = ? AND role = 'customer'")
+    .get(rawEmail)) as any
+
+  if (!user) {
+    return res.json({
+      success: true,
+      message: `If an account is registered for ${rawEmail}, password reset instructions have been sent.`,
+    })
+  }
+
+  const rawToken = crypto.randomBytes(16).toString("hex").toUpperCase()
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex")
+  const tokenId = `prt_${Date.now()}_${crypto.randomBytes(3).toString("hex")}`
+  const nowIso = new Date().toISOString()
+  const expiresIso = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+  await db
+    .prepare(
+      "INSERT INTO password_reset_tokens (id, user_id, email, token_hash, expires_at, used_at, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)",
+    )
+    .run(tokenId, user.id, user.email, tokenHash, expiresIso, nowIso)
+
+  const resetUrl = `${getAppOrigin()}/?view=auth&resetToken=${rawToken}&email=${encodeURIComponent(user.email)}`
+
+  const mailRes = await sendPasswordResetEmail(db, {
+    to: user.email,
+    name: user.name || "Valued Customer",
+    token: rawToken,
+    resetUrl,
+  })
+
+  if (!mailRes.sent) {
+    await db.prepare("DELETE FROM password_reset_tokens WHERE id = ?").run(tokenId).catch(() => {})
+    return res.status(502).json({
+      success: false,
+      message:
+        mailRes.error ||
+        mailRes.reason ||
+        "Could not send password reset email right now. Please try again later.",
+    })
+  }
+
+  return res.json({
+    success: true,
+    message: `Password reset instructions and verification code sent to ${user.email}. Check your inbox and spam folder.`,
+  })
+})
+
+// Reset Password using emailed one-time code / link token
+router.post("/auth/reset-password", async (req, res) => {
+  const rawToken = typeof req.body?.token === "string" ? req.body.token.trim().toUpperCase() : ""
+  const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : ""
+
+  if (!rawToken || rawToken.length < 16) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter the valid verification code from your reset email.",
+    })
+  }
+  if (newPassword.length < 6 || Buffer.byteLength(newPassword) > 72) {
+    return res.status(400).json({
+      success: false,
+      message: "New password must be between 6 and 72 characters.",
+    })
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex")
+  const record = (await db
+    .prepare(`
+      SELECT t.id, t.user_id, t.used_at, t.expires_at
+      FROM password_reset_tokens t JOIN users u ON u.id = t.user_id
+      WHERE t.token_hash = ? AND u.role = 'customer' LIMIT 1
+    `)
+    .get(tokenHash)) as any
+
+  const invalidToken = () =>
+    res.status(400).json({
+      success: false,
+      message: "This password reset code is invalid or has expired. Request a new reset email.",
+    })
+  if (!record || record.used_at || Number.isNaN(Date.parse(record.expires_at)) || Date.parse(record.expires_at) <= Date.now()) {
+    return invalidToken()
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10)
+  const usedAtIso = new Date().toISOString()
+
+  const reset = await db.transaction(async (tx) => {
+    const claimed = await tx.run(
+      "UPDATE password_reset_tokens SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at > ?",
+      usedAtIso,
+      record.id,
+      usedAtIso,
+    )
+    if (!claimed.changes) return false
+    await tx.run("UPDATE users SET password_hash = ? WHERE id = ?", passwordHash, record.user_id)
+    await tx.run("DELETE FROM customer_sessions WHERE user_id = ?", record.user_id)
+    return true
+  })
+  if (!reset) return invalidToken()
+
+  return res.json({
+    success: true,
+    message: "Your password has been updated. You can now sign in with your new password.",
+  })
 })
 
 export default router

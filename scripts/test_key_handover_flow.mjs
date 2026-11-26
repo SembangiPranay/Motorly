@@ -54,11 +54,11 @@ async function run() {
       const pickupStr = `${monthNames[pickup.getMonth()]} ${pickup.getDate()}, ${pickup.getFullYear()}`
       const returnStr = `${monthNames[ret.getMonth()]} ${ret.getDate()}, ${ret.getFullYear()}`
 
-      sessionStorage.setItem("motorly_intro_completed", "true")
-      localStorage.setItem("motorly_customer_token", token)
-      localStorage.setItem("motorly_customer_user", JSON.stringify(user))
-      localStorage.setItem("motorly_current_view", "checkout")
-      localStorage.setItem("motorly_selected_car_id", "mercedes-c-class")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_customer_token", token)
+      localStorage.setItem("pitstop_customer_user", JSON.stringify(user))
+      localStorage.setItem("pitstop_current_view", "checkout")
+      localStorage.setItem("pitstop_selected_car_id", "mercedes-c-class")
     }, { token: regData.token, user: regData.user })
 
     // Open checkout directly without intro animation

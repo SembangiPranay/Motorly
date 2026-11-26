@@ -98,7 +98,7 @@ function figmaSiteConfiguration(config: FigmaSiteConfiguration): Plugin {
     return html.replace(`<!-- ${slotName} -->`, content)
   }
 
-  const title = config.title ?? "MOTORLY | Direct Garage Car Rentals"
+  const title = config.title ?? "PIT STOP CAR HIRE | Direct Garage Car Rentals (Mgarr, Malta)"
   const description = config.description ?? ""
   // Imported HTML keeps its own favicon; new Makes default to the Make product icon.
   const favicon = config.icons?.icon ?? "/favicon.svg"

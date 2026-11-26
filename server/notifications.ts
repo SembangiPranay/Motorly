@@ -1,4 +1,5 @@
 import type { DbExecutor } from "./db.ts"
+import { getAppOrigin } from "./config.ts"
 import {
   getSmtpConfig,
   isSyntheticEmail,
@@ -28,6 +29,7 @@ export async function getAdminNotificationConfig(db: DbExecutor): Promise<{
   allRecipients: string[]
   hubAddress: string
   contactPhone: string
+  supportPhone: string
 }> {
   const cfg = getSmtpConfig()
   let contactEmail = cfg.defaultAdminEmail
@@ -35,6 +37,7 @@ export async function getAdminNotificationConfig(db: DbExecutor): Promise<{
   let additionalRaw = ""
   let hubAddress = "36 Triq IL-Kbira, Mgarr, Malta"
   let contactPhone = "+356 9982 7192"
+  let supportPhone = ""
 
   try {
     const rows = (await db
@@ -51,6 +54,10 @@ export async function getAdminNotificationConfig(db: DbExecutor): Promise<{
       if (r.key === "admin_notification_emails" && r.value) additionalRaw = String(r.value)
       if (r.key === "hub_address" && r.value) hubAddress = String(r.value)
       if (r.key === "contact_phone" && r.value) contactPhone = String(r.value)
+      if (r.key === "whatsapp_phone" && r.value && !contactPhone) {
+        contactPhone = String(r.value)
+      }
+      if (r.key === "support_phone" && r.value) supportPhone = String(r.value)
       if (r.key === "company_phone" && r.value && !contactPhone) {
         contactPhone = String(r.value)
       }
@@ -69,12 +76,15 @@ export async function getAdminNotificationConfig(db: DbExecutor): Promise<{
       : []),
   ]).filter((e) => !isSyntheticEmail(e))
 
+  const effectiveSupportPhone = supportPhone || contactPhone
+
   return {
     primaryEmail: primaryList[0] || cfg.defaultAdminEmail,
     additionalEmails,
     allRecipients: combined,
     hubAddress,
     contactPhone,
+    supportPhone: effectiveSupportPhone,
   }
 }
 
@@ -109,7 +119,6 @@ function customerEmailOf(booking: any): string {
 export async function notifyBookingCreated(
   db: DbExecutor,
   booking: any,
-  originUrl?: string,
 ): Promise<{ customer: EmailSendResult; admin: EmailSendResult }> {
   const bookingId = String(booking.id || "")
   const customerEmail = customerEmailOf(booking)
@@ -140,8 +149,7 @@ export async function notifyBookingCreated(
   const pickupDate = booking.pickup_date || "TBD"
   const returnDate = booking.return_date || "TBD"
   const pickupLocation = booking.pickup_location || adminCfg.hubAddress
-  const baseUrl = (originUrl || process.env.APP_URL || "https://motorly-ten.vercel.app").replace(/\/$/, "")
-  const adminLink = `${baseUrl}/admin?bookingId=${encodeURIComponent(bookingId)}`
+  const adminLink = `${getAppOrigin()}/admin?bookingId=${encodeURIComponent(bookingId)}`
 
   const rows = [
     { label: "Booking ID", value: bookingId },
@@ -164,7 +172,7 @@ export async function notifyBookingCreated(
       title: `Thank you, ${name}!`,
       subtitle: `Your reservation ${bookingId} has been received by Pit Stop Car Hire.`,
       rows,
-      note: "A refundable €200 security deposit pre-authorization applies at key handover. You will receive another confirmation email once our fleet manager approves your booking.",
+      note: `A refundable €${Math.round(Number(booking.security_deposit) || 700)} security deposit pre-authorization applies at key handover. You will receive another confirmation email once our fleet manager approves your booking.`,
     }),
   })
 
@@ -224,7 +232,8 @@ export async function notifyBookingApproved(db: DbExecutor, booking: any) {
       title: `Booking ${bookingId} Confirmed`,
       subtitle: `Your ${vehicle} is approved and scheduled for pickup.`,
       rows,
-      note: "Please present your valid driver's license and government ID at key handover. Call +356 9982 7192 if you need delivery assistance.",
+      note: `Please present your valid driver's license and government ID at key handover. Call ${adminCfg.supportPhone} if you need delivery assistance.`,
+      footerNote: `Pit Stop Car Hire • ${adminCfg.hubAddress} • Support: ${adminCfg.supportPhone}`,
     }),
   })
   await sendEmail({
@@ -316,7 +325,8 @@ export async function notifyKeysHandedOver(
       title: `Enjoy Your Drive, ${name}!`,
       subtitle: `Your rental for ${vehicle} is now active.`,
       rows,
-      note: "If your rental will be extended, please advise us in advance via the app or by calling +356 9982 7192 (Clause 14).",
+      note: `If your rental will be extended, please advise us in advance via the app or by calling ${adminCfg.supportPhone} (Clause 14).`,
+      footerNote: `Pit Stop Car Hire • ${adminCfg.hubAddress} • Support: ${adminCfg.supportPhone}`,
     }),
   })
   await sendEmail({
@@ -575,4 +585,31 @@ export async function sendContactInquiryEmails(
   })
 
   return { admin, customer }
+}
+
+export async function sendPasswordResetEmail(
+  db: DbExecutor,
+  payload: { to: string; name: string; token: string; resetUrl: string },
+): Promise<EmailSendResult> {
+  const adminCfg = await getAdminNotificationConfig(db)
+  return await sendEmail({
+    to: payload.to,
+    replyTo: adminCfg.primaryEmail,
+    subject: "Pit Stop Car Hire – Password Reset Instructions",
+    text: `Hello ${payload.name},\n\nWe received a request to reset your Pit Stop Car Hire account password.\n\nReset Code: ${payload.token}\nReset Link: ${payload.resetUrl}\n\nThis code expires in 60 minutes. If you did not request this, you can safely ignore this email.`,
+    html: renderEmailShell({
+      badge: "Account Security",
+      title: "Reset Your Account Password",
+      subtitle: `Hello ${payload.name}, use the button or verification code below to set a new password.`,
+      rows: [
+        { label: "Account Email", value: payload.to },
+        { label: "Verification Code", value: payload.token },
+        { label: "Valid For", value: "60 Minutes (One-Time Use)" },
+      ],
+      note: `If clicking the button does not work, copy the verification code ${payload.token} and paste it in the Reset Account Password form on the sign-in screen. Call ${adminCfg.supportPhone} if you need assistance.`,
+      ctaLabel: "Reset Password Now",
+      ctaUrl: payload.resetUrl,
+      footerNote: `Pit Stop Car Hire • ${adminCfg.hubAddress} • Support: ${adminCfg.supportPhone}`,
+    }),
+  })
 }

@@ -4,8 +4,8 @@ test.describe("Professional QA End-to-End Test Suite: Clean Customer Navbar (No 
   test.beforeEach(async ({ page }) => {
     // Dismiss entrance animation to jump straight to interface
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_completed", "true")
-      localStorage.setItem("motorly_current_view", "home")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_current_view", "home")
     })
   })
 
@@ -48,7 +48,7 @@ test.describe("Professional QA End-to-End Test Suite: Clean Customer Navbar (No 
     await page.getByRole("button", { name: "Authorize & Unlock Console" }).click()
     await expect(page.getByRole("button", { name: /Orders & Dispatch/ })).toBeVisible()
 
-    // Verify Admin Sidebar: Tapping Motorly logo expands when collapsed
+    // Verify Admin Sidebar: Tapping Pit Stop logo expands when collapsed
     const adminSidebar = page.locator("aside").first()
     await expect(adminSidebar).toBeVisible()
 

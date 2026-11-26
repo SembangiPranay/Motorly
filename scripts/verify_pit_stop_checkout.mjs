@@ -19,9 +19,9 @@ async function run() {
   // Set localStorage to checkout view with authenticated customer
   console.log("3. Setting view to checkout and simulating active authenticated renter...")
   await page.evaluate(() => {
-    localStorage.setItem("motorly_current_view", "checkout")
+    localStorage.setItem("pitstop_current_view", "checkout")
     localStorage.setItem(
-      "motorly_customer_user",
+      "pitstop_customer_user",
       JSON.stringify({
         id: "usr_malta_client_1",
         email: "paul.vella@gmail.com",

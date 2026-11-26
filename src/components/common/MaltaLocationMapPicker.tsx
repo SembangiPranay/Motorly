@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { LocationIcon } from "../Icons"
 import type { DeliveryCoordinates } from "../../types"
+import { useStudioSettings, getHubCoordinates } from "../../utils/studioSettings"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
@@ -61,6 +62,9 @@ export default function MaltaLocationMapPicker({
   label = "Delivery Location & Pinpoint",
   placeholder = "Search address or click on map...",
 }: MaltaLocationMapPickerProps) {
+  const studioSettings = useStudioSettings()
+  const adminHub = getHubCoordinates(studioSettings)
+
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const markerRef = useRef<L.Marker | null>(null)
@@ -74,8 +78,8 @@ export default function MaltaLocationMapPicker({
 
   // Current active coordinates
   const currentCoords = value || {
-    lat: 35.8575,
-    lng: 14.4775,
+    lat: adminHub.lat ?? 35.9197,
+    lng: adminHub.lng ?? 14.3664,
     address: addressText || "",
     placeName: "Selected Location",
   }
@@ -491,7 +495,13 @@ export default function MaltaLocationMapPicker({
         <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider shrink-0 mr-0.5">
           Quick:
         </span>
-        {QUICK_HUBS.map((hub) => {
+        {(adminHub.lat && adminHub.lng
+          ? [
+              { name: `Operating Hub (${adminHub.address})`, lat: adminHub.lat, lng: adminHub.lng },
+              ...QUICK_HUBS.filter((q) => !q.name.includes("Mgarr")),
+            ]
+          : QUICK_HUBS
+        ).map((hub) => {
           const isSelected = activePreset === hub.name || addressText.includes(hub.name)
           return (
             <button

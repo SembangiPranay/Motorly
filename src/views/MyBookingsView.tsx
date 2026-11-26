@@ -21,7 +21,17 @@ import {
   CameraIcon,
   PhoneIcon,
 } from "../components/Icons"
-import { getWhatsAppUrls } from "../utils/whatsapp"
+import { formatInternationalPhoneDisplay, getWhatsAppUrls } from "../utils/whatsapp"
+import { compressConditionImageFile } from "../utils/imageCompression"
+import {
+  useStudioSettings,
+  getPrimaryWhatsAppPhone,
+  getSecondaryWhatsAppPhone,
+  getDynamicCarMapLocation,
+  getHubCoordinates,
+} from "../utils/studioSettings"
+import PitStop5ViewSchematic, { type ConditionPin } from "../components/contract/PitStop5ViewSchematic"
+import LegalPoliciesModal from "../components/LegalPoliciesModal"
 import InvoiceModal from "../components/InvoiceModal"
 import GarageMapViewer from "../components/GarageMapViewer"
 import PitStopLogo from "../components/PitStopLogo"
@@ -32,6 +42,8 @@ interface MyBookingsViewProps {
   setCurrentUser: (user: CustomerUser | null) => void
   allBookings?: BookingRecord[]
   onBookingsChange?: (bookings: BookingRecord[]) => void
+  initialLookupBookingId?: string | null
+  onClearInitialLookupBookingId?: () => void
   onNavigateHome: () => void
   onNavigateListing: () => void
 }
@@ -71,10 +83,21 @@ export default function MyBookingsView({
   setCurrentUser,
   allBookings,
   onBookingsChange,
+  initialLookupBookingId,
+  onClearInitialLookupBookingId,
   onNavigateHome,
   onNavigateListing,
 }: MyBookingsViewProps) {
+  const studioSettings = useStudioSettings()
+  const dispatchPhone = getPrimaryWhatsAppPhone(studioSettings)
+  const secondaryWhatsAppPhone = getSecondaryWhatsAppPhone(studioSettings)
+  const adminDisplayName = studioSettings.admin_name || "Fleet Admin"
+  const hub = getHubCoordinates(studioSettings)
+
   const [bookings, setBookings] = useState<BookingRecord[]>([])
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false)
+  const [conditionEditorBooking, setConditionEditorBooking] = useState<BookingRecord | null>(null)
+  const [isSavingCondition, setIsSavingCondition] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [selectedVoucher, setSelectedVoucher] = useState<{
@@ -115,14 +138,13 @@ export default function MyBookingsView({
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
 
   // Guest / Direct Booking Lookup State
-  const [lookupIdInput, setLookupIdInput] = useState("")
+  const [lookupIdInput, setLookupIdInput] = useState(initialLookupBookingId || "")
   const [isLookingUp, setIsLookingUp] = useState(false)
   const [lookupFeedback, setLookupFeedback] = useState<string | null>(null)
   const [guestBooking, setGuestBooking] = useState<BookingLookupResult | null>(null)
 
-  const handleLookupBooking = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    const cleanId = lookupIdInput.trim()
+  const runLookupById = async (rawId: string) => {
+    const cleanId = rawId.trim().replace(/^#/, "")
     if (!cleanId) return
     setIsLookingUp(true)
     setLookupFeedback(null)
@@ -144,6 +166,19 @@ export default function MyBookingsView({
       setIsLookingUp(false)
     }
   }
+
+  const handleLookupBooking = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    await runLookupById(lookupIdInput)
+  }
+
+  useEffect(() => {
+    if (!currentUser && initialLookupBookingId) {
+      setLookupIdInput(initialLookupBookingId)
+      void runLookupById(initialLookupBookingId)
+      onClearInitialLookupBookingId?.()
+    }
+  }, [initialLookupBookingId, currentUser])
 
   // Reviews & Feedback System State
   const [reviewsEnabled, setReviewsEnabled] = useState(true)
@@ -646,28 +681,178 @@ export default function MyBookingsView({
                   {lookupFeedback}
                 </p>
               )}
-              {guestBooking && (
-                <div role="status" className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-bold">Reservation {guestBooking.id}</h3>
-                    <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-800">
-                      {guestBooking.status === "Assigned" && guestBooking.approvedByAdmin
-                        ? "Ready for pickup"
-                        : guestBookingStatus[guestBooking.status] || guestBooking.status}
-                    </span>
+              {guestBooking && (() => {
+                const matchedGuestCar = guestBooking.matchedCarId
+                  ? cars.find((c) => c.id === guestBooking.matchedCarId)
+                  : undefined
+                const isReadyPickup =
+                  guestBooking.status === "Assigned" && guestBooking.approvedByAdmin
+                const isPendingApproval =
+                  guestBooking.status === "Pending Assignment" && !guestBooking.approvedByAdmin
+                const isActiveTrip =
+                  guestBooking.status === "Checked Out" || Boolean(guestBooking.keysHandedAt)
+                const statusBadgeLabel = isReadyPickup
+                  ? "Ready for pickup"
+                  : guestBookingStatus[guestBooking.status] || guestBooking.status
+                const statusBadgeClass = isReadyPickup || isActiveTrip
+                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                  : guestBooking.status === "Cancelled"
+                    ? "bg-rose-50 text-rose-700 border border-rose-200"
+                    : guestBooking.status === "Completed"
+                      ? "bg-stone-100 text-stone-700 border border-stone-200"
+                      : "bg-orange-50 text-orange-800 border border-orange-200"
+
+                return (
+                  <div role="status" className="mt-4 rounded-xl border border-stone-200 bg-white p-4 space-y-4 shadow-2xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">
+                          Guest Reservation Summary
+                        </span>
+                        <h3 className="text-sm font-black text-stone-900 font-mono">
+                          Reservation {guestBooking.id}
+                        </h3>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}>
+                        {statusBadgeLabel}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-stone-50 border border-stone-200/80 p-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {matchedGuestCar?.image ? (
+                          <img
+                            src={matchedGuestCar.image}
+                            alt={matchedGuestCar.name}
+                            className="w-16 h-12 rounded-lg object-cover border border-stone-200 bg-white shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-12 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
+                            <CarIcon size={20} />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-stone-900 truncate">
+                            {matchedGuestCar
+                              ? matchedGuestCar.name
+                              : `${guestBooking.requestedCategory || "Standard"} Category`}
+                          </div>
+                          <div className="text-[11px] text-stone-500 mt-0.5">
+                            {matchedGuestCar
+                              ? `${matchedGuestCar.type} • ${matchedGuestCar.transmission} • ${matchedGuestCar.fuelType}`
+                              : "Fleet vehicle assignment in progress"}
+                          </div>
+                        </div>
+                      </div>
+                      {guestBooking.totalAmount !== undefined && (
+                        <div className="text-left sm:text-right shrink-0">
+                          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-bold block">
+                            Pay at Pickup
+                          </span>
+                          <span className="text-base font-black font-mono text-stone-900">
+                            €{Number(guestBooking.totalAmount).toFixed(2)}
+                          </span>
+                          {guestBooking.securityDeposit !== undefined && (
+                            <span className="text-[10px] text-stone-500 block">
+                              Deposit hold: €{Number(guestBooking.securityDeposit).toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                      <div className="rounded-lg bg-stone-50/70 border border-stone-100 p-2.5">
+                        <dt className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Pickup</dt>
+                        <dd className="mt-1 font-semibold text-stone-900">
+                          {formatLookupDate(guestBooking.pickupDate)}
+                        </dd>
+                        {guestBooking.pickupLocation && (
+                          <dd className="mt-0.5 text-[11px] text-stone-500">
+                            {guestBooking.pickupLocation}
+                          </dd>
+                        )}
+                      </div>
+                      <div className="rounded-lg bg-stone-50/70 border border-stone-100 p-2.5">
+                        <dt className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Return</dt>
+                        <dd className="mt-1 font-semibold text-stone-900">
+                          {formatLookupDate(guestBooking.returnDate)}
+                        </dd>
+                        {guestBooking.returnLocation && (
+                          <dd className="mt-0.5 text-[11px] text-stone-500">
+                            {guestBooking.returnLocation}
+                          </dd>
+                        )}
+                      </div>
+                    </dl>
+
+                    {isPendingApproval && (
+                      <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                        <p className="text-amber-900 text-[11px] leading-relaxed">
+                          <strong>Awaiting Manager Approval:</strong> Our garage team ({formatInternationalPhoneDisplay(dispatchPhone)}) is reviewing your request. Message us on WhatsApp for faster confirmation.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                          <a
+                            href={getWhatsAppUrls(dispatchPhone, `Hello Pit Stop Car Hire, I am checking on my guest reservation ${guestBooking.id}.`).smartUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-[11px] transition"
+                          >
+                            <PhoneIcon size={12} />
+                            <span>WhatsApp Garage</span>
+                          </a>
+                          {secondaryWhatsAppPhone && (
+                            <a
+                              href={getWhatsAppUrls(secondaryWhatsAppPhone, `Hello Pit Stop Car Hire, I am checking on my guest reservation ${guestBooking.id}.`).smartUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[11px] transition"
+                            >
+                              <span>Alt: {formatInternationalPhoneDisplay(secondaryWhatsAppPhone)}</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {isReadyPickup && (
+                      <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                        <div className="text-[11px] text-emerald-900 leading-relaxed">
+                          <strong>Approved by Fleet Manager:</strong> Present your booking ID and valid driver&apos;s license at{" "}
+                          {guestBooking.deliveryType === "custom"
+                            ? "your confirmed delivery point"
+                            : matchedGuestCar?.garageName || guestBooking.pickupLocation || hub.address}
+                          {matchedGuestCar?.garageBay && guestBooking.deliveryType !== "custom"
+                            ? ` (${matchedGuestCar.garageBay})`
+                            : ""}.
+                        </div>
+                        {guestBooking.deliveryType !== "custom" && (
+                          <a
+                            href={getDynamicCarMapLocation(matchedGuestCar, studioSettings).mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#F97316] hover:bg-orange-50 border border-orange-200 font-bold text-[11px] shrink-0 transition"
+                          >
+                            <LocationIcon size={12} />
+                            <span>Directions ↗</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {isActiveTrip && (
+                      <div className="rounded-xl bg-stone-900 text-white p-3 text-[11px] flex items-center justify-between gap-2">
+                        <span>
+                          <strong className="text-emerald-400">Trip in Progress:</strong> Keys have been handed over. Drive safely!
+                        </span>
+                        <span className="font-mono text-stone-300 shrink-0">
+                          Due: {formatLookupDate(guestBooking.returnDate)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
-                    <div>
-                      <dt className="text-stone-500">Pickup</dt>
-                      <dd className="mt-1 font-medium">{formatLookupDate(guestBooking.pickupDate)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-stone-500">Return</dt>
-                      <dd className="mt-1 font-medium">{formatLookupDate(guestBooking.returnDate)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
+                )
+              })()}
             </div>
 
             {authError && (
@@ -929,24 +1114,15 @@ export default function MyBookingsView({
                                   </span>
                                   <h5 className="font-bold text-stone-900 text-sm">
                                     {matedCar?.garageName ||
-                                      "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}
+                                      studioSettings.company_name ||
+                                      hub.address}
                                   </h5>
                                   <p className="text-xs text-stone-500">
-                                    {matedCar?.garageAddress ||
-                                      "4200 NW 21st St, Miami, FL 33142"}
+                                    {matedCar?.garageAddress || hub.address}
                                   </p>
                                   <div className="flex flex-wrap items-center gap-2 mt-2.5">
                                     <a
-                                      href={
-                                        matedCar?.garageLat && matedCar?.garageLng
-                                          ? `https://www.google.com/maps/search/?api=1&query=${matedCar.garageLat},${matedCar.garageLng}`
-                                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                              matedCar?.garageAddress ||
-                                                matedCar?.garageName ||
-                                                b.pickupLocation ||
-                                                "Pit Stop Operations Hub (Mgarr, Malta)"
-                                            )}`
-                                      }
+                                      href={getDynamicCarMapLocation(matedCar, studioSettings).mapsUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-[#F97316] hover:bg-orange-50 border border-orange-200 shadow-2xs transition"
@@ -1011,19 +1187,31 @@ export default function MyBookingsView({
                                   </span>
                                 </div>
                                 <p className="text-stone-700 text-xs leading-relaxed">
-                                  <strong>⚡ Use WhatsApp for faster response:</strong> This is our Fleet Admin (Marcus Vance • +1 778-074-0223) who takes care of the cars at the garage. Send him a WhatsApp message to accelerate your vehicle clearance and staging!
+                                  <strong>⚡ Use WhatsApp for faster response:</strong> This is our {adminDisplayName} ({dispatchPhone}) who takes care of the cars at the garage. Send a WhatsApp message to accelerate your vehicle clearance and staging!
                                 </p>
                               </div>
                             </div>
-                            <a
-                              href={getWhatsAppUrls("7780740223", `🚗 PIT STOP CAR HIRE RESERVATION #${b.id} APPROVAL REQUEST\n\nHello Fleet Admin Marcus,\nI have booked ${b.requestedCategory || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="py-2.5 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer self-stretch md:self-auto justify-center"
-                            >
-                              <PhoneIcon size={14} />
-                              <span>WhatsApp Admin for Faster Response</span>
-                            </a>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 self-stretch md:self-auto">
+                              <a
+                                href={getWhatsAppUrls(dispatchPhone, `🚗 PIT STOP CAR HIRE RESERVATION #${b.id} APPROVAL REQUEST\n\nHello ${adminDisplayName},\nI have booked ${b.requestedCategory || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="py-2.5 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black shadow-sm transition flex items-center gap-1.5 justify-center cursor-pointer"
+                              >
+                                <PhoneIcon size={14} />
+                                <span>WhatsApp Admin for Faster Response</span>
+                              </a>
+                              {secondaryWhatsAppPhone && (
+                                <a
+                                  href={getWhatsAppUrls(secondaryWhatsAppPhone, `🚗 PIT STOP CAR HIRE RESERVATION #${b.id} APPROVAL REQUEST\n\nHello ${adminDisplayName},\nI have booked ${b.requestedCategory || "a vehicle"} for ${b.pickupDate} to ${b.returnDate}. Please review and approve my reservation request.\n\nThank you!\nCustomer: ${b.customer?.firstName || ""} ${b.customer?.lastName || ""}`).smartUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center justify-center cursor-pointer"
+                                >
+                                  <span>Alt: {formatInternationalPhoneDisplay(secondaryWhatsAppPhone)}</span>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -1228,15 +1416,7 @@ export default function MyBookingsView({
                                     Pickup Hub
                                   </p>
                                   <a
-                                    href={
-                                      matedCar?.garageLat && matedCar?.garageLng
-                                        ? `https://www.google.com/maps/search/?api=1&query=${matedCar.garageLat},${matedCar.garageLng}`
-                                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                            b.pickupLocation ||
-                                              matedCar?.garageAddress ||
-                                              "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"
-                                          )}`
-                                    }
+                                    href={getDynamicCarMapLocation(matedCar, studioSettings).mapsUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-[11px] font-bold text-[#F97316] hover:underline inline-flex items-center gap-0.5"
@@ -1332,6 +1512,23 @@ export default function MyBookingsView({
                                 </button>
                               </div>
 
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setConditionEditorBooking(b)}
+                                  className="flex-1 min-w-[140px] py-2 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                                >
+                                  <CameraIcon size={14} />
+                                  <span>5-View Photos &amp; Signature</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsLegalModalOpen(true)}
+                                  className="py-2 px-3 rounded-xl bg-white hover:bg-orange-50 text-stone-700 hover:text-[#F97316] text-xs font-bold transition border border-stone-200 hover:border-orange-200 flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <span>Review 21 Rental Clauses →</span>
+                                </button>
+                              </div>
                               <div className="flex gap-2">
                                 <button
                                   type="button"
@@ -2345,6 +2542,198 @@ export default function MyBookingsView({
           </div>,
           document.body,
         )}
+
+      {conditionEditorBooking &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="5-View Vehicle Inspection & Signature"
+            className="fixed inset-0 z-[9998] bg-stone-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+          >
+            <div className="bg-white rounded-2xl border border-stone-200 max-w-4xl w-full shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+              <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/70 shrink-0">
+                <div>
+                  <h3 className="text-base font-black text-stone-900">
+                    Pit Stop 5-View Condition Inspection &amp; Client Endorsement
+                  </h3>
+                  <p className="text-xs text-stone-500 mt-0.5 font-mono">
+                    Booking {conditionEditorBooking.id} • Tap any vehicle view to attach a photo or mark condition notes
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConditionEditorBooking(null)}
+                  className="p-2 rounded-xl text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
+                  aria-label="Close inspection editor"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-5 overflow-y-auto space-y-5 flex-1">
+                {(() => {
+                  const activePins = conditionEditorBooking.conditionPins || []
+                  const activePhotos = conditionEditorBooking.conditionPhotos || []
+                  const persistCondition = async (patch: {
+                    conditionPins?: ConditionPin[]
+                    conditionPhotos?: string[]
+                    clientSignature?: string
+                  }) => {
+                    setIsSavingCondition(true)
+                    try {
+                      const res = await api.updateBookingCondition(
+                        conditionEditorBooking.id,
+                        patch,
+                      )
+                      const updated = res.booking || {
+                        ...conditionEditorBooking,
+                        ...patch,
+                      }
+                      setConditionEditorBooking(updated)
+                      const nextBookings = bookings.map((item) =>
+                        item.id === updated.id ? updated : item,
+                      )
+                      setBookings(nextBookings)
+                      onBookingsChange?.(nextBookings)
+                      showActionSuccess("Vehicle inspection & signature saved.")
+                    } catch (err: any) {
+                      alert(
+                        err?.message ||
+                          "Failed to save condition inspection update.",
+                      )
+                    } finally {
+                      setIsSavingCondition(false)
+                    }
+                  }
+
+                  return (
+                    <>
+                      <PitStop5ViewSchematic
+                        pins={activePins}
+                        readOnly={false}
+                        onAddPin={(newPin) => {
+                          const nextPins = [...activePins, newPin]
+                          const nextPhotos = newPin.photo
+                            ? Array.from(new Set([...activePhotos, newPin.photo]))
+                            : activePhotos
+                          persistCondition({
+                            conditionPins: nextPins,
+                            conditionPhotos: nextPhotos,
+                          })
+                        }}
+                        onRemovePin={(pinId) => {
+                          const removed = activePins.find((p) => p.id === pinId)
+                          const nextPins = activePins.filter((p) => p.id !== pinId)
+                          const nextPhotos = removed?.photo
+                            ? activePhotos.filter(
+                                (src) =>
+                                  src !== removed.photo ||
+                                  nextPins.some((p) => p.photo === src),
+                              )
+                            : activePhotos
+                          persistCondition({
+                            conditionPins: nextPins,
+                            conditionPhotos: nextPhotos,
+                          })
+                        }}
+                      />
+
+                      <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">
+                            Client Endorsement Signature
+                          </span>
+                          {conditionEditorBooking.clientSignature ? (
+                            conditionEditorBooking.clientSignature.startsWith(
+                              "data:image",
+                            ) ||
+                            conditionEditorBooking.clientSignature.startsWith(
+                              "http",
+                            ) ||
+                            conditionEditorBooking.clientSignature.startsWith(
+                              "blob:",
+                            ) ? (
+                              <img
+                                src={conditionEditorBooking.clientSignature}
+                                alt="Client endorsement signature"
+                                className="h-14 max-w-[220px] object-contain bg-white border border-stone-200 rounded-lg p-1.5"
+                              />
+                            ) : (
+                              <p className="text-sm font-serif italic text-stone-900">
+                                {conditionEditorBooking.clientSignature}
+                              </p>
+                            )
+                          ) : (
+                            <p className="text-xs text-stone-500">
+                              No signature image uploaded yet. Upload your signature image below.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <label className="px-3.5 py-2 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5">
+                            <CameraIcon size={14} />
+                            <span>
+                              {isSavingCondition
+                                ? "Saving..."
+                                : conditionEditorBooking.clientSignature
+                                  ? "Replace Signature Image"
+                                  : "Add Signature Image"}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={isSavingCondition}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                e.target.value = ""
+                                if (!file) return
+                                try {
+                                  const dataUrl = await compressConditionImageFile(
+                                    file,
+                                    600,
+                                    0.9,
+                                    "image/png",
+                                  )
+                                  await persistCondition({
+                                    clientSignature: dataUrl,
+                                  })
+                                } catch (err: any) {
+                                  alert(
+                                    err?.message ||
+                                      "Could not process signature image.",
+                                  )
+                                }
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConditionEditorBooking(null)
+                              setIsLegalModalOpen(true)
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-stone-100 text-stone-700 text-xs font-bold border border-stone-200 transition cursor-pointer"
+                          >
+                            Review 21 Rental Clauses →
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      <LegalPoliciesModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab="terms"
+      />
     </div>
   )
 }

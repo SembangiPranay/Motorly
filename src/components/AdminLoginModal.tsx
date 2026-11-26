@@ -2,7 +2,8 @@ import React, { useState } from "react"
 import { createPortal } from "react-dom"
 import { api } from "../services/api"
 import AdminGoogleSignIn, { googleSignInEnabled } from "./AdminGoogleSignIn"
-import { ShieldIcon, LockIcon } from "./Icons"
+import { LockIcon } from "./Icons"
+import PitStopLogo from "./PitStopLogo"
 
 interface AdminLoginModalProps {
   isOpen: boolean
@@ -62,8 +63,8 @@ export default function AdminLoginModal({
 
         {/* Header Icon */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-orange-600/10 border border-orange-500/30 text-orange-500 flex items-center justify-center mx-auto shadow-inner">
-            <ShieldIcon size={24} />
+          <div className="flex justify-center pb-1">
+            <PitStopLogo size="md" showText={false} variant="badge" theme="light" />
           </div>
           <span className="inline-block px-3 py-0.5 rounded-full bg-orange-950/80 border border-orange-800/60 text-orange-400 text-[10px] font-mono font-bold uppercase tracking-wider">
             Fleet Operations Console

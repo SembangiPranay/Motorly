@@ -1,6 +1,7 @@
 import React from "react"
 import type { Car, BookingState } from "../../types"
 import { calculateRentalPrice } from "../../utils/pricing"
+import { useStudioSettings, getDynamicCarMapLocation } from "../../utils/studioSettings"
 import {
   CarIcon,
   StarIcon,
@@ -78,6 +79,8 @@ export default function ListingVehicleGrid({
   onQuickBook,
   clearAllFilters,
 }: ListingVehicleGridProps) {
+  const studioSettings = useStudioSettings()
+
   return (
     <div className="w-full max-w-[1780px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-5">
       <main className="w-full space-y-4">
@@ -284,7 +287,7 @@ export default function ListingVehicleGrid({
                           {car.garageName ||
                             car.garageAddress ||
                             car.location ||
-                            "Miami Executive Garage"}
+                            getDynamicCarMapLocation(car, studioSettings).address}
                         </span>
                         {car.garageBay && (
                           <span className="shrink-0 text-[10px] bg-white text-stone-700 font-bold px-1.5 py-0.5 rounded border border-stone-200">
@@ -292,16 +295,7 @@ export default function ListingVehicleGrid({
                           </span>
                         )}
                         <a
-                          href={
-                            car.garageLat && car.garageLng
-                              ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                  car.garageAddress ||
-                                    car.garageName ||
-                                    car.location ||
-                                    "Pit Stop Central Garage (Mgarr)",
-                                )}`
-                          }
+                          href={getDynamicCarMapLocation(car, studioSettings).mapsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
@@ -519,7 +513,7 @@ export default function ListingVehicleGrid({
                         {car.garageName ||
                           car.garageAddress ||
                           car.location ||
-                          "Miami Executive Garage"}
+                          getDynamicCarMapLocation(car, studioSettings).address}
                       </span>
                       {car.garageBay && (
                         <span className="text-[10px] bg-stone-100 text-stone-600 font-bold px-1.5 py-0.5 rounded">
@@ -527,16 +521,7 @@ export default function ListingVehicleGrid({
                         </span>
                       )}
                       <a
-                        href={
-                          car.garageLat && car.garageLng
-                            ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                car.garageAddress ||
-                                  car.garageName ||
-                                  car.location ||
-                                  "Pit Stop Central Garage (Mgarr)",
-                              )}`
-                        }
+                        href={getDynamicCarMapLocation(car, studioSettings).mapsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}

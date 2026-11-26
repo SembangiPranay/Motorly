@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import os from "node:os"
+import tls from "node:tls"
 import { setTimeout as delay } from "node:timers/promises"
 import { fileURLToPath } from "node:url"
 import pg from "pg"
@@ -12,6 +13,128 @@ const { Pool } = pg
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Official Supabase Root 2021 CA (CN=Supabase Root 2021 CA, valid 2021-04-28..2031-04-26,
+// SHA-256 80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA).
+// Bundled alongside Node's root CAs so verified TLS (rejectUnauthorized=true) succeeds against
+// *.pooler.supabase.com / *.supabase.co even when Vercel Production does not set DATABASE_CA_CERT.
+const SUPABASE_ROOT_2021_CA = `-----BEGIN CERTIFICATE-----
+MIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL
+BQAwazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5l
+dyBDYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh
+c2UgUm9vdCAyMDIxIENBMB4XDTIxMDQyODEwNTY1M1oXDTMxMDQyNjEwNTY1M1ow
+azELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5ldyBD
+YXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh
+c2UgUm9vdCAyMDIxIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA
+qQXWQyHOB+qR2GJobCq/CBmQ40G0oDmCC3mzVnn8sv4XNeWtE5XcEL0uVih7Jo4D
+kx1QDmGHBH1zDfgs2qXiLb6xpw/CKQPypZW1JssOTMIfQppNQ87K75Ya0p25Y3eP
+S2t2GtvHxNjUV6kjOZjEn2yWEcBdpOVCUYBVFBNMB4YBHkNRDa/+S4uywAoaTWnC
+JLUicvTlHmMw6xSQQn1UfRQHk50DMCEJ7Cy1RxrZJrkXXRP3LqQL2ijJ6F4yMfh+
+Gyb4O4XajoVj/+R4GwywKYrrS8PrSNtwxr5StlQO8zIQUSMiq26wM8mgELFlS/32
+UcltNaQ1xBRizkzpZct9DwIDAQABo2AwXjALBgNVHQ8EBAMCAQYwHQYDVR0OBBYE
+FKjXuXY32CztkhImng4yJNUtaUYsMB8GA1UdIwQYMBaAFKjXuXY32CztkhImng4y
+JNUtaUYsMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB8spzNn
++4VUtVxbdMaX+39Z50sc7uATmus16jmmHjhIHz+l/9GlJ5KqAMOx26mPZgfzG7o
+neL2bVW+WgYUkTT3XEPFWnTp2RJwQao8/tYPXWEJDc0WVQHrpmnWOFKU/d3MqBgB
+m5y+6jB81TU/RG2rVerPDWP+1MMcNNy0491CTL5XQZ7JfDJJ9CCmXSdtTl4uUQnS
+uv/QxCea13BX2ZgJc7Au30vihLhub52De4P/4gonKsNHYdbWjg7OWKwNv/zitGDV
+DB9Y2CMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJw
+dik5Po/bKiIz+Fq8=
+-----END CERTIFICATE-----`
+
+function stripSurroundingQuotes(value: string | undefined): string {
+  const trimmed = (value || "").trim()
+  if (
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'")))
+  ) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
+function parseDatabaseUrlSafe(connectionString: string): URL {
+  try {
+    return new URL(connectionString)
+  } catch {
+    throw new Error(
+      "Invalid PostgreSQL connection URL in environment configuration.",
+    )
+  }
+}
+
+function formatSafeDbTarget(connectionString: string): string {
+  try {
+    const u = new URL(connectionString)
+    return `${u.host}${u.pathname || ""}`
+  } catch {
+    return "<invalid-url>"
+  }
+}
+
+interface DbErrorLike {
+  code?: string
+  message?: string
+}
+
+function sanitizeDbErrorMessage(error: unknown): string {
+  const err = error as DbErrorLike | undefined
+  const code = err?.code ? `[${err.code}] ` : ""
+  const rawMsg = (
+    err?.message || String(error || "Unknown database error")
+  ).replace(/postgres(?:ql)?:\/\/[^\s'"]+/gi, "postgresql://[REDACTED]")
+  let hint = ""
+  if (err?.code === "28P01" || /password authentication failed/i.test(rawMsg)) {
+    hint = " (verify DATABASE_URL username/password in environment variables)"
+  } else if (err?.code === "ENOTFOUND") {
+    hint =
+      " (host DNS unresolved; prefer Supabase pooler DATABASE_URL over direct db.* host)"
+  } else if (
+    [
+      "SELF_SIGNED_CERT_IN_CHAIN",
+      "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+      "CERT_HAS_EXPIRED",
+    ].includes(err?.code || "")
+  ) {
+    hint = " (TLS CA verification failed; check DATABASE_CA_CERT)"
+  }
+  return `${code}${rawMsg}${hint}`
+}
+
+function resolveCaCertificates(rawCertEnv?: string): string[] {
+  const certs: string[] = [...tls.rootCertificates, SUPABASE_ROOT_2021_CA]
+  const cleaned = stripSurroundingQuotes(rawCertEnv)
+  if (!cleaned) return certs
+
+  let pemCandidate = cleaned
+  if (
+    !pemCandidate.includes("BEGIN CERTIFICATE") &&
+    fs.existsSync(pemCandidate)
+  ) {
+    try {
+      pemCandidate = fs.readFileSync(pemCandidate, "utf8").trim()
+    } catch {
+      console.warn(
+        "[DB] Failed to read DATABASE_CA_CERT file path; falling back to bundled CAs.",
+      )
+      return certs
+    }
+  }
+
+  pemCandidate = pemCandidate
+    .replace(/\r\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .trim()
+  if (pemCandidate.includes("BEGIN CERTIFICATE")) {
+    certs.push(pemCandidate)
+  } else {
+    console.warn(
+      "[DB] DATABASE_CA_CERT is set without valid PEM headers; falling back to bundled CAs.",
+    )
+  }
+  return certs
+}
+
 // Ensure data directory exists for local SQLite fallback (only in non-production local development)
 let sqliteInstance: any = null
 export let dbPath = ""
@@ -22,10 +145,11 @@ if (!isProduction) {
     if (sqliteMod && sqliteMod.DatabaseSync) {
       let dataDir = path.join(__dirname, "../api/data")
       if (process.env.VERCEL === "1" || process.env.NOW_REGION) {
-        dataDir = path.join(os.tmpdir(), "drive_rent_data")
+        dataDir = path.join(os.tmpdir(), "pitstop_data")
       }
-      dbPath = process.env.SQLITE_PATH || path.join(dataDir, "drive_rent.db")
-      if (dbPath !== ":memory:") fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+      dbPath = process.env.SQLITE_PATH || path.join(dataDir, "pitstop.db")
+      if (dbPath !== ":memory:")
+        fs.mkdirSync(path.dirname(dbPath), { recursive: true })
       sqliteInstance = new sqliteMod.DatabaseSync(dbPath)
     }
   } catch (e: any) {
@@ -40,8 +164,10 @@ export const sqlite = sqliteInstance
 
 // Supabase PostgreSQL Configuration
 // Credentials must come strictly from environment variables
-const SUPABASE_POOLER_URL = process.env.DATABASE_URL?.trim() || ""
-const SUPABASE_DIRECT_URL = process.env.SUPABASE_DIRECT_URL?.trim() || ""
+const SUPABASE_POOLER_URL = stripSurroundingQuotes(process.env.DATABASE_URL)
+const SUPABASE_DIRECT_URL = stripSurroundingQuotes(
+  process.env.SUPABASE_DIRECT_URL,
+)
 
 if (isProduction && !SUPABASE_POOLER_URL && !SUPABASE_DIRECT_URL) {
   throw new Error(
@@ -51,13 +177,13 @@ if (isProduction && !SUPABASE_POOLER_URL && !SUPABASE_DIRECT_URL) {
 
 let supabasePool: pg.Pool | null = null
 let isSupabaseActive = false
-let activeConnStr = SUPABASE_POOLER_URL
+let activeConnStr = ""
 let sqliteTransactionQueue = Promise.resolve()
 
 export function createSupabasePool(connectionString: string): pg.Pool {
   const rejectUnauthorized =
     isProduction || process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true"
-  const dbUrl = new URL(connectionString)
+  const dbUrl = parseDatabaseUrlSafe(connectionString)
   const localDb = ["localhost", "127.0.0.1", "[::1]"].includes(dbUrl.hostname)
   const useTls = !localDb || dbUrl.searchParams.get("sslmode") !== "disable"
   // pg connection-string SSL settings replace the verified TLS options when present.
@@ -65,17 +191,16 @@ export function createSupabasePool(connectionString: string): pg.Pool {
     dbUrl.searchParams.delete(key)
   }
 
-  const sslConfig: any = {
-    rejectUnauthorized,
-  }
-
-  if (process.env.DATABASE_CA_CERT) {
-    sslConfig.ca = process.env.DATABASE_CA_CERT
-  }
+  const sslConfig: tls.ConnectionOptions | false = useTls
+    ? {
+        rejectUnauthorized,
+        ca: resolveCaCertificates(process.env.DATABASE_CA_CERT),
+      }
+    : false
 
   const pool = new Pool({
     connectionString: dbUrl.toString(),
-    ssl: useTls && sslConfig,
+    ssl: sslConfig,
     connectionTimeoutMillis: 15000,
     idleTimeoutMillis: 30000,
     max: 25,
@@ -87,7 +212,7 @@ export function createSupabasePool(connectionString: string): pg.Pool {
   pool.on("error", (err: any) => {
     console.warn(
       "[Supabase Pool Warning] Background connection dropped/reset:",
-      err?.message || err,
+      sanitizeDbErrorMessage(err),
     )
   })
 
@@ -101,7 +226,7 @@ function translateSql(sql: string): string {
   return translated
 }
 
-async function querySupabaseWithRetry<T extends pg.QueryResultRow = pg.QueryResultRow>(
+async function querySupabaseWithRetry<T extends pg.QueryResultRow = pg.QueryResultRow,>(
   sql: string,
   params: any[] = [],
 ): Promise<pg.QueryResult<T>> {
@@ -113,14 +238,24 @@ async function querySupabaseWithRetry<T extends pg.QueryResultRow = pg.QueryResu
   try {
     return await supabasePool.query<T>(translated, params)
   } catch (firstErr: any) {
+    const code = firstErr?.code || ""
     const isConnErr =
+      [
+        "ECONNRESET",
+        "ETIMEDOUT",
+        "EAI_AGAIN",
+        "57P01",
+        "57P03",
+        "08001",
+        "08006",
+      ].includes(code) ||
       /terminated|timeout|ECONNRESET|ETIMEDOUT|closed|Connection/i.test(
         firstErr?.message || "",
       )
 
     if (isConnErr && activeConnStr) {
       console.warn(
-        `[DB Auto-Recovery] Transient connection issue (${firstErr?.message}). Refreshing pool & retrying...`,
+        `[DB Auto-Recovery] Transient connection issue (${sanitizeDbErrorMessage(firstErr)}). Refreshing pool & retrying...`,
       )
       try {
         try {
@@ -131,7 +266,7 @@ async function querySupabaseWithRetry<T extends pg.QueryResultRow = pg.QueryResu
       } catch (retryErr: any) {
         console.error(
           "[DB Auto-Recovery] Retry also failed:",
-          retryErr?.message || retryErr,
+          sanitizeDbErrorMessage(retryErr),
         )
         throw retryErr
       }
@@ -368,7 +503,7 @@ export const db = {
 
     if (sqlite) {
       const previousTransaction = sqliteTransactionQueue
-      let releaseTransaction!: () => void
+      let releaseTransaction: () => void = () => {}
       sqliteTransactionQueue = new Promise<void>((resolve) => {
         releaseTransaction = resolve
       })
@@ -441,23 +576,58 @@ export const db = {
   },
 }
 
+let initInFlight: Promise<boolean> | null = null
+
 // Lazy/Safe DB ensure
 export async function ensureDatabase(): Promise<boolean> {
   if (isSupabaseActive && supabasePool) return true
-  await initDatabase()
-  return isSupabaseActive || Boolean(sqlite)
+  if (!initInFlight) {
+    initInFlight = (async () => {
+      try {
+        await initDatabase()
+        return isSupabaseActive || Boolean(sqlite)
+      } finally {
+        initInFlight = null
+      }
+    })()
+  }
+  return await initInFlight
+}
+
+function isTransientStartupError(error: unknown): boolean {
+  const err = error as DbErrorLike | undefined
+  const code = err?.code || ""
+  if (
+    [
+      "EBUSY",
+      "EAI_AGAIN",
+      "ETIMEDOUT",
+      "ECONNRESET",
+      "ECONNREFUSED",
+      "ENOTFOUND",
+    ].includes(code)
+  ) {
+    return true
+  }
+  return /terminated|timeout|ECONNRESET|ETIMEDOUT|EAI_AGAIN|Connection/i.test(
+    err?.message || "",
+  )
 }
 
 // Initialize Tables
-async function connectSupabaseForStartup(pool: pg.Pool): Promise<pg.PoolClient> {
-  const retryDelays = [250, 750]
+async function connectSupabaseForStartup(
+  pool: pg.Pool,
+): Promise<pg.PoolClient> {
+  const retryDelays = [250, 750, 1500]
   for (const retryDelay of retryDelays) {
     try {
       return await pool.connect()
     } catch (error) {
-      const { code } = error as NodeJS.ErrnoException
-      if (code !== "EBUSY" && code !== "EAI_AGAIN") throw error
-      console.warn(`[DB] Temporary DNS failure (${code}), retrying Supabase connection.`)
+      if (!isTransientStartupError(error)) throw error
+      const code = (error as NodeJS.ErrnoException)?.code || "TRANSIENT"
+      console.warn(
+        `[DB] Temporary Supabase startup failure (${code}), retrying connection...`,
+      )
       await delay(retryDelay)
     }
   }
@@ -468,10 +638,16 @@ export async function initDatabase() {
   // First, attempt direct connection to Supabase PostgreSQL (Universal AWS pooler port 6543)
   console.log("[DB] Connecting to Supabase PostgreSQL...")
   try {
-    const candidateUrls = [SUPABASE_POOLER_URL, SUPABASE_DIRECT_URL].filter(
-      Boolean,
-    )
+    const rawCandidates = [
+      stripSurroundingQuotes(process.env.DATABASE_URL) || SUPABASE_POOLER_URL,
+      stripSurroundingQuotes(process.env.SUPABASE_DIRECT_URL) ||
+        SUPABASE_DIRECT_URL,
+    ].filter(Boolean)
+    const candidateUrls = Array.from(new Set(rawCandidates))
+    const candidateFailures: string[] = []
+
     for (const connStr of candidateUrls) {
+      const safeTarget = formatSafeDbTarget(connStr)
       let pool: pg.Pool | undefined
       try {
         pool = createSupabasePool(connStr)
@@ -479,7 +655,9 @@ export async function initDatabase() {
         const client = await connectSupabaseForStartup(pool)
         try {
           await client.query("BEGIN")
-          await client.query("SELECT pg_advisory_xact_lock(hashtext('motorly_schema'))")
+          await client.query(
+            "SELECT pg_advisory_xact_lock(hashtext('pitstop_schema'))",
+          )
           await initSupabaseTables(client)
           await client.query("COMMIT")
         } catch (error) {
@@ -491,12 +669,14 @@ export async function initDatabase() {
         supabasePool = pool
         activeConnStr = connStr
         isSupabaseActive = true
-        console.log("[DB] Connected to Supabase PostgreSQL.")
+        console.log(`[DB] Connected to Supabase PostgreSQL (${safeTarget}).`)
         break
       } catch (e: any) {
         await pool?.end().catch(() => {})
+        const sanitizedErr = sanitizeDbErrorMessage(e)
+        candidateFailures.push(`${safeTarget}: ${sanitizedErr}`)
         console.warn(
-          `[DB] Supabase candidate connection failed (${e.message}), trying next...`,
+          `[DB] Supabase candidate connection failed (${safeTarget}: ${sanitizedErr}), trying next...`,
         )
       }
     }
@@ -505,6 +685,11 @@ export async function initDatabase() {
       console.log("[DB] Supabase PostgreSQL tables verified and active!")
     } else {
       if (isProduction) {
+        if (candidateFailures.length > 0) {
+          console.error(
+            `[DB] Primary PostgreSQL connection failed across all candidates: ${candidateFailures.join(" | ")}`,
+          )
+        }
         throw new Error(
           "[SECURITY CRITICAL] Failed to connect to primary PostgreSQL database in production. Aborting to prevent split-brain SQLite degradation.",
         )
@@ -518,7 +703,7 @@ export async function initDatabase() {
       throw err
     }
     console.warn(
-      `[DB] Error initializing Supabase (${err?.message}). Running in local SQLite mode.`,
+      `[DB] Error initializing Supabase (${sanitizeDbErrorMessage(err)}). Running in local SQLite mode.`,
     )
   }
 
@@ -556,6 +741,16 @@ const featureTablesSql = `
   );
   CREATE INDEX IF NOT EXISTS idx_reviews_car_id ON reviews(car_id);
   CREATE INDEX IF NOT EXISTS idx_reviews_booking_id ON reviews(booking_id);
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    email TEXT NOT NULL,
+    token_hash TEXT UNIQUE NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_password_reset_email ON password_reset_tokens(email);
 `
 
 async function initSupabaseTables(pool: pg.PoolClient) {
@@ -1006,9 +1201,13 @@ function initSqliteTables() {
   // Ensure local SQLite database mirror has working baseline data when running offline
   if (sqlite) {
     try {
-      const vCountRow = sqlite.prepare("SELECT count(*) as c FROM vehicles").get()
+      const vCountRow = sqlite
+        .prepare("SELECT count(*) as c FROM vehicles")
+        .get()
       if (!vCountRow || vCountRow.c === 0) {
-        console.log("[DB] Local SQLite mirror is empty. Seeding baseline fleet and system records...")
+        console.log(
+          "[DB] Local SQLite mirror is empty. Seeding baseline fleet and system records...",
+        )
         seedVehicles()
         seedUsers()
         seedPromos()
@@ -1662,7 +1861,8 @@ function seedVehicles() {
       car.type,
       car.price_per_day,
       car.price_per_hour,
-      ("price_per_week" in car && car.price_per_week) || Math.round(car.price_per_day * 6),
+      ("price_per_week" in car && car.price_per_week) ||
+        Math.round(car.price_per_day * 6),
       car.image,
       car.gallery,
       car.rating,

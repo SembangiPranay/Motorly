@@ -46,9 +46,7 @@ export default function AdminLoginGate({
       <div className="w-full max-w-md bg-[#141619] rounded-3xl p-8 sm:p-10 text-white shadow-2xl border border-stone-800 space-y-6">
         <div className="text-center space-y-3">
           <div className="flex justify-center pb-1">
-            <div className="w-12 h-12 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-xl shadow-lg border border-orange-500/30">
-              M
-            </div>
+            <PitStopLogo size="lg" showText={false} variant="badge" theme="light" />
           </div>
           <div className="inline-block px-3 py-1 rounded-full bg-orange-950/80 border border-orange-800/60 text-orange-400 text-[10px] font-extrabold uppercase tracking-wider font-mono">
             Restricted Operational Console

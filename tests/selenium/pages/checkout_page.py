@@ -42,12 +42,12 @@ class CheckoutPage(BasePage):
             
         self.driver.execute_script(
             """
-            localStorage.setItem('motorly_selected_car_id', arguments[0]);
+            localStorage.setItem('pitstop_selected_car_id', arguments[0]);
             if (arguments[1] && arguments[2]) {
-                localStorage.setItem('motorly_customer_token', arguments[1]);
-                localStorage.setItem('motorly_customer_user', JSON.stringify(arguments[2]));
+                localStorage.setItem('pitstop_customer_token', arguments[1]);
+                localStorage.setItem('pitstop_customer_user', JSON.stringify(arguments[2]));
             }
-            localStorage.setItem('motorly_current_view', 'checkout');
+            localStorage.setItem('pitstop_current_view', 'checkout');
             """,
             car_id,
             token,

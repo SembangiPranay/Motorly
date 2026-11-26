@@ -6,7 +6,7 @@ test("capture live production customer screenshots", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
 
   console.log("Navigating to production customer home...")
-  await page.goto("https://motorly-ten.vercel.app", { waitUntil: "networkidle" })
+  await page.goto(process.env.PLAYWRIGHT_BASE_URL || "https://pitstopcarhire.com", { waitUntil: "networkidle" })
   await page.waitForTimeout(2000)
 
   // Skip intro if visible

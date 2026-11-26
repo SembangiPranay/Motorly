@@ -17,3 +17,21 @@ if (isProduction && (!configuredSecret || configuredSecret.length < 32)) {
 }
 
 export const JWT_SECRET = configuredSecret || randomBytes(32).toString("hex")
+
+export function getAppOrigin(): string {
+  const deploymentHost = process.env.VERCEL_ENV === "preview"
+    ? process.env.VERCEL_URL
+    : process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+  for (const value of [process.env.APP_URL, deploymentHost && `https://${deploymentHost}`]) {
+    if (!value) continue
+    try {
+      const url = new URL(value)
+      if (url.protocol === "https:" || (!isProduction && url.protocol === "http:")) {
+        return url.origin
+      }
+    } catch {
+      // Use the next configured origin if a setting is malformed.
+    }
+  }
+  return isProduction ? "https://motorly-ten.vercel.app" : "http://localhost:3000"
+}

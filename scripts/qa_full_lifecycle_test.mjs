@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken"
 
 const API_BASE = "http://localhost:3001/api"
 const JWT_SECRET =
-  process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-prod"
+  process.env.JWT_SECRET || "pitstop-fleet-jwt-secret-secure-key-2026-prod"
 
 // Direct Supabase Pool for independent database verification
 const supabasePool = new pg.Pool({
@@ -34,7 +34,7 @@ const logFail = (step, error) => {
 
 async function runQATestSuite() {
   const startTime = Date.now()
-  console.log("🚀 STARTING MOTORLY END-TO-END QA LIFECYCLE TEST SUITE")
+  console.log("🚀 STARTING PIT STOP END-TO-END QA LIFECYCLE TEST SUITE")
   console.log("   Target: http://localhost:3001/api")
   console.log(
     "   Database: Supabase PostgreSQL (project: mrbymhhcjvebpxcfmnhy)",
@@ -42,7 +42,7 @@ async function runQATestSuite() {
 
   // Unique test identifiers
   const timestamp = Date.now()
-  const testCustomerEmail = `qa.driver.${timestamp}@motorly-test.io`
+  const testCustomerEmail = `qa.driver.${timestamp}@pitstop-test.io`
   const testPassword = `Pass@Secure${timestamp}!`
   const testCustomerName = `Elena Rostova`
   const testPhone = `+1 (305) 555-9081`
@@ -318,7 +318,7 @@ async function runQATestSuite() {
     const adminRes = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: "0709", email: "admin@motorly.com" }),
+      body: JSON.stringify({ password: "0709", email: "admin@pitstopcarhire.com" }),
     })
     const adminData = await adminRes.json()
     if (!adminRes.ok || !adminData.token || adminData.role !== "admin") {

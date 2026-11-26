@@ -1,5 +1,6 @@
 import React from "react"
 import type { Car, BookingState } from "../../types"
+import { useStudioSettings, getDynamicCarMapLocation } from "../../utils/studioSettings"
 import {
   LocationIcon,
   CalendarIcon,
@@ -79,6 +80,9 @@ export default function CarDetailBookingCard({
   onOpenScheduleModal,
   onProceedToBooking,
 }: CarDetailBookingCardProps) {
+  const studioSettings = useStudioSettings()
+  const dynamicMap = getDynamicCarMapLocation(car, studioSettings)
+
   return (
     <>
       {/* Desktop Sticky Fare Calculator Column */}
@@ -137,7 +141,7 @@ export default function CarDetailBookingCard({
                     {car.garageName || car.garageAddress || "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)"}
                   </p>
                   <p className="text-[11px] text-stone-600 truncate mt-0.5">
-                    {car.garageAddress || car.location || "Main Garage Facility"}
+                    {dynamicMap.address}
                   </p>
                   {car.garageBay && (
                     <span className="inline-block mt-1 text-[10px] font-mono font-bold text-amber-800 bg-white border border-amber-300 px-1.5 py-0.5 rounded shadow-2xs">
@@ -145,16 +149,7 @@ export default function CarDetailBookingCard({
                     </span>
                   )}
                   <a
-                    href={
-                      car.garageLat && car.garageLng
-                        ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                            car.garageAddress ||
-                              car.garageName ||
-                              car.location ||
-                              "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
-                          )}`
-                    }
+                    href={dynamicMap.mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#F97316] hover:text-[#EA580C] bg-white border border-amber-300 px-2.5 py-1 rounded-lg hover:bg-orange-50 transition shadow-2xs"

@@ -125,7 +125,7 @@ export default function InvoiceModal({
         {/* Modal Top Control Bar (Hidden on Print) */}
         <div className="p-3 sm:px-6 sm:py-3.5 bg-stone-900 text-white flex flex-wrap items-center justify-between gap-2 border-b border-stone-800 print:hidden">
           <div className="flex items-center gap-2">
-            <PitStopLogo size="sm" showText={false} variant="badge" />
+            <PitStopLogo size="sm" showText={false} variant="badge" theme="light" />
             <div>
               <span className="font-heading font-black text-xs sm:text-sm tracking-wide uppercase">
                 Official Trip Invoice

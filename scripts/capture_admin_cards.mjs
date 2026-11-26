@@ -15,8 +15,8 @@ async function capture() {
 
   // Set admin token directly in localStorage for instant access
   await mobilePage.evaluate(() => {
-    localStorage.setItem("motorly_admin_token", "admin_session_active_0709")
-    localStorage.setItem("motorly_current_view", "admin")
+    localStorage.setItem("pitstop_admin_token", "admin_session_active_0709")
+    localStorage.setItem("pitstop_current_view", "admin")
   })
   await mobilePage.reload({ waitUntil: "domcontentloaded" })
   await mobilePage.waitForTimeout(2000)
@@ -49,8 +49,8 @@ async function capture() {
 
   const desktopAdminBtn = await desktopPage.$('button:has-text("Fleet Admin")')
   await desktopPage.evaluate(() => {
-    localStorage.setItem("motorly_admin_token", "admin_session_active_0709")
-    localStorage.setItem("motorly_current_view", "admin")
+    localStorage.setItem("pitstop_admin_token", "admin_session_active_0709")
+    localStorage.setItem("pitstop_current_view", "admin")
   })
   await desktopPage.reload({ waitUntil: "domcontentloaded" })
   await desktopPage.waitForTimeout(2000)

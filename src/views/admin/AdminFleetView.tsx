@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react"
-import type { Car, CarStatus } from "../../types"
+import type { BookingRecord, Car, CarStatus } from "../../types"
 import {
   CarIcon,
   PlusIcon,
@@ -12,6 +12,7 @@ import {
 
 interface AdminFleetViewProps {
   cars: Car[]
+  bookings?: BookingRecord[]
   searchQuery: string
   onAddCar: () => void
   onEditCar: (car: Car) => void
@@ -23,6 +24,7 @@ type FleetStatusFilter = "all" | "available" | "rented" | "maintenance"
 
 export default function AdminFleetView({
   cars,
+  bookings = [],
   searchQuery,
   onAddCar,
   onEditCar,
@@ -77,8 +79,17 @@ export default function AdminFleetView({
   }, [cars, statusFilter, localSearch, searchQuery])
 
   const handleToggleStatus = async (car: Car) => {
-    const nextStatus: CarStatus =
-      (car.status || "Available").toLowerCase() === "available" ? "Maintenance" : "Available"
+    const current = (car.status || "Available").toLowerCase()
+    const nextStatus: CarStatus = current === "available" ? "Maintenance" : "Available"
+    if (current === "rented") {
+      const activeTrip = bookings.find(
+        (b) => b.matchedCarId === car.id && (b.status || "").toLowerCase() === "checked out",
+      )
+      const promptMsg = activeTrip
+        ? `${car.name} is currently linked to active reservation ${activeTrip.id} (${activeTrip.pickupDate} → ${activeTrip.returnDate}). It is recommended to complete its Return Inspection in Orders & Dispatch. Force-set status to Available anyway?`
+        : `${car.name} is marked as Rented with no active Checked Out trip. Release it back to Available?`
+      if (!window.confirm(promptMsg)) return
+    }
     setUpdatingId(car.id)
     try {
       await onUpdateStatus(car.id, nextStatus)
@@ -259,7 +270,7 @@ export default function AdminFleetView({
                   {/* Actions Bar */}
                   <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
                     {/* Status Toggle Button */}
-                    {!isRented && (
+                    {!isRented ? (
                       <button
                         type="button"
                         disabled={isUpdating}
@@ -282,12 +293,20 @@ export default function AdminFleetView({
                           </>
                         )}
                       </button>
-                    )}
-
-                    {isRented && (
-                      <span className="text-xs text-blue-700 font-bold px-2 py-1 bg-blue-50 rounded border border-blue-200">
-                        Active on Trip
-                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] text-blue-700 font-bold px-2 py-1 bg-blue-50 rounded border border-blue-200">
+                          Active on Trip
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isUpdating}
+                          onClick={() => handleToggleStatus(car)}
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold bg-stone-100 hover:bg-emerald-50 text-stone-700 hover:text-emerald-800 border border-stone-200 hover:border-emerald-200 transition disabled:opacity-50 cursor-pointer"
+                        >
+                          Set Available
+                        </button>
+                      </div>
                     )}
 
                     <div className="flex items-center gap-1">

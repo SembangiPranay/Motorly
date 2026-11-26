@@ -174,47 +174,47 @@ input[type="number"] {
 }
 
 /* Cinematic reference footage entrance */
-.motorly-intro {
+.pitstop-intro {
   opacity: 1;
   transition: opacity 560ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.motorly-intro.is-exiting {
+.pitstop-intro.is-exiting {
   opacity: 0;
   pointer-events: none;
 }
 
-.motorly-intro-video {
+.pitstop-intro-video {
   background: #000;
   transform: scale(1.75);
   transform-origin: center center;
 }
 
 @media (min-width: 640px) {
-  .motorly-intro-video {
+  .pitstop-intro-video {
     transform: scale(1.35);
   }
 }
 
 @media (min-width: 1024px) {
-  .motorly-intro-video {
+  .pitstop-intro-video {
     transform: scale(1);
   }
 }
 
-.motorly-intro-warm-reflection {
+.pitstop-intro-warm-reflection {
   background: radial-gradient(ellipse 55% 18% at 50% 68%, rgba(249, 115, 22, 0.22), transparent 72%);
   opacity: 0;
   animation: warmReflection 3.2s ease-in-out both;
 }
 
 @media (min-width: 640px) {
-  .motorly-intro-warm-reflection {
+  .pitstop-intro-warm-reflection {
     background: radial-gradient(ellipse 34% 12% at 50% 88%, rgba(249, 115, 22, 0.2), transparent 76%);
   }
 }
 
-.motorly-intro-brand {
+.pitstop-intro-brand {
   opacity: 0;
   animation: introBrand 3.2s ease both;
 }
@@ -232,12 +232,12 @@ input[type="number"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motorly-intro {
+  .pitstop-intro {
     transition-duration: 1ms;
   }
 
-  .motorly-intro-warm-reflection,
-  .motorly-intro-brand {
+  .pitstop-intro-warm-reflection,
+  .pitstop-intro-brand {
     animation-duration: 1ms;
   }
 }

@@ -13,7 +13,8 @@ import {
   PhoneIcon,
   GlobeIcon,
 } from "../../components/Icons"
-import { PIT_STOP_F1_PATH } from "../../components/PitStopLogo"
+import PitStopLogo from "../../components/PitStopLogo"
+import { useStudioSettings, getSupportPhone } from "../../utils/studioSettings"
 
 export type AdminTab =
   | "manifest"
@@ -55,6 +56,9 @@ export default function AdminSidebar({
   isMobileOpen,
   onCloseMobile,
 }: AdminSidebarProps) {
+  const studioSettings = useStudioSettings()
+  const supportPhone = getSupportPhone(studioSettings)
+
   const navItems = [
     {
       id: "manifest" as AdminTab,
@@ -140,25 +144,29 @@ export default function AdminSidebar({
         }`}
       >
         {/* Brand Header */}
-        <div className="h-14 p-3 border-b border-stone-800/80 flex items-center justify-between shrink-0">
+        <div className={`h-14 ${isCollapsed ? "px-2.5 py-3" : "p-3"} border-b border-stone-800/80 flex items-center justify-between shrink-0`}>
           <button
             type="button"
             onClick={isCollapsed ? onToggleCollapse : undefined}
             className={`flex items-center text-left ${
               isCollapsed
                 ? "justify-center w-full cursor-pointer hover:opacity-90 group focus:outline-hidden"
-                : "gap-2.5 truncate"
+                : "gap-2.5 truncate group"
             }`}
-            title={isCollapsed ? "Tap to fully expand sidebar" : "Motorly Pit Stop"}
-            aria-label={isCollapsed ? "Expand sidebar" : "Motorly"}
+            title={isCollapsed ? "Tap to fully expand sidebar" : "Pit Stop Car Hire"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Pit Stop Car Hire"}
           >
-            <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0 group-hover:scale-105 active:scale-95 transition-transform">
-              M
-            </div>
+            <PitStopLogo
+              size="sm"
+              showText={false}
+              variant="badge"
+              theme="light"
+              className="group-hover:scale-105 active:scale-95 transition-transform"
+            />
             {!isCollapsed && (
               <div className="truncate">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-black text-white text-sm tracking-tight">MOTORLY</span>
+                  <span className="font-black text-white text-sm tracking-tight">PIT STOP</span>
                   <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">Mgarr</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
@@ -266,12 +274,12 @@ export default function AdminSidebar({
           {!isCollapsed ? (
             <>
               <a
-                href="tel:+35699827192"
+                href={`tel:${supportPhone.replace(/[^\d+]/g, "")}`}
                 className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-stone-800/40 hover:bg-stone-800 text-stone-300 text-xs font-medium transition"
               >
                 <div className="flex items-center gap-2 truncate">
                   <PhoneIcon size={13} className="text-emerald-400 shrink-0" />
-                  <span className="truncate">+356 9982 7192</span>
+                  <span className="truncate">{supportPhone}</span>
                 </div>
                 <span className="text-[9px] text-emerald-400 font-bold shrink-0">24/7</span>
               </a>

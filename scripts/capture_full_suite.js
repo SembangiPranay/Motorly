@@ -7,7 +7,7 @@ if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
 }
 
-const baseUrl = 'https://motorly-ten.vercel.app';
+const baseUrl = 'https://pitstopcarhire.com';
 
 (async () => {
   const browser = await puppeteer.launch({

@@ -170,16 +170,16 @@ export default function CustomerSidebar({
                 ? "justify-center w-full cursor-pointer hover:opacity-90 group focus:outline-hidden"
                 : "gap-2.5 truncate cursor-pointer group"
             }`}
-            title={collapsed ? "Tap to fully expand sidebar" : "Motorly Home Overview"}
-            aria-label={collapsed ? "Expand sidebar" : "Motorly"}
+            title={collapsed ? "Tap to fully expand sidebar" : "Pit Stop Car Hire Home Overview"}
+            aria-label={collapsed ? "Expand sidebar" : "Pit Stop Car Hire"}
           >
             <div className="w-8 h-8 rounded-lg bg-orange-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0 group-hover:scale-105 active:scale-95 transition-transform">
-              M
+              PS
             </div>
             {!collapsed && (
               <div className="truncate">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-black text-white text-sm tracking-tight">MOTORLY</span>
+                  <span className="font-black text-white text-sm tracking-tight">PIT STOP</span>
                   <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">Mgarr</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">

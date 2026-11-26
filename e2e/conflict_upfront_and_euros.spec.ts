@@ -37,7 +37,7 @@ for (const mode of ["guest", "signed-in"] as const) {
     try {
       carIds.push(await createCar(request, adminToken, "QA Maintenance Sedan", "Maintenance"))
       carIds.push(await createCar(request, adminToken, "QA Checkout Sedan", "Available"))
-      await page.addInitScript(() => sessionStorage.setItem("motorly_intro_completed", "true"))
+      await page.addInitScript(() => sessionStorage.setItem("pitstop_intro_completed", "true"))
       if (mode === "signed-in") {
         const registration = await request.post("/api/auth/register", {
           data: {
@@ -52,8 +52,8 @@ for (const mode of ["guest", "signed-in"] as const) {
         customerId = user.id
         await page.addInitScript(
           ({ token, user }) => {
-            localStorage.setItem("motorly_customer_token", token)
-            localStorage.setItem("motorly_customer_user", JSON.stringify(user))
+            localStorage.setItem("pitstop_customer_token", token)
+            localStorage.setItem("pitstop_customer_user", JSON.stringify(user))
           },
           { token, user },
         )
@@ -96,6 +96,20 @@ for (const mode of ["guest", "signed-in"] as const) {
           buffer: Buffer.from(png, "base64"),
         })
       await expect(page.getByText("Front Captured")).toBeVisible()
+
+      await expect(page.getByRole("button", { name: "+ Photo" })).toHaveCount(5)
+      await page.getByRole("button", { name: "Add Signature Image", exact: true }).first().click()
+      await expect(
+        page.getByText("Upload a photo or scan of your handwritten signature"),
+      ).toBeVisible()
+      await page.getByRole("button", { name: "Review 21 Rental Clauses →" }).first().click()
+      const legalDialog = page.getByRole("dialog")
+      await expect(legalDialog).toBeVisible()
+      await expect(
+        legalDialog.getByText("Pit Stop Car Hire — Official Rental Agreement Terms & Conditions"),
+      ).toBeVisible()
+      await legalDialog.getByRole("button", { name: "Close modal" }).click()
+      await expect(page.getByRole("dialog")).toHaveCount(0)
 
       const saved = page.waitForResponse(
         (response) =>
@@ -146,10 +160,19 @@ for (const mode of ["guest", "signed-in"] as const) {
         const result = page.getByRole("status").filter({ hasText: `Reservation ${bookingId}` })
         await expect(result).toBeVisible()
         await expect(result.getByText("Ready for pickup")).toBeVisible()
+        await expect(result.getByText("QA Checkout Sedan")).toBeVisible()
+        await expect(result.getByText("€354.00")).toBeVisible()
         await expect(result.getByText("Return", { exact: true })).toBeVisible()
         const publicData = await publicBooking.json()
         expect(publicData.customer.email).toBe("")
         expect(publicData.driver).toBeUndefined()
+
+        const handover = await request.post(`/api/bookings/${bookingId}/handover-keys`, {
+          headers: adminHeaders,
+          data: { odometerOut: 14500, fuelOut: "100%" },
+        })
+        expect(handover.ok()).toBeTruthy()
+        expect((await handover.json()).booking.status).toBe("Checked Out")
 
         await reference.fill("QA-missing-" + crypto.randomUUID())
         await findTrip.click()
@@ -157,7 +180,7 @@ for (const mode of ["guest", "signed-in"] as const) {
         await expect(result).toHaveCount(0)
       }
 
-      await page.evaluate((value) => localStorage.setItem("motorly_admin_token", value), adminToken)
+      await page.evaluate((value) => localStorage.setItem("pitstop_admin_token", value), adminToken)
       await page.goto(`/?view=admin&tab=manifest&bookingId=${bookingId}`, {
         waitUntil: "domcontentloaded",
       })

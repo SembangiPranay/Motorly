@@ -8,19 +8,19 @@ test.describe("Auth Session Invalidation & Stale Token Recovery", () => {
   }) => {
     // Inject a bad/expired token into localStorage before page load
     await page.addInitScript(() => {
-      localStorage.setItem("motorly_admin_token", "invalid.jwt.signature.token")
-      localStorage.setItem("motorly_current_view", "admin")
+      localStorage.setItem("pitstop_admin_token", "invalid.jwt.signature.token")
+      localStorage.setItem("pitstop_current_view", "admin")
     })
 
     await page.goto("/?view=admin")
     await page.waitForLoadState("domcontentloaded")
-    await page.waitForTimeout(1000)
 
-    // Verify stale token was automatically purged
-    const tokenAfterInit = await page.evaluate(() =>
-      localStorage.getItem("motorly_admin_token"),
-    )
-    expect(tokenAfterInit).toBeNull()
+    // Verify stale token is automatically purged after async auth verification
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem("pitstop_admin_token")), {
+        timeout: 8000,
+      })
+      .toBeNull()
 
     // AuthView is rendered asking for passcode
     const passInput = page.locator("input[type='password']").first()
@@ -34,7 +34,7 @@ test.describe("Auth Session Invalidation & Stale Token Recovery", () => {
     // Verify Admin Portal loads showing Sync DB button and Active Bookings
     await expect(page.locator("button:has-text('Orders & Dispatch')").first()).toBeVisible({ timeout: 10000 })
     const validToken = await page.evaluate(() =>
-      localStorage.getItem("motorly_admin_token"),
+      localStorage.getItem("pitstop_admin_token"),
     )
     expect(validToken).toBeTruthy()
     expect(validToken).not.toBe("invalid.jwt.signature.token")

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { WhatsAppIcon } from "./Icons"
-import { openWhatsAppDirect } from "../utils/whatsapp"
-import { api } from "../services/api"
+import { formatInternationalPhoneDisplay, openWhatsAppDirect } from "../utils/whatsapp"
+import { useStudioSettings, getPrimaryWhatsAppPhone } from "../utils/studioSettings"
 import type { Car } from "../types"
 
 interface WhatsAppSupportFABProps {
@@ -11,25 +11,10 @@ interface WhatsAppSupportFABProps {
 export default function WhatsAppSupportFAB({
   activeCar,
 }: WhatsAppSupportFABProps) {
-  const [adminPhone, setAdminPhone] = useState<string>("+91 77807 40223")
+  const studioSettings = useStudioSettings()
+  const adminWhatsApp = getPrimaryWhatsAppPhone(studioSettings)
+  const adminWhatsAppDisplay = formatInternationalPhoneDisplay(adminWhatsApp)
   const [isHovered, setIsHovered] = useState(false)
-
-  useEffect(() => {
-    let isMounted = true
-    api
-      .getSettings()
-      .then((res) => {
-        if (isMounted && res?.contact_phone) {
-          setAdminPhone(res.contact_phone)
-        }
-      })
-      .catch(() => {
-        // Fallback default retained
-      })
-    return () => {
-      isMounted = false
-    }
-  }, [])
 
   const handleOpenWhatsApp = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -39,7 +24,7 @@ export default function WhatsAppSupportFAB({
       ? `Hello Pit Stop Car Hire Concierge, I am inquiring about reserving the ${activeCar.name} (${activeCar.year || 2024} ${activeCar.type || "Vehicle"}). Could you assist me with priority availability and booking?`
       : "Hello Pit Stop Car Hire Concierge, I would like to inquire about fleet availability and reserving a vehicle."
 
-    openWhatsAppDirect(adminPhone, greeting)
+    openWhatsAppDirect(adminWhatsApp, greeting)
   }
 
   return (
@@ -63,7 +48,7 @@ export default function WhatsAppSupportFAB({
             Direct Concierge
           </p>
           <p className="text-xs font-semibold text-stone-100 leading-tight mt-0.5">
-            Chat with Studio Admin
+            WhatsApp • {adminWhatsAppDisplay}
           </p>
         </div>
       </div>

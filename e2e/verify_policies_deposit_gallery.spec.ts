@@ -8,8 +8,8 @@ test.describe("US Policies, Vehicle-Specific Deposit & Multi-Photo Studio", () =
   test("1. Checkout Trip Purpose is strictly optional with US placeholders & clear button", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
-      localStorage.setItem("motorly_selected_car_id", "1")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_selected_car_id", "1")
     })
 
     // Navigate to checkout with vehicle 1
@@ -53,8 +53,8 @@ test.describe("US Policies, Vehicle-Specific Deposit & Multi-Photo Studio", () =
   test("2. Legal Policies & US Privacy Modal displays all 4 tabs with CAN-SPAM Act compliance", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
-      localStorage.setItem("motorly_selected_car_id", "1")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_selected_car_id", "1")
     })
 
     await page.goto("http://localhost:3000/?view=checkout&car=1", { waitUntil: "domcontentloaded" })
@@ -98,9 +98,9 @@ test.describe("US Policies, Vehicle-Specific Deposit & Multi-Photo Studio", () =
   test("3. Admin Studio: Custom Security Deposit & Multi-Photo Gallery Management", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
-      localStorage.setItem("motorly_admin_authed", "true")
-      localStorage.setItem("motorly_admin_token", "test-admin-token")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_admin_authed", "true")
+      localStorage.setItem("pitstop_admin_token", "test-admin-token")
     })
 
     await page.goto("http://localhost:3000/?view=admin&tab=fleet", { waitUntil: "domcontentloaded" })

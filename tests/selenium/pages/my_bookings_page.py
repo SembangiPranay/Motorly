@@ -11,9 +11,9 @@ class MyBookingsPage(BasePage):
         """Injects customer auth and navigates to My Trips."""
         self.driver.execute_script(
             """
-            localStorage.setItem('motorly_customer_token', arguments[0]);
-            localStorage.setItem('motorly_customer_user', JSON.stringify(arguments[1]));
-            localStorage.setItem('motorly_current_view', 'my-bookings');
+            localStorage.setItem('pitstop_customer_token', arguments[0]);
+            localStorage.setItem('pitstop_customer_user', JSON.stringify(arguments[1]));
+            localStorage.setItem('pitstop_current_view', 'my-bookings');
             """,
             customer_token,
             customer_user

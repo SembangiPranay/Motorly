@@ -23,7 +23,7 @@ import jwt from "jsonwebtoken"
 
 const API_BASE = process.env.API_BASE || "http://localhost:3001/api"
 const JWT_SECRET =
-  process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-prod"
+  process.env.JWT_SECRET || "pitstop-fleet-jwt-secret-secure-key-2026-prod"
 
 const pool = new pg.Pool({
   host: "aws-0-us-east-1.pooler.supabase.com",
@@ -80,7 +80,7 @@ async function getAdminToken() {
   return jwt.sign(
     {
       userId: "usr_admin",
-      email: "admin@motorly.com",
+      email: "admin@pitstopcarhire.com",
       role: "admin",
       name: "Fleet Admin",
     },

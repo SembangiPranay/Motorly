@@ -1,9 +1,10 @@
 import assert from "node:assert/strict"
+import { createHash, randomBytes } from "node:crypto"
 import { once } from "node:events"
 import { after, before, test } from "node:test"
 
-const postgresUrl = process.env.MOTORLY_TEST_DATABASE_URL
-const adminPassword = "motorly-integration-test-password"
+const postgresUrl = process.env.PITSTOP_TEST_DATABASE_URL
+const adminPassword = "pitstop-integration-test-password"
 let db
 let server
 let baseUrl
@@ -19,17 +20,17 @@ before(async () => {
   process.env.SUPABASE_DIRECT_URL = ""
   process.env.NODE_ENV = postgresUrl ? "production" : "test"
   process.env.SQLITE_PATH = ":memory:"
-  process.env.JWT_SECRET = "motorly-integration-test-secret-local-only"
+  process.env.JWT_SECRET = "pitstop-integration-test-secret-local-only"
   process.env.ADMIN_PASSWORD = adminPassword
   process.env.ADMIN_PASSWORD_HASH = ""
   process.env.SMTP_USER = ""
   process.env.SMTP_PASS = ""
-  process.env.GOOGLE_OAUTH_CLIENT_ID = "motorly-tests.apps.googleusercontent.com"
+  process.env.GOOGLE_OAUTH_CLIENT_ID = "pitstop-tests.apps.googleusercontent.com"
   process.env.VERCEL = "1"
   if (postgresUrl) {
     const selected = new URL(postgresUrl)
     assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(selected.hostname))
-    assert.match(selected.pathname, /^\/motorly_test\w*$/)
+    assert.match(selected.pathname, /^\/pitstop_test\w*$/)
   }
 
   const { default: app } = await import("../api/index.ts")
@@ -343,9 +344,285 @@ test("counter dispatch, vehicle release and deletion use the same fleet state", 
   assert.equal((await post("/promos/validate", { code: "QA10" })).valid, false)
 })
 
+test("guest booking lookup, handover conflict guards, and orphan Rented self-healing", async () => {
+  const start = Date.now() + 3 * 86400000
+  const pickupDate = new Date(start).toISOString()
+  const returnDate = new Date(start + 2 * 86400000).toISOString()
+  const guestPayload = {
+    carId,
+    pickupDate,
+    returnDate,
+    deliveryType: "garage",
+    returnType: "garage",
+    customer: {
+      firstName: "Unsigned",
+      lastName: "Guest",
+      email: "unsigned-guest@example.org",
+      phone: "+356 99827192",
+    },
+    driver: {
+      dateOfBirth: "1992-05-10",
+      licenseNumber: "GUEST-DL-101",
+      licenseState: "Malta",
+      licenseExpiry: "2039-12-31",
+    },
+  }
+
+  // Ensure test vehicle starts Available
+  await call(`/cars/${carId}/status`, { method: "PATCH", token: admin, body: { status: "Available" } })
+
+  // 1. Unsigned (guest) creates a booking without auth token
+  const guestBooking = await post("/bookings", guestPayload, undefined, 201)
+  assert.equal(guestBooking.userId, undefined)
+
+  // Also pre-book a second non-overlapping guest reservation while the car is still Available
+  const secondGuest = await post(
+    "/bookings",
+    {
+      ...guestPayload,
+      pickupDate: new Date(start + 10 * 86400000).toISOString(),
+      returnDate: new Date(start + 12 * 86400000).toISOString(),
+    },
+    undefined,
+    201,
+  )
+  await post(`/bookings/${secondGuest.id}/approve`, {}, admin)
+
+  // 2. Public lookup exposes vehicle, price, and public garage hub, while scrubbing customer/driver PII
+  const publicLookup = await call(`/bookings/lookup/${guestBooking.id.toLowerCase()}`)
+  assert.equal(publicLookup.id, guestBooking.id)
+  assert.equal(publicLookup.matchedCarId, carId)
+  assert.equal(publicLookup.totalAmount, guestBooking.totalAmount)
+  assert.equal(publicLookup.securityDeposit, 400)
+  assert.equal(publicLookup.customer.email, "")
+  assert.equal(publicLookup.customer.phone, "")
+  assert.equal(publicLookup.driver, undefined)
+
+  // 3. Approve and hand over keys for the unsigned guest booking
+  await post(`/bookings/${guestBooking.id}/approve`, {}, admin)
+  const handedOver = await post(
+    `/bookings/${guestBooking.id}/handover-keys`,
+    { odometerOut: 19000, fuelOut: "100%" },
+    admin,
+  )
+  assert.equal(handedOver.booking.status, "Checked Out")
+  assert.equal((await call(`/cars/${carId}`)).status, "Rented")
+
+  // 4. While actively Checked Out, availability & new bookings & overlapping handover are blocked with clear 409
+  const criteria = new URLSearchParams({
+    pickupDate: new Date(start + 5 * 86400000).toISOString(),
+    returnDate: new Date(start + 7 * 86400000).toISOString(),
+  })
+  assert.equal((await call(`/cars/${carId}/availability?${criteria}`)).isAvailable, false)
+  await post(
+    "/bookings",
+    {
+      ...guestPayload,
+      pickupDate: new Date(start + 5 * 86400000).toISOString(),
+      returnDate: new Date(start + 7 * 86400000).toISOString(),
+    },
+    undefined,
+    409,
+  )
+  const blockedHandover = await post(
+    `/bookings/${secondGuest.id}/handover-keys`,
+    { odometerOut: 19100, fuelOut: "100%" },
+    admin,
+    409,
+  )
+  assert.equal(blockedHandover.conflictingBookingId, guestBooking.id)
+  assert.match(blockedHandover.error, new RegExp(guestBooking.id))
+
+  await call(`/cars/${carId}/status`, { method: "PATCH", token: admin, body: { status: "Available" } })
+  const blockedWithStaleStatus = await post(
+    `/bookings/${secondGuest.id}/handover-keys`,
+    { odometerOut: 19100, fuelOut: "100%" },
+    admin,
+    409,
+  )
+  assert.equal(blockedWithStaleStatus.conflictingBookingId, guestBooking.id)
+
+  // 5. Return the active booking, then verify a stale orphan 'Rented' flag self-heals on handover
+  await post(
+    `/bookings/${guestBooking.id}/return-inspection`,
+    { odometerIn: 19150, fuelIn: "100%", inspectionPassed: true },
+    admin,
+  )
+  assert.equal((await call(`/cars/${carId}`)).status, "Available")
+
+  // Simulate an orphan 'Rented' vehicle status with no active Checked Out booking
+  await call(`/cars/${carId}/status`, { method: "PATCH", token: admin, body: { status: "Rented" } })
+  const healedHandover = await post(
+    `/bookings/${secondGuest.id}/handover-keys`,
+    { odometerOut: 19200, fuelOut: "100%" },
+    admin,
+  )
+  assert.equal(healedHandover.booking.status, "Checked Out")
+
+  // Clean up test bookings & restore car status
+  await post(
+    `/bookings/${secondGuest.id}/return-inspection`,
+    { odometerIn: 19250, fuelIn: "100%", inspectionPassed: true },
+    admin,
+  )
+  await call(`/bookings/${guestBooking.id}`, { method: "DELETE", token: admin })
+  await call(`/bookings/${secondGuest.id}`, { method: "DELETE", token: admin })
+})
+
+test("5-view condition endorsement, dynamic support/map settings, WhatsApp multi-number splitting, and forgot/reset password validation", async () => {
+  const { extractPhoneNumbers, normalizeWhatsAppPhone, formatTelHref } = await import(
+    "../src/utils/whatsapp.ts"
+  )
+  assert.deepEqual(extractPhoneNumbers("+356 99827192 / +356 99804255"), [
+    "35699827192",
+    "35699804255",
+  ])
+  assert.equal(normalizeWhatsAppPhone("+356 99827192 / +356 99804255"), "35699827192")
+  assert.equal(normalizeWhatsAppPhone("+3569982719235699804255"), "")
+  assert.equal(formatTelHref("+356 99827192 / +356 99804255"), "tel:+35699827192")
+
+  // 1. Dynamic support_phone, whatsapp_phone(s) & admin map settings propagate to GET /settings and GET /cars
+  await call("/settings", {
+    method: "PATCH",
+    token: admin,
+    body: {
+      settings: {
+        support_phone: "+356 2100 9999",
+        whatsapp_phone: "+356 9982 7192",
+        whatsapp_phone_secondary: "+356 9980 4255",
+        hub_address: "Mgarr Harbour Bay 9",
+        hub_lat: 35.9255,
+        hub_lng: 14.3711,
+        google_maps_url: "https://www.google.com/maps?q=35.9255,14.3711",
+      },
+    },
+  })
+  const settingsRes = await call("/settings")
+  assert.equal(settingsRes.settings.support_phone, "+356 2100 9999")
+  assert.equal(settingsRes.settings.whatsapp_phone, "+356 9982 7192")
+  assert.equal(settingsRes.settings.whatsapp_phone_secondary, "+356 9980 4255")
+  assert.equal(settingsRes.settings.hub_address, "Mgarr Harbour Bay 9")
+  assert.equal(settingsRes.settings.google_maps_url, "https://www.google.com/maps?q=35.9255,14.3711")
+  const updatedFleet = await call("/cars")
+  assert.equal(updatedFleet[0].garageAddress, "Mgarr Harbour Bay 9")
+
+  // 2. PATCH /bookings/:id/condition stores 5-view side pins/photos + signature image for owner or admin
+  const customerRes = await post(
+    "/auth/register",
+    {
+      email: `cond-user-${Date.now()}@example.org`,
+      password: "Password123!",
+      name: "Condition Tester",
+      phone: "+35679001122",
+    },
+    undefined,
+    201,
+  )
+  const customerToken = customerRes.token
+  const targetCar = updatedFleet.find((c) => c.status === "Available")
+  assert.ok(targetCar)
+  const start = Date.now() + 25 * 86400000
+  const booking = await post(
+    "/bookings",
+    {
+      carId: targetCar.id,
+      pickupDate: new Date(start).toISOString(),
+      returnDate: new Date(start + 2 * 86400000).toISOString(),
+      deliveryType: "garage",
+      returnType: "garage",
+      customer: {
+        firstName: "Condition",
+        lastName: "Tester",
+        email: customerRes.user.email,
+        phone: "+35679001122",
+      },
+      driver: {
+        dateOfBirth: "1991-04-04",
+        licenseNumber: "MT-COND-11",
+        licenseState: "Malta",
+        licenseExpiry: "2039-12-31",
+      },
+    },
+    customerToken,
+    201,
+  )
+  const samplePng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+  const condUpdate = await call(`/bookings/${booking.id}/condition`, {
+    method: "PATCH",
+    token: customerToken,
+    body: {
+      conditionPins: [
+        {
+          id: "pin-front-1",
+          view: "front",
+          viewLabel: "Front View",
+          x: 45,
+          y: 60,
+          note: "Front bumper photo",
+          photo: samplePng,
+        },
+      ],
+      conditionPhotos: [samplePng],
+      clientSignature: samplePng,
+    },
+  })
+  assert.equal(condUpdate.success, true)
+  assert.equal(condUpdate.booking.conditionPins.length, 1)
+  assert.equal(condUpdate.booking.conditionPins[0].view, "front")
+  assert.equal(condUpdate.booking.conditionPins[0].photo, samplePng)
+  assert.equal(condUpdate.booking.clientSignature, samplePng)
+
+  // 3. Forgot & reset password endpoints enforce validation and real SMTP status instead of fake success
+  const smtpConfigured = Boolean(
+    process.env.SMTP_HOST ||
+      (process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD)),
+  )
+  const forgotRes = await post(
+    "/auth/forgot-password",
+    { email: customerRes.user.email },
+    undefined,
+    smtpConfigured ? 200 : 503,
+  )
+  assert.equal(forgotRes.success, smtpConfigured)
+
+  // Invalid reset code returns 400 clearly
+  const badReset = await post(
+    "/auth/reset-password",
+    { token: "INVALID-CODE-000000000", newPassword: "NewPassword99!" },
+    undefined,
+    400,
+  )
+  assert.equal(badReset.success, false)
+
+  const resetCode = randomBytes(16).toString("hex").toUpperCase()
+  const hash = createHash("sha256").update(resetCode).digest("hex")
+  await db.run(
+    "INSERT INTO password_reset_tokens (id, user_id, email, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    "qa-single-use-reset",
+    customerRes.user.id,
+    customerRes.user.email,
+    hash,
+    new Date(Date.now() + 60_000).toISOString(),
+    new Date().toISOString(),
+  )
+  const resetAttempts = await Promise.all(
+    ["NextQaPassword1!", "NextQaPassword2!"].map((newPassword) =>
+      fetch(baseUrl + "/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetCode, newPassword }),
+      }),
+    ),
+  )
+  assert.deepEqual(resetAttempts.map((response) => response.status).sort(), [200, 400])
+  await call("/auth/customer-me", { token: customerToken, expect: 401 })
+
+  await call(`/bookings/${booking.id}`, { method: "DELETE", token: admin })
+})
+
 test("a passcode change replaces the bootstrap password and invalidates other admin sessions", async () => {
   const otherAdmin = (await post("/auth/login", { password: adminPassword })).token
-  const replacement = "motorly-replacement-passcode"
+  const replacement = "pitstop-replacement-passcode"
   await post(
     "/auth/change-admin-password",
     { currentPassword: adminPassword, newPassword: replacement },

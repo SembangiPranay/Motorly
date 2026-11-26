@@ -23,7 +23,7 @@ def pytest_addoption(parser):
         "--base-url",
         action="store",
         default="http://localhost:3000",
-        help="Target base URL of DriveRent application"
+        help="Target base URL of Pit Stop Car Hire application"
     )
 
 @pytest.fixture(scope="session")

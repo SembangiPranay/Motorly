@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import type { ViewMode, CustomerUser } from "../types"
 
 import { api } from "../services/api"
+import { useStudioSettings, getSupportPhone, getHubCoordinates } from "../utils/studioSettings"
 
 import {
   ArrowRightIcon,
@@ -45,6 +46,9 @@ export default function Header({
 
   isAdminAuthenticated = false,
 }: HeaderProps) {
+  const studioSettings = useStudioSettings()
+  const supportPhone = getSupportPhone(studioSettings)
+  const hub = getHubCoordinates(studioSettings)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const [showSignInModal, setShowSignInModal] = useState(false)
@@ -440,9 +444,7 @@ export default function Header({
               ✕
             </button>
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="w-9 h-9 rounded-xl bg-[#F97316] flex items-center justify-center text-white font-extrabold text-base">
-                M
-              </div>
+              <PitStopLogo size="sm" showText={false} variant="badge" />
               <span className="font-heading font-extrabold text-xl">
                 Pit Stop Account
               </span>
@@ -667,7 +669,7 @@ export default function Header({
                   <input
                     type="text"
                     required
-                    placeholder="+356 99827192 or email@example.com"
+                    placeholder={`${supportPhone} or email@example.com`}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
@@ -693,12 +695,12 @@ export default function Header({
               </form>
             )}
 
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2 text-xs text-gray-500">
               <span className="flex items-center gap-1 font-semibold text-gray-800">
-                <HeadsetIcon size={14} className="text-[#F97316]" /> Direct
-                Line: +356 99827192 / 99804255
+                <HeadsetIcon size={14} className="text-[#F97316]" /> Support
+                Line: {supportPhone}
               </span>
-              <span>36 Triq Il-Kbira, Mgarr, Malta</span>
+              <span className="truncate">{hub.address}</span>
             </div>
           </div>
         </div>

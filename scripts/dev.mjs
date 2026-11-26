@@ -8,7 +8,7 @@ const BOLD = "\x1b[1m"
 const RED = "\x1b[31m"
 
 console.log(
-  `${BOLD}${CYAN}=== MOTORLY Full-Stack Dev Engine Starting ===${RESET}`,
+  `${BOLD}${CYAN}=== PIT STOP Full-Stack Dev Engine Starting ===${RESET}`,
 )
 
 // 1. Start Backend API Server

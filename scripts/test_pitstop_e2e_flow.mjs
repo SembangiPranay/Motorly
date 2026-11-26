@@ -54,10 +54,10 @@ async function run() {
     const pickupStr = `${monthNames[pickup.getMonth()]} ${pickup.getDate()}, ${pickup.getFullYear()}`
     const returnStr = `${monthNames[ret.getMonth()]} ${ret.getDate()}, ${ret.getFullYear()}`
 
-    localStorage.setItem("motorly_customer_token", token)
-    localStorage.setItem("motorly_customer_user", JSON.stringify(user))
-    localStorage.setItem("motorly_current_view", "checkout")
-    localStorage.setItem("motorly_selected_car_id", "honda-crv")
+    localStorage.setItem("pitstop_customer_token", token)
+    localStorage.setItem("pitstop_customer_user", JSON.stringify(user))
+    localStorage.setItem("pitstop_current_view", "checkout")
+    localStorage.setItem("pitstop_selected_car_id", "honda-crv")
   }, { token: regData.token, user: regData.user })
 
   // Reload to land directly in checkout view with honda-crv

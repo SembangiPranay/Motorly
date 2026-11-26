@@ -27,7 +27,7 @@ class BasePage:
     def set_app_view(self, view_name: str):
         """Navigates to the app, sets the target view in localStorage, and refreshes cleanly."""
         self.navigate_to("/")
-        self.driver.execute_script("localStorage.setItem('motorly_current_view', arguments[0]);", view_name)
+        self.driver.execute_script("localStorage.setItem('pitstop_current_view', arguments[0]);", view_name)
         self.driver.refresh()
         time.sleep(0.4)
         self.hud.inject_hud()

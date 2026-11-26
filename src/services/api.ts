@@ -38,8 +38,27 @@ export interface SubmitReviewResponse {
 
 export type BookingLookupResult = Pick<
   BookingRecord,
-  "id" | "status" | "approvedByAdmin" | "pickupDate" | "returnDate"
->
+  | "id"
+  | "status"
+  | "approvedByAdmin"
+  | "pickupDate"
+  | "returnDate"
+> &
+  Partial<
+    Pick<
+      BookingRecord,
+      | "approvedAt"
+      | "keysHandedAt"
+      | "matchedCarId"
+      | "requestedCategory"
+      | "pickupLocation"
+      | "returnLocation"
+      | "deliveryType"
+      | "returnType"
+      | "totalAmount"
+      | "securityDeposit"
+    >
+  >
 
 const PRIMARY_BASE = "/api"
 
@@ -52,8 +71,8 @@ class ApiService {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     }
-    const adminToken = localStorage.getItem("motorly_admin_token")
-    const customerToken = localStorage.getItem("motorly_customer_token")
+    const adminToken = localStorage.getItem("pitstop_admin_token")
+    const customerToken = localStorage.getItem("pitstop_customer_token")
 
     const isAdminPath =
       typeof window !== "undefined" &&
@@ -116,8 +135,8 @@ class ApiService {
   ) {
     if (typeof window === "undefined") return
 
-    const adminToken = localStorage.getItem("motorly_admin_token")
-    const customerToken = localStorage.getItem("motorly_customer_token")
+    const adminToken = localStorage.getItem("pitstop_admin_token")
+    const customerToken = localStorage.getItem("pitstop_customer_token")
 
     const isAdminReq =
       role === "admin" ||
@@ -132,10 +151,10 @@ class ApiService {
       endpoint === "/auth/verify"
 
     if (isAdminReq) {
-      localStorage.removeItem("motorly_admin_token")
-      localStorage.removeItem("motorly_admin_user")
+      localStorage.removeItem("pitstop_admin_token")
+      localStorage.removeItem("pitstop_admin_user")
       window.dispatchEvent(
-        new CustomEvent("motorly_admin_unauthorized", {
+        new CustomEvent("pitstop_admin_auth_invalidated", {
           detail: { endpoint },
         }),
       )
@@ -151,10 +170,10 @@ class ApiService {
       Boolean(customerToken && mergedHeaders?.["Authorization"] === `Bearer ${customerToken}`)
 
     if (isCustomerSessionExpired) {
-      localStorage.removeItem("motorly_customer_token")
-      localStorage.removeItem("motorly_customer_user")
+      localStorage.removeItem("pitstop_customer_token")
+      localStorage.removeItem("pitstop_customer_user")
       window.dispatchEvent(
-        new CustomEvent("motorly_customer_unauthorized", {
+        new CustomEvent("pitstop_customer_auth_invalidated", {
           detail: { endpoint },
         }),
       )
@@ -216,8 +235,8 @@ class ApiService {
       }
     }
     if (data.token) {
-      localStorage.setItem("motorly_customer_token", data.token)
-      localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
+      localStorage.setItem("pitstop_customer_token", data.token)
+      localStorage.setItem("pitstop_customer_user", JSON.stringify(data.user))
     }
     return data
   }
@@ -248,17 +267,17 @@ class ApiService {
       }
     }
     if (data.token) {
-      localStorage.setItem("motorly_customer_token", data.token)
-      localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
+      localStorage.setItem("pitstop_customer_token", data.token)
+      localStorage.setItem("pitstop_customer_user", JSON.stringify(data.user))
     }
     return data
   }
 
   async getCustomerProfile(): Promise<CustomerUser | null> {
-    const token = typeof localStorage !== "undefined" ? localStorage.getItem("motorly_customer_token") : null
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("pitstop_customer_token") : null
     if (!token) {
       if (typeof localStorage !== "undefined") {
-        localStorage.removeItem("motorly_customer_user")
+        localStorage.removeItem("pitstop_customer_user")
       }
       return null
     }
@@ -267,22 +286,22 @@ class ApiService {
       const res = await this.request("/auth/customer-me", {}, "customer")
       if (!res.ok) {
         if (res.status === 401) {
-          localStorage.removeItem("motorly_customer_token")
-          localStorage.removeItem("motorly_customer_user")
+          localStorage.removeItem("pitstop_customer_token")
+          localStorage.removeItem("pitstop_customer_user")
           return null
         }
         // If server 500 or timeout, preserve cached user from localStorage
-        const stored = localStorage.getItem("motorly_customer_user")
+        const stored = localStorage.getItem("pitstop_customer_user")
         return stored ? JSON.parse(stored) : null
       }
       const data = await this.safeJson(res, null)
       if (data?.user) {
-        localStorage.setItem("motorly_customer_user", JSON.stringify(data.user))
+        localStorage.setItem("pitstop_customer_user", JSON.stringify(data.user))
       }
       return data?.user || null
     } catch {
       // Network hiccup - return cached user if available
-      const stored = localStorage.getItem("motorly_customer_user")
+      const stored = localStorage.getItem("pitstop_customer_user")
       try {
         return stored ? JSON.parse(stored) : null
       } catch {
@@ -295,8 +314,57 @@ class ApiService {
     this.request("/auth/customer-logout", { method: "POST" }, "customer").catch(
       () => {},
     )
-    localStorage.removeItem("motorly_customer_token")
-    localStorage.removeItem("motorly_customer_user")
+    localStorage.removeItem("pitstop_customer_token")
+    localStorage.removeItem("pitstop_customer_user")
+  }
+
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const res = await this.request("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+    const data = await this.safeJson(res, null)
+    if (!res.ok) {
+      return {
+        success: false,
+        message:
+          data?.message ||
+          data?.error ||
+          `Unable to send reset instructions (HTTP ${res.status}).`,
+      }
+    }
+    return {
+      success: Boolean(data?.success ?? true),
+      message:
+        data?.message ||
+        `Password reset instructions sent to ${email}.`,
+    }
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const res = await this.request("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    })
+    const data = await this.safeJson(res, null)
+    if (!res.ok) {
+      return {
+        success: false,
+        message:
+          data?.message ||
+          data?.error ||
+          `Unable to reset password (HTTP ${res.status}).`,
+      }
+    }
+    return {
+      success: Boolean(data?.success ?? true),
+      message:
+        data?.message ||
+        "Your password has been updated. You can now sign in.",
+    }
   }
 
   async getCustomerBookings(email?: string): Promise<BookingRecord[]> {
@@ -308,9 +376,10 @@ class ApiService {
   }
 
   async lookupBooking(id: string): Promise<BookingLookupResult | null> {
-    if (!id || !id.trim()) return null
+    const cleanId = id?.trim().replace(/^#/, "")
+    if (!cleanId) return null
     const res = await this.request(
-      `/bookings/lookup/${encodeURIComponent(id.trim())}`,
+      `/bookings/lookup/${encodeURIComponent(cleanId)}`,
       {},
       "customer",
     )
@@ -351,9 +420,9 @@ class ApiService {
         }
       }
       if (data.token) {
-        localStorage.setItem("motorly_admin_token", data.token)
+        localStorage.setItem("pitstop_admin_token", data.token)
         if (data.user) {
-          localStorage.setItem("motorly_admin_user", JSON.stringify(data.user))
+          localStorage.setItem("pitstop_admin_user", JSON.stringify(data.user))
         }
       }
       return data
@@ -392,9 +461,9 @@ class ApiService {
         }
       }
       if (data.token) {
-        localStorage.setItem("motorly_admin_token", data.token)
+        localStorage.setItem("pitstop_admin_token", data.token)
         if (data.user) {
-          localStorage.setItem("motorly_admin_user", JSON.stringify(data.user))
+          localStorage.setItem("pitstop_admin_user", JSON.stringify(data.user))
         }
       }
       return data
@@ -423,7 +492,7 @@ class ApiService {
     try {
       return Boolean(
         typeof localStorage !== "undefined" &&
-          localStorage.getItem("motorly_admin_token"),
+          localStorage.getItem("pitstop_admin_token"),
       )
     } catch {
       return false
@@ -432,8 +501,8 @@ class ApiService {
 
   logoutAdmin() {
     this.request("/auth/admin-logout", { method: "POST" }, "admin").catch(() => {})
-    localStorage.removeItem("motorly_admin_token")
-    localStorage.removeItem("motorly_admin_user")
+    localStorage.removeItem("pitstop_admin_token")
+    localStorage.removeItem("pitstop_admin_user")
   }
 
   async changeAdminPassword(
@@ -469,7 +538,7 @@ class ApiService {
   }
 
   async verifyAdminSession(): Promise<boolean> {
-    const token = localStorage.getItem("motorly_admin_token")
+    const token = localStorage.getItem("pitstop_admin_token")
     if (!token) return false
 
     try {
@@ -639,7 +708,10 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to mate vehicle to booking")
+    if (!res.ok) {
+      const data = await this.safeJson(res, null)
+      throw new Error(data?.error || data?.message || "Failed to mate vehicle to booking")
+    }
     return res.json()
   }
 
@@ -654,7 +726,10 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to release vehicle")
+    if (!res.ok) {
+      const data = await this.safeJson(res, null)
+      throw new Error(data?.error || data?.message || "Failed to release vehicle")
+    }
     return res.json()
   }
 
@@ -681,7 +756,10 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to advance booking lifecycle")
+    if (!res.ok) {
+      const errData = await this.safeJson(res, null)
+      throw new Error(errData?.error || errData?.message || "Failed to advance booking lifecycle")
+    }
     return res.json()
   }
 
@@ -767,7 +845,33 @@ class ApiService {
       },
       "admin",
     )
-    if (!res.ok) throw new Error("Failed to confirm key handover")
+    if (!res.ok) {
+      const errData = await this.safeJson(res, null)
+      throw new Error(errData?.error || errData?.message || "Failed to confirm key handover")
+    }
+    return res.json()
+  }
+
+  async updateBookingCondition(
+    bookingId: string,
+    data: {
+      conditionPins?: any[]
+      conditionPhotos?: string[]
+      clientSignature?: string
+    },
+  ): Promise<{
+    success: boolean
+    message?: string
+    booking: BookingRecord
+  }> {
+    const res = await this.request(`/bookings/${encodeURIComponent(bookingId)}/condition`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const errData = await this.safeJson(res, null)
+      throw new Error(errData?.error || errData?.message || "Failed to update condition inspection")
+    }
     return res.json()
   }
 
@@ -792,7 +896,10 @@ class ApiService {
       },
       "customer",
     )
-    if (!res.ok) throw new Error("Failed to submit extension request")
+    if (!res.ok) {
+      const errData = await this.safeJson(res, null)
+      throw new Error(errData?.error || errData?.message || "Failed to submit extension request")
+    }
     return res.json()
   }
 

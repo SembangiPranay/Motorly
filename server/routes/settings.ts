@@ -11,13 +11,17 @@ router.get("/settings", async (_req, res) => {
     const rows = ((await db.prepare("SELECT key, value FROM system_settings").all()) as any[]) || []
     const settings: Record<string, any> = {
       reviews_enabled: true,
-      contact_phone: "+356 99827192 / +356 99804255",
+      contact_phone: "+356 9982 7192",
+      whatsapp_phone: "",
+      whatsapp_phone_secondary: "",
       contact_email: defaultAdminEmail,
       admin_notification_emails: "",
       admin_name: "Pit Stop Operations Director",
       hub_address: "36 Triq Il-Kbira, Mgarr, Malta",
+      hub_lat: "17.458701",
+      hub_lng: "78.350579",
       google_maps_url: "https://maps.google.com/?q=36+Triq+Il-Kbira+Mgarr+Malta",
-      support_phone: "+356 99827192",
+      support_phone: "+356 9982 7192",
     }
     for (const r of rows) {
       if (r.key === "reviews_enabled") {
@@ -33,7 +37,10 @@ router.get("/settings", async (_req, res) => {
       success: true,
       settings: {
         reviews_enabled: true,
-        contact_phone: "+356 99827192 / +356 99804255",
+        contact_phone: "+356 9982 7192",
+        whatsapp_phone: "",
+        whatsapp_phone_secondary: "",
+        support_phone: "+356 9982 7192",
         contact_email: defaultAdminEmail,
         admin_notification_emails: "",
         admin_name: "Pit Stop Operations Director",
@@ -78,20 +85,29 @@ router.patch("/settings", requireAdmin, async (req, res) => {
       }
     }
 
-    // Auto-propagate new Stationed Hub address to fleet cars if hub_address was modified
+    // Auto-propagate updated hub location / GPS coordinates to fleet cars
     const hubSetting = toUpdate.find(([k]) => k === "hub_address")
-    if (hubSetting && hubSetting[1] && hubSetting[1].trim().length > 2) {
-      const cleanHub = hubSetting[1].trim()
-      if (db.isSupabase && db.pool) {
-        await db.pool
-          .query("UPDATE vehicles SET garage_name = $1, garage_address = $1, location = $1", [
-            cleanHub,
-          ])
+    const latSetting = toUpdate.find(([k]) => k === "hub_lat")
+    const lngSetting = toUpdate.find(([k]) => k === "hub_lng")
+    const cleanHub = hubSetting?.[1]?.trim()
+    const latVal = latSetting?.[1] !== undefined && !isNaN(Number(latSetting[1])) ? Number(latSetting[1]) : null
+    const lngVal = lngSetting?.[1] !== undefined && !isNaN(Number(lngSetting[1])) ? Number(lngSetting[1]) : null
+
+    if ((cleanHub && cleanHub.length > 2) || (latVal !== null && lngVal !== null)) {
+      if (cleanHub && latVal !== null && lngVal !== null) {
+        await db
+          .prepare("UPDATE vehicles SET garage_name = ?, garage_address = ?, location = ?, garage_lat = ?, garage_lng = ?")
+          .run(cleanHub, cleanHub, cleanHub, latVal, lngVal)
           .catch(() => {})
-      } else {
+      } else if (cleanHub) {
         await db
           .prepare("UPDATE vehicles SET garage_name = ?, garage_address = ?, location = ?")
           .run(cleanHub, cleanHub, cleanHub)
+          .catch(() => {})
+      } else if (latVal !== null && lngVal !== null) {
+        await db
+          .prepare("UPDATE vehicles SET garage_lat = ?, garage_lng = ?")
+          .run(latVal, lngVal)
           .catch(() => {})
       }
     }

@@ -2,7 +2,7 @@ import { chromium } from "playwright"
 import path from "path"
 
 const ARTIFACT_DIR = "C:/Users/TO-00105/.gemini/antigravity/brain/eddb663b-82b6-4681-930e-50de771ea587"
-const PROD_URL = "https://motorly-ten.vercel.app"
+const PROD_URL = "https://pitstopcarhire.com"
 
 async function verifyProd() {
   console.log("=== Testing Compare on Live Production URL ===")

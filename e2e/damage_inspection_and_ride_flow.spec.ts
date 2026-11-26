@@ -26,7 +26,7 @@ test.describe("E2E: Vehicle Return Inspection, Damage Photo Audit & Ride History
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "admin@motorly.com", password: ADMIN_PASSWORD }),
+      body: JSON.stringify({ email: "admin@pitstopcarhire.com", password: ADMIN_PASSWORD }),
     })
     const data = await res.json()
     adminToken = data.token
@@ -65,7 +65,7 @@ test.describe("E2E: Vehicle Return Inspection, Damage Photo Audit & Ride History
         customer: {
           firstName: "Audit",
           lastName: "Tester",
-          email: `audit-${Date.now()}@motorly.test`,
+          email: `audit-${Date.now()}@pitstop.test`,
           phone: "+15559876543",
         },
         driver: {
@@ -205,8 +205,8 @@ test.describe("E2E: Vehicle Return Inspection, Damage Photo Audit & Ride History
 
     // Setup browser session with admin token in localStorage
     await page.addInitScript(({ token }) => {
-      localStorage.setItem("motorly_admin_token", token)
-      localStorage.setItem("motorly_current_view", "admin")
+      localStorage.setItem("pitstop_admin_token", token)
+      localStorage.setItem("pitstop_current_view", "admin")
     }, { token: adminToken })
 
     await page.goto("/?view=admin&tab=manifest")

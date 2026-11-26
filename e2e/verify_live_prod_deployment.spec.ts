@@ -3,14 +3,14 @@ import { test, expect } from "@playwright/test"
 test.use({ channel: "msedge" })
 
 const ARTIFACTS_DIR = "C:/Users/TO-00105/.gemini/antigravity/brain/eddb663b-82b6-4681-930e-50de771ea587"
-const PROD_URL = "https://motorly-ten.vercel.app"
+const PROD_URL = process.env.PLAYWRIGHT_BASE_URL || "https://pitstopcarhire.com"
 
 test.describe("Live Production Deployment Verification", () => {
   test("1. Production Checkout: Optional Trip Purpose, US Placeholders & Refundable Security Deposit", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
-      localStorage.setItem("motorly_selected_car_id", "1")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_selected_car_id", "1")
     })
 
     console.log("Navigating to production checkout:", `${PROD_URL}/?view=checkout&car=1`)
@@ -43,8 +43,8 @@ test.describe("Live Production Deployment Verification", () => {
   test("2. Production Legal Suite: CAN-SPAM Act, US Privacy & Deposit Policies Modal", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
-      localStorage.setItem("motorly_selected_car_id", "1")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_selected_car_id", "1")
     })
 
     await page.goto(`${PROD_URL}/?view=checkout&car=1`, { waitUntil: "domcontentloaded" })
@@ -88,9 +88,9 @@ test.describe("Live Production Deployment Verification", () => {
   test("3. Production Admin Console: Orders Dispatch, Vehicle Security Deposits & Studio Modal", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
-      localStorage.setItem("motorly_admin_authed", "true")
-      localStorage.setItem("motorly_admin_token", "test-admin-token")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
+      localStorage.setItem("pitstop_admin_authed", "true")
+      localStorage.setItem("pitstop_admin_token", "test-admin-token")
     })
 
     console.log("Navigating to production Admin Console:", `${PROD_URL}/?view=admin&tab=manifest`)

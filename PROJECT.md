@@ -1,4 +1,4 @@
-# Project: DriveRent Autonomous Testing & Verification
+# Project: Pit Stop Car Hire Autonomous Testing & Verification
 
 ## Architecture
 - **Frontend**: React 19 + TypeScript + Tailwind CSS v4 running on Vite (port 8443). Key views in `src/views/` (`ListingView`, `CarDetailView`, `CheckoutView`, `ConfirmationModal`, `MyBookingsView`, `AdminView`).
@@ -77,7 +77,7 @@
 ## Release verification
 
 1. Use Node 22.18 or newer in the Node 22 release line. Run `npm ci`, `npm run build`, `npm run test:api`, and `npm audit --omit=dev`.
-2. Run the API integration suite against a fresh local PostgreSQL database whose name starts with `motorly_test`, using `MOTORLY_TEST_DATABASE_URL`. The suite defaults to an in-memory SQLite database and disables external SMTP. Browser suites that create bookings need an isolated backend.
+2. Run the API integration suite against a fresh local PostgreSQL database whose name starts with `pitstop_test`, using `PITSTOP_TEST_DATABASE_URL`. The suite defaults to an in-memory SQLite database and disables external SMTP. Browser suites that create bookings need an isolated backend.
 3. Configure Vercel Preview with its own Supabase database, a strong `JWT_SECRET`, administrator credentials, and `APP_URL`. Configure SMTP with the intended garage mailbox and use the admin email diagnostics to verify delivery. For Google admin sign-in, set both OAuth client ID variables to the same web client ID, configure the authorized origins in Google Cloud, and set the admin email or Gmail allowlist entry when the account has no admin user record.
 4. Verify the Preview deployment with the customer and admin journeys. In a private browser window, book from the fleet without signing in, save the reference from the confirmation screen, and find the booking in My Trips. Check that the admin console shows the same reference and price. Confirm license viewing, key handover, extension approval, return, and contact email through the deployed `/api` routes. Exercise representative photo upload sizes through Vercel and verify Google sign-in and map location selection in the browser.
 

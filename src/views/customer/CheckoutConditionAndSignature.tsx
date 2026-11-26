@@ -1,6 +1,9 @@
 import React, { useRef, useState, useEffect } from "react"
-import { CheckIcon, ShieldIcon } from "../../components/Icons"
+import { createPortal } from "react-dom"
+import { CameraIcon } from "../../components/Icons"
 import PitStop5ViewSchematic, { ConditionPin } from "../../components/contract/PitStop5ViewSchematic"
+import { compressConditionImageFile } from "../../utils/imageCompression"
+import { useStudioSettings, getSupportPhone, getHubCoordinates } from "../../utils/studioSettings"
 
 interface CheckoutConditionAndSignatureProps {
   clientSignature: string
@@ -20,14 +23,59 @@ export default function CheckoutConditionAndSignature({
   conditionNotes = "",
   setConditionNotes,
   onOpenLegalModal,
+  conditionPhotos = [],
+  setConditionPhotos,
+  conditionPins = [],
+  setConditionPins,
 }: CheckoutConditionAndSignatureProps) {
+  const studioSettings = useStudioSettings()
+  const supportPhone = getSupportPhone(studioSettings)
+  const hub = getHubCoordinates(studioSettings)
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const sigUploadInputRef = useRef<HTMLInputElement | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
   const [typedName, setTypedName] = useState("")
-  const [signatureMode, setSignatureMode] = useState<"draw" | "type">("draw")
+  const [signatureMode, setSignatureMode] = useState<"draw" | "type" | "upload">("draw")
   const [showPaperModal, setShowPaperModal] = useState(false)
   const [conditionAcknowledged, setConditionAcknowledged] = useState(true)
+  const [sigUploadError, setSigUploadError] = useState<string | null>(null)
+
+  const handleAddConditionPin = (pin: ConditionPin) => {
+    if (setConditionPins) {
+      setConditionPins([...conditionPins, pin])
+    }
+    if (pin.photo && setConditionPhotos) {
+      setConditionPhotos([...conditionPhotos, pin.photo].slice(0, 16))
+    }
+  }
+
+  const handleRemoveConditionPin = (pinId: string) => {
+    const target = conditionPins.find((p) => p.id === pinId)
+    if (setConditionPins) {
+      setConditionPins(conditionPins.filter((p) => p.id !== pinId))
+    }
+    if (target?.photo && setConditionPhotos) {
+      setConditionPhotos(conditionPhotos.filter((photo) => photo !== target.photo))
+    }
+  }
+
+  const handleSignatureImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSigUploadError(null)
+    try {
+      const compressed = await compressConditionImageFile(file, 600, 0.9, "image/png")
+      setClientSignature(compressed)
+      setHasDrawn(false)
+      setTypedName("")
+    } catch (err: any) {
+      setSigUploadError(err?.message || "Could not load signature image.")
+    } finally {
+      if (e.target) e.target.value = ""
+    }
+  }
 
   // Setup canvas drawing context
   useEffect(() => {
@@ -137,7 +185,7 @@ export default function CheckoutConditionAndSignature({
             </div>
           </div>
           <p className="text-[11px] text-stone-500 mt-0.5">
-            Pre-rental vehicle bodywork standard from Pit Stop Car Hire (36 Triq Il-Kbira, Mgarr). Physical walkaround inspection &amp; departure photos occur at key handover.
+            Pre-rental vehicle bodywork standard from Pit Stop Car Hire ({hub.address}). Tap any vector side diagram below to add optional photos or notes if needed.
           </p>
         </div>
       </div>
@@ -149,21 +197,21 @@ export default function CheckoutConditionAndSignature({
         </div>
         <div className="text-xs text-amber-950 space-y-1">
           <p className="font-bold text-amber-900">
-            Official Pre-Rental Condition Inspection Notice (At Key Handover)
+            Official 5-View Pre-Rental Condition Inspection
           </p>
           <p className="text-[11px] text-amber-800/90 leading-relaxed">
-            Before receiving your keys at our Mgarr garage bay (or delivery location), our station manager conducts a joint walkaround inspection and captures high-resolution vehicle departure photos. Under <strong>Clause 2</strong>, normal fair wear &amp; tear is fully excepted. You do not need to take photos now.
+            Tap any of the 5 vehicle sides below (Front, Passenger Side, Rear, Driver Side, or Top Aerial) or click <strong>+ Photo</strong> on that side if you wish to attach condition photos now. Normal fair wear &amp; tear is excepted under <strong>Clause 2</strong>.
           </p>
         </div>
       </div>
 
-      {/* 5-View Technical Diagram (Read-Only Baseline Reference) */}
+      {/* 5-View Technical Diagram (Interactive Optional Side Photos & Marks) */}
       <div className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-3.5 sm:p-5 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
             <span className="text-xs font-bold text-stone-900 font-heading">
-              Pit Stop 5-View Vehicle Schematic (Front, Rear, Sides &amp; Aerial)
+              Pit Stop 5-View Vehicle Schematic (Tap Any Side to Add Photo)
             </span>
           </div>
           <span className="text-[10px] font-mono text-stone-500">
@@ -171,10 +219,12 @@ export default function CheckoutConditionAndSignature({
           </span>
         </div>
 
-        {/* 5-View Schematic Baseline Grid (Read-only for customer booking) */}
+        {/* Interactive 5-View Schematic Grid */}
         <PitStop5ViewSchematic
-          pins={[]}
-          readOnly={true}
+          pins={conditionPins}
+          onAddPin={handleAddConditionPin}
+          onRemovePin={handleRemoveConditionPin}
+          readOnly={!setConditionPins}
         />
 
         {/* Condition Check Confirmation */}
@@ -195,7 +245,7 @@ export default function CheckoutConditionAndSignature({
 
       {/* Client Signature Pad directly matching the paper's "Client signature: ____________" */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="text-xs font-bold text-stone-900 font-heading flex items-center gap-2">
             <span>Client signature:</span>
             <span className="text-rose-500">*</span>
@@ -203,31 +253,53 @@ export default function CheckoutConditionAndSignature({
               (Endorses 5-view condition standard &amp; 21 Pit Stop rental clauses)
             </span>
           </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setSignatureMode(signatureMode === "draw" ? "type" : "draw")
-                clearCanvas()
-              }}
-              className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer underline"
-            >
-              {signatureMode === "draw" ? "Switch to Type Signature" : "Switch to Draw Pad"}
-            </button>
-            {(hasDrawn || typedName) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["draw", "type", "upload"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setSignatureMode(mode)
+                  if (mode === "draw" || mode === "type") clearCanvas()
+                  setSigUploadError(null)
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                  signatureMode === mode
+                    ? "bg-orange-600 text-white border-orange-600"
+                    : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
+                }`}
+              >
+                {mode === "draw"
+                  ? "Draw Pad"
+                  : mode === "type"
+                    ? "Type Name"
+                    : "Add Signature Image"}
+              </button>
+            ))}
+            {(hasDrawn || typedName || clientSignature) && (
               <button
                 type="button"
                 onClick={() => {
                   clearCanvas()
                   setTypedName("")
+                  setClientSignature("")
+                  setSigUploadError(null)
                 }}
-                className="text-[11px] font-semibold text-stone-400 hover:text-stone-700 cursor-pointer"
+                className="text-[11px] font-semibold text-stone-400 hover:text-stone-700 px-1.5 cursor-pointer"
               >
                 Clear
               </button>
             )}
           </div>
         </div>
+
+        <input
+          ref={sigUploadInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleSignatureImageUpload}
+        />
 
         {signatureMode === "draw" ? (
           <div className="relative border-2 border-dashed border-stone-300 rounded-xl bg-stone-50/50 hover:bg-stone-50 transition-colors">
@@ -251,7 +323,7 @@ export default function CheckoutConditionAndSignature({
               </div>
             )}
           </div>
-        ) : (
+        ) : signatureMode === "type" ? (
           <div className="space-y-2">
             <input
               type="text"
@@ -266,6 +338,44 @@ export default function CheckoutConditionAndSignature({
                   {typedName}
                 </span>
               </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl border-2 border-dashed border-stone-300 bg-stone-50/70 space-y-3 text-center">
+            {clientSignature && clientSignature.startsWith("data:image") ? (
+              <div className="space-y-2">
+                <img
+                  src={clientSignature}
+                  alt="Uploaded client signature"
+                  className="max-h-24 mx-auto object-contain bg-white rounded-lg border border-stone-200 p-2"
+                />
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => sigUploadInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold cursor-pointer"
+                  >
+                    Replace Signature Image
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 py-2">
+                <p className="text-xs text-stone-600 font-medium">
+                  Upload a photo or scan of your handwritten signature (PNG, JPG, WebP)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => sigUploadInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                >
+                  <CameraIcon size={14} />
+                  <span>Add Signature Image</span>
+                </button>
+              </div>
+            )}
+            {sigUploadError && (
+              <p className="text-xs text-rose-600 font-semibold">{sigUploadError}</p>
             )}
           </div>
         )}
@@ -300,56 +410,58 @@ export default function CheckoutConditionAndSignature({
       </div>
 
       {/* Official Paper Contract Form Modal */}
-      {showPaperModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn"
-          onClick={() => setShowPaperModal(false)}
-        >
+      {showPaperModal &&
+        createPortal(
           <div
-            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-stone-200"
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fade-in"
+            onClick={() => setShowPaperModal(false)}
           >
-            <div className="p-4 bg-stone-900 text-white flex items-center justify-between shrink-0">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-orange-400 block">
-                  Authentic Documentation
-                </span>
-                <h3 className="text-sm font-bold text-white font-heading">
-                  Pit Stop Car Hire — Official Paper Rental Agreement (Malta)
-                </h3>
+            <div
+              className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-stone-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 bg-stone-900 text-white flex items-center justify-between shrink-0">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-orange-400 block">
+                    Authentic Documentation
+                  </span>
+                  <h3 className="text-sm font-bold text-white font-heading">
+                    Pit Stop Car Hire — Official Paper Rental Agreement
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPaperModal(false)}
+                  className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 flex items-center justify-center text-xs font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowPaperModal(false)}
-                className="w-7 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 flex items-center justify-center text-xs font-bold cursor-pointer"
-              >
-                ✕
-              </button>
+              <div className="p-4 overflow-y-auto space-y-3 bg-stone-100 flex-1">
+                <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
+                  <span className="text-[11px] font-bold text-stone-900 block">
+                    Page 1: Contract Header, 5-View Schematic &amp; Client Signature
+                  </span>
+                  <img
+                    src="/images/contract/pitstop_5view_master_sheet.png"
+                    alt="Authentic 5-View Schematic from Pit Stop Contract"
+                    className="w-full rounded-lg border border-stone-200"
+                  />
+                </div>
+                <div className="text-[11px] text-stone-600 bg-white p-3 rounded-xl border border-stone-200 space-y-1">
+                  <strong className="text-stone-900 block font-bold">Pit Stop Car Hire Operational Details:</strong>
+                  <p>• Central Garage: {hub.address}</p>
+                  <p>• Support &amp; Fleet Helpline: {supportPhone}</p>
+                  <p>• Standard Excess: €700 (Waived to €0 with Collision Waiver)</p>
+                  <p>• Clauses: 21 Operating Clauses governing territorial use, wear &amp; tear, and extension notices.</p>
+                </div>
+              </div>
             </div>
-            <div className="p-4 overflow-y-auto space-y-3 bg-stone-100 flex-1">
-              <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
-                <span className="text-[11px] font-bold text-stone-900 block">
-                  Page 1: Contract Header, 5-View Schematic &amp; Client Signature
-                </span>
-                <img
-                  src="/images/contract/pitstop_5view_master_sheet.png"
-                  alt="Authentic 5-View Schematic from Pit Stop Contract"
-                  className="w-full rounded-lg border border-stone-200"
-                />
-              </div>
-              <div className="text-[11px] text-stone-600 bg-white p-3 rounded-xl border border-stone-200 space-y-1">
-                <strong className="text-stone-900 block font-bold">Pit Stop Car Hire Operational Details:</strong>
-                <p>• Central Garage: 36 Triq Il-Kbira, Mgarr, Malta</p>
-                <p>• Emergency &amp; Fleet Telemetry: 99827192 / 99804255</p>
-                <p>• Standard Excess: €700 (Waived to €0 with Collision Waiver)</p>
-                <p>• Clauses: 21 Operating Clauses governing territorial use, wear &amp; tear, and extension notices.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

@@ -24,6 +24,9 @@ export interface KeyHandoverPayload {
 interface AdminKeyHandoverModalProps {
   booking: BookingRecord
   car?: Car
+  blockingBooking?: BookingRecord
+  onOpenReturnForBlocking?: (booking: BookingRecord) => void
+  onOpenBookingDetails?: (booking: BookingRecord) => void
   onConfirm: (payload: KeyHandoverPayload) => Promise<void>
   onClose: () => void
 }
@@ -31,6 +34,9 @@ interface AdminKeyHandoverModalProps {
 export default function AdminKeyHandoverModal({
   booking,
   car,
+  blockingBooking,
+  onOpenReturnForBlocking,
+  onOpenBookingDetails,
   onConfirm,
   onClose,
 }: AdminKeyHandoverModalProps) {
@@ -62,6 +68,11 @@ export default function AdminKeyHandoverModal({
   const customerName =
     `${booking.customer?.firstName || ""} ${booking.customer?.lastName || ""}`.trim() ||
     "Valued Customer"
+
+  const carStatusLower = String(car?.status || "Available").toLowerCase()
+  const isBlockedByVehicleState = Boolean(
+    car && (carStatusLower === "maintenance" || blockingBooking),
+  )
 
   // Photo upload with compression
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,10 +120,17 @@ export default function AdminKeyHandoverModal({
 
   const handleAddPin = (pin: ConditionPin) => {
     setConditionPins((prev) => [...prev, pin])
+    if (pin.photo) {
+      setConditionPhotos((prev) => [...prev, pin.photo!].slice(0, 12))
+    }
   }
 
   const handleRemovePin = (id: string) => {
+    const target = conditionPins.find((p) => p.id === id)
     setConditionPins((prev) => prev.filter((p) => p.id !== id))
+    if (target?.photo) {
+      setConditionPhotos((prev) => prev.filter((photo) => photo !== target.photo))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,6 +195,44 @@ export default function AdminKeyHandoverModal({
 
         {/* Scrollable Body */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
+          {isBlockedByVehicleState && car && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2.5">
+              <div className="flex items-start gap-2">
+                <AlertTriangleIcon size={16} className="shrink-0 text-amber-600 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-bold text-amber-950">
+                    Vehicle Not Ready for Key Handover ({car.status})
+                  </div>
+                  <p className="text-[11px] text-amber-900 leading-relaxed">
+                    {blockingBooking
+                      ? `${car.name} is currently checked out on reservation ${blockingBooking.id} (${`${blockingBooking.customer?.firstName || ""} ${blockingBooking.customer?.lastName || ""}`.trim() || "previous renter"}, ${blockingBooking.pickupDate} → ${blockingBooking.returnDate}). Complete its Return Inspection first or swap this booking to another available vehicle.`
+                      : `${car.name} currently has status "${car.status}". Set it to Available in Fleet Inventory or swap to another available vehicle before releasing keys.`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pl-6">
+                {blockingBooking && onOpenReturnForBlocking && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenReturnForBlocking(blockingBooking)}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold transition cursor-pointer"
+                  >
+                    Inspect Return on {blockingBooking.id}
+                  </button>
+                )}
+                {onOpenBookingDetails && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenBookingDetails(booking)}
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-stone-50 text-stone-800 border border-amber-300 text-[11px] font-bold transition cursor-pointer"
+                  >
+                    Swap Vehicle in Booking Details
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
               <AlertTriangleIcon size={15} className="shrink-0 text-red-600" />
@@ -400,7 +456,7 @@ export default function AdminKeyHandoverModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isBlockedByVehicleState}
               className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition shadow-xs disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
               <KeyIcon size={14} />

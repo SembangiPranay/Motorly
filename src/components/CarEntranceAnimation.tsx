@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import PitStopLogo from "./PitStopLogo"
 
 interface CarEntranceAnimationProps {
   onComplete: () => void
@@ -46,12 +47,12 @@ export default function CarEntranceAnimation({
     <div
       role="banner"
       aria-label="Pit Stop Car Hire cinematic welcome"
-      className={`motorly-intro fixed inset-0 z-[10000] overflow-hidden bg-black text-white ${exiting ? "is-exiting" : ""}`}
+      className={`pitstop-intro fixed inset-0 z-[10000] overflow-hidden bg-black text-white ${exiting ? "is-exiting" : ""}`}
     >
       <video
         ref={videoRef}
-        className="motorly-intro-video absolute inset-0 h-full w-full object-contain"
-        src="/videos/motorly-entrance.mp4"
+        className="pitstop-intro-video absolute inset-0 h-full w-full object-contain"
+        src="/videos/pitstop-entrance.mp4"
         autoPlay
         muted
         playsInline
@@ -61,11 +62,20 @@ export default function CarEntranceAnimation({
       />
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25" />
-      <div className="motorly-intro-warm-reflection pointer-events-none absolute inset-0" />
+      <div className="pitstop-intro-warm-reflection pointer-events-none absolute inset-0" />
 
-      <p className="motorly-intro-brand pointer-events-none absolute bottom-[6vh] sm:bottom-[7vh] left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.42em] text-white/55 sm:text-[10px]">
-        PIT STOP <span className="mx-2 text-white/25">/</span> MALTA
-      </p>
+      <div className="pitstop-intro-brand mix-blend-screen pointer-events-none absolute bottom-[4.5vh] sm:bottom-[5.5vh] left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
+        <PitStopLogo
+          layout="banner"
+          size="sm"
+          theme="light"
+          variant="minimal"
+          showText={false}
+        />
+        <p className="whitespace-nowrap text-[9px] font-medium uppercase tracking-[0.42em] text-white/60 sm:text-[10px]">
+          MGARR <span className="mx-2 text-white/25">/</span> MALTA
+        </p>
+      </div>
 
       <button
         type="button"

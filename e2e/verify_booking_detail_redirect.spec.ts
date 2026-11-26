@@ -7,10 +7,10 @@ test("verify clicking Details button redirects to the dedicated full booking pag
 
   // Pre-seed admin token in localStorage so we bypass the login gate directly into Admin Orders view
   await page.addInitScript(() => {
-    localStorage.setItem("motorly_admin_token", "test-admin-token-e2e")
-    localStorage.setItem("motorly_current_view", "admin")
-    localStorage.setItem("motorly_admin_active_tab", "manifest")
-    sessionStorage.setItem("motorly_intro_completed", "true")
+    localStorage.setItem("pitstop_admin_token", "test-admin-token-e2e")
+    localStorage.setItem("pitstop_current_view", "admin")
+    localStorage.setItem("pitstop_admin_active_tab", "manifest")
+    sessionStorage.setItem("pitstop_intro_completed", "true")
   })
 
   console.log("Navigating to Admin Orders & Dispatch...")

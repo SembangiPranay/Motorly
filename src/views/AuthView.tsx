@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import type { CustomerUser } from "../types"
 import { api } from "../services/api"
 import {
@@ -52,6 +52,31 @@ export default function AuthView({
   const [showForgotModal, setShowForgotModal] = useState(false)
   const [forgotEmail, setForgotEmail] = useState("")
   const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotFeedback, setForgotFeedback] = useState<{ ok: boolean; text: string } | null>(null)
+  const [resetCode, setResetCode] = useState("")
+  const [resetNewPassword, setResetNewPassword] = useState("")
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("")
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null)
+
+  // Support clicking a reset link directly from email (?view=auth&resetToken=...)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const tokenParam = params.get("resetToken")
+      const emailParam = params.get("email")
+      if (emailParam) {
+        setEmail(emailParam)
+        setForgotEmail(emailParam)
+      }
+      if (tokenParam) {
+        setResetCode(tokenParam.toUpperCase())
+        setForgotSent(true)
+        setShowForgotModal(true)
+      }
+    } catch {}
+  }, [])
 
   // Calculate Password Strength for Registration
   const getPasswordStrength = (pass: string) => {
@@ -531,9 +556,12 @@ export default function AuthView({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl relative border border-stone-200">
             <button
+              type="button"
               onClick={() => {
                 setShowForgotModal(false)
                 setForgotSent(false)
+                setForgotFeedback(null)
+                setResetSuccessMsg(null)
               }}
               className="absolute top-5 right-5 text-stone-400 hover:text-stone-700 p-1.5 rounded-full hover:bg-stone-100 transition cursor-pointer"
             >
@@ -549,22 +577,160 @@ export default function AuthView({
                 Reset Account Password
               </h3>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                Enter your account email to receive password reset instructions.
+                {forgotSent
+                  ? "Paste the verification code from your email below and choose your new password."
+                  : "Enter your account email to receive a password reset link and verification code."}
               </p>
             </div>
 
-            {forgotSent ? (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold space-y-1">
-                <div>
-                  ✓ Password reset instructions sent to{" "}
-                  <strong>{forgotEmail}</strong>.
-                </div>
+            {forgotFeedback && (
+              <div
+                className={`p-3.5 rounded-2xl text-xs font-semibold border ${
+                  forgotFeedback.ok
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-red-50 border-red-200 text-red-700"
+                }`}
+              >
+                {forgotFeedback.text}
               </div>
+            )}
+
+            {resetSuccessMsg ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                  {resetSuccessMsg}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotModal(false)
+                    setForgotSent(false)
+                    setResetSuccessMsg(null)
+                    if (forgotEmail) setEmail(forgotEmail)
+                  }}
+                  className="w-full bg-stone-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-sm transition cursor-pointer"
+                >
+                  Return to Sign In
+                </button>
+              </div>
+            ) : forgotSent ? (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setForgotFeedback(null)
+                  if (resetNewPassword.length < 6) {
+                    setForgotFeedback({ ok: false, text: "New password must be at least 6 characters." })
+                    return
+                  }
+                  if (resetNewPassword !== resetConfirmPassword) {
+                    setForgotFeedback({ ok: false, text: "New password and confirmation do not match." })
+                    return
+                  }
+                  setResetLoading(true)
+                  try {
+                    const res = await api.resetPassword(resetCode, resetNewPassword)
+                    if (res.success) {
+                      setResetSuccessMsg(res.message)
+                      setPassword("")
+                      try {
+                        const url = new URL(window.location.href)
+                        url.searchParams.delete("resetToken")
+                        window.history.replaceState(null, "", url.pathname + url.search)
+                      } catch {}
+                    } else {
+                      setForgotFeedback({ ok: false, text: res.message })
+                    }
+                  } catch (err: any) {
+                    setForgotFeedback({ ok: false, text: err?.message || "Failed to reset password." })
+                  } finally {
+                    setResetLoading(false)
+                  }
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                    Email Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    placeholder="Paste code from email"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                    New Password (min 6 characters)
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={resetConfirmPassword}
+                    onChange={(e) => setResetConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-stone-50"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition cursor-pointer"
+                >
+                  {resetLoading ? "Updating Password..." : "Update Password"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotSent(false)
+                    setForgotFeedback(null)
+                  }}
+                  className="w-full text-xs text-stone-500 hover:text-stone-800 font-semibold py-1 cursor-pointer"
+                >
+                  Need another code? Resend email
+                </button>
+              </form>
             ) : (
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault()
-                  if (forgotEmail) setForgotSent(true)
+                  const trimmed = forgotEmail.trim()
+                  if (!trimmed) return
+                  setForgotLoading(true)
+                  setForgotFeedback(null)
+                  try {
+                    const res = await api.forgotPassword(trimmed)
+                    if (res.success) {
+                      setForgotSent(true)
+                      setForgotFeedback({ ok: true, text: res.message })
+                    } else {
+                      setForgotFeedback({ ok: false, text: res.message })
+                    }
+                  } catch (err: any) {
+                    setForgotFeedback({
+                      ok: false,
+                      text: err?.message || "Network error sending password reset email.",
+                    })
+                  } finally {
+                    setForgotLoading(false)
+                  }
                 }}
                 className="space-y-4"
               >
@@ -578,15 +744,22 @@ export default function AuthView({
                 />
                 <button
                   type="submit"
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition cursor-pointer"
+                  disabled={forgotLoading}
+                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition cursor-pointer"
                 >
-                  Send Reset Link
+                  {forgotLoading ? "Sending Reset Email..." : "Send Reset Link"}
                 </button>
               </form>
             )}
           </div>
         </div>
       )}
+
+      <LegalPoliciesModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab="terms"
+      />
 
       {/* Footer minimal info */}
       <footer className="w-full border-t border-stone-200/60 py-6 px-4 text-center text-xs text-stone-400">

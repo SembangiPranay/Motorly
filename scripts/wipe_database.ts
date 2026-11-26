@@ -9,7 +9,7 @@ export async function wipeDatabase(preserveAdmin = true) {
   await ensureDatabase()
 
   console.log("\n=======================================================")
-  console.log("   MOTORLY DATABASE WIPE & CLEAN STATE PROTOCOL")
+  console.log("   PIT STOP DATABASE WIPE & CLEAN STATE PROTOCOL")
   console.log("=======================================================\n")
 
   const tables = [
@@ -46,7 +46,7 @@ export async function wipeDatabase(preserveAdmin = true) {
         `)
           .run(
             "usr_admin",
-            "admin@motorly.com",
+            "admin@pitstopcarhire.com",
             hash,
             "Fleet Operations Admin",
             "+1 (555) 019-9000",
@@ -54,7 +54,7 @@ export async function wipeDatabase(preserveAdmin = true) {
             new Date().toISOString(),
           )
         console.log(
-          "[ADMIN] Root admin account initialized (admin@motorly.com / pass: 0709).",
+          "[ADMIN] Root admin account initialized (admin@pitstopcarhire.com / pass: 0709).",
         )
       } else {
         console.log("[ADMIN] Existing root admin account preserved.")

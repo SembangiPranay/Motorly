@@ -15,8 +15,8 @@ class DetailPage(BasePage):
         self.navigate_to("/")
         self.driver.execute_script(
             """
-            localStorage.setItem('motorly_selected_car_id', arguments[0]);
-            localStorage.setItem('motorly_current_view', 'detail');
+            localStorage.setItem('pitstop_selected_car_id', arguments[0]);
+            localStorage.setItem('pitstop_current_view', 'detail');
             """,
             car_id
         )

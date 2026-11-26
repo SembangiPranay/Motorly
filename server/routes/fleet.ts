@@ -97,6 +97,25 @@ router.get("/cars", async (req, res) => {
           }
 
           const carBookings = bookingsByCar.get(car.id) || []
+          const activeCheckedOut =
+            car.status === "Rented"
+              ? carBookings.find((b) => b.status === "Checked Out")
+              : undefined
+
+          if (activeCheckedOut) {
+            car.isAvailableForDates = false
+            car.conflict = {
+              conflictingBookingId: "RENTED",
+              customerName: "Active rental in progress",
+              pickupDate: activeCheckedOut.pickup_date,
+              returnDate: activeCheckedOut.return_date,
+              status: "Checked Out",
+              reason: "Vehicle is currently out on an active rental until returned.",
+            }
+            car.statusForDates = "Rented"
+            continue
+          }
+
           let conflict: any = null
 
           for (const b of carBookings) {
@@ -175,6 +194,7 @@ router.post("/cars", requireAdmin, async (req, res) => {
         ],
   )
   const featuresJson = safeJsonStringify(car.features || ["Bluetooth", "Apple CarPlay"])
+  const activeHub = await getActiveOperatingHub()
 
   await db
     .prepare(
@@ -220,7 +240,7 @@ router.post("/cars", requireAdmin, async (req, res) => {
       car.isPopular ? 1 : 0,
       car.status || "Available",
       car.plateNumber || `FL-${Math.floor(100 + Math.random() * 900)}-MTR`,
-      car.location || "Operating Fleet Hub",
+      car.location || activeHub.address,
       Number(car.healthScore) || 98,
       car.insurancePolicy !== undefined ? car.insurancePolicy : "",
       car.insuranceProvider !== undefined ? car.insuranceProvider : "",
@@ -228,10 +248,10 @@ router.post("/cars", requireAdmin, async (req, res) => {
       car.purchaseDate || new Date().toISOString().split("T")[0],
       Number(car.purchaseCost) || 32500,
       Number(car.currentOdometer) || 14200,
-      car.garageName || car.location || "Operating Fleet Hub",
-      car.garageAddress || car.location || "Operating Fleet Hub",
-      Number(car.garageLat) || 17.4646,
-      Number(car.garageLng) || 78.3582,
+      car.garageName || car.location || activeHub.address,
+      car.garageAddress || car.location || activeHub.address,
+      Number(car.garageLat) || activeHub.lat || 17.4587,
+      Number(car.garageLng) || activeHub.lng || 78.3506,
       car.garageBay || "Bay 1",
       car.vatRate != null && !isNaN(Number(car.vatRate)) ? Number(car.vatRate) : 18.0,
       car.securityDeposit != null && !isNaN(Number(car.securityDeposit))
@@ -495,6 +515,29 @@ router.get("/cars/:id/availability", async (req, res) => {
           reason: "Vehicle is currently under maintenance.",
         },
       })
+    }
+
+    if (car.status === "Rented") {
+      const activeRental = (await db
+        .prepare(
+          "SELECT id, pickup_date, return_date, status FROM bookings WHERE matched_car_id = ? AND status = 'Checked Out' LIMIT 1",
+        )
+        .get(carId)) as any
+      if (activeRental) {
+        return res.json({
+          carId,
+          isAvailable: false,
+          carStatus: car.status,
+          conflict: {
+            conflictingBookingId: "RENTED",
+            customerName: "Active rental in progress",
+            pickupDate: activeRental.pickup_date,
+            returnDate: activeRental.return_date,
+            status: "Checked Out",
+            reason: "Vehicle is currently out on an active rental until returned.",
+          },
+        })
+      }
     }
 
     const conflict = await findVehicleBookingConflict(carId, pickupDate, returnDate)

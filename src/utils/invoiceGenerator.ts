@@ -360,15 +360,21 @@ export async function generateBookingInvoicePng(
   ctx.stroke()
 
   // Right Header Address & Phones
-  const phone = settings?.contact_phone || "+356 99827192 / 99804255"
+  const rawPhones = String(settings?.contact_phone || "+356 9982 7192")
+  const splitPhones = rawPhones
+    .split(/[,;/|\r\n]+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
   const address = settings?.hub_address || "36 Triq Il-Kbira, Mgarr"
   ctx.textAlign = "right"
   ctx.font = "bold 20px 'Helvetica Neue', Arial, sans-serif"
   ctx.fillStyle = "#18181B"
   ctx.fillText(address, 1110, 85)
   ctx.font = "bold 18px monospace"
-  ctx.fillText("99827192", 1110, 112)
-  ctx.fillText("99804255", 1110, 136)
+  ctx.fillText(splitPhones[0] || "+356 9982 7192", 1110, 112)
+  if (splitPhones[1]) {
+    ctx.fillText(splitPhones[1], 1110, 136)
+  }
 
   // Dividing Line under Header
   ctx.strokeStyle = "#27272A"
@@ -671,7 +677,7 @@ export async function generateBookingInvoicePng(
   ctx.font = "bold 12px monospace"
   ctx.fillStyle = "#71717A"
   ctx.fillText(
-    `PIT STOP CAR HIRE • 36 TRIQ IL-KBIRA, MGARR, MALTA • PHONES: 99827192 / 99804255 • AGREEMENT ID: ${booking.id}`,
+    `PIT STOP CAR HIRE • ${address.toUpperCase()} • PHONE: ${splitPhones.join(" / ") || "+356 9982 7192"} • AGREEMENT ID: ${booking.id}`,
     600,
     1575,
   )

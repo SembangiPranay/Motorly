@@ -32,7 +32,7 @@ try {
 }
 
 // Positively identify staging: Ensure URL is not pointing to a production host
-if (/production|prod-db|motorly-prod/i.test(stagingUrl.host)) {
+if (/production|prod-db|pitstop-prod/i.test(stagingUrl.host)) {
   console.error(
     `\n[FATAL TEST SAFETY ERROR] STAGING_DATABASE_URL (${stagingUrl.host}) contains production markers. Aborting.\n`,
   )

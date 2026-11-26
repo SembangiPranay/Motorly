@@ -6,7 +6,7 @@ test("verify and capture live production booking details redirect", async ({ pag
   await page.setViewportSize({ width: 1440, height: 900 })
 
   console.log("Navigating to production Admin Orders & Dispatch...")
-  await page.goto("https://motorly-ten.vercel.app/?view=admin&tab=manifest", { waitUntil: "domcontentloaded" })
+  await page.goto(`${process.env.PLAYWRIGHT_BASE_URL || "https://pitstopcarhire.com"}/?view=admin&tab=manifest`, { waitUntil: "domcontentloaded" })
   await page.waitForTimeout(2000)
 
   // Skip intro if visible

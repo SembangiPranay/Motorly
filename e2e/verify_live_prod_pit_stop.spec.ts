@@ -3,13 +3,13 @@ import { test, expect } from "@playwright/test"
 test.use({ channel: "msedge" })
 
 const ARTIFACTS_DIR = "C:/Users/TO-00105/.gemini/antigravity/brain/eddb663b-82b6-4681-930e-50de771ea587"
-const PROD_URL = "https://motorly-ten.vercel.app"
+const PROD_URL = process.env.PLAYWRIGHT_BASE_URL || "https://pitstopcarhire.com"
 
 test.describe("Live Production Pit Stop Car & Storefront Verification", () => {
   test("1. Live Production Storefront displays Pit Stop Car and Luxury filter", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     console.log("Visiting live production storefront:", PROD_URL)
@@ -58,7 +58,7 @@ test.describe("Live Production Pit Stop Car & Storefront Verification", () => {
   test("2. Live Production Vehicle Detail View for Pit Stop Special Edition", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     await page.goto(`${PROD_URL}/?view=detail&car=pit-stop-special-edition-2015`, { waitUntil: "domcontentloaded" })
@@ -81,7 +81,7 @@ test.describe("Live Production Pit Stop Car & Storefront Verification", () => {
   test("3. Live Production Checkout shows Pit Stop / In Service rental reason option", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     await page.goto(`${PROD_URL}/?view=checkout&car=pit-stop-special-edition-2015`, { waitUntil: "domcontentloaded" })

@@ -2,10 +2,10 @@ import { chromium } from "playwright"
 import path from "path"
 
 const ARTIFACT_DIR = "C:/Users/TO-00105/.gemini/antigravity/brain/eddb663b-82b6-4681-930e-50de771ea587"
-const PROD_URL = "https://motorly-ten.vercel.app/?intro=1"
+const PROD_URL = "https://pitstopcarhire.com/?intro=1"
 
 async function verifyProd() {
-  console.log("=== Verifying Live Production Deployment on https://motorly-ten.vercel.app ===")
+  console.log("=== Verifying Live Production Deployment on https://pitstopcarhire.com ===")
   const browser = await chromium.launch({ headless: true, channel: "msedge" })
 
   // 1. Desktop Test (1440 x 900)

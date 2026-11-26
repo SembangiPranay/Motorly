@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import type { Car } from "../../types"
 import GarageMapViewer from "../../components/GarageMapViewer"
+import { useStudioSettings, getDynamicCarMapLocation } from "../../utils/studioSettings"
 import {
   StarIcon,
   CheckIcon,
@@ -43,6 +44,8 @@ export default function CarDetailSpecs({
   reviewsEnabled = false,
   reviewsCount = 0,
 }: CarDetailSpecsProps) {
+  const studioSettings = useStudioSettings()
+  const dynamicMap = getDynamicCarMapLocation(car, studioSettings)
   const [activeTab, setActiveTab] = useState<
     "overview" | "garage" | "features" | "rates" | "reviews"
   >("overview")
@@ -228,16 +231,7 @@ export default function CarDetailSpecs({
                 {car.garageName || car.location || "Main Garage Facility"}
               </span>
               <a
-                href={
-                  car.garageLat && car.garageLng
-                    ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        car.garageAddress ||
-                          car.garageName ||
-                          car.location ||
-                          "Pit Stop Central Garage (Mgarr)",
-                      )}`
-                }
+                href={dynamicMap.mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[11px] font-bold text-[#F97316] hover:text-[#EA580C] hover:underline mt-0.5"
@@ -319,16 +313,7 @@ export default function CarDetailSpecs({
               </span>
             </div>
             <a
-              href={
-                car.garageLat && car.garageLng
-                  ? `https://www.google.com/maps/search/?api=1&query=${car.garageLat},${car.garageLng}`
-                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                      car.garageAddress ||
-                        car.garageName ||
-                        car.location ||
-                        "Pit Stop Central Garage (Mgarr)",
-                    )}`
-              }
+              href={dynamicMap.mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold transition shadow-2xs"
@@ -339,12 +324,10 @@ export default function CarDetailSpecs({
           </div>
           <GarageMapViewer
             garageName={car.garageName || "Main Garage Facility"}
-            garageAddress={
-              car.garageAddress || car.location || "Main Garage Bay"
-            }
+            garageAddress={dynamicMap.address}
             garageBay={car.garageBay || "Bay 14-B"}
-            lat={car.garageLat || 25.7959}
-            lng={car.garageLng || -80.287}
+            lat={dynamicMap.lat ?? undefined}
+            lng={dynamicMap.lng ?? undefined}
             height="300px"
           />
         </div>

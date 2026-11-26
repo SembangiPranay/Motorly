@@ -13,7 +13,7 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "admin@motorly.com", password: ADMIN_PASSWORD }),
+      body: JSON.stringify({ email: "admin@pitstopcarhire.com", password: ADMIN_PASSWORD }),
     })
     const data = await res.json()
     adminToken = data.token
@@ -76,7 +76,7 @@ test.describe("Real Browser E2E: Admin Approval & Booking Lifecycle Flow", () =>
 
     // 2. Open Admin View with injected admin auth token
     await page.addInitScript((token) => {
-      window.localStorage.setItem("motorly_admin_token", token)
+      window.localStorage.setItem("pitstop_admin_token", token)
     }, adminToken)
 
     await page.goto("/?view=admin&tab=manifest")

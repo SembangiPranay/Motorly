@@ -10,7 +10,7 @@ async function run() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "admin@motorly.com",
+      email: "admin@pitstopcarhire.com",
       password: ADMIN_PASSWORD,
     }),
   })

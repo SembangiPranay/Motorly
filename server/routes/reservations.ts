@@ -2,7 +2,6 @@ import { Router } from "express"
 import type express from "express"
 import { cachedHubAddress } from "../hub.ts"
 import { db } from "../db.ts"
-import { isProduction } from "../config.ts"
 import {
   type JwtUserPayload,
   requireAuth,
@@ -84,18 +83,34 @@ router.get(
       .get(id.trim())) as any
     if (!row) return res.status(404).json({ error: "Reservation not found" })
     if (canAccessBooking(req.user, row)) return res.json(formatBookingRow(row))
+    const isCustomDelivery = row.delivery_type === "custom"
+    const isCustomReturn = row.return_type === "custom"
+    const publicHub = cachedHubAddress || "36 Triq Il-Kbira, Mgarr, Malta"
     return res.json({
       id: row.id,
       status: row.status,
       approvedByAdmin: Boolean(row.approved_by_admin),
+      approvedAt: row.approved_at || undefined,
+      keysHandedAt: row.keys_handed_at || undefined,
       matchedCarId: row.matched_car_id,
       requestedCategory: row.requested_category,
       pickupDate: row.pickup_date,
       returnDate: row.return_date,
-      pickupLocation: "See confirmation email",
-      returnLocation: "See confirmation email",
+      deliveryType: isCustomDelivery ? "custom" : "garage",
+      returnType: isCustomReturn ? "custom" : "garage",
+      pickupLocation: isCustomDelivery
+        ? "Custom delivery (see confirmation email)"
+        : row.pickup_location && !String(row.pickup_location).includes("Miami")
+          ? row.pickup_location
+          : publicHub,
+      returnLocation: isCustomReturn
+        ? "Custom return (see confirmation email)"
+        : row.return_location && !String(row.return_location).includes("Miami")
+          ? row.return_location
+          : publicHub,
       customer: { firstName: "Guest", lastName: "", email: "", phone: "" },
       totalAmount: row.total_amount,
+      securityDeposit: Number(row.security_deposit) || 700,
     })
   },
 )
@@ -193,6 +208,21 @@ router.post(
             ) as any
             err.statusCode = 409
             throw err
+          }
+
+          if (vehicle.status === "Rented") {
+            const activeRental = (await tx
+              .prepare(
+                "SELECT id, pickup_date, return_date FROM bookings WHERE matched_car_id = ? AND status = 'Checked Out' LIMIT 1",
+              )
+              .get(matchedCarId)) as any
+            if (activeRental) {
+              const err = new Error(
+                `${vehicle.name} is currently out on an active rental (${activeRental.pickup_date} – ${activeRental.return_date}) and cannot be reserved until returned.`,
+              ) as any
+              err.statusCode = 409
+              throw err
+            }
           }
 
           const conflict = await findVehicleBookingConflict(
@@ -362,7 +392,7 @@ router.post(
       })
 
       try {
-        await notifyBookingCreated(db, createdRow, isProduction ? undefined : req.headers.origin)
+        await notifyBookingCreated(db, createdRow)
       } catch (mailErr: any) {
         console.warn("[Booking Created Email Non-Fatal]", mailErr?.message)
       }

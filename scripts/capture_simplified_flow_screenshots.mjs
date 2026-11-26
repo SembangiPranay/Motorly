@@ -22,7 +22,7 @@ async function capture() {
   console.log("1. Navigating to Car Detail View...")
   await page.goto(`${TARGET_URL}`, { waitUntil: "networkidle" })
   await page.evaluate(() => {
-    localStorage.setItem("motorly_current_view", "detail")
+    localStorage.setItem("pitstop_current_view", "detail")
   })
   await page.goto(`${TARGET_URL}`, { waitUntil: "networkidle" })
   await page.waitForTimeout(1000)
@@ -35,9 +35,9 @@ async function capture() {
   // 2. Capture Simplified Checkout view (NO ONLINE PAYMENT!)
   console.log("2. Navigating to Checkout View...")
   await page.evaluate(() => {
-    localStorage.setItem("motorly_current_view", "checkout")
+    localStorage.setItem("pitstop_current_view", "checkout")
     localStorage.setItem(
-      "motorly_customer_user",
+      "pitstop_customer_user",
       JSON.stringify({
         id: "usr_marcus_test",
         name: "Marcus Aurelius",
@@ -67,10 +67,10 @@ async function capture() {
   console.log("3. Navigating to Manager Command Center...")
   await page.evaluate(() => {
     localStorage.setItem(
-      "motorly_admin_token",
+      "pitstop_admin_token",
       "admin_secret_session_token_2026",
     )
-    localStorage.setItem("motorly_current_view", "admin")
+    localStorage.setItem("pitstop_current_view", "admin")
   })
   await page.goto(`${TARGET_URL}`, { waitUntil: "networkidle" })
   await page.waitForTimeout(1500)

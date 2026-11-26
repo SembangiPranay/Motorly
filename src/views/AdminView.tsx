@@ -69,7 +69,7 @@ export default function AdminView({
       }
       const savedTab =
         typeof localStorage !== "undefined"
-          ? (localStorage.getItem("motorly_admin_active_tab") as AdminTab)
+          ? (localStorage.getItem("pitstop_admin_active_tab") as AdminTab)
           : null
       const validTabs: AdminTab[] = [
         "manifest",
@@ -91,7 +91,7 @@ export default function AdminView({
   useEffect(() => {
     try {
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem("motorly_admin_active_tab", activeTab)
+        localStorage.setItem("pitstop_admin_active_tab", activeTab)
       }
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href)
@@ -166,7 +166,7 @@ export default function AdminView({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
       if (typeof localStorage !== "undefined") {
-        return localStorage.getItem("motorly_admin_sidebar_collapsed") === "true"
+        return localStorage.getItem("pitstop_admin_sidebar_collapsed") === "true"
       }
     } catch {}
     return false
@@ -175,7 +175,7 @@ export default function AdminView({
   useEffect(() => {
     try {
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem("motorly_admin_sidebar_collapsed", String(isSidebarCollapsed))
+        localStorage.setItem("pitstop_admin_sidebar_collapsed", String(isSidebarCollapsed))
       }
     } catch {}
   }, [isSidebarCollapsed])
@@ -311,6 +311,13 @@ export default function AdminView({
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? booking : b))
       )
+      if (booking.matchedCarId) {
+        setCars((prev) =>
+          prev.map((c) =>
+            c.id === booking.matchedCarId ? { ...c, status: "Available" as CarStatus } : c
+          )
+        )
+      }
       showToast("Booking has been declined.")
     } catch (err: any) {
       alert("Failed to decline booking: " + (err?.message || "Unknown error"))
@@ -356,10 +363,11 @@ export default function AdminView({
       )
     )
 
-    if (carId) {
+    const activeCarId = updatedBooking.matchedCarId || carId
+    if (activeCarId) {
       setCars((prev) =>
         prev.map((c) =>
-          c.id === carId
+          c.id === activeCarId
             ? { ...c, status: "Rented" as CarStatus, currentOdometer: payload.odometerOut }
             : c
         )
@@ -690,6 +698,7 @@ export default function AdminView({
               {activeTab === "fleet" && (
                 <AdminFleetView
                   cars={cars}
+                  bookings={bookings}
                   searchQuery={searchQuery}
                   onAddCar={() => setEditingCar("new")}
                   onEditCar={(c) => setEditingCar(c)}
@@ -754,6 +763,20 @@ export default function AdminView({
         <AdminKeyHandoverModal
           booking={activeGiveKeysBooking}
           car={cars.find((c) => c.id === activeGiveKeysBooking.matchedCarId)}
+          blockingBooking={bookings.find(
+            (b) =>
+              b.id !== activeGiveKeysBooking.id &&
+              b.matchedCarId === activeGiveKeysBooking.matchedCarId &&
+              String(b.status || "").toLowerCase() === "checked out",
+          )}
+          onOpenReturnForBlocking={(blocking) => {
+            setActiveGiveKeysBooking(null)
+            setActiveReturnBooking(blocking)
+          }}
+          onOpenBookingDetails={(target) => {
+            setActiveGiveKeysBooking(null)
+            setSelectedBookingDetailId(target.id)
+          }}
           onConfirm={handleConfirmGiveKeys}
           onClose={() => setActiveGiveKeysBooking(null)}
         />

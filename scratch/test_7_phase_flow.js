@@ -10,7 +10,7 @@
 const BASE_URL = 'http://localhost:3001/api';
 
 async function runTests() {
-  console.log('🚀 Starting MOTORLY 7-Phase End-to-End Operational Flow Verification...\n');
+  console.log('🚀 Starting PIT STOP 7-Phase End-to-End Operational Flow Verification...\n');
 
   // --- FLOW A: Admin registers car with insurance, purchase, and garage map location ---
   console.log('--- FLOW A: Registering Vehicle with Insurance & Google Map Engine Hub ---');

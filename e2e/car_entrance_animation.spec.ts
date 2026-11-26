@@ -6,7 +6,7 @@ test.describe("Cinematic welcome", () => {
   test("shows the welcome video and returns to the storefront when skipped", async ({ page }) => {
     await page.goto("/?intro=1", { waitUntil: "domcontentloaded" })
     const intro = page.getByRole("banner", { name: welcome })
-    await expect(intro.locator("video")).toHaveAttribute("src", "/videos/motorly-entrance.mp4")
+    await expect(intro.locator("video")).toHaveAttribute("src", "/videos/pitstop-entrance.mp4")
     await intro.getByRole("button", { name: "Skip" }).click()
     await expect(intro).toHaveCount(0)
     await expect(page.getByRole("heading", { name: /New Luxury Mobility/i })).toBeVisible()

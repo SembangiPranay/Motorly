@@ -1,6 +1,7 @@
 import React from "react"
 import { LocationIcon, CheckIcon } from "../../components/Icons"
 import MaltaLocationMapPicker from "../../components/common/MaltaLocationMapPicker"
+import { useStudioSettings, getHubCoordinates } from "../../utils/studioSettings"
 import type { DeliveryCoordinates } from "../../types"
 
 interface CheckoutDeliveryOptionsProps {
@@ -44,6 +45,9 @@ export default function CheckoutDeliveryOptions({
   returnCoordinates,
   setReturnCoordinates,
 }: CheckoutDeliveryOptionsProps) {
+  const studioSettings = useStudioSettings()
+  const hub = getHubCoordinates(studioSettings)
+
   return (
     <div className="bg-white rounded-xl border border-stone-200/90 p-5 sm:p-6 shadow-xs space-y-6">
       {/* Section Header */}
@@ -90,10 +94,10 @@ export default function CheckoutDeliveryOptions({
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-xs font-bold block text-stone-900">
-                  Central Garage Pickup (Mgarr)
+                  Central Garage Pickup
                 </span>
                 <span className="text-[11px] text-stone-500 block mt-0.5">
-                  36 Triq Il-Kbira, Mgarr, Malta
+                  {hub.address}
                 </span>
               </div>
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -168,10 +172,10 @@ export default function CheckoutDeliveryOptions({
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-xs font-bold block text-stone-900">
-                  Return to Central Garage (Mgarr)
+                  Return to Central Garage
                 </span>
                 <span className="text-[11px] text-stone-500 block mt-0.5">
-                  36 Triq Il-Kbira, Mgarr, Malta
+                  {hub.address}
                 </span>
               </div>
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">

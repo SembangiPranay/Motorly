@@ -1,12 +1,18 @@
-import React, { useState } from "react"
+import React, { useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { CameraIcon } from "../Icons"
+import { compressConditionImageFile } from "../../utils/imageCompression"
+
+export type SchematicSide = "front" | "rear" | "driver" | "passenger" | "aerial"
 
 export interface ConditionPin {
   id: string
-  view: "front" | "rear" | "driver" | "passenger" | "aerial"
+  view: SchematicSide
   viewLabel: string
   x: number // percentage 0 - 100
   y: number // percentage 0 - 100
   note: string
+  photo?: string
 }
 
 interface PitStop5ViewSchematicProps {
@@ -16,6 +22,108 @@ interface PitStop5ViewSchematicProps {
   readOnly?: boolean
 }
 
+const VIEW_LABELS: Record<SchematicSide, string> = {
+  front: "Front View",
+  passenger: "Passenger Side Profile",
+  rear: "Rear View",
+  driver: "Driver Side Profile",
+  aerial: "Top Aerial View",
+}
+
+function ViewSideHeader({
+  title,
+  side,
+  photoCount,
+  readOnly,
+  onQuickAddPhoto,
+}: {
+  title: string
+  side: SchematicSide
+  photoCount: number
+  readOnly: boolean
+  onQuickAddPhoto: (side: SchematicSide) => void
+}) {
+  return (
+    <div className="w-full flex items-center justify-between gap-2 mb-1.5 px-1">
+      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5 truncate">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+        <span className="truncate">{title}</span>
+        {photoCount > 0 && (
+          <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 text-[9px] font-bold shrink-0">
+            {photoCount} photo{photoCount > 1 ? "s" : ""}
+          </span>
+        )}
+      </span>
+      {!readOnly && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onQuickAddPhoto(side)
+            }}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-[9px] font-bold transition cursor-pointer"
+            title={`Add photo for ${VIEW_LABELS[side]}`}
+          >
+            <CameraIcon size={10} />
+            <span>+ Photo</span>
+          </button>
+          <span className="hidden sm:inline text-[9px] font-mono text-stone-400 group-hover:text-orange-600 transition">
+            Tap diagram
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SidePhotoStrip({
+  side,
+  pins,
+  readOnly,
+  onZoom,
+  onRemovePin,
+}: {
+  side: SchematicSide
+  pins: ConditionPin[]
+  readOnly: boolean
+  onZoom: (url: string, title: string) => void
+  onRemovePin?: (id: string) => void
+}) {
+  const sidePhotos = pins.filter((p) => p.view === side && Boolean(p.photo))
+  if (sidePhotos.length === 0) return null
+  return (
+    <div className="w-full flex flex-wrap gap-1.5 pt-2 mt-1.5 border-t border-stone-200/70">
+      {sidePhotos.map((p) => (
+        <div
+          key={p.id}
+          className="relative group/thumb w-12 h-9 rounded-lg overflow-hidden border border-stone-300 bg-white cursor-pointer shrink-0"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (p.photo) onZoom(p.photo, `${p.viewLabel}: ${p.note}`)
+          }}
+          title={p.note}
+        >
+          <img src={p.photo} alt={p.viewLabel} className="w-full h-full object-cover" />
+          {!readOnly && onRemovePin && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemovePin(p.id)
+              }}
+              className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-black/75 hover:bg-red-600 text-white text-[8px] flex items-center justify-center cursor-pointer"
+              title="Remove entry"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function PitStop5ViewSchematic({
   pins,
   onAddPin,
@@ -23,16 +131,21 @@ export default function PitStop5ViewSchematic({
   readOnly = false,
 }: PitStop5ViewSchematicProps) {
   const [activePinPrompt, setActivePinPrompt] = useState<{
-    view: "front" | "rear" | "driver" | "passenger" | "aerial"
+    view: SchematicSide
     viewLabel: string
     x: number
     y: number
   } | null>(null)
   const [promptNote, setPromptNote] = useState("")
+  const [promptPhoto, setPromptPhoto] = useState<string>("")
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false)
+  const [zoomedPhoto, setZoomedPhoto] = useState<{ url: string; title: string } | null>(null)
+  const quickPhotoInputRef = useRef<HTMLInputElement | null>(null)
+  const quickPhotoSideRef = useRef<SchematicSide>("front")
 
   const handleViewClick = (
     e: React.MouseEvent<HTMLDivElement>,
-    view: "front" | "rear" | "driver" | "passenger" | "aerial",
+    view: SchematicSide,
     viewLabel: string
   ) => {
     if (readOnly || !onAddPin) return
@@ -41,7 +154,52 @@ export default function PitStop5ViewSchematic({
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
 
     setActivePinPrompt({ view, viewLabel, x, y })
-    setPromptNote(`Minor mark on ${viewLabel}`)
+    setPromptNote(`Condition / Photo on ${viewLabel}`)
+    setPromptPhoto("")
+  }
+
+  const handleQuickAddPhoto = (side: SchematicSide) => {
+    if (readOnly || !onAddPin) return
+    quickPhotoSideRef.current = side
+    quickPhotoInputRef.current?.click()
+  }
+
+  const handleQuickPhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0 || !onAddPin) return
+    const side = quickPhotoSideRef.current
+    const viewLabel = VIEW_LABELS[side]
+    setIsProcessingPhoto(true)
+    try {
+      for (const file of Array.from(files)) {
+        const compressed = await compressConditionImageFile(file, 900, 0.78)
+        onAddPin({
+          id: "pin-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+          view: side,
+          viewLabel,
+          x: 50,
+          y: 50,
+          note: `${viewLabel} inspection photo`,
+          photo: compressed,
+        })
+      }
+    } finally {
+      setIsProcessingPhoto(false)
+      if (e.target) e.target.value = ""
+    }
+  }
+
+  const handleModalPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsProcessingPhoto(true)
+    try {
+      const compressed = await compressConditionImageFile(file, 900, 0.78)
+      setPromptPhoto(compressed)
+    } finally {
+      setIsProcessingPhoto(false)
+      if (e.target) e.target.value = ""
+    }
   }
 
   const handleSavePin = () => {
@@ -52,30 +210,42 @@ export default function PitStop5ViewSchematic({
       viewLabel: activePinPrompt.viewLabel,
       x: activePinPrompt.x,
       y: activePinPrompt.y,
-      note: promptNote.trim() || `Mark on ${activePinPrompt.viewLabel}`,
+      note:
+        promptNote.trim() ||
+        (promptPhoto ? `${activePinPrompt.viewLabel} inspection photo` : `Mark on ${activePinPrompt.viewLabel}`),
+      ...(promptPhoto ? { photo: promptPhoto } : {}),
     }
     onAddPin(newPin)
     setActivePinPrompt(null)
     setPromptNote("")
+    setPromptPhoto("")
   }
+
+  const countPhotosForSide = (side: SchematicSide) =>
+    pins.filter((p) => p.view === side && Boolean(p.photo)).length
 
   return (
     <div className="space-y-4">
+      <input
+        ref={quickPhotoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleQuickPhotoSelected}
+      />
+
       {/* 5-View Technical Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 bg-white p-3.5 sm:p-5 rounded-2xl border border-stone-200/90 shadow-2xs">
         {/* VIEW 1: FRONT VIEW */}
         <div className="border border-stone-200/70 rounded-xl p-3 bg-stone-50/50 flex flex-col items-center relative group">
-          <div className="w-full flex items-center justify-between mb-1.5 px-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              1. Front View (Headlights &amp; Bumper)
-            </span>
-            {!readOnly && (
-              <span className="text-[9px] font-mono text-stone-400 group-hover:text-orange-600 transition">
-                Tap to pin mark
-              </span>
-            )}
-          </div>
+          <ViewSideHeader
+            title="1. Front View (Headlights & Bumper)"
+            side="front"
+            photoCount={countPhotosForSide("front")}
+            readOnly={readOnly}
+            onQuickAddPhoto={handleQuickAddPhoto}
+          />
           <div
             onClick={(e) => handleViewClick(e, "front", "Front View")}
             className={`w-full max-w-[210px] aspect-[4/3] relative flex items-center justify-center ${
@@ -148,21 +318,24 @@ export default function PitStop5ViewSchematic({
                 </div>
               ))}
           </div>
+          <SidePhotoStrip
+            side="front"
+            pins={pins}
+            readOnly={readOnly}
+            onZoom={(url, title) => setZoomedPhoto({ url, title })}
+            onRemovePin={onRemovePin}
+          />
         </div>
 
         {/* VIEW 2: PASSENGER SIDE PROFILE (Facing Left) */}
         <div className="border border-stone-200/70 rounded-xl p-3 bg-stone-50/50 flex flex-col items-center relative group">
-          <div className="w-full flex items-center justify-between mb-1.5 px-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              2. Passenger Side Profile
-            </span>
-            {!readOnly && (
-              <span className="text-[9px] font-mono text-stone-400 group-hover:text-orange-600 transition">
-                Tap to pin mark
-              </span>
-            )}
-          </div>
+          <ViewSideHeader
+            title="2. Passenger Side Profile"
+            side="passenger"
+            photoCount={countPhotosForSide("passenger")}
+            readOnly={readOnly}
+            onQuickAddPhoto={handleQuickAddPhoto}
+          />
           <div
             onClick={(e) => handleViewClick(e, "passenger", "Passenger Side Profile")}
             className={`w-full aspect-[2/1] relative flex items-center justify-center ${
@@ -220,21 +393,24 @@ export default function PitStop5ViewSchematic({
                 </div>
               ))}
           </div>
+          <SidePhotoStrip
+            side="passenger"
+            pins={pins}
+            readOnly={readOnly}
+            onZoom={(url, title) => setZoomedPhoto({ url, title })}
+            onRemovePin={onRemovePin}
+          />
         </div>
 
         {/* VIEW 3: REAR VIEW */}
         <div className="border border-stone-200/70 rounded-xl p-3 bg-stone-50/50 flex flex-col items-center relative group">
-          <div className="w-full flex items-center justify-between mb-1.5 px-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              3. Rear View (Boot, Glass &amp; Lights)
-            </span>
-            {!readOnly && (
-              <span className="text-[9px] font-mono text-stone-400 group-hover:text-orange-600 transition">
-                Tap to pin mark
-              </span>
-            )}
-          </div>
+          <ViewSideHeader
+            title="3. Rear View (Boot, Glass & Lights)"
+            side="rear"
+            photoCount={countPhotosForSide("rear")}
+            readOnly={readOnly}
+            onQuickAddPhoto={handleQuickAddPhoto}
+          />
           <div
             onClick={(e) => handleViewClick(e, "rear", "Rear View")}
             className={`w-full max-w-[210px] aspect-[4/3] relative flex items-center justify-center ${
@@ -297,21 +473,24 @@ export default function PitStop5ViewSchematic({
                 </div>
               ))}
           </div>
+          <SidePhotoStrip
+            side="rear"
+            pins={pins}
+            readOnly={readOnly}
+            onZoom={(url, title) => setZoomedPhoto({ url, title })}
+            onRemovePin={onRemovePin}
+          />
         </div>
 
         {/* VIEW 4: DRIVER SIDE PROFILE (Facing Right) */}
         <div className="border border-stone-200/70 rounded-xl p-3 bg-stone-50/50 flex flex-col items-center relative group">
-          <div className="w-full flex items-center justify-between mb-1.5 px-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              4. Driver Side Profile
-            </span>
-            {!readOnly && (
-              <span className="text-[9px] font-mono text-stone-400 group-hover:text-orange-600 transition">
-                Tap to pin mark
-              </span>
-            )}
-          </div>
+          <ViewSideHeader
+            title="4. Driver Side Profile"
+            side="driver"
+            photoCount={countPhotosForSide("driver")}
+            readOnly={readOnly}
+            onQuickAddPhoto={handleQuickAddPhoto}
+          />
           <div
             onClick={(e) => handleViewClick(e, "driver", "Driver Side Profile")}
             className={`w-full aspect-[2/1] relative flex items-center justify-center ${
@@ -371,21 +550,24 @@ export default function PitStop5ViewSchematic({
                 </div>
               ))}
           </div>
+          <SidePhotoStrip
+            side="driver"
+            pins={pins}
+            readOnly={readOnly}
+            onZoom={(url, title) => setZoomedPhoto({ url, title })}
+            onRemovePin={onRemovePin}
+          />
         </div>
 
         {/* VIEW 5: TOP AERIAL VIEW (Spans full width on desktop) */}
         <div className="md:col-span-2 border border-stone-200/70 rounded-xl p-3 bg-stone-50/50 flex flex-col items-center relative group">
-          <div className="w-full flex items-center justify-between mb-1.5 px-1">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              5. Top Aerial View (Roof, Bonnet &amp; Boot)
-            </span>
-            {!readOnly && (
-              <span className="text-[9px] font-mono text-stone-400 group-hover:text-orange-600 transition">
-                Tap to pin mark
-              </span>
-            )}
-          </div>
+          <ViewSideHeader
+            title="5. Top Aerial View (Roof, Bonnet & Boot)"
+            side="aerial"
+            photoCount={countPhotosForSide("aerial")}
+            readOnly={readOnly}
+            onQuickAddPhoto={handleQuickAddPhoto}
+          />
           <div
             onClick={(e) => handleViewClick(e, "aerial", "Top Aerial View")}
             className={`w-full max-w-[420px] aspect-[2.4/1] relative flex items-center justify-center ${
@@ -441,87 +623,144 @@ export default function PitStop5ViewSchematic({
                 </div>
               ))}
           </div>
+          <SidePhotoStrip
+            side="aerial"
+            pins={pins}
+            readOnly={readOnly}
+            onZoom={(url, title) => setZoomedPhoto({ url, title })}
+            onRemovePin={onRemovePin}
+          />
         </div>
       </div>
 
-      {/* Pin Description Prompt Modal */}
-      {activePinPrompt && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-stone-200 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-orange-600 text-white text-xs font-bold flex items-center justify-center">
-                  {pins.length + 1}
-                </span>
-                <span className="font-bold text-stone-900 text-sm">
-                  Mark on {activePinPrompt.viewLabel}
-                </span>
+      {/* Pin & Side Photo Prompt Modal */}
+      {activePinPrompt &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/55 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={() => setActivePinPrompt(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-stone-200 animate-fade-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-orange-600 text-white text-xs font-bold flex items-center justify-center">
+                    {pins.length + 1}
+                  </span>
+                  <span className="font-bold text-stone-900 text-sm">
+                    {activePinPrompt.viewLabel}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActivePinPrompt(null)}
+                  className="text-stone-400 hover:text-stone-600 text-sm font-bold p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setActivePinPrompt(null)}
-                className="text-stone-400 hover:text-stone-600 text-sm font-bold p-1 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-stone-700 block">
-                Condition Description:
-              </label>
-              <input
-                type="text"
-                value={promptNote}
-                onChange={(e) => setPromptNote(e.target.value)}
-                placeholder="e.g. 2cm bumper stone chip, alloy scuff..."
-                className="w-full text-xs px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSavePin()
-                }}
-              />
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {["Stone chip", "Light scratch", "Wheel curb scuff", "Clean"].map((sample) => (
-                  <button
-                    key={sample}
-                    type="button"
-                    onClick={() => setPromptNote(sample)}
-                    className="text-[10px] bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded text-stone-700 cursor-pointer"
-                  >
-                    {sample}
-                  </button>
-                ))}
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-stone-700 block">
+                  Condition Description:
+                </label>
+                <input
+                  type="text"
+                  value={promptNote}
+                  onChange={(e) => setPromptNote(e.target.value)}
+                  placeholder="e.g. 2cm bumper stone chip, alloy scuff..."
+                  className="w-full text-xs px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      handleSavePin()
+                    }
+                  }}
+                />
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {["Stone chip", "Light scratch", "Wheel curb scuff", "Side reference photo"].map((sample) => (
+                    <button
+                      key={sample}
+                      type="button"
+                      onClick={() => setPromptNote(sample)}
+                      className="text-[10px] bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded text-stone-700 cursor-pointer"
+                    >
+                      {sample}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Optional Side Photo Upload */}
+              <div className="space-y-2 pt-1 border-t border-stone-100">
+                <label className="text-[11px] font-bold text-stone-700 block">
+                  Attach Picture for {activePinPrompt.viewLabel} (Optional):
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-bold cursor-pointer transition">
+                    <CameraIcon size={13} />
+                    <span>{promptPhoto ? "Replace Side Photo" : "Add Picture"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleModalPhotoUpload}
+                    />
+                  </label>
+                  {isProcessingPhoto && (
+                    <span className="text-[11px] text-stone-500">Processing...</span>
+                  )}
+                  {promptPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => setPromptPhoto("")}
+                      className="text-[11px] text-rose-600 hover:underline font-semibold cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {promptPhoto && (
+                  <img
+                    src={promptPhoto}
+                    alt={activePinPrompt.viewLabel}
+                    className="w-full max-h-36 object-cover rounded-xl border border-stone-200"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setActivePinPrompt(null)}
+                  className="px-3 py-1.5 text-xs text-stone-600 font-semibold hover:bg-stone-100 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSavePin}
+                  disabled={isProcessingPhoto}
+                  className="px-4 py-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  Save to {activePinPrompt.viewLabel}
+                </button>
               </div>
             </div>
+          </div>,
+          document.body,
+        )}
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
-              <button
-                type="button"
-                onClick={() => setActivePinPrompt(null)}
-                className="px-3 py-1.5 text-xs text-stone-600 font-semibold hover:bg-stone-100 rounded-lg cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSavePin}
-                className="px-4 py-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg shadow-xs cursor-pointer"
-              >
-                Save Pin
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Itemized Pinned Marks List */}
+      {/* Itemized Pinned Marks & Side Photos List */}
       {pins.length > 0 && (
         <div className="bg-orange-50/50 border border-orange-200/80 rounded-xl p-3 sm:p-4 space-y-2 text-xs">
           <div className="flex items-center justify-between border-b border-orange-100 pb-1.5">
             <span className="font-bold text-stone-900 font-heading text-xs flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-orange-500" />
-              Recorded Pre-Rental Condition Marks ({pins.length})
+              Recorded 5-View Marks &amp; Side Photos ({pins.length})
             </span>
             <span className="text-[10px] font-mono text-stone-500">
               Clause 2: Fair Wear &amp; Tear
@@ -531,21 +770,31 @@ export default function PitStop5ViewSchematic({
             {pins.map((p, idx) => (
               <div
                 key={p.id}
-                className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-orange-100 text-[11px]"
+                className="flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-orange-100 text-[11px]"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <span className="w-4 h-4 rounded-full bg-orange-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
                     {idx + 1}
                   </span>
-                  <span className="font-bold text-stone-800">{p.viewLabel}:</span>
-                  <span className="text-stone-600">{p.note}</span>
+                  {p.photo && (
+                    <img
+                      src={p.photo}
+                      alt={p.viewLabel}
+                      onClick={() => setZoomedPhoto({ url: p.photo!, title: `${p.viewLabel}: ${p.note}` })}
+                      className="w-10 h-8 rounded object-cover border border-stone-200 shrink-0 cursor-pointer hover:opacity-80"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <span className="font-bold text-stone-800">{p.viewLabel}: </span>
+                    <span className="text-stone-600 break-words">{p.note}</span>
+                  </div>
                 </div>
                 {!readOnly && onRemovePin && (
                   <button
                     type="button"
                     onClick={() => onRemovePin(p.id)}
-                    className="text-stone-400 hover:text-red-600 p-1 cursor-pointer transition text-xs"
-                    title="Remove Pin"
+                    className="text-stone-400 hover:text-red-600 p-1 cursor-pointer transition text-xs shrink-0"
+                    title="Remove Entry"
                   >
                     ✕
                   </button>
@@ -555,6 +804,39 @@ export default function PitStop5ViewSchematic({
           </div>
         </div>
       )}
+
+      {/* Lightbox Preview */}
+      {zoomedPhoto &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={() => setZoomedPhoto(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl border border-stone-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-3 bg-stone-900 text-white flex items-center justify-between text-xs font-bold">
+                <span>{zoomedPhoto.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setZoomedPhoto(null)}
+                  className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-3 bg-stone-100 flex items-center justify-center">
+                <img
+                  src={zoomedPhoto.url}
+                  alt={zoomedPhoto.title}
+                  className="max-h-[75vh] w-auto object-contain rounded-lg"
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

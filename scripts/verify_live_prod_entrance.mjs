@@ -6,11 +6,11 @@ async function verifyLiveProd() {
   // Desktop Test
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   await page.addInitScript(() => {
-    sessionStorage.removeItem("motorly_intro_completed")
+    sessionStorage.removeItem("pitstop_intro_completed")
   })
 
-  console.log("Navigating to https://motorly-ten.vercel.app...")
-  await page.goto("https://motorly-ten.vercel.app")
+  console.log("Navigating to https://pitstopcarhire.com...")
+  await page.goto("https://pitstopcarhire.com")
 
   // Wait 1.0s for Front Ignition
   await page.waitForTimeout(1000)
@@ -35,9 +35,9 @@ async function verifyLiveProd() {
   // Mobile Viewport Test
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } })
   await mobilePage.addInitScript(() => {
-    sessionStorage.removeItem("motorly_intro_completed")
+    sessionStorage.removeItem("pitstop_intro_completed")
   })
-  await mobilePage.goto("https://motorly-ten.vercel.app")
+  await mobilePage.goto("https://pitstopcarhire.com")
   await mobilePage.waitForTimeout(8500)
   await mobilePage.screenshot({ path: "C:/Users/TO-00105/.gemini/antigravity/brain/eddb663b-82b6-4681-930e-50de771ea587/prod_verified_mobile_hero.png" })
 

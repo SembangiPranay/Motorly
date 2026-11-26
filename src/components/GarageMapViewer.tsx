@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { LocationIcon, ShieldIcon, CheckIcon } from "./Icons"
+import { useStudioSettings, getHubCoordinates } from "../utils/studioSettings"
 
 interface GarageMapViewerProps {
   garageName?: string
@@ -13,21 +14,28 @@ interface GarageMapViewerProps {
 }
 
 export default function GarageMapViewer({
-  garageName = "Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)",
-  garageAddress = "4200 NW 21st St, Miami, FL 33142",
+  garageName,
+  garageAddress,
   garageBay = "Bay 14-B",
-  lat = 25.7959,
-  lng = -80.287,
+  lat,
+  lng,
   isEditable = false,
   onLocationChange,
   height = "320px",
 }: GarageMapViewerProps) {
+  const studioSettings = useStudioSettings()
+  const hub = getHubCoordinates(studioSettings)
+  const effectiveDefaultName = garageName || hub.hubName || "Pit Stop Operations Hub"
+  const effectiveDefaultAddr = garageAddress || hub.address
+  const effectiveDefaultLat = Number(lat && lat !== 25.7959 ? lat : hub.lat ?? 17.4587)
+  const effectiveDefaultLng = Number(lng && lng !== -80.287 ? lng : hub.lng ?? 78.3506)
+
   const [copied, setCopied] = useState(false)
-  const [currentLat, setCurrentLat] = useState(Number(lat) || 17.4646)
-  const [currentLng, setCurrentLng] = useState(Number(lng) || 78.3582)
-  const [pointerLat, setPointerLat] = useState(Number(lat) || 17.4646)
-  const [pointerLng, setPointerLng] = useState(Number(lng) || 78.3582)
-  const [currentAddress, setCurrentAddress] = useState(garageAddress)
+  const [currentLat, setCurrentLat] = useState(effectiveDefaultLat)
+  const [currentLng, setCurrentLng] = useState(effectiveDefaultLng)
+  const [pointerLat, setPointerLat] = useState(effectiveDefaultLat)
+  const [pointerLng, setPointerLng] = useState(effectiveDefaultLng)
+  const [currentAddress, setCurrentAddress] = useState(effectiveDefaultAddr)
   const [hasUnsavedPin, setHasUnsavedPin] = useState(false)
   const [isSavingLocation, setIsSavingLocation] = useState(false)
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("")
@@ -61,20 +69,23 @@ export default function GarageMapViewer({
     return Number((R * c).toFixed(1))
   }
 
-  // Sync internal state when parent props change
+  // Sync internal state when parent props or live studio hub settings change
   useEffect(() => {
-    if (lat && !isNaN(lat)) {
-      setCurrentLat(Number(lat))
-      setPointerLat(Number(lat))
+    const targetLat = Number(lat && lat !== 25.7959 ? lat : hub.lat ?? 17.4587)
+    const targetLng = Number(lng && lng !== -80.287 ? lng : hub.lng ?? 78.3506)
+    const targetAddr = garageAddress || hub.address
+    if (Number.isFinite(targetLat) && targetLat !== 0) {
+      setCurrentLat(targetLat)
+      setPointerLat(targetLat)
     }
-    if (lng && !isNaN(lng)) {
-      setCurrentLng(Number(lng))
-      setPointerLng(Number(lng))
+    if (Number.isFinite(targetLng) && targetLng !== 0) {
+      setCurrentLng(targetLng)
+      setPointerLng(targetLng)
     }
-    if (garageAddress) {
-      setCurrentAddress(garageAddress)
+    if (targetAddr) {
+      setCurrentAddress(targetAddr)
     }
-  }, [lat, lng, garageAddress])
+  }, [lat, lng, garageAddress, hub.lat, hub.lng, hub.address])
 
   // Invalidate map size when expanded/collapsed for crisp rendering
   useEffect(() => {
@@ -495,7 +506,10 @@ export default function GarageMapViewer({
     setTimeout(() => setCopied(false), 2500)
   }
 
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}`
+  const googleMapsUrl =
+    hub.lat === currentLat && hub.lng === currentLng && studioSettings.google_maps_url
+      ? studioSettings.google_maps_url
+      : `https://www.google.com/maps/search/?api=1&query=${currentLat},${currentLng}`
   const googleMapsEmbedUrl = `https://maps.google.com/maps?q=${pointerLat},${pointerLng}&hl=en&z=15&output=embed`
 
   const effectiveHeight = isExpanded ? "480px" : height
@@ -509,7 +523,7 @@ export default function GarageMapViewer({
             <LocationIcon size={16} />
           </div>
           <div className="truncate">
-            <h4 className="font-bold text-stone-900 truncate text-xs">{garageName}</h4>
+            <h4 className="font-bold text-stone-900 truncate text-xs">{effectiveDefaultName}</h4>
             <p className="text-[11px] text-stone-500 truncate font-mono">{currentAddress}</p>
           </div>
         </div>

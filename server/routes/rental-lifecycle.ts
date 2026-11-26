@@ -1,7 +1,7 @@
 import { Router } from "express"
 import type express from "express"
 import { db } from "../db.ts"
-import { requireAdmin } from "../auth.ts"
+import { type JwtUserPayload, requireAdmin, requireAuth, canAccessBooking } from "../auth.ts"
 import { formatCarRow, formatBookingRow } from "../serializers.ts"
 import { findVehicleBookingConflict } from "../booking-rules.ts"
 import {
@@ -232,23 +232,65 @@ router.post("/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
 
   const result = await db.withVehicleBookingLock(booking.matched_car_id, async (tx) => {
     const current = await tx.get("SELECT * FROM bookings WHERE id = ?", bookingId)
-    if (current?.status === "Checked Out") return { booking: current, alreadyDispatched: true }
-    if (
-      current?.status !== "Assigned" ||
-      !current.approved_by_admin ||
-      current.matched_car_id !== booking.matched_car_id
-    )
-      return null
+    if (current?.status === "Checked Out") return { ok: true as const, booking: current, alreadyDispatched: true }
+    if (!current) {
+      return { ok: false as const, error: "Booking not found." }
+    }
+    if (!current.approved_by_admin) {
+      return {
+        ok: false as const,
+        error: `Reservation ${bookingId} must be accepted by the fleet manager before handing over keys.`,
+      }
+    }
+    if (current.matched_car_id !== booking.matched_car_id) {
+      return {
+        ok: false as const,
+        error: "Assigned vehicle changed while preparing handover. Refresh and try again.",
+      }
+    }
+    const handoverEligibleStatuses = ["Assigned", "Approved", "Confirmed"]
+    if (!handoverEligibleStatuses.includes(current.status)) {
+      return {
+        ok: false as const,
+        error: `Booking ${bookingId} is currently "${current.status}" and is not ready for key handover.`,
+      }
+    }
 
-    const car = await tx.get("SELECT status FROM vehicles WHERE id = ?", current.matched_car_id)
-    if (car?.status !== "Available") return null
+    const car = await tx.get("SELECT id, name, status FROM vehicles WHERE id = ?", current.matched_car_id)
+    if (!car) {
+      return { ok: false as const, error: "Assigned vehicle could not be found in fleet inventory." }
+    }
+    if (car.status === "Maintenance") {
+      return {
+        ok: false as const,
+        error: `${car.name} is currently in Maintenance. Complete service or swap to another vehicle before key handover.`,
+      }
+    }
+    const blockingBooking = await tx.get(
+      "SELECT id FROM bookings WHERE matched_car_id = ? AND status = 'Checked Out' AND id != ? LIMIT 1",
+      current.matched_car_id,
+      bookingId,
+    )
+    if (blockingBooking) {
+      return {
+        ok: false as const,
+        conflictingBookingId: blockingBooking.id,
+        error: `${car.name} is still checked out on reservation ${blockingBooking.id}. Complete its return inspection or assign another available vehicle.`,
+      }
+    }
+    if (car.status && !["Available", "Cleaning", "Rented"].includes(car.status)) {
+      return {
+        ok: false as const,
+        error: `${car.name} has status "${car.status}" and cannot be dispatched until set to Available.`,
+      }
+    }
 
     const dispatched = await tx.run(
       `
       UPDATE bookings SET status = 'Checked Out', keys_handed_at = ?, checklist_out = ?,
         odometer_out = ?, fuel_level_out = ?, condition_photos = COALESCE(?, condition_photos),
         condition_pins = COALESCE(?, condition_pins), inspection_notes = COALESCE(?, inspection_notes)
-      WHERE id = ? AND status = 'Assigned' AND matched_car_id = ?
+      WHERE id = ? AND status IN ('Assigned', 'Approved', 'Confirmed') AND matched_car_id = ?
     `,
       nowIso,
       JSON.stringify(checklistObj),
@@ -260,7 +302,9 @@ router.post("/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       bookingId,
       current.matched_car_id,
     )
-    if (!dispatched.changes) return null
+    if (!dispatched.changes) {
+      return { ok: false as const, error: "The booking changed during key handover. Refresh and try again." }
+    }
 
     await tx.run(
       "UPDATE vehicles SET status = 'Rented', current_odometer = ? WHERE id = ?",
@@ -268,12 +312,14 @@ router.post("/bookings/:id/handover-keys", requireAdmin, async (req, res) => {
       current.matched_car_id,
     )
     const updated = await tx.get("SELECT * FROM bookings WHERE id = ?", bookingId)
-    return { booking: updated, alreadyDispatched: false }
+    return { ok: true as const, booking: updated, alreadyDispatched: false }
   })
-  if (!result)
-    return res
-      .status(409)
-      .json({ error: "The booking or vehicle is no longer ready for key handover." })
+  if (!result.ok) {
+    return res.status(409).json({
+      error: result.error,
+      ...(result.conflictingBookingId ? { conflictingBookingId: result.conflictingBookingId } : {}),
+    })
+  }
   const updatedBooking = result.booking
   if (result.alreadyDispatched) {
     return res.json({ success: true, booking: formatBookingRow(updatedBooking) })
@@ -455,6 +501,21 @@ router.post<{ id: string }>("/bookings/:id/mate", requireAdmin, async (req, res)
         throw err
       }
 
+      if (car.status === "Rented") {
+        const activeRental = (await tx
+          .prepare(
+            "SELECT id, pickup_date, return_date FROM bookings WHERE matched_car_id = ? AND status = 'Checked Out' AND id != ? LIMIT 1",
+          )
+          .get(carId, bookingId)) as any
+        if (activeRental) {
+          const err = new Error(
+            `Conflict: ${car.name} (${car.plate_number}) is currently checked out on reservation ${activeRental.id} (${activeRental.pickup_date} – ${activeRental.return_date}). Complete its return inspection first.`,
+          ) as any
+          err.statusCode = 409
+          throw err
+        }
+      }
+
       // Prevent double booking conflict during manual mating
       const conflict = await findVehicleBookingConflict(
         carId,
@@ -628,6 +689,63 @@ router.patch("/bookings/:id/status", requireAdmin, async (req, res) => {
     success: true,
     message: `Booking ${bookingId} transitioned to ${newStatus}.`,
     booking: formatBookingRow(updatedBooking),
+  })
+})
+
+// PATCH Update Condition Inspection (5-View pins, per-side photos & client signature endorsement)
+router.patch(
+  "/bookings/:id/condition",
+  requireAuth,
+  async (req: express.Request & { user?: JwtUserPayload }, res) => {
+    const bookingId = String(req.params.id || "")
+  const booking = (await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)) as any
+  if (!booking) {
+    return res.status(404).json({ error: "Booking not found." })
+  }
+  if (!canAccessBooking(req.user, booking)) {
+    return res.status(403).json({ error: "Forbidden." })
+  }
+
+  const { conditionPins, conditionPhotos, clientSignature } = req.body || {}
+  const updates: string[] = []
+  const params: any[] = []
+
+  if (conditionPins !== undefined) {
+    if (!Array.isArray(conditionPins) || conditionPins.length > 40) {
+      return res.status(400).json({ error: "conditionPins must be an array of at most 40 entries." })
+    }
+    updates.push("condition_pins = ?")
+    params.push(JSON.stringify(conditionPins))
+  }
+
+  if (conditionPhotos !== undefined) {
+    if (!Array.isArray(conditionPhotos) || conditionPhotos.length > 16) {
+      return res.status(400).json({ error: "conditionPhotos must be an array of at most 16 images." })
+    }
+    const cleanPhotos = conditionPhotos.filter((p) => typeof p === "string" && p.length > 0)
+    updates.push("condition_photos = ?")
+    params.push(JSON.stringify(cleanPhotos))
+  }
+
+  if (clientSignature !== undefined) {
+    if (typeof clientSignature !== "string" || clientSignature.length > 500_000) {
+      return res.status(400).json({ error: "Invalid client signature payload." })
+    }
+    updates.push("client_signature = ?")
+    params.push(clientSignature.trim() || null)
+  }
+
+  if (updates.length === 0) {
+    return res.json({ success: true, booking: formatBookingRow(booking) })
+  }
+
+  params.push(bookingId)
+  await db.prepare(`UPDATE bookings SET ${updates.join(", ")} WHERE id = ?`).run(...params)
+  const updated = await db.prepare("SELECT * FROM bookings WHERE id = ?").get(bookingId)
+  return res.json({
+    success: true,
+    message: "Condition inspection and client endorsement saved.",
+    booking: formatBookingRow(updated),
   })
 })
 

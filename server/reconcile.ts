@@ -179,7 +179,7 @@ export async function reconcileDatabaseInvariants() {
                OR location ILIKE '%Miami%'
                OR garage_name IS NULL
                OR garage_name = ''
-               OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
+               OR garage_name ILIKE '%Central Hub & Garage Bay 4%'
           `,
               [activeHub.address],
             )
@@ -198,7 +198,7 @@ export async function reconcileDatabaseInvariants() {
                OR location LIKE '%Miami%'
                OR garage_name IS NULL
                OR garage_name = ''
-               OR garage_name = 'MOTORLY Central Hub & Garage Bay 4'
+               OR garage_name LIKE '%Central Hub & Garage Bay 4%'
           `,
             )
             .run(activeHub.address, activeHub.address, activeHub.address)

@@ -13,7 +13,7 @@ test.describe("Finite State Machine (FSM) Booking Lifecycle Suite", () => {
     const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "admin@motorly.com", password: ADMIN_PASSWORD }),
+      body: JSON.stringify({ email: "admin@pitstopcarhire.com", password: ADMIN_PASSWORD }),
     })
     const data = await loginRes.json()
     expect(data.token).toBeTruthy()

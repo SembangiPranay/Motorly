@@ -11,10 +11,10 @@ async function main() {
   // 1. Navigate to home first to set localStorage
   await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" })
   await page.evaluate(() => {
-    localStorage.setItem("motorly_current_view", "checkout")
-    localStorage.setItem("motorly_selected_car_id", "honda-crv")
+    localStorage.setItem("pitstop_current_view", "checkout")
+    localStorage.setItem("pitstop_selected_car_id", "honda-crv")
     localStorage.setItem(
-      "motorly_booking_state",
+      "pitstop_booking_state",
       JSON.stringify({
         pickupDate: "Oct 10, 2026",
         pickupTime: "10:00 AM",

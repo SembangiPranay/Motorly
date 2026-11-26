@@ -72,10 +72,10 @@ export default function App() {
     try {
       const token =
         typeof localStorage !== "undefined"
-          ? localStorage.getItem("motorly_customer_token")
+          ? localStorage.getItem("pitstop_customer_token")
           : null
       if (!token) return null
-      const saved = localStorage.getItem("motorly_customer_user")
+      const saved = localStorage.getItem("pitstop_customer_user")
       return saved ? JSON.parse(saved) : null
     } catch {
       return null
@@ -86,7 +86,7 @@ export default function App() {
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(
     () => {
-      return Boolean(localStorage.getItem("motorly_admin_token"))
+      return Boolean(localStorage.getItem("pitstop_admin_token"))
     },
   )
 
@@ -98,7 +98,7 @@ export default function App() {
         if (params.get("intro") === "1") return true
         if (params.get("intro") === "0") return false
         if (window.location.pathname.startsWith("/admin")) return false
-        return !sessionStorage.getItem("motorly_intro_completed")
+        return !sessionStorage.getItem("pitstop_intro_completed")
       }
       return false
     } catch {
@@ -108,7 +108,7 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      ;(window as any).__replayMotorlyIntro = () => setShowEntrance(true)
+      ;(window as any).__replayPitStopIntro = () => setShowEntrance(true)
     }
   }, [])
 
@@ -154,7 +154,7 @@ export default function App() {
 
       // Restore from persistent cache (localStorage)
       const saved = typeof localStorage !== "undefined"
-        ? (localStorage.getItem("motorly_current_view") as ViewMode | null)
+        ? (localStorage.getItem("pitstop_current_view") as ViewMode | null)
         : null
 
       if (saved && validViews.includes(saved)) {
@@ -200,7 +200,7 @@ export default function App() {
         if (carFromParam) {
           setSelectedCarId(carFromParam)
           try {
-            localStorage.setItem("motorly_selected_car_id", carFromParam)
+            localStorage.setItem("pitstop_selected_car_id", carFromParam)
           } catch {}
           setBookingState((prev) => ({ ...prev, carId: carFromParam }))
         }
@@ -259,7 +259,7 @@ export default function App() {
       if (carFromUrl) {
         setSelectedCarId(carFromUrl)
         try {
-          localStorage.setItem("motorly_selected_car_id", carFromUrl)
+          localStorage.setItem("pitstop_selected_car_id", carFromUrl)
         } catch {}
         setBookingState((prev) => ({ ...prev, carId: carFromUrl }))
       }
@@ -286,14 +286,14 @@ export default function App() {
         if (carFromParam) return carFromParam
       }
     } catch {}
-    return localStorage.getItem("motorly_selected_car_id") || ""
+    return localStorage.getItem("pitstop_selected_car_id") || ""
   })
 
 
   // Persist currentView to localStorage and keep browser URL search params synchronized
   useEffect(() => {
     try {
-      localStorage.setItem("motorly_current_view", currentView)
+      localStorage.setItem("pitstop_current_view", currentView)
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href)
         if (currentView === "home") {
@@ -339,9 +339,9 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.removeItem("motorly_cached_cars")
+      localStorage.removeItem("pitstop_cached_cars")
 
-      localStorage.removeItem("motorly_cached_bookings")
+      localStorage.removeItem("pitstop_cached_bookings")
     } catch {}
   }, [])
 
@@ -394,6 +394,7 @@ export default function App() {
   })
 
   // Confirmed booking modal state
+  const [lastCreatedBookingId, setLastCreatedBookingId] = useState<string | null>(null)
 
   const [confirmedBooking, setConfirmedBooking] = useState<{
     bookingId: string
@@ -425,9 +426,9 @@ export default function App() {
         } else {
           // Token is missing, expired, or rejected: purge stale credentials
 
-          localStorage.removeItem("motorly_admin_token")
+          localStorage.removeItem("pitstop_admin_token")
 
-          localStorage.removeItem("motorly_admin_user")
+          localStorage.removeItem("pitstop_admin_user")
 
           setIsAdminAuthenticated(false)
         }
@@ -521,40 +522,40 @@ export default function App() {
     const handleAdminUnauthorized = () => {
       setIsAdminAuthenticated(false)
 
-      localStorage.removeItem("motorly_admin_token")
+      localStorage.removeItem("pitstop_admin_token")
 
-      localStorage.removeItem("motorly_admin_user")
+      localStorage.removeItem("pitstop_admin_user")
     }
 
     const handleCustomerUnauthorized = () => {
       setCurrentUser(null)
 
-      localStorage.removeItem("motorly_customer_token")
+      localStorage.removeItem("pitstop_customer_token")
 
-      localStorage.removeItem("motorly_customer_user")
+      localStorage.removeItem("pitstop_customer_user")
     }
 
     window.addEventListener(
-      "motorly_admin_unauthorized",
+      "pitstop_admin_auth_invalidated",
 
       handleAdminUnauthorized,
     )
 
     window.addEventListener(
-      "motorly_customer_unauthorized",
+      "pitstop_customer_auth_invalidated",
 
       handleCustomerUnauthorized,
     )
 
     return () => {
       window.removeEventListener(
-        "motorly_admin_unauthorized",
+        "pitstop_admin_auth_invalidated",
 
         handleAdminUnauthorized,
       )
 
       window.removeEventListener(
-        "motorly_customer_unauthorized",
+        "pitstop_customer_auth_invalidated",
 
         handleCustomerUnauthorized,
       )
@@ -582,7 +583,7 @@ export default function App() {
   const handleSelectCar = (carId: string) => {
     if (!carId) return
     try {
-      localStorage.setItem("motorly_selected_car_id", carId)
+      localStorage.setItem("pitstop_selected_car_id", carId)
     } catch {}
 
     setSelectedCarId(carId)
@@ -675,7 +676,7 @@ export default function App() {
 
     if (targetId) {
       try {
-        localStorage.setItem("motorly_selected_car_id", targetId)
+        localStorage.setItem("pitstop_selected_car_id", targetId)
       } catch {}
       setSelectedCarId(targetId)
       setBookingState((prev) => ({ ...prev, carId: targetId }))
@@ -878,13 +879,13 @@ export default function App() {
         <CarEntranceAnimation
           onComplete={() => {
             try {
-              sessionStorage.setItem("motorly_intro_completed", "true")
+              sessionStorage.setItem("pitstop_intro_completed", "true")
             } catch {}
             setShowEntrance(false)
           }}
           onSkip={() => {
             try {
-              sessionStorage.setItem("motorly_intro_completed", "true")
+              sessionStorage.setItem("pitstop_intro_completed", "true")
             } catch {}
             setShowEntrance(false)
           }}
@@ -991,6 +992,8 @@ export default function App() {
             setCurrentUser={setCurrentUser}
             allBookings={bookings}
             onBookingsChange={setBookings}
+            initialLookupBookingId={lastCreatedBookingId}
+            onClearInitialLookupBookingId={() => setLastCreatedBookingId(null)}
             onNavigateHome={() => setCurrentView("home")}
             onNavigateListing={() => setCurrentView("listing")}
           />
@@ -1045,7 +1048,7 @@ export default function App() {
 
               setIsAdminAuthenticated(false)
 
-              localStorage.setItem("motorly_current_view", "home")
+              localStorage.setItem("pitstop_current_view", "home")
 
               if (typeof window !== "undefined") {
                 window.history.pushState(null, "", "/")
@@ -1100,8 +1103,9 @@ export default function App() {
             setCurrentView("listing")
           }}
           onNavigateMyBookings={() => {
+            const refId = confirmedBooking.bookingId
             setConfirmedBooking(null)
-
+            setLastCreatedBookingId(refId)
             handleNavigate("my-bookings")
           }}
         />

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import type { ViewMode } from "../types"
 import {
   LocationIcon,
@@ -11,8 +11,20 @@ import {
   PhoneIcon,
   MailIcon,
 } from "../components/Icons"
-import { getWhatsAppUrls, isMobileDevice } from "../utils/whatsapp"
+import {
+  formatInternationalPhoneDisplay,
+  formatTelHref,
+  getWhatsAppUrls,
+  isMobileDevice,
+} from "../utils/whatsapp"
 import { api } from "../services/api"
+import {
+  useStudioSettings,
+  getSupportPhone,
+  getPrimaryWhatsAppPhone,
+  getSecondaryWhatsAppPhone,
+  getHubCoordinates,
+} from "../utils/studioSettings"
 
 interface ContactViewProps {
   onNavigate: (view: ViewMode) => void
@@ -32,24 +44,13 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
   const [inquiryError, setInquiryError] = useState("")
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
 
-  const [contact, setContact] = useState({
-    ownerPhone: "+356 99827192",
-    ownerEmail: "pitstopcarhire@gmail.com",
-    garageAddress: "36 Triq Il-Kbira, Mgarr, Malta",
-  })
-  const { ownerPhone, ownerEmail, garageAddress } = contact
-
-  useEffect(() => {
-    let active = true
-    api.getSettings().then((settings) => {
-      if (active) setContact((previous) => ({
-        ownerPhone: settings.support_phone || settings.contact_phone || previous.ownerPhone,
-        ownerEmail: settings.contact_email || previous.ownerEmail,
-        garageAddress: settings.hub_address || previous.garageAddress,
-      }))
-    })
-    return () => { active = false }
-  }, [])
+  const studioSettings = useStudioSettings()
+  const ownerPhone = getSupportPhone(studioSettings)
+  const primaryWhatsApp = getPrimaryWhatsAppPhone(studioSettings)
+  const secondaryWhatsApp = getSecondaryWhatsAppPhone(studioSettings)
+  const ownerEmail = studioSettings.contact_email || "pitstopcarhire@gmail.com"
+  const hub = getHubCoordinates(studioSettings)
+  const garageAddress = hub.address
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -146,7 +147,7 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
               </div>
             </div>
             <a
-              href={`tel:${ownerPhone.replace(/[^\d]/g, "")}`}
+              href={formatTelHref(ownerPhone)}
               className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#F97316] font-bold text-xs rounded-lg border border-orange-200 text-center transition block cursor-pointer"
             >
               Call Manager Directly
@@ -164,25 +165,46 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
               </h3>
               <p className="text-xs text-stone-500 leading-relaxed">
                 Send vehicle photos, custom dates, or driver license
-                pre-clearance directly over WhatsApp.
+                pre-clearance directly over WhatsApp ({formatInternationalPhoneDisplay(primaryWhatsApp)}
+                {secondaryWhatsApp
+                  ? ` / ${formatInternationalPhoneDisplay(secondaryWhatsApp)}`
+                  : ""}
+                ).
               </p>
               <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block">
                 Typical response: Under 5 mins
               </div>
             </div>
-            <a
-              href={
-                getWhatsAppUrls(
-                  ownerPhone,
-                  "Hello! I am interested in renting a car from Pit Stop Car Hire.",
-                ).smartUrl
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg text-center transition block cursor-pointer shadow-xs"
-            >
-              {isMobileDevice() ? "Open WhatsApp App" : "Open WhatsApp Web"}
-            </a>
+            <div className="space-y-2">
+              <a
+                href={
+                  getWhatsAppUrls(
+                    primaryWhatsApp,
+                    "Hello! I am interested in renting a car from Pit Stop Car Hire.",
+                  ).smartUrl
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg text-center transition block cursor-pointer shadow-xs"
+              >
+                {isMobileDevice() ? "Open WhatsApp App" : "Open WhatsApp Web"}
+              </a>
+              {secondaryWhatsApp && (
+                <a
+                  href={
+                    getWhatsAppUrls(
+                      secondaryWhatsApp,
+                      "Hello! I am interested in renting a car from Pit Stop Car Hire.",
+                    ).smartUrl
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-[11px] rounded-lg text-center transition block cursor-pointer"
+                >
+                  Alternate WhatsApp ({formatInternationalPhoneDisplay(secondaryWhatsApp)})
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Card 3: Priority Email */}
@@ -298,33 +320,27 @@ export default function ContactView({ onNavigate }: ContactViewProps) {
             <div className="rounded-xl overflow-hidden border border-stone-200/90 shadow-sm bg-stone-900 p-6 text-white space-y-3 relative">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-orange-400 font-mono">
-                  GPS Coordinates
+                  {hub.lat && hub.lng ? `GPS: ${hub.lat.toFixed(4)}, ${hub.lng.toFixed(4)}` : "GPS Coordinates"}
                 </span>
-                <span className="text-[10px] bg-stone-800 px-2 py-0.5 rounded text-stone-300">
-                  Miami Central
+                <span className="text-[10px] bg-stone-800 px-2 py-0.5 rounded text-stone-300 truncate max-w-[160px]">
+                  {hub.hubName}
                 </span>
               </div>
               <h4 className="text-lg font-bold font-heading">
-                Need Directions or Airport Pickup?
+                Need Directions or Custom Pickup?
               </h4>
               <p className="text-xs text-stone-300 leading-relaxed">
-                If you are arriving at Miami International Airport (MIA), our
-                facility is a quick 8-minute ride. Contact the manager in
-                advance to stage your vehicle ready at the curb.
+                Our staged fleet hub is located at <strong>{garageAddress}</strong>. Contact the manager in advance to coordinate airport, hotel, or doorstep delivery.
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  window.open(
-                    `https://maps.google.com/?q=${encodeURIComponent(garageAddress)}`,
-                    "_blank",
-                  )
-                }}
+              <a
+                href={hub.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full py-2.5 bg-white text-stone-900 hover:bg-stone-100 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>Open in Google Maps</span>
                 <ArrowRightIcon size={14} />
-              </button>
+              </a>
             </div>
           </div>
 

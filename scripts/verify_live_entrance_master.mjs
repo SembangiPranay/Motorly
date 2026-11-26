@@ -7,7 +7,7 @@ async function verify() {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   // Clear sessionStorage so entrance animation triggers cleanly
   await page.addInitScript(() => {
-    sessionStorage.removeItem("motorly_intro_completed")
+    sessionStorage.removeItem("pitstop_intro_completed")
   })
 
   console.log("Navigating to http://localhost:3000...")
@@ -41,7 +41,7 @@ async function verify() {
   // Mobile Test
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } })
   await mobilePage.addInitScript(() => {
-    sessionStorage.removeItem("motorly_intro_completed")
+    sessionStorage.removeItem("pitstop_intro_completed")
   })
   await mobilePage.goto("http://localhost:3000")
   await mobilePage.waitForTimeout(8500)

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { ShieldIcon, CheckIcon, LockIcon, AlertTriangleIcon } from "./Icons"
+import { useStudioSettings, getSupportPhone, getHubCoordinates } from "../utils/studioSettings"
 
 export interface LegalPoliciesModalProps {
   isOpen: boolean
@@ -13,10 +15,13 @@ export default function LegalPoliciesModal({
   initialTab = "terms",
 }: LegalPoliciesModalProps) {
   const [activeTab, setActiveTab] = useState<"privacy" | "terms" | "deposit" | "insurance">(initialTab)
+  const settings = useStudioSettings()
+  const supportPhone = getSupportPhone(settings)
+  const hub = getHubCoordinates(settings)
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab)
-  }, [initialTab])
+    if (isOpen && initialTab) setActiveTab(initialTab)
+  }, [initialTab, isOpen])
 
   // Esc key closes modal
   useEffect(() => {
@@ -30,11 +35,11 @@ export default function LegalPoliciesModal({
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn font-sans"
+      className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fade-in font-sans"
       onClick={onClose}
     >
       <div
@@ -124,7 +129,7 @@ export default function LegalPoliciesModal({
                   Pit Stop Car Hire — Official Rental Agreement Terms &amp; Conditions
                 </h3>
                 <p className="text-[11px] text-stone-500 mt-0.5">
-                  Verbatim replication of the physical rental contract executed at 36 Triq Il-Kbira, Mgarr, Malta (Tel: 99827192 / 99804255).
+                  Verbatim replication of the physical rental contract executed at {hub.address} (Support: {supportPhone}).
                 </p>
               </div>
 
@@ -441,6 +446,7 @@ export default function LegalPoliciesModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

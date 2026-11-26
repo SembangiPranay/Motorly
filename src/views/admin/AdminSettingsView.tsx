@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react"
 import { api } from "../../services/api"
+import { notifyStudioSettingsUpdated } from "../../utils/studioSettings"
+import {
+  extractPhoneNumbers,
+  formatInternationalPhoneDisplay,
+  formatTelHref,
+} from "../../utils/whatsapp"
 import GarageMapViewer from "../../components/GarageMapViewer"
 import {
   PhoneIcon,
@@ -25,12 +31,16 @@ export default function AdminSettingsView({
   onShowToast,
 }: AdminSettingsViewProps) {
   const [companyName, setCompanyName] = useState("Pit Stop Central Garage (36 Triq Il-Kbira, Mgarr)")
-  const [phone, setPhone] = useState("+1 (555) 019-9922")
+  const [phone, setPhone] = useState("+356 9982 7192")
+  const [supportPhone, setSupportPhone] = useState("+356 9982 7192")
+  const [whatsappPrimary, setWhatsappPrimary] = useState("+356 9982 7192")
+  const [whatsappSecondary, setWhatsappSecondary] = useState("")
   const [email, setEmail] = useState("pitstopcarhire@gmail.com")
   const [adminNotificationEmails, setAdminNotificationEmails] = useState("")
-  const [address, setAddress] = useState("4200 NW 21st St, Miami, FL 33142")
-  const [lat, setLat] = useState(25.7959)
-  const [lng, setLng] = useState(-80.287)
+  const [address, setAddress] = useState("36 Triq Il-Kbira, Mgarr, Malta")
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("")
+  const [lat, setLat] = useState(35.9197)
+  const [lng, setLng] = useState(14.3664)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false)
@@ -56,9 +66,37 @@ export default function AdminSettingsView({
         const data = await api.getSettings()
         if (mounted && data) {
           if (data.company_name) setCompanyName(data.company_name)
-          if (data.company_phone || data.contact_phone) {
-            setPhone(data.company_phone || data.contact_phone || "")
+          const rawDispatch = String(data.company_phone || data.contact_phone || "").trim()
+          if (rawDispatch) {
+            setPhone(rawDispatch)
           }
+          if (data.support_phone || rawDispatch) {
+            setSupportPhone(String(data.support_phone || rawDispatch).trim())
+          }
+          const parsedDispatch = extractPhoneNumbers(rawDispatch)
+          const parsedExplicitPrimary = extractPhoneNumbers(data.whatsapp_phone)
+          const parsedExplicitSecondary = extractPhoneNumbers(data.whatsapp_phone_secondary)
+
+          if (data.whatsapp_phone) {
+            setWhatsappPrimary(
+              parsedExplicitPrimary[0]
+                ? formatInternationalPhoneDisplay(`+${parsedExplicitPrimary[0]}`)
+                : String(data.whatsapp_phone).trim(),
+            )
+          } else if (parsedDispatch[0]) {
+            setWhatsappPrimary(formatInternationalPhoneDisplay(`+${parsedDispatch[0]}`))
+          }
+
+          if (data.whatsapp_phone_secondary) {
+            setWhatsappSecondary(
+              parsedExplicitSecondary[0]
+                ? formatInternationalPhoneDisplay(`+${parsedExplicitSecondary[0]}`)
+                : String(data.whatsapp_phone_secondary).trim(),
+            )
+          } else if (!data.whatsapp_phone && parsedDispatch[1]) {
+            setWhatsappSecondary(formatInternationalPhoneDisplay(`+${parsedDispatch[1]}`))
+          }
+
           if (data.contact_email || data.company_email) {
             setEmail(data.contact_email || data.company_email || "")
           }
@@ -66,8 +104,9 @@ export default function AdminSettingsView({
             setAdminNotificationEmails(String(data.admin_notification_emails || ""))
           }
           if (data.hub_address) setAddress(data.hub_address)
-          if (data.hub_lat) setLat(Number(data.hub_lat))
-          if (data.hub_lng) setLng(Number(data.hub_lng))
+          if (data.google_maps_url) setGoogleMapsUrl(data.google_maps_url)
+          if (data.hub_lat && !isNaN(Number(data.hub_lat))) setLat(Number(data.hub_lat))
+          if (data.hub_lng && !isNaN(Number(data.hub_lng))) setLng(Number(data.hub_lng))
         }
       } catch (err) {
         console.warn("[AdminSettingsView] Could not load backend settings:", err)
@@ -81,22 +120,52 @@ export default function AdminSettingsView({
     }
   }, [])
 
+  const extractCoordsFromMapsUrl = (url: string): { lat: number; lng: number } | null => {
+    const match = url.match(/(?:[?&](?:q|ll)=|@)(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/)
+    if (!match) return null
+    const parsedLat = Number(match[1])
+    const parsedLng = Number(match[2])
+    if (Number.isFinite(parsedLat) && Number.isFinite(parsedLng)) {
+      return { lat: parsedLat, lng: parsedLng }
+    }
+    return null
+  }
+
+  const resolvedWhatsAppPrimaryList = extractPhoneNumbers(whatsappPrimary || phone)
+  const resolvedWhatsAppSecondaryList = extractPhoneNumbers(whatsappSecondary)
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
+    const effectiveSupport = supportPhone.trim() || phone.trim()
+    const cleanPrimaryWhatsApp = resolvedWhatsAppPrimaryList[0]
+      ? formatInternationalPhoneDisplay(`+${resolvedWhatsAppPrimaryList[0]}`)
+      : whatsappPrimary.trim() || phone.trim()
+    const cleanSecondaryWhatsApp = resolvedWhatsAppSecondaryList[0]
+      ? formatInternationalPhoneDisplay(`+${resolvedWhatsAppSecondaryList[0]}`)
+      : whatsappSecondary.trim()
+    const effectiveMapUrl =
+      googleMapsUrl.trim() || `https://www.google.com/maps?q=${lat},${lng}`
+    const payload = {
+      company_name: companyName,
+      company_phone: phone,
+      contact_phone: phone,
+      support_phone: effectiveSupport,
+      whatsapp_phone: cleanPrimaryWhatsApp,
+      whatsapp_phone_secondary: cleanSecondaryWhatsApp,
+      company_email: email,
+      contact_email: email,
+      admin_notification_emails: adminNotificationEmails,
+      hub_address: address,
+      hub_lat: lat,
+      hub_lng: lng,
+      google_maps_url: effectiveMapUrl,
+    }
     try {
-      await api.updateSettingsBatch({
-        company_name: companyName,
-        company_phone: phone,
-        contact_phone: phone,
-        company_email: email,
-        contact_email: email,
-        admin_notification_emails: adminNotificationEmails,
-        hub_address: address,
-        hub_lat: lat,
-        hub_lng: lng,
-      })
-      await api.syncHubLocation(address, undefined, lat, lng).catch(() => {})
+      await api.updateSettingsBatch(payload)
+      await api.syncHubLocation(address, effectiveMapUrl, lat, lng).catch(() => {})
+      setGoogleMapsUrl(effectiveMapUrl)
+      notifyStudioSettingsUpdated(payload)
       onShowToast("Studio contact & hub settings updated successfully!")
     } catch (err: any) {
       alert("Failed to save settings: " + (err?.message || "Unknown error"))
@@ -184,11 +253,11 @@ export default function AdminSettingsView({
 
         <div className="flex items-center gap-2">
           <a
-            href="tel:5550199922"
+            href={formatTelHref(supportPhone || phone)}
             className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold border border-emerald-200 transition flex items-center gap-1.5"
           >
             <PhoneIcon size={13} className="text-emerald-600" />
-            <span>Support Line: (555) 019-9922</span>
+            <span>Support Line: {formatInternationalPhoneDisplay(supportPhone || phone)}</span>
           </a>
         </div>
       </div>
@@ -197,14 +266,14 @@ export default function AdminSettingsView({
         {/* Contact Information Card */}
         <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-4">
           <div className="border-b border-stone-100 pb-3">
-            <h3 className="text-sm font-bold text-stone-900">Contact & Communications</h3>
+            <h3 className="text-sm font-bold text-stone-900">Contact &amp; Communications</h3>
             <p className="text-xs text-stone-500 mt-0.5">
-              These details appear on generated customer invoices and WhatsApp templates.
+              These details appear on the header, footer, customer portal, WhatsApp buttons, invoices, and emails.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
                 Studio / Hub Name
               </label>
@@ -218,14 +287,86 @@ export default function AdminSettingsView({
 
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                Dispatch Phone (WhatsApp Enabled)
+                Primary WhatsApp Number (Admin Concierge)
+              </label>
+              <input
+                type="text"
+                value={whatsappPrimary}
+                onChange={(e) => setWhatsappPrimary(e.target.value)}
+                placeholder="+356 9982 7192 or +91 77807 40223"
+                className="w-full h-9 px-3 text-xs bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <p className="text-[11px] text-stone-500 mt-1">
+                Used by the floating WhatsApp icon, booking confirmation, and customer trip WhatsApp links.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                Secondary WhatsApp Number (Optional)
+              </label>
+              <input
+                type="text"
+                value={whatsappSecondary}
+                onChange={(e) => setWhatsappSecondary(e.target.value)}
+                placeholder="+356 9980 4255"
+                className="w-full h-9 px-3 text-xs bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <p className="text-[11px] text-stone-500 mt-1">
+                Optional backup WhatsApp contact shown separately—never concatenated with the primary number.
+              </p>
+            </div>
+
+            <div className="sm:col-span-2 rounded-lg bg-emerald-50/80 border border-emerald-200 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="font-bold text-emerald-900">Active Customer WhatsApp Routing:</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+                {resolvedWhatsAppPrimaryList[0] ? (
+                  <span className="px-2 py-0.5 rounded bg-white border border-emerald-300 text-emerald-800 font-bold">
+                    Primary: {formatInternationalPhoneDisplay(`+${resolvedWhatsAppPrimaryList[0]}`)}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-800 font-bold">
+                    Enter a valid 7-15 digit phone with country code (or 8/10-digit national number)
+                  </span>
+                )}
+                {resolvedWhatsAppSecondaryList[0] && (
+                  <span className="px-2 py-0.5 rounded bg-white border border-emerald-300 text-emerald-800 font-bold">
+                    Secondary: {formatInternationalPhoneDisplay(`+${resolvedWhatsAppSecondaryList[0]}`)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                Dispatch Phone (Garage Desk)
               </label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                placeholder="+356 9982 7192"
                 className="w-full h-9 px-3 text-xs bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                Support Line / Customer Helpline
+              </label>
+              <input
+                type="text"
+                value={supportPhone}
+                onChange={(e) => setSupportPhone(e.target.value)}
+                placeholder="+356 99827192"
+                className="w-full h-9 px-3 text-xs bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
+              />
+              <p className="text-[11px] text-stone-500 mt-1">
+                Shown across storefront support buttons, emails, and headers.
+              </p>
             </div>
 
             <div className="sm:col-span-2">
@@ -302,6 +443,30 @@ export default function AdminSettingsView({
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+              Admin Google Maps Link (Optional)
+            </label>
+            <input
+              type="url"
+              value={googleMapsUrl}
+              onChange={(e) => {
+                const nextUrl = e.target.value
+                setGoogleMapsUrl(nextUrl)
+                const parsed = extractCoordsFromMapsUrl(nextUrl)
+                if (parsed) {
+                  setLat(parsed.lat)
+                  setLng(parsed.lng)
+                }
+              }}
+              placeholder={`https://www.google.com/maps?q=${lat},${lng}`}
+              className="w-full h-9 px-3 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
+            />
+            <p className="text-[11px] text-stone-500 mt-1">
+              Paste any Google Maps link with coordinates or drag the map pin below to update all storefront map links.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
@@ -309,9 +474,13 @@ export default function AdminSettingsView({
               </label>
               <input
                 type="number"
-                step="0.0001"
+                step="0.000001"
                 value={lat}
-                onChange={(e) => setLat(parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  const nextLat = parseFloat(e.target.value) || 0
+                  setLat(nextLat)
+                  setGoogleMapsUrl(`https://www.google.com/maps?q=${nextLat},${lng}`)
+                }}
                 className="w-full h-9 px-3 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
               />
             </div>
@@ -321,9 +490,13 @@ export default function AdminSettingsView({
               </label>
               <input
                 type="number"
-                step="0.0001"
+                step="0.000001"
                 value={lng}
-                onChange={(e) => setLng(parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  const nextLng = parseFloat(e.target.value) || 0
+                  setLng(nextLng)
+                  setGoogleMapsUrl(`https://www.google.com/maps?q=${lat},${nextLng}`)
+                }}
                 className="w-full h-9 px-3 text-xs font-mono bg-stone-50 rounded-lg border border-stone-200 text-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400"
               />
             </div>
@@ -340,7 +513,20 @@ export default function AdminSettingsView({
                 onLocationChange={(newLat, newLng, newAddress) => {
                   setLat(newLat)
                   setLng(newLng)
+                  const resolvedAddr = newAddress || address
                   if (newAddress) setAddress(newAddress)
+                  const nextUrl = `https://www.google.com/maps?q=${newLat},${newLng}`
+                  setGoogleMapsUrl(nextUrl)
+                  void api.syncHubLocation(resolvedAddr, nextUrl, newLat, newLng).then((res) => {
+                    if (res.success) {
+                      notifyStudioSettingsUpdated({
+                        hub_address: resolvedAddr,
+                        hub_lat: newLat,
+                        hub_lng: newLng,
+                        google_maps_url: nextUrl,
+                      })
+                    }
+                  })
                 }}
               />
             </div>

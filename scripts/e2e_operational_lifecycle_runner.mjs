@@ -24,7 +24,7 @@ import bcrypt from "bcryptjs"
 
 const API_BASE = process.env.API_BASE || "http://localhost:3001/api"
 const JWT_SECRET =
-  process.env.JWT_SECRET || "motorly-fleet-jwt-secret-secure-key-2026-prod"
+  process.env.JWT_SECRET || "pitstop-fleet-jwt-secret-secure-key-2026-prod"
 
 // Direct Supabase PostgreSQL connection pool for independent data tier assertions
 const supabasePool = new pg.Pool({
@@ -86,7 +86,7 @@ async function apiFetch(url, options = {}) {
 
 export async function runOperationalLifecycleSuite() {
   const suiteStartTime = Date.now()
-  logHeader("MOTORLY / DRIVERENT — END-TO-END OPERATIONAL LIFECYCLE TEST SUITE")
+  logHeader("PIT STOP CAR HIRE — END-TO-END OPERATIONAL LIFECYCLE TEST SUITE")
   console.log(`Target Backend API : ${API_BASE}`)
   console.log(
     `Database Host      : aws-0-us-east-1.pooler.supabase.com (Supabase PostgreSQL 17)`,
@@ -95,7 +95,7 @@ export async function runOperationalLifecycleSuite() {
 
   const testId = Date.now()
   const testCustomer = {
-    email: `victoria.chase.${testId}@motorly-fleet.com`,
+    email: `victoria.chase.${testId}@pitstop-fleet.com`,
     password: `SecV!ct0ria${testId}$`,
     name: `Victoria Chase`,
     phone: `+1 (305) 555-0188`,
@@ -633,7 +633,7 @@ export async function runOperationalLifecycleSuite() {
     const adminLoginRes = await apiFetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "admin@motorly.com", password: "0709" }),
+      body: JSON.stringify({ email: "admin@pitstopcarhire.com", password: "0709" }),
     })
     if (adminLoginRes.status !== 200) {
       fail(
@@ -1162,14 +1162,14 @@ export async function runOperationalLifecycleSuite() {
 
     // 10.2 Multi-Tenant Zero-Trust Isolation: Customer Cannot Query Other Users' Data
     const rogueHistoryRes = await apiFetch(
-      `${API_BASE}/users/bookings?email=admin@motorly.com`,
+      `${API_BASE}/users/bookings?email=admin@pitstopcarhire.com`,
       {
         headers: { Authorization: `Bearer ${customerToken}` },
       },
     )
     const rogueHistory = await rogueHistoryRes.json()
     const hasAdminBookings = rogueHistory.some(
-      (b) => b.customerEmail === "admin@motorly.com",
+      (b) => b.customerEmail === "admin@pitstopcarhire.com",
     )
     if (hasAdminBookings) {
       fail(

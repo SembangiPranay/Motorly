@@ -186,6 +186,7 @@ export interface ConditionPin {
   x: number // percentage 0 - 100
   y: number // percentage 0 - 100
   note: string
+  photo?: string
 }
 
 export interface BookingRecord {

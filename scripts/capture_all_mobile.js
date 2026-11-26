@@ -8,16 +8,16 @@ if (!fs.existsSync(outDir)) {
 }
 
 const views = [
-  { name: '01_mobile_home', url: 'https://motorly-ten.vercel.app/?view=home' },
-  { name: '02_mobile_listing', url: 'https://motorly-ten.vercel.app/?view=listing' },
-  { name: '03_mobile_cardetail', url: 'https://motorly-ten.vercel.app/?view=detail&car=1' },
-  { name: '04_mobile_checkout', url: 'https://motorly-ten.vercel.app/?view=checkout&car=1' },
-  { name: '05_mobile_mybookings', url: 'https://motorly-ten.vercel.app/?view=my-bookings' },
-  { name: '06_mobile_compare', url: 'https://motorly-ten.vercel.app/?view=compare' },
-  { name: '07_mobile_auth', url: 'https://motorly-ten.vercel.app/?view=auth' },
-  { name: '08_mobile_about', url: 'https://motorly-ten.vercel.app/?view=about' },
-  { name: '09_mobile_contact', url: 'https://motorly-ten.vercel.app/?view=contact' },
-  { name: '10_mobile_admin_login', url: 'https://motorly-ten.vercel.app/?view=admin' },
+  { name: '01_mobile_home', url: 'https://pitstopcarhire.com/?view=home' },
+  { name: '02_mobile_listing', url: 'https://pitstopcarhire.com/?view=listing' },
+  { name: '03_mobile_cardetail', url: 'https://pitstopcarhire.com/?view=detail&car=1' },
+  { name: '04_mobile_checkout', url: 'https://pitstopcarhire.com/?view=checkout&car=1' },
+  { name: '05_mobile_mybookings', url: 'https://pitstopcarhire.com/?view=my-bookings' },
+  { name: '06_mobile_compare', url: 'https://pitstopcarhire.com/?view=compare' },
+  { name: '07_mobile_auth', url: 'https://pitstopcarhire.com/?view=auth' },
+  { name: '08_mobile_about', url: 'https://pitstopcarhire.com/?view=about' },
+  { name: '09_mobile_contact', url: 'https://pitstopcarhire.com/?view=contact' },
+  { name: '10_mobile_admin_login', url: 'https://pitstopcarhire.com/?view=admin' },
 ];
 
 (async () => {

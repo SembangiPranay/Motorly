@@ -5,7 +5,7 @@ import pg from "pg"
 
 const SCREENSHOTS_DIR = path.resolve("./screenshots")
 
-test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () => {
+test.describe("Pit Stop Car Hire Visual Screenshot Capture Suite (Requirement R1)", () => {
   test.beforeAll(async () => {
     if (!fs.existsSync(SCREENSHOTS_DIR)) {
       fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true })
@@ -56,9 +56,9 @@ test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () =
     // Seed continuous authenticated tokens for both sessions
     await page.addInitScript(
       ({ cToken, cUser, aToken }) => {
-        localStorage.setItem("motorly_customer_token", cToken)
-        localStorage.setItem("motorly_customer_user", JSON.stringify(cUser))
-        localStorage.setItem("motorly_admin_token", aToken)
+        localStorage.setItem("pitstop_customer_token", cToken)
+        localStorage.setItem("pitstop_customer_user", JSON.stringify(cUser))
+        localStorage.setItem("pitstop_admin_token", aToken)
       },
       { cToken: customerToken, cUser: customerUser, aToken: adminToken },
     )
@@ -91,7 +91,7 @@ test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () =
         }
         const key = viewMap[targetName] || targetName.toLowerCase()
         await page.evaluate((v) => {
-          localStorage.setItem("motorly_current_view", v)
+          localStorage.setItem("pitstop_current_view", v)
         }, key)
         await page.goto(APP_URL)
         await page.waitForTimeout(1000)
@@ -370,7 +370,7 @@ test.describe("DriveRent Visual Screenshot Capture Suite (Requirement R1)", () =
     await expect(voucherBtn).toBeVisible({ timeout: 8000 })
     await voucherBtn.click()
 
-    const voucherModal = page.locator('text=MOTORLY EXPRESS BOARDING PASS').first()
+    const voucherModal = page.locator('text=PIT STOP CAR HIRE BOARDING PASS').first()
     await expect(voucherModal).toBeVisible({ timeout: 8000 })
     await page.waitForTimeout(800)
     await page.screenshot({

@@ -8,10 +8,10 @@ async function run() {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 
   // 1. Visit live production /admin gate
-  await page.goto("https://motorly-ten.vercel.app/admin", { waitUntil: "domcontentloaded" })
+  await page.goto("https://pitstopcarhire.com/admin", { waitUntil: "domcontentloaded" })
   await page.evaluate(() => {
-    localStorage.removeItem("motorly_admin_token")
-    localStorage.removeItem("motorly_admin_user")
+    localStorage.removeItem("pitstop_admin_token")
+    localStorage.removeItem("pitstop_admin_user")
     window.location.reload()
   })
   await page.waitForTimeout(2500)

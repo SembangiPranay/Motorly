@@ -2,6 +2,13 @@ import React, { useState } from "react"
 import type { ViewMode } from "../types"
 import LegalPoliciesModal from "./LegalPoliciesModal"
 import PitStopLogo from "./PitStopLogo"
+import {
+  useStudioSettings,
+  getSupportPhone,
+  getPrimaryWhatsAppPhone,
+  getHubCoordinates,
+} from "../utils/studioSettings"
+import { formatTelHref } from "../utils/whatsapp"
 
 export default function Footer({
   onNavigate,
@@ -9,6 +16,11 @@ export default function Footer({
   onNavigate: (view: ViewMode) => void
 }) {
   const [activePolicyTab, setActivePolicyTab] = useState<"privacy" | "terms" | "deposit" | "insurance" | null>(null)
+  const settings = useStudioSettings()
+  const supportPhone = getSupportPhone(settings)
+  const dispatchPhone = getPrimaryWhatsAppPhone(settings)
+  const hub = getHubCoordinates(settings)
+  const contactEmail = settings.contact_email || "pitstopcarhire@gmail.com"
   return (
     <footer className="bg-[#17191C] text-white pt-16 pb-12 border-t border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -16,14 +28,14 @@ export default function Footer({
           {/* Brand Col */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <PitStopLogo size="lg" theme="light" subtitle="Malta & Gozo Fleet" />
+              <PitStopLogo layout="banner" size="lg" theme="light" caption="Malta & Gozo Fleet" />
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
-              Official local garage fleet and vehicle rentals in Mgarr, Malta. Clean cars, transparent
+              Official local garage fleet and vehicle rentals. Clean cars, transparent
               pricing, and direct manager service.
             </p>
             <div className="text-xs text-gray-400">
-              <p>36 Triq Il-Kbira, Mgarr • Malta & Gozo Fleet</p>
+              <p>{hub.address}</p>
             </div>
           </div>
 
@@ -100,31 +112,35 @@ export default function Footer({
             <div className="space-y-3 text-sm text-gray-400">
               <p className="flex items-start gap-2">
                 <span className="text-[#F97316] font-semibold shrink-0">Address:</span>
-                <span>36 Triq Il-Kbira, Mgarr, Malta</span>
+                <span>{hub.address}</span>
               </p>
               <p className="flex items-center gap-2">
-                <span className="text-[#F97316] font-semibold">Phones:</span>
+                <span className="text-[#F97316] font-semibold">Support:</span>
                 <a
-                  href="tel:+35699827192"
+                  href={formatTelHref(supportPhone)}
                   className="hover:text-white transition-colors"
                 >
-                  +356 99827192
+                  {supportPhone}
                 </a>
-                <span>/</span>
-                <a
-                  href="tel:+35699804255"
-                  className="hover:text-white transition-colors"
-                >
-                  99804255
-                </a>
+                {dispatchPhone && dispatchPhone !== supportPhone && (
+                  <>
+                    <span>/</span>
+                    <a
+                      href={formatTelHref(dispatchPhone)}
+                      className="hover:text-white transition-colors"
+                    >
+                      {dispatchPhone}
+                    </a>
+                  </>
+                )}
               </p>
               <p className="flex items-center gap-2">
                 <span className="text-[#F97316] font-semibold">Email:</span>
                 <a
-                  href="mailto:rentals@pitstopcarhire.com?subject=Pit%20Stop%20Fleet%20Inquiry"
+                  href={`mailto:${contactEmail}?subject=Pit%20Stop%20Fleet%20Inquiry`}
                   className="hover:text-white transition-colors underline"
                 >
-                  rentals@pitstopcarhire.com
+                  {contactEmail}
                 </a>
               </p>
               <p className="flex items-center gap-2">
@@ -141,8 +157,8 @@ export default function Footer({
             <button
               type="button"
               onClick={() => {
-                if (typeof (window as any).__replayMotorlyIntro === "function") {
-                  (window as any).__replayMotorlyIntro()
+                if (typeof (window as any).__replayPitStopIntro === "function") {
+                  (window as any).__replayPitStopIntro()
                 }
               }}
               className="hover:text-orange-400 text-stone-400 font-semibold cursor-pointer transition flex items-center gap-1.5"

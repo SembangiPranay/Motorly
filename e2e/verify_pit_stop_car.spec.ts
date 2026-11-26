@@ -9,7 +9,7 @@ test.describe("Pit Stop Car & Storefront Fleet Verification", () => {
   test("1. Customer Storefront displays Pit Stop Car and Luxury filter", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     await page.goto(`${TEST_URL}/`, { waitUntil: "domcontentloaded" })
@@ -57,7 +57,7 @@ test.describe("Pit Stop Car & Storefront Fleet Verification", () => {
   test("2. Vehicle Detail View for Pit Stop Special Edition shows specs and security deposit", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     await page.goto(`${TEST_URL}/?view=detail&car=pit-stop-special-edition-2015`, { waitUntil: "domcontentloaded" })
@@ -80,7 +80,7 @@ test.describe("Pit Stop Car & Storefront Fleet Verification", () => {
   test("3. Checkout view shows Pit Stop / In Service rental reason option", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     await page.goto(`${TEST_URL}/?view=checkout&car=pit-stop-special-edition-2015`, { waitUntil: "domcontentloaded" })
@@ -107,7 +107,7 @@ test.describe("Pit Stop Car & Storefront Fleet Verification", () => {
   test("4. Admin Fleet displays Pit Stop Special Edition with Pit Stop Bay 01", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(() => {
-      sessionStorage.setItem("motorly_intro_seen", "true")
+      sessionStorage.setItem("pitstop_intro_completed", "true")
     })
 
     await page.goto(`${TEST_URL}/?view=admin&tab=fleet`, { waitUntil: "domcontentloaded" })

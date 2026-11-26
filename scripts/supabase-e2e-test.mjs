@@ -14,7 +14,7 @@ const API_BASE = "http://localhost:3001/api"
 
 async function runTest() {
   console.log("\n=======================================================")
-  console.log("   🚀 MOTORLY SUPABASE DIRECT END-TO-END TEST SUITE   ")
+  console.log("   🚀 PIT STOP SUPABASE DIRECT END-TO-END TEST SUITE   ")
   console.log("=======================================================\n")
 
   // 1. Direct Database Health & Connection
@@ -82,7 +82,7 @@ async function runTest() {
       customer: {
         firstName: "Koushik",
         lastName: "Tester",
-        email: "koushik.test@motorly.io",
+        email: "koushik.test@pitstopcarhire.io",
         phone: "+1 (555) 019-2834",
       },
       driver: {

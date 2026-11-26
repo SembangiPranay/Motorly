@@ -10,8 +10,8 @@ async function run() {
   // 1. Visit /admin without auth to see AdminLoginGate
   await page.goto("http://localhost:3000/admin", { waitUntil: "domcontentloaded" })
   await page.evaluate(() => {
-    localStorage.removeItem("motorly_admin_token")
-    localStorage.removeItem("motorly_admin_user")
+    localStorage.removeItem("pitstop_admin_token")
+    localStorage.removeItem("pitstop_admin_user")
     window.location.reload()
   })
   await page.waitForTimeout(2000)

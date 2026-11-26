@@ -22,7 +22,10 @@ import { getWhatsAppUrls, formatInternationalPhoneDisplay } from "../../utils/wh
 import { downloadBookingInvoicePng, downloadBookingInvoicePdf } from "../../utils/invoiceGenerator"
 import { calculateRentalPrice } from "../../utils/pricing"
 import { api } from "../../services/api"
-import PitStop5ViewSchematic from "../../components/contract/PitStop5ViewSchematic"
+import PitStop5ViewSchematic, { type ConditionPin } from "../../components/contract/PitStop5ViewSchematic"
+import LegalPoliciesModal from "../../components/LegalPoliciesModal"
+import { compressConditionImageFile } from "../../utils/imageCompression"
+import { useStudioSettings, getHubCoordinates } from "../../utils/studioSettings"
 
 export interface AdminBookingDetailViewProps {
   booking: BookingRecord
@@ -51,6 +54,9 @@ export default function AdminBookingDetailView({
   onReassignCar,
   onShowToast,
 }: AdminBookingDetailViewProps) {
+  const studioSettings = useStudioSettings()
+  const studioHub = getHubCoordinates(studioSettings)
+
   // Local state for interactive actions
   const [isCopied, setIsCopied] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -58,6 +64,69 @@ export default function AdminBookingDetailView({
   const [isReassigning, setIsReassigning] = useState(false)
   const [selectedNewCarId, setSelectedNewCarId] = useState<string>(booking.matchedCarId || "")
   const [isSavingCarMatch, setIsSavingCarMatch] = useState(false)
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false)
+  const [isSavingCondition, setIsSavingCondition] = useState(false)
+
+  const handleAddDetailConditionPin = async (pin: ConditionPin) => {
+    const nextPins = [...(booking.conditionPins || []), pin]
+    const nextPhotos = pin.photo
+      ? [...(booking.conditionPhotos || []), pin.photo].slice(0, 16)
+      : booking.conditionPhotos || []
+    setIsSavingCondition(true)
+    try {
+      const res = await api.updateBookingCondition(booking.id, {
+        conditionPins: nextPins,
+        conditionPhotos: nextPhotos,
+      })
+      onUpdateBooking?.(res.booking)
+      onShowToast?.(`Added ${pin.viewLabel} inspection entry.`)
+    } catch (err: any) {
+      onShowToast?.(err?.message || "Failed to save inspection photo/pin.")
+    } finally {
+      setIsSavingCondition(false)
+    }
+  }
+
+  const handleRemoveDetailConditionPin = async (pinId: string) => {
+    const currentPins = booking.conditionPins || []
+    const removed = currentPins.find((p) => p.id === pinId)
+    const nextPins = currentPins.filter((p) => p.id !== pinId)
+    const nextPhotos = removed?.photo
+      ? (booking.conditionPhotos || []).filter((photo) => photo !== removed.photo)
+      : booking.conditionPhotos || []
+    setIsSavingCondition(true)
+    try {
+      const res = await api.updateBookingCondition(booking.id, {
+        conditionPins: nextPins,
+        conditionPhotos: nextPhotos,
+      })
+      onUpdateBooking?.(res.booking)
+      onShowToast?.("Removed 5-view inspection entry.")
+    } catch (err: any) {
+      onShowToast?.(err?.message || "Failed to remove inspection entry.")
+    } finally {
+      setIsSavingCondition(false)
+    }
+  }
+
+  const handleUploadAdminClientSignature = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsSavingCondition(true)
+    try {
+      const sigDataUrl = await compressConditionImageFile(file, 600, 0.9, "image/png")
+      const res = await api.updateBookingCondition(booking.id, {
+        clientSignature: sigDataUrl,
+      })
+      onUpdateBooking?.(res.booking)
+      onShowToast?.("Client signature image attached and saved.")
+    } catch (err: any) {
+      onShowToast?.(err?.message || "Failed to save client signature image.")
+    } finally {
+      setIsSavingCondition(false)
+      if (e.target) e.target.value = ""
+    }
+  }
   const [adminNotes, setAdminNotes] = useState<string>(booking.notes || "")
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [isProcessingAction, setIsProcessingAction] = useState(false)
@@ -869,16 +938,18 @@ export default function AdminBookingDetailView({
                         {matchedCar.garageName || "Atelier Central Hub"}
                       </span>
                     </div>
-                    {matchedCar.garageAddress && (
                       <a
-                        href={`https://maps.google.com/?q=${encodeURIComponent(matchedCar.garageAddress)}`}
+                        href={
+                          (matchedCar.garageLat ?? studioHub.lat) && (matchedCar.garageLng ?? studioHub.lng)
+                            ? `https://www.google.com/maps/search/?api=1&query=${matchedCar.garageLat ?? studioHub.lat},${matchedCar.garageLng ?? studioHub.lng}`
+                            : studioHub.mapsUrl
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline"
                       >
                         View on Google Maps →
                       </a>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1116,8 +1187,17 @@ export default function AdminBookingDetailView({
             </div>
 
             {/* 5-View Schematic Interactive Display */}
-            <div className="bg-stone-50/60 rounded-xl p-3 border border-stone-200/70">
-              <PitStop5ViewSchematic pins={booking.conditionPins || []} readOnly={true} />
+            <div className="bg-stone-50/60 rounded-xl p-3 border border-stone-200/70 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-stone-600 px-1">
+                <span>Tap any side panel below or click <strong>+ Photo</strong> to attach inspection pictures.</span>
+                {isSavingCondition && <span className="font-semibold text-orange-600">Saving...</span>}
+              </div>
+              <PitStop5ViewSchematic
+                pins={booking.conditionPins || []}
+                onAddPin={handleAddDetailConditionPin}
+                onRemovePin={handleRemoveDetailConditionPin}
+                readOnly={false}
+              />
             </div>
 
             {/* Pinned Flaws Detail Table/Badges if any */}
@@ -1207,7 +1287,7 @@ export default function AdminBookingDetailView({
 
             {/* Client Signature Endorsement */}
             <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-50/60 p-3 rounded-xl border border-stone-200/60">
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                   Client Signature Endorsement
                 </div>
@@ -1215,7 +1295,26 @@ export default function AdminBookingDetailView({
                   {booking.clientSignature ? "Legally Endorsed by Renter" : "Pending Signature at Counter"}
                 </div>
                 <div className="text-[10px] text-stone-500">
-                  Under 21 Pit Stop Car Hire Terms (36 Triq Il-Kbira, Mgarr)
+                  Under{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsLegalModalOpen(true)}
+                    className="text-orange-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    21 Pit Stop Car Hire Terms ({studioHub.address})
+                  </button>
+                </div>
+                <div className="pt-1">
+                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-bold cursor-pointer transition shadow-2xs">
+                    <CameraIcon size={12} />
+                    <span>{booking.clientSignature ? "Update Signature Image" : "Add Signature Image"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleUploadAdminClientSignature}
+                    />
+                  </label>
                 </div>
               </div>
 
@@ -1225,7 +1324,7 @@ export default function AdminBookingDetailView({
                     <img
                       src={booking.clientSignature}
                       alt="Client Signature"
-                      className="max-h-12 w-auto object-contain cursor-pointer"
+                      className="max-h-14 w-auto object-contain cursor-pointer"
                       onClick={() =>
                         setLightboxImage({
                           url: booking.clientSignature!,
@@ -1242,6 +1341,11 @@ export default function AdminBookingDetailView({
               )}
             </div>
           </div>
+          <LegalPoliciesModal
+            isOpen={isLegalModalOpen}
+            onClose={() => setIsLegalModalOpen(false)}
+            initialTab="terms"
+          />
         </div>
 
         {/* Right Column: Pricing Breakdown, Telemetry & Operations Log (5 cols) */}

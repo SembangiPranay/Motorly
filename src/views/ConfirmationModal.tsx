@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { createPortal } from "react-dom"
 import type { Car, BookingState, CustomerInfo } from "../types"
-import { api } from "../services/api"
 import {
   CheckIcon,
   CalendarIcon,
@@ -14,7 +13,17 @@ import {
   PhoneIcon,
   MailIcon,
 } from "../components/Icons"
-import { getWhatsAppUrls, isMobileDevice } from "../utils/whatsapp"
+import {
+  formatInternationalPhoneDisplay,
+  getWhatsAppUrls,
+  isMobileDevice,
+} from "../utils/whatsapp"
+import {
+  useStudioSettings,
+  getPrimaryWhatsAppPhone,
+  getSecondaryWhatsAppPhone,
+  getHubCoordinates,
+} from "../utils/studioSettings"
 
 interface ConfirmationModalProps {
   bookingId: string
@@ -40,26 +49,20 @@ export default function ConfirmationModal({
   onNavigateMyBookings,
 }: ConfirmationModalProps) {
   const [copied, setCopied] = useState(false)
-  const [contact, setContact] = useState({ phone: "+356 99827192", email: "pitstopcarhire@gmail.com" })
-  useEffect(() => {
-    let active = true
-    api.getSettings().then((settings) => {
-      if (active) setContact((previous) => ({
-        phone: settings.support_phone || settings.contact_phone || previous.phone,
-        email: settings.contact_email || previous.email,
-      }))
-    })
-    return () => { active = false }
-  }, [])
+  const liveSettings = useStudioSettings()
+  const primaryWhatsAppPhone = getPrimaryWhatsAppPhone(liveSettings)
+  const secondaryWhatsAppPhone = getSecondaryWhatsAppPhone(liveSettings)
+  const hub = getHubCoordinates(liveSettings)
 
   const studioSettings = {
-    contact_phone: contact.phone,
-    contact_email: contact.email,
+    contact_phone: formatInternationalPhoneDisplay(primaryWhatsAppPhone),
+    contact_email: liveSettings.contact_email || "pitstopcarhire@gmail.com",
     garage_location:
       car.garageName ||
       car.garageAddress ||
       car.location ||
       bookingState.pickupLocation ||
+      hub.address ||
       "Main Garage Facility, Bay 1",
   }
 
@@ -67,7 +70,7 @@ export default function ConfirmationModal({
   const adminApprovalLink =
     typeof window !== "undefined"
       ? `${window.location.origin}/admin?bookingId=${bookingId}`
-      : `https://motorly-ten.vercel.app/admin?bookingId=${bookingId}`
+      : `https://pitstopcarhire.com/admin?bookingId=${bookingId}`
 
   // Customer display name
   const customerFullName =
@@ -96,16 +99,19 @@ export default function ConfirmationModal({
 ⚡ *Review & Approve:*
 ${adminApprovalLink}
 
-_PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
+_PIT STOP CAR HIRE | ${hub.address}_`
 
   // Smart device-adaptive WhatsApp routing:
   // - On Mobile: routes to native WhatsApp mobile app (api.whatsapp.com)
   // - On Laptop / Desktop (Web): routes directly to WhatsApp Web in browser tab (bypasses WhatsApp Desktop app prompt)
   const isMobile = isMobileDevice()
   const whatsappUrls = getWhatsAppUrls(
-    studioSettings.contact_phone,
+    primaryWhatsAppPhone,
     minimalTemplate,
   )
+  const secondaryWhatsappUrls = secondaryWhatsAppPhone
+    ? getWhatsAppUrls(secondaryWhatsAppPhone, minimalTemplate)
+    : null
   const primaryWhatsAppUrl = whatsappUrls.smartUrl
 
   // Direct Mail Link
@@ -187,6 +193,17 @@ _PIT STOP CAR HIRE | 36 Triq Il-Kbira, Mgarr_`
             <span>Send WhatsApp to Admin ({studioSettings.contact_phone})</span>
             <ArrowRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
           </a>
+          {secondaryWhatsappUrls && (
+            <a
+              href={secondaryWhatsappUrls.smartUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2 px-3 bg-white/90 hover:bg-white text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <PhoneIcon size={14} />
+              <span>Alternate Admin WhatsApp ({secondaryWhatsappUrls.displayPhone})</span>
+            </a>
+          )}
         </div>
 
         {/* Boarding Pass Style Receipt Card */}

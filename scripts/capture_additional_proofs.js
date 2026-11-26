@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer-core';
 import path from 'path';
 
 const outDir = 'C:/Users/koushik/.gemini/antigravity/brain/660c4f1e-2891-4f43-92f1-61b0104eee23/screenshots';
-const baseUrl = 'https://motorly-ten.vercel.app';
+const baseUrl = 'https://pitstopcarhire.com';
 
 (async () => {
   const browser = await puppeteer.launch({

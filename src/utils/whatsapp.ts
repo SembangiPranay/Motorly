@@ -17,52 +17,91 @@ export interface WhatsAppUrls {
   isMobile: boolean
 }
 
-/**
- * Normalizes any phone number into an international E.164-compatible digit string without '+' or spaces.
- * - Handles Indian 10-digit mobile numbers starting with 6, 7, 8, 9 (prepends 91).
- * - Handles North American 10-digit numbers starting with 2, 3, 4, 5 (prepends 1).
- * - Strips leading zeroes (e.g., 07780740223 -> 917780740223).
- * - Retains explicit country codes like +91, +1, +44, etc.
- */
-export function normalizeWhatsAppPhone(rawPhone?: string | null): string {
-  if (!rawPhone) return ""
+function normalizeSingleWhatsAppSegment(segment?: string | null): string {
+  if (!segment) return ""
+  const trimmed = segment.trim()
+  if (!trimmed) return ""
 
-  const trimmed = rawPhone.trim()
   const hasLeadingPlus = trimmed.startsWith("+")
-
-  // Strip all non-digit characters
   let digits = trimmed.replace(/\D/g, "")
   if (!digits) return ""
 
-  // If had leading international 00 (e.g. 0091...), strip 00
   if (digits.startsWith("00")) {
     digits = digits.slice(2)
   }
 
-  // If user typed national trunk prefix 0 (e.g. 07780740223), strip it
-  if (digits.startsWith("0") && digits.length === 11) {
+  if (!hasLeadingPlus && digits.startsWith("0") && digits.length === 11) {
     digits = digits.slice(1)
   }
 
-  // If user explicitly gave a country code with '+' or already has 11+ digits:
-  if (hasLeadingPlus) {
-    return digits
+  // Maltese 8-digit landline/mobile numbers (e.g. 99827192, 99804255, 79123456)
+  if (!hasLeadingPlus && digits.length === 8 && ["2", "7", "9"].includes(digits.charAt(0))) {
+    return `356${digits}`
   }
 
-  // If exactly 10 digits:
-  if (digits.length === 10) {
+  if (!hasLeadingPlus && digits.length === 10) {
     const firstDigit = digits.charAt(0)
-    // Indian mobile numbers start with 6, 7, 8, or 9
     if (["6", "7", "8", "9"].includes(firstDigit)) {
       return `91${digits}`
     }
-    // North American numbers typically start with 2..5
     if (["2", "3", "4", "5"].includes(firstDigit)) {
       return `1${digits}`
     }
   }
 
+  // Guard against concatenated invalid numbers exceeding E.164 max 15 digits
+  if (digits.length < 7 || digits.length > 15) {
+    return ""
+  }
+
   return digits
+}
+
+/**
+ * Splits admin/customer input strings (e.g. "+356 99827192 / +356 99804255" or comma-separated)
+ * into clean individual E.164 digit strings so two phone numbers are never concatenated together.
+ */
+export function extractPhoneNumbers(rawPhone?: string | null): string[] {
+  if (!rawPhone) return []
+  const raw = String(rawPhone).trim()
+  if (!raw) return []
+
+  const segments = raw
+    .split(/[,;/|\r\n&]+|\s+or\s+|\s+(?=\+)|\s{2,}/i)
+    .flatMap((part) => {
+      // Also split space-separated adjacent full phone numbers like "35699827192 35699804255"
+      const compact = part.trim()
+      if (!compact) return []
+      if (/^\d{8,13}\s+\d{8,13}$/.test(compact)) {
+        return compact.split(/\s+/)
+      }
+      return [compact]
+    })
+
+  const unique: string[] = []
+  for (const seg of segments) {
+    const norm = normalizeSingleWhatsAppSegment(seg)
+    if (norm && !unique.includes(norm)) {
+      unique.push(norm)
+    }
+  }
+  return unique
+}
+
+/**
+ * Normalizes a phone input into the primary single E.164-compatible digit string (without '+').
+ * When multiple numbers are present in one string, returns the first valid number cleanly.
+ */
+export function normalizeWhatsAppPhone(rawPhone?: string | null): string {
+  return extractPhoneNumbers(rawPhone)[0] || ""
+}
+
+/**
+ * Formats a clean tel: href for direct phone dialing using only the primary valid number.
+ */
+export function formatTelHref(rawPhone?: string | null): string {
+  const norm = normalizeWhatsAppPhone(rawPhone)
+  return norm ? `tel:+${norm}` : "tel:"
 }
 
 /**
@@ -71,6 +110,11 @@ export function normalizeWhatsAppPhone(rawPhone?: string | null): string {
 export function formatInternationalPhoneDisplay(phone?: string | null): string {
   const norm = normalizeWhatsAppPhone(phone)
   if (!norm) return "Not configured"
+
+  // Malta: 356 + 8 digits -> +356 9982 7192
+  if (norm.startsWith("356") && norm.length === 11) {
+    return `+356 ${norm.slice(3, 7)} ${norm.slice(7)}`
+  }
 
   // India: 91 + 10 digits -> +91 77807 40223
   if (norm.startsWith("91") && norm.length === 12) {
@@ -88,6 +132,12 @@ export function formatInternationalPhoneDisplay(phone?: string | null): string {
   }
 
   return `+${norm}`
+}
+
+export function formatPhoneListDisplay(rawPhone?: string | null): string[] {
+  return extractPhoneNumbers(rawPhone).map((digits) =>
+    formatInternationalPhoneDisplay(`+${digits}`),
+  )
 }
 
 /**

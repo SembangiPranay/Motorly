@@ -27,9 +27,9 @@ const SYNTHETIC_DOMAINS = new Set([
   "test.com",
   "test.org",
   "email.com",
-  "motorly.com",
-  "motorly.io",
-  "motorly-test.io",
+  "pitstopcarhire.io",
+  "pitstop-test.io",
+  "pitstop.test",
   "stress-test.org",
   "adversarial.com",
   "attacker.org",
@@ -46,8 +46,8 @@ const SYNTHETIC_DOMAINS = new Set([
 const SYNTHETIC_EXACT_EMAILS = new Set([
   "test@gmail.com",
   "customer@example.com",
-  "admin@motorly.com",
-  "concierge@motorly.com",
+  "admin@pitstopcarhire.com",
+  "concierge@pitstopcarhire.com",
 ])
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

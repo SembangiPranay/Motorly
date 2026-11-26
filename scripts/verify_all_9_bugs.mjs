@@ -93,7 +93,7 @@ async function testAllBugs() {
     {
       firstName: "Automated",
       lastName: "Verifier",
-      email: "auto.verifier@motorly.com",
+      email: "auto.verifier@pitstopcarhire.com",
       phone: "+1 (555) 019-8833",
       licenseNumber: "FL-VERIFY-99",
       licenseState: "Florida",

@@ -17,16 +17,16 @@ class AdminPage(BasePage):
         self.navigate_to("/")
         user = admin_user or {
             "userId": "usr_admin",
-            "email": "admin@motorly.com",
+            "email": "admin@pitstopcarhire.com",
             "name": "Fleet Operations Admin",
             "role": "admin",
             "vipTier": "VIP"
         }
         self.driver.execute_script(
             """
-            localStorage.setItem('motorly_admin_token', arguments[0]);
-            localStorage.setItem('motorly_admin_user', JSON.stringify(arguments[1]));
-            localStorage.setItem('motorly_current_view', 'admin');
+            localStorage.setItem('pitstop_admin_token', arguments[0]);
+            localStorage.setItem('pitstop_admin_user', JSON.stringify(arguments[1]));
+            localStorage.setItem('pitstop_current_view', 'admin');
             """,
             admin_token,
             user

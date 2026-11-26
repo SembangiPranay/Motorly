@@ -29,7 +29,7 @@ export function getGoogleMapsUrl(
   }
 
   const query =
-    (location || "").trim() || "Terminal Garage B • Bay 4 HQ, Miami Airport"
+    (location || "").trim() || "Pit Stop Central Garage, 36 Triq Il-Kbira, Mgarr, Malta"
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }
 
